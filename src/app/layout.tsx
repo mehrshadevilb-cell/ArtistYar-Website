@@ -24,6 +24,20 @@ export const metadata: Metadata = {
     "آکادمی آرتیست‌یار؛ آموزش پروژه‌محور تولید موسیقی، میکس، تنظیم و مسترینگ با همراهی راه‌یار.",
   applicationName: "ArtistYar",
   keywords: ["آموزش موسیقی", "تولید موسیقی", "میکس", "تنظیم", "مسترینگ", "کلاس آنلاین موسیقی", "راه‌یار"],
+  authors: [{ name: "ArtistYar" }],
+  creator: "ArtistYar Academy",
+  openGraph: {
+    type: "website",
+    locale: "fa_IR",
+    siteName: "ArtistYar",
+    title: "ArtistYar | مسیر حرفه‌ای تولید موسیقی",
+    description: "یادگیری تنظیم، میکس و مسترینگ با مسیر پروژه‌محور.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ArtistYar | آکادمی تولید موسیقی",
+    description: "آموزش حرفه‌ای تنظیم، میکس و مسترینگ.",
+  },
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://artistyar-website.onrender.com",
   ),
