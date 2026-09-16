@@ -6,6 +6,7 @@ export type LiveProduct = {
   description?: string | null;
   price: number;
   is_active?: boolean;
+  delivery_type?: "spotplayer" | "telegram" | string;
 };
 
 /** Server-friendly card (no client JS). Order CTA is a link to /courses. */
@@ -13,7 +14,7 @@ export function LiveProductCard({ product }: { product: LiveProduct }) {
   return (
     <article className="card-ay flex h-full flex-col p-6 transition hover:border-gold-500/25 hover:bg-white/[0.045]">
       <div className="flex items-start justify-between gap-3">
-        <StatusChip tone="gold">مسیر یادگیری</StatusChip>
+        <StatusChip tone="gold">{product.delivery_type === "telegram" ? "کانال تلگرام" : "دوره دیجیتال"}</StatusChip>
         {product.is_active === false ? (
           <StatusChip tone="warn">غیرفعال</StatusChip>
         ) : (
