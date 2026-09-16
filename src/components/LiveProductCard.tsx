@@ -1,0 +1,54 @@
+"use client";
+
+import { StatusChip } from "./StatusChip";
+
+export type LiveProduct = {
+  id: number;
+  title: string;
+  description?: string | null;
+  price: number;
+  is_active?: boolean;
+};
+
+export function LiveProductCard({
+  product,
+  onOrder,
+}: {
+  product: LiveProduct;
+  onOrder?: (p: LiveProduct) => void;
+}) {
+  return (
+    <article className="card-ay group flex h-full flex-col p-6 hover:border-gold-500/25 hover:bg-white/[0.045]">
+      <div className="flex items-start justify-between gap-3">
+        <StatusChip tone="gold">دوره</StatusChip>
+        {product.is_active === false ? (
+          <StatusChip tone="warn">غیرفعال</StatusChip>
+        ) : (
+          <StatusChip tone="ok">فعال</StatusChip>
+        )}
+      </div>
+      <h3 className="mt-5 text-xl font-semibold tracking-tight text-sand-50">
+        {product.title}
+      </h3>
+      <p className="mt-3 flex-1 text-sm leading-7 text-ink-400">
+        {product.description || "مسیر آموزشی آکادمی آرتیست‌یار."}
+      </p>
+      <div className="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4">
+        <span className="text-sm font-medium text-gold-400">
+          {product.price > 0
+            ? `${product.price.toLocaleString("fa-IR")} تومان`
+            : "تماس بگیرید"}
+        </span>
+        {onOrder ? (
+          <button
+            type="button"
+            onClick={() => onOrder(product)}
+            className="text-xs text-sand-100 underline-offset-4 transition group-hover:text-gold-300 hover:underline"
+          >
+            ثبت سفارش
+          </button>
+        ) : null}
+      </div>
+    </article>
+  );
+}

@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { CourseCard } from "@/components/CourseCard";
+import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { SectionHeading } from "@/components/SectionHeading";
-import { courses } from "@/data/courses";
 
 const pillars = [
   {
@@ -21,7 +20,7 @@ const pillars = [
 export default function HomePage() {
   return (
     <div className="fade-in">
-      <section className="container-ay pb-20 pt-16 sm:pt-24">
+      <section className="container-ay pb-16 pt-16 sm:pb-20 sm:pt-24">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-gold-500">
             Academy of Serious Music
@@ -48,7 +47,7 @@ export default function HomePage() {
           {["دوره دیجیتال", "جلسه یک‌به‌یک", "دستیار هوشمند"].map((item) => (
             <div
               key={item}
-              className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-4 text-center text-sm text-ink-300"
+              className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-4 text-center text-sm text-ink-300 transition hover:border-white/10"
             >
               {item}
             </div>
@@ -72,23 +71,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="container-ay py-16">
-        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
-          <SectionHeading
-            eyebrow="مسیرها"
-            title="از بنیان تا انتشار"
-            subtitle="نمونه مسیرها. قیمت و ثبت‌نام زنده با اتصال به راه‌یار فعال می‌شود."
-          />
-          <Link href="/courses" className="btn-ghost !py-2.5 text-xs">
-            همه دوره‌ها
-          </Link>
-        </div>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {courses.slice(0, 3).map((course) => (
-            <CourseCard key={course.id} course={course} />
-          ))}
-        </div>
-      </section>
+      <HomeLiveCourses />
 
       <section className="container-ay py-16">
         <div className="card-ay relative overflow-hidden px-8 py-12 sm:px-12">

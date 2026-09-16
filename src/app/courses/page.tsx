@@ -1,21 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { LiveProductCard, type LiveProduct } from "@/components/LiveProductCard";
 import { SectionHeading } from "@/components/SectionHeading";
-
-type Item = {
-  id: number;
-  title?: string;
-  name?: string;
-  description?: string | null;
-  price?: number;
-  tag?: string;
-};
+import { StatusChip } from "@/components/StatusChip";
 
 export default function CoursesPage() {
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<LiveProduct[]>([]);
   const [source, setSource] = useState("...");
-  const [selected, setSelected] = useState<Item | null>(null);
+  const [selected, setSelected] = useState<LiveProduct | null>(null);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -60,51 +53,39 @@ export default function CoursesPage() {
   }
 
   return (
-    <section className="container-ay py-16">
-      <SectionHeading
-        eyebrow="Courses"
-        title="مسیرهای آموزشی آرتیست‌یار"
-        subtitle={`منبع داده: ${source === "rahyar" ? "زنده از راه‌یار" : source === "demo" ? "دمو (API وصل نیست)" : source}`}
-      />
+    <section className="container-ay py-16 fade-in">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <SectionHeading
+          eyebrow="Courses"
+          title="مسیرهای آموزشی آرتیست‌یار"
+          subtitle="سفارش ثبت می‌شود و تا تأیید ادمین در تلگرام در وضعیت انتظار می‌ماند."
+        />
+        <StatusChip tone={source === "rahyar" ? "ok" : "warn"}>
+          {source === "rahyar" ? "کاتالوگ زنده" : source}
+        </StatusChip>
+      </div>
 
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => {
-          const title = item.title || item.name || "دوره";
-          return (
-            <article key={item.id} className="card-ay flex flex-col p-6">
-              <h3 className="text-xl font-semibold text-sand-50">{title}</h3>
-              <p className="mt-3 flex-1 text-sm leading-7 text-ink-400">
-                {item.description || "—"}
-              </p>
-              <div className="mt-4 flex items-center justify-between text-sm">
-                <span className="text-gold-400">
-                  {item.price
-                    ? `${item.price.toLocaleString("fa-IR")} تومان`
-                    : "قیمت پس از اتصال"}
-                </span>
-                <button
-                  type="button"
-                  className="text-xs text-sand-100 underline-offset-4 hover:underline"
-                  onClick={() => {
-                    setSelected(item);
-                    setMsg("");
-                  }}
-                >
-                  ثبت سفارش
-                </button>
-              </div>
-            </article>
-          );
-        })}
+        {items.map((item) => (
+          <LiveProductCard
+            key={item.id}
+            product={item}
+            onOrder={(p) => {
+              setSelected(p);
+              setMsg("");
+            }}
+          />
+        ))}
       </div>
 
       {selected ? (
         <div className="card-ay mx-auto mt-12 max-w-lg p-7">
-          <h3 className="text-lg font-medium text-sand-50">
-            سفارش: {selected.title || selected.name}
-          </h3>
-          <p className="mt-2 text-xs text-ink-500">
-            پرداخت پس از ثبت، در پنل تلگرام ادمین تأیید می‌شود (همان قانون ربات).
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-lg font-medium text-sand-50">سفارش: {selected.title}</h3>
+            <StatusChip tone="gold">در انتظار تأیید</StatusChip>
+          </div>
+          <p className="mt-2 text-xs leading-6 text-ink-500">
+            بعد از ثبت، مبلغ را کارت‌به‌کارت کنید؛ ادمین در ربات تأیید می‌کند.
           </p>
           <form className="mt-5 space-y-3" onSubmit={onOrder}>
             <input className="input-ay" name="full_name" placeholder="نام کامل" required />
@@ -114,11 +95,7 @@ export default function CoursesPage() {
               <button type="submit" className="btn-primary flex-1" disabled={busy}>
                 {busy ? "..." : "ثبت سفارش"}
               </button>
-              <button
-                type="button"
-                className="btn-ghost"
-                onClick={() => setSelected(null)}
-              >
+              <button type="button" className="btn-ghost" onClick={() => setSelected(null)}>
                 بستن
               </button>
             </div>
