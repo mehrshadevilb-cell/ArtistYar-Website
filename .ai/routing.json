@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "project": "ArtistYar Website",
+  "agents": {
+    "frontend": ["react", "nextjs", "typescript", "ui-architecture"],
+    "motion": ["animation", "motion-design", "interaction"],
+    "quality": ["testing", "accessibility", "performance"],
+    "seo": ["seo", "web-performance"]
+  },
+  "stack": ["React", "Next.js", "TypeScript", "Modern UI", "Motion Design"]
+}
