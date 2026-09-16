@@ -79,7 +79,7 @@ export default function RootLayout({
               رفتن به محتوای اصلی
             </a>
             <SiteHeader />
-            <main id="main-content" className="flex-1">
+            <main id="main-content" className="page-shell flex-1">
               {children}
             </main>
               <SiteFooter />

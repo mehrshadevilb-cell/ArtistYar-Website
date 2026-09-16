@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Menu, X, ArrowUpLeft } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { useAuth } from "./AuthProvider";
@@ -16,6 +17,7 @@ const links = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   const { user, ready } = useAuth();
   const panelHref = user?.role === "admin" ? "/admin" : "/panel";
   return (
@@ -24,7 +26,7 @@ export function SiteHeader() {
         <Link href="/" className="shrink-0 transition-opacity hover:opacity-80" onClick={() => setOpen(false)}><BrandMark /></Link>
         <nav aria-label="ناوبری اصلی" className="hidden items-center gap-1 lg:flex">
           {links.slice(0, 4).map((link) => (
-            <Link key={link.href} href={link.href} className="nav-link">
+            <Link key={link.href} href={link.href} className={`nav-link ${pathname === "/" && link.href === "/#about" ? "nav-link-active" : ""}`}>
               {link.label}
             </Link>
           ))}
