@@ -93,7 +93,7 @@ export default function AssistantPage() {
       />
 
       <div className="card-ay mx-auto mt-10 flex max-w-2xl flex-col overflow-hidden">
-        <div className="max-h-[28rem] space-y-3 overflow-y-auto p-5">
+        <div className="max-h-[28rem] space-y-3 overflow-y-auto p-5" aria-live="polite" aria-busy={busy}>
           {messages.map((m, i) => (
             <div
               key={i}
@@ -108,7 +108,7 @@ export default function AssistantPage() {
           ))}
           {busy ? (
             <div className="ml-8 rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-ink-500">
-              <span className="inline-flex gap-1">
+                <span className="inline-flex gap-1" aria-hidden="true">
                 <span className="animate-pulse">●</span>
                 <span className="animate-pulse [animation-delay:120ms]">●</span>
                 <span className="animate-pulse [animation-delay:240ms]">●</span>
@@ -148,13 +148,13 @@ export default function AssistantPage() {
             ref={inputRef}
             className="input-ay flex-1"
             name="message"
-            placeholder="مثلاً: چرا میکسم کدر شده؟"
+            placeholder="مثلاً: چرا میکسم کدر شده؟…"
             disabled={busy}
             maxLength={1000}
             autoComplete="off"
           />
           <button type="submit" className="btn-primary !px-5" disabled={busy}>
-            {busy ? "..." : "ارسال"}
+            {busy ? "در حال ارسال…" : "ارسال"}
           </button>
         </form>
       </div>

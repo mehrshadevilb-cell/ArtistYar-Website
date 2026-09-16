@@ -15,19 +15,20 @@ export default function ContactPage() {
       />
       <form className="card-ay mx-auto mt-12 max-w-xl space-y-4 p-7">
         <div>
-          <label className="mb-2 block text-xs text-ink-400">نام</label>
-          <input className="input-ay" name="name" placeholder="نام شما" />
+          <label htmlFor="contact-name" className="mb-2 block text-xs text-ink-400">نام</label>
+          <input id="contact-name" className="input-ay" name="name" placeholder="نام شما…" autoComplete="name" />
         </div>
         <div>
-          <label className="mb-2 block text-xs text-ink-400">ایمیل یا موبایل</label>
-          <input className="input-ay" name="contact" placeholder="راه ارتباطی" />
+          <label htmlFor="contact-way" className="mb-2 block text-xs text-ink-400">ایمیل یا موبایل</label>
+          <input id="contact-way" className="input-ay" name="contact" placeholder="راه ارتباطی…" autoComplete="email" />
         </div>
         <div>
-          <label className="mb-2 block text-xs text-ink-400">پیام</label>
+          <label htmlFor="contact-message" className="mb-2 block text-xs text-ink-400">پیام</label>
           <textarea
             className="input-ay min-h-32 resize-y"
+            id="contact-message"
             name="message"
-            placeholder="موضوع را کوتاه توضیح دهید"
+            placeholder="موضوع را کوتاه توضیح دهید…"
           />
         </div>
         <button type="button" className="btn-primary w-full">

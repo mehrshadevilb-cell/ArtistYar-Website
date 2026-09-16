@@ -65,12 +65,12 @@ export default function TrackOrderPage() {
       <div className="card-ay mx-auto mt-10 max-w-lg p-7">
         <form className="space-y-4" onSubmit={onSubmit}>
           <div>
-            <label className="mb-2 block text-xs text-ink-400">شماره پرداخت</label>
-            <input className="input-ay" name="payment_id" inputMode="numeric" required />
+            <label htmlFor="track-payment-id" className="mb-2 block text-xs text-ink-400">شماره پرداخت</label>
+            <input id="track-payment-id" className="input-ay" name="payment_id" inputMode="numeric" autoComplete="off" required />
           </div>
           <div>
-            <label className="mb-2 block text-xs text-ink-400">موبایل</label>
-            <input className="input-ay" name="phone" placeholder="09121234567" inputMode="tel" required />
+            <label htmlFor="track-phone" className="mb-2 block text-xs text-ink-400">موبایل</label>
+            <input id="track-phone" className="input-ay" name="phone" placeholder="09121234567…" type="tel" inputMode="tel" autoComplete="tel" required />
           </div>
           {error ? <p className="text-sm leading-7 text-red-400">{error}</p> : null}
           <button type="submit" className="btn-primary w-full" disabled={busy}>
@@ -105,4 +105,3 @@ export default function TrackOrderPage() {
     </section>
   );
 }
-

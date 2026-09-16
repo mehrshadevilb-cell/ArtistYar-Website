@@ -25,7 +25,7 @@ export function PanelShell({
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-gold-500">
             {title}
           </p>
-          <h1 className="mt-2 text-2xl font-semibold text-sand-50">
+        <h1 className="mt-2 text-balance text-2xl font-semibold text-sand-50">
             سلام، {user?.fullName}
           </h1>
         </div>
@@ -35,15 +35,16 @@ export function PanelShell({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        <aside className="card-ay h-fit p-3">
-          <nav className="flex flex-col gap-1">
+        <aside className="card-ay h-fit p-3 lg:sticky lg:top-24">
+          <nav aria-label="ناوبری پنل هنرجو" className="flex flex-col gap-1">
             {nav.map((item) => {
               const active = pathname === item.href;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`rounded-xl px-3 py-2.5 text-sm transition ${
+                  aria-current={active ? "page" : undefined}
+                  className={`rounded-xl px-3 py-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 ${
                     active
                       ? "bg-gold-500/15 text-gold-300"
                       : "text-ink-300 hover:bg-white/[0.04] hover:text-sand-100"

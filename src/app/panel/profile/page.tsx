@@ -48,17 +48,21 @@ export default function PanelProfilePage() {
           می‌شود. تأیید امن از سمت backend راه‌یار خواهد بود.
         </p>
         <form className="mt-5 space-y-3" onSubmit={onLink}>
+          <label htmlFor="telegram-id" className="sr-only">شناسه تلگرام</label>
           <input
+            id="telegram-id"
             className="input-ay"
             name="telegramId"
-            placeholder="مثال: 123456789"
+            placeholder="مثال: 123456789…"
+            inputMode="numeric"
+            autoComplete="off"
             defaultValue={user?.telegramId || ""}
           />
           <button type="submit" className="btn-primary !text-xs">
             ذخیره لینک
           </button>
         </form>
-        {msg ? <p className="mt-3 text-xs text-gold-400">{msg}</p> : null}
+        {msg ? <p className="mt-3 text-xs text-gold-400" aria-live="polite">{msg}</p> : null}
       </div>
     </div>
   );

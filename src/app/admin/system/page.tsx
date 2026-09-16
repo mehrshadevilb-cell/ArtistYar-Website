@@ -28,7 +28,7 @@ export default function AdminSystemPage() {
         </p>
         <p className="text-ink-300">
           API health:{" "}
-          <span className="text-gold-400">{health?.status ?? "..."}</span>
+          <span className="text-gold-400">{health?.status ?? "در حال بررسی…"}</span>
         </p>
         <p className="text-ink-400">{health?.backend}</p>
         <p className="text-xs text-ink-500">phase: {health?.phase}</p>

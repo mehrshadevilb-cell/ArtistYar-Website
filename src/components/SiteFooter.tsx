@@ -32,6 +32,11 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
+              <Link href="/track" className="hover:text-sand-50">
+                پیگیری سفارش
+              </Link>
+            </li>
+            <li>
               <Link href="/login" className="hover:text-sand-50">
                 ورود هنرجو
               </Link>
