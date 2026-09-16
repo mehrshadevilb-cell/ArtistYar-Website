@@ -8,6 +8,7 @@ import { BrandMark } from "./BrandMark";
 import { useAuth } from "./AuthProvider";
 
 const links = [
+  { href: "/free-player", label: "آموزش رایگان" },
   { href: "/#about", label: "چرا آرتیست‌یار" },
   { href: "/#paths", label: "روش ما" },
   { href: "/#flow", label: "مسیر هنرجو" },
@@ -25,7 +26,7 @@ export function SiteHeader() {
       <div className="container-ay flex h-[76px] items-center justify-between gap-4">
         <Link href="/" className="shrink-0 transition-opacity hover:opacity-80" onClick={() => setOpen(false)}><BrandMark /></Link>
         <nav aria-label="ناوبری اصلی" className="hidden items-center gap-1 lg:flex">
-          {links.slice(0, 4).map((link) => (
+          {links.slice(0, 5).map((link) => (
             <Link key={link.href} href={link.href} className={`nav-link ${pathname === "/" && link.href === "/#about" ? "nav-link-active" : ""}`} aria-current={pathname === "/" && link.href === "/#about" ? "page" : undefined}>
               {link.label}
             </Link>

@@ -18,7 +18,7 @@ export default function HomePage() {
         <div className="hero-kicker"><span className="status-dot" /> آکادمی راه‌یار · ArtistYar</div>
         <h1 className="hero-heading">یادگیری موسیقی،<br /><span className="gold-shimmer">با یک مسیر روشن.</span></h1>
         <p className="hero-lead">دوره‌های دیجیتال، کلاس‌های آنلاین و همراهی راه‌یار برای اینکه تنظیم، میکس و مسترینگ را درست و اصولی یاد بگیری؛ با تمرین واقعی و پیگیری تا رسیدن به نتیجه.</p>
-        <div className="hero-actions"><Link href="/courses" className="btn-primary gap-2">دیدن مسیرهای آموزشی <ArrowLeft size={16} /></Link><Link href="/assistant" className="btn-ghost gap-2">سؤال از راه‌یار <Bot size={16} /></Link></div>
+        <div className="hero-actions"><Link href="/courses" className="btn-primary gap-2">دیدن مسیرهای آموزشی <ArrowLeft size={16} /></Link><Link href="/free-player" className="btn-ghost gap-2">آموزش رایگان <CirclePlay size={16} /></Link><Link href="/assistant" className="btn-ghost gap-2">سؤال از راه‌یار <Bot size={16} /></Link></div>
         <div className="hero-trust"><span className="trust-line" /> از انتخاب مسیر تا پیشرفت هنرجو، همه‌چیز یک‌جا</div>
       </div>
       <div className="hero-art" aria-hidden="true">

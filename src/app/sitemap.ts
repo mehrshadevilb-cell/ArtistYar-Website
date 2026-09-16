@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const publicRoutes = ["/", "/about", "/courses", "/online", "/assistant", "/contact"];
+const publicRoutes = ["/", "/about", "/courses", "/free-player", "/online", "/assistant", "/contact"];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyar-website.onrender.com").replace(/\/$/, "");
@@ -11,4 +11,3 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: route === "/" ? 1 : 0.7,
   }));
 }
-

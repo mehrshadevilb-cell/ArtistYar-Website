@@ -17,8 +17,13 @@ export function SiteFooter() {
           </h3>
           <ul className="mt-4 space-y-2 text-sm text-ink-300">
             <li>
-                  <Link href="/courses" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+              <Link href="/courses" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 دوره‌ها
+              </Link>
+            </li>
+            <li>
+              <Link href="/free-player" className="rounded-sm transition-colors text-gold-400 hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+                آموزش‌های رایگان
               </Link>
             </li>
             <li>
