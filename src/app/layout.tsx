@@ -17,12 +17,13 @@ const backend = (process.env.RAHYAR_API_URL || "").replace(/\/$/, "");
 
 export const metadata: Metadata = {
   title: {
-    default: "آرتیست‌یار | آموزش حرفه‌ای موسیقی",
-    template: "%s | آرتیست‌یار",
+    default: "ArtistYar | توسعه‌دهنده محصول و سازنده تجربه‌های دیجیتال",
+    template: "%s | ArtistYar",
   },
   description:
-    "آکادمی آرتیست‌یار — دوره‌های تخصصی، کلاس آنلاین، پشتیبانی و مسیر یادگیری موسیقی از صفر تا حرفه‌ای.",
+    "پورتفولیوی شخصی یک توسعه‌دهنده محصول؛ ساخت محصولات وب، تجربه‌های کاربری و ابزارهای هوشمند با تمرکز بر کیفیت.",
   applicationName: "ArtistYar",
+  keywords: ["توسعه‌دهنده محصول", "برنامه‌نویس", "React", "Next.js", "هوش مصنوعی", "پورتفولیو"],
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://artistyar-website.onrender.com",
   ),
