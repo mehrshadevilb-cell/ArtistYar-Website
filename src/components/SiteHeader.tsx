@@ -1,0 +1,90 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { BrandMark } from "./BrandMark";
+
+const links = [
+  { href: "/", label: "خانه" },
+  { href: "/courses", label: "دوره‌ها" },
+  { href: "/online", label: "کلاس آنلاین" },
+  { href: "/about", label: "درباره" },
+  { href: "/contact", label: "تماس" },
+];
+
+export function SiteHeader() {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-ink-950/70 backdrop-blur-xl">
+      <div className="container-ay flex h-16 items-center justify-between gap-4">
+        <Link href="/" className="shrink-0" onClick={() => setOpen(false)}>
+          <BrandMark />
+        </Link>
+
+        <nav className="hidden items-center gap-1 md:flex">
+          {links.map((link) => {
+            const active = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`rounded-full px-3.5 py-2 text-sm transition ${
+                  active
+                    ? "bg-white/[0.06] text-sand-50"
+                    : "text-ink-400 hover:bg-white/[0.04] hover:text-sand-100"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="hidden items-center gap-2 md:flex">
+          <Link href="/login" className="btn-ghost !px-4 !py-2 text-xs">
+            ورود
+          </Link>
+          <Link href="/courses" className="btn-primary !px-4 !py-2 text-xs">
+            شروع یادگیری
+          </Link>
+        </div>
+
+        <button
+          type="button"
+          aria-label="منو"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 md:hidden"
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span className="text-lg">{open ? "×" : "≡"}</span>
+        </button>
+      </div>
+
+      {open && (
+        <div className="border-t border-white/[0.06] bg-ink-950/95 px-5 py-4 md:hidden">
+          <div className="flex flex-col gap-1">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                className="rounded-xl px-3 py-3 text-sm text-sand-100 hover:bg-white/[0.04]"
+              >
+                {link.label}
+              </Link>
+            ))}
+            <Link
+              href="/login"
+              onClick={() => setOpen(false)}
+              className="mt-2 rounded-xl border border-white/10 px-3 py-3 text-center text-sm"
+            >
+              ورود
+            </Link>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}

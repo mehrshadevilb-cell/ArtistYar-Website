@@ -1,6 +1,6 @@
 export type Course = {
   id: string;
-  title: strin
+  title: string;
   tag: string;
   summary: string;
   level: string;
