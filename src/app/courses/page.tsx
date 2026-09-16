@@ -12,6 +12,7 @@ export default function CoursesPage() {
   const [selected, setSelected] = useState<LiveProduct | null>(null);
   const [msg, setMsg] = useState("");
   const [paymentId, setPaymentId] = useState<number | null>(null);
+  const [botUrl, setBotUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -30,6 +31,7 @@ export default function CoursesPage() {
     setBusy(true);
     setMsg("");
     setPaymentId(null);
+    setBotUrl(null);
     const fd = new FormData(e.currentTarget);
     const res = await fetch("/api/rahyar/orders", {
       method: "POST",
@@ -54,6 +56,7 @@ export default function CoursesPage() {
       `${data.message || "ثبت شد."}\nشماره پرداخت: ${data.payment_id}\nمبلغ: ${Number(data.amount || 0).toLocaleString("fa-IR")} تومان${card}`,
     );
     setPaymentId(Number(data.payment_id));
+    setBotUrl(data.bot_url || null);
   }
 
   return (
@@ -100,6 +103,7 @@ export default function CoursesPage() {
                 onClick={() => {
                   setSelected(item);
                   setMsg("");
+                  setBotUrl(null);
                 }}
               >
                 شروع مسیر
@@ -135,7 +139,15 @@ export default function CoursesPage() {
             </div>
           </form>
           {msg ? (
-            <pre className="mt-4 whitespace-pre-wrap text-xs leading-6 text-gold-400" aria-live="polite">{msg}</pre>
+            <div className="mt-5 rounded-2xl border border-gold-500/20 bg-gold-500/[.06] p-4" aria-live="polite">
+              <pre className="whitespace-pre-wrap text-xs leading-6 text-gold-300">{msg}</pre>
+              {botUrl ? (
+                <div className="mt-4 border-t border-gold-500/15 pt-4">
+                  <p className="text-xs leading-6 text-ink-300">حالا رسید کارت‌به‌کارت را در ربات راه‌یار بفرست تا به همین شماره پرداخت وصل شود.</p>
+                  <a href={botUrl} target="_blank" rel="noreferrer" className="btn-primary mt-3 w-full text-xs">ارسال رسید در ربات</a>
+                </div>
+              ) : null}
+            </div>
           ) : null}
           {paymentId ? (
             <Link
