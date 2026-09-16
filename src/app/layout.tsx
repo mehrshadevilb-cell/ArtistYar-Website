@@ -43,6 +43,14 @@ export const metadata: Metadata = {
   ),
 };
 
+const academyJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "EducationalOrganization",
+  name: "ArtistYar Academy",
+  description: "آموزش تولید موسیقی، تنظیم، میکس و مسترینگ.",
+  inLanguage: "fa",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -51,6 +59,10 @@ export default function RootLayout({
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable}>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(academyJsonLd) }}
+        />
         {backend ? (
           <>
             <link rel="dns-prefetch" href={backend} />
