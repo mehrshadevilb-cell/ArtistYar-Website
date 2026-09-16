@@ -6,10 +6,14 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 
 const vazirmatn = Vazirmatn({
-  subsets: ["arabic", "latin"],
+  subsets: ["arabic"],
+  weight: ["400", "500", "600"],
   variable: "--font-vazirmatn",
   display: "swap",
+  preload: true,
 });
+
+const backend = (process.env.RAHYAR_API_URL || "").replace(/\/$/, "");
 
 export const metadata: Metadata = {
   title: {
@@ -19,6 +23,9 @@ export const metadata: Metadata = {
   description:
     "آکادمی آرتیست‌یار — دوره‌های تخصصی، کلاس آنلاین، پشتیبانی و مسیر یادگیری موسیقی از صفر تا حرفه‌ای.",
   applicationName: "ArtistYar",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://artistyar-website.onrender.com",
+  ),
 };
 
 export default function RootLayout({
@@ -28,11 +35,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable}>
+      <head>
+        {backend ? (
+          <>
+            <link rel="dns-prefetch" href={backend} />
+            <link rel="preconnect" href={backend} crossOrigin="anonymous" />
+          </>
+        ) : null}
+      </head>
       <body className="font-sans antialiased">
         <AuthProvider>
           <div className="relative min-h-screen overflow-x-hidden bg-ink-950 text-sand-100">
-            <div className="pointer-events-none absolute inset-0 bg-radial-fade" />
-            <div className="pointer-events-none absolute inset-0 bg-grid-faint bg-grid opacity-40" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-radial-fade" />
             <div className="relative z-10 flex min-h-screen flex-col">
               <SiteHeader />
               <main className="flex-1">{children}</main>

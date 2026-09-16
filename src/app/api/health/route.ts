@@ -8,7 +8,7 @@ export async function GET() {
   if (backend) {
     try {
       const res = await fetch(`${backend}/api/v1/health`, {
-        next: { revalidate: 10 },
+        next: { revalidate: 30 },
       });
       backendOk = res.ok;
       backendDetail = backendOk ? backend : `unreachable (${res.status})`;

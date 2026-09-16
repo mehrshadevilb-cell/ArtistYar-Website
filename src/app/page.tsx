@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { HomeLiveCourses } from "@/components/HomeLiveCourses";
+import { LiveProductCard } from "@/components/LiveProductCard";
 import { SectionHeading } from "@/components/SectionHeading";
+import { StatusChip } from "@/components/StatusChip";
+import { getCatalog } from "@/lib/catalog";
 
 const pillars = [
   {
@@ -17,9 +19,12 @@ const pillars = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const catalog = await getCatalog();
+  const preview = catalog.items.slice(0, 3);
+
   return (
-    <div className="fade-in">
+    <div>
       <section className="container-ay pb-16 pt-16 sm:pb-20 sm:pt-24">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-gold-500">
@@ -47,7 +52,7 @@ export default function HomePage() {
           {["دوره دیجیتال", "جلسه یک‌به‌یک", "دستیار هوشمند"].map((item) => (
             <div
               key={item}
-              className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-4 text-center text-sm text-ink-300 transition hover:border-white/10"
+              className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-4 text-center text-sm text-ink-300"
             >
               {item}
             </div>
@@ -63,7 +68,7 @@ export default function HomePage() {
         />
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {pillars.map((item) => (
-            <div key={item.title} className="card-ay p-6 hover:border-gold-500/20">
+            <div key={item.title} className="card-ay p-6">
               <h3 className="text-lg font-medium text-sand-50">{item.title}</h3>
               <p className="mt-3 text-sm leading-7 text-ink-400">{item.body}</p>
             </div>
@@ -71,7 +76,28 @@ export default function HomePage() {
         </div>
       </section>
 
-      <HomeLiveCourses />
+      <section className="container-ay py-16">
+        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
+          <SectionHeading
+            eyebrow="مسیرها"
+            title="از بنیان تا انتشار"
+            subtitle="کاتالوگ مستقیم از سیستم راه‌یار — قیمت و وضعیت واقعی."
+          />
+          <div className="flex items-center gap-3">
+            <StatusChip tone={catalog.source === "rahyar" ? "ok" : "warn"}>
+              {catalog.source === "rahyar" ? "زنده" : catalog.source}
+            </StatusChip>
+            <Link href="/courses" className="btn-ghost !py-2.5 text-xs">
+              همه دوره‌ها
+            </Link>
+          </div>
+        </div>
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {preview.map((p) => (
+            <LiveProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      </section>
 
       <section className="container-ay py-16">
         <div className="card-ay relative overflow-hidden px-8 py-12 sm:px-12">

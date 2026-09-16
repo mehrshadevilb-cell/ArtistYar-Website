@@ -1,5 +1,3 @@
-"use client";
-
 import { StatusChip } from "./StatusChip";
 
 export type LiveProduct = {
@@ -10,15 +8,10 @@ export type LiveProduct = {
   is_active?: boolean;
 };
 
-export function LiveProductCard({
-  product,
-  onOrder,
-}: {
-  product: LiveProduct;
-  onOrder?: (p: LiveProduct) => void;
-}) {
+/** Server-friendly card (no client JS). Order CTA is a link to /courses. */
+export function LiveProductCard({ product }: { product: LiveProduct }) {
   return (
-    <article className="card-ay group flex h-full flex-col p-6 hover:border-gold-500/25 hover:bg-white/[0.045]">
+    <article className="card-ay flex h-full flex-col p-6 transition hover:border-gold-500/25 hover:bg-white/[0.045]">
       <div className="flex items-start justify-between gap-3">
         <StatusChip tone="gold">دوره</StatusChip>
         {product.is_active === false ? (
@@ -39,15 +32,12 @@ export function LiveProductCard({
             ? `${product.price.toLocaleString("fa-IR")} تومان`
             : "تماس بگیرید"}
         </span>
-        {onOrder ? (
-          <button
-            type="button"
-            onClick={() => onOrder(product)}
-            className="text-xs text-sand-100 underline-offset-4 transition group-hover:text-gold-300 hover:underline"
-          >
-            ثبت سفارش
-          </button>
-        ) : null}
+        <a
+          href={`/courses#p-${product.id}`}
+          className="text-xs text-sand-100 underline-offset-4 hover:text-gold-300 hover:underline"
+        >
+          جزئیات / سفارش
+        </a>
       </div>
     </article>
   );
