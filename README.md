@@ -1,2 +1,29 @@
-# ArtistYar-Website
-ArtistYar Academy — modern minimal web platform (landing, student panel, admin). Syncs with RahYar Telegram bot.
+# ArtistYar Website
+
+پلتفرم وب **آرتیست‌یار** — طراحی مدرن و مینیمال برای آکادمی موسیقی.
+
+## فاز فعلی
+
+- لندینگ عمومی (خانه، دوره‌ها، کلاس آنلاین، درباره، تماس)
+- اسکلت ورود با نام‌کاربری / رمز عبور (آمادهٔ اتصال بعدی به اکانت ربات)
+- RTL فارسی، سیستم طراحی اختصاصی
+
+## اجرا محلی
+
+```bash
+npm install
+npm run dev
+```
+
+باز کنید: [http://localhost:3000](http://localhost:3000)
+
+## هم‌گام‌سازی با ربات
+
+Backend اصلی: `RahYar-Academy-Management-System-V14`  
+در فازهای بعد: API مشترک + لینک اکانت وب ↔ تلگرام.
+
+## برند
+
+- نام: آرتیست‌یار / ArtistYar
+- پالت: ink + sand + gold
+- حس: مینیمال، حرفه‌ای، موسیقیایی
