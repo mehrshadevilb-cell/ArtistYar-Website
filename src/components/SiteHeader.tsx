@@ -23,9 +23,9 @@ export function SiteHeader() {
   const panelHref = user?.role === "admin" ? "/admin" : "/panel";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-ink-950/70 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-ink-950/70 backdrop-blur-xl transition-shadow duration-300">
       <div className="container-ay flex h-16 items-center justify-between gap-4">
-        <Link href="/" className="shrink-0" onClick={() => setOpen(false)}>
+        <Link href="/" className="shrink-0 transition-opacity hover:opacity-90" onClick={() => setOpen(false)}>
           <BrandMark />
         </Link>
 
@@ -36,9 +36,9 @@ export function SiteHeader() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`rounded-full px-3.5 py-2 text-sm transition ${
+                className={`rounded-full px-3.5 py-2 text-sm transition duration-300 ${
                   active
-                    ? "bg-white/[0.06] text-sand-50"
+                    ? "bg-white/[0.06] text-sand-50 shadow-[0_0_20px_-8px_rgba(201,162,39,0.35)]"
                     : "text-ink-400 hover:bg-white/[0.04] hover:text-sand-100"
                 }`}
               >
@@ -68,36 +68,38 @@ export function SiteHeader() {
         <button
           type="button"
           aria-label="منو"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 md:hidden"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 transition hover:border-white/20 md:hidden"
           onClick={() => setOpen((v) => !v)}
         >
           <span className="text-lg">{open ? "×" : "≡"}</span>
         </button>
       </div>
 
-      {open && (
-        <div className="border-t border-white/[0.06] bg-ink-950/95 px-5 py-4 md:hidden">
-          <div className="flex flex-col gap-1">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setOpen(false)}
-                className="rounded-xl px-3 py-3 text-sm text-sand-100 hover:bg-white/[0.04]"
-              >
-                {link.label}
-              </Link>
-            ))}
+      <div
+        className={`overflow-hidden border-t border-white/[0.06] bg-ink-950/95 transition-all duration-300 md:hidden ${
+          open ? "max-h-96 opacity-100" : "max-h-0 border-transparent opacity-0"
+        }`}
+      >
+        <div className="flex flex-col gap-1 px-5 py-4">
+          {links.map((link) => (
             <Link
-              href={user ? panelHref : "/login"}
+              key={link.href}
+              href={link.href}
               onClick={() => setOpen(false)}
-              className="mt-2 rounded-xl border border-white/10 px-3 py-3 text-center text-sm"
+              className="rounded-xl px-3 py-3 text-sm text-sand-100 transition hover:bg-white/[0.04]"
             >
-              {user ? "پنل من" : "ورود"}
+              {link.label}
             </Link>
-          </div>
+          ))}
+          <Link
+            href={user ? panelHref : "/login"}
+            onClick={() => setOpen(false)}
+            className="mt-2 rounded-xl border border-white/10 px-3 py-3 text-center text-sm transition hover:border-gold-500/30"
+          >
+            {user ? "پنل من" : "ورود"}
+          </Link>
         </div>
-      )}
+      </div>
     </header>
   );
 }

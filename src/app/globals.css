@@ -31,15 +31,15 @@ body {
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-full bg-gold-500 px-6 py-3 text-sm font-medium text-ink-950 transition hover:bg-gold-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gold-500 px-6 py-3 text-sm font-medium text-ink-950 transition duration-300 hover:bg-gold-400 hover:shadow-[0_0_32px_-6px_rgba(201,162,39,0.55)] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 py-3 text-sm font-medium text-sand-100 transition hover:border-white/20 hover:bg-white/[0.06] disabled:opacity-60;
+    @apply inline-flex items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 py-3 text-sm font-medium text-sand-100 transition duration-300 hover:border-white/25 hover:bg-white/[0.07] hover:shadow-[0_0_24px_-10px_rgba(255,255,255,0.25)] active:scale-[0.98] disabled:opacity-60;
   }
 
   .card-ay {
-    @apply rounded-3xl border border-white/[0.07] bg-white/[0.03] shadow-card backdrop-blur-sm;
+    @apply rounded-3xl border border-white/[0.07] bg-white/[0.03] shadow-card backdrop-blur-sm transition duration-500 ease-out hover:-translate-y-1 hover:border-gold-500/25 hover:bg-white/[0.05] hover:shadow-[0_24px_48px_-28px_rgba(0,0,0,0.65),0_0_0_1px_rgba(201,162,39,0.08)];
   }
 
   .section-title {
@@ -52,5 +52,228 @@ body {
 
   .input-ay {
     @apply w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-sand-50 outline-none transition placeholder:text-ink-500 focus:border-gold-500/50 focus:ring-2 focus:ring-gold-500/20;
+  }
+}
+
+/* —— Motion system (Bixa / Harness inspired) —— */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  filter: blur(6px);
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform, filter;
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+.hero-title-line {
+  display: block;
+  opacity: 0;
+  transform: translateY(36px);
+  animation: heroRise 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.hero-title-line:nth-child(1) {
+  animation-delay: 0.08s;
+}
+.hero-title-line:nth-child(2) {
+  animation-delay: 0.22s;
+}
+
+.hero-fade {
+  opacity: 0;
+  animation: heroFade 1s cubic-bezier(0.22, 1, 0.36, 1) 0.35s forwards;
+}
+
+.hero-cta {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: heroRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
+}
+
+@keyframes heroRise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes heroFade {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes floatSoft {
+  0%,
+  100% {
+    transform: translate3d(0, var(--scroll-y, 0px), 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2%, calc(var(--scroll-y, 0px) - 3%), 0) scale(1.05);
+  }
+}
+
+@keyframes floatSoftAlt {
+  0%,
+  100% {
+    transform: translate3d(0, var(--scroll-y, 0px), 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-3%, calc(var(--scroll-y, 0px) + 4%), 0) scale(1.08);
+  }
+}
+
+@keyframes scrollPulse {
+  0% {
+    transform: scaleY(0.35);
+    opacity: 0.2;
+  }
+  40% {
+    transform: scaleY(1);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.2;
+  }
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  animation: floatSoft 14s ease-in-out infinite;
+  will-change: transform;
+  --scroll-y: 0px;
+}
+
+.ambient-orb-a {
+  top: -8%;
+  right: 10%;
+  width: min(42vw, 420px);
+  height: min(42vw, 420px);
+  background: radial-gradient(circle, rgba(201, 162, 39, 0.28), transparent 68%);
+  animation-name: floatSoft;
+  animation-duration: 16s;
+}
+
+.ambient-orb-b {
+  top: 18%;
+  left: -6%;
+  width: min(36vw, 360px);
+  height: min(36vw, 360px);
+  background: radial-gradient(circle, rgba(120, 100, 60, 0.18), transparent 70%);
+  animation-name: floatSoftAlt;
+  animation-duration: 19s;
+}
+
+.ambient-orb-c {
+  bottom: 5%;
+  right: 22%;
+  width: min(28vw, 280px);
+  height: min(28vw, 280px);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.06), transparent 70%);
+  animation-name: floatSoft;
+  animation-duration: 22s;
+  animation-delay: -4s;
+}
+
+.ambient-grid {
+  transform: translate3d(0, var(--grid-shift, 0px), 0);
+  will-change: transform;
+}
+
+/* Parallax primitives */
+.parallax-layer {
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.parallax-hero {
+  --parallax-y: 0px;
+  --parallax-fade: 1;
+  --parallax-scale: 1;
+}
+
+.parallax-hero-content {
+  transform: translate3d(0, var(--parallax-y), 0) scale(var(--parallax-scale));
+  opacity: var(--parallax-fade);
+  will-change: transform, opacity;
+  transform-origin: center top;
+}
+
+.scroll-cue-line {
+  display: block;
+  width: 1px;
+  height: 40px;
+  transform-origin: top center;
+  background: linear-gradient(to bottom, rgba(201, 162, 39, 0.7), transparent);
+  animation: scrollPulse 1.8s ease-in-out infinite;
+}
+
+.chip-float {
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease,
+    background-color 0.3s ease;
+}
+
+.chip-float:hover {
+  transform: translateY(-4px);
+  border-color: rgba(201, 162, 39, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.gold-shimmer {
+  background: linear-gradient(
+    105deg,
+    #d4af37 0%,
+    #f5efe3 35%,
+    #d4af37 55%,
+    #c9a227 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 6s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-in,
+  .hero-title-line,
+  .hero-fade,
+  .hero-cta,
+  .ambient-orb,
+  .scroll-cue-line,
+  .gold-shimmer,
+  .card-ay,
+  .btn-primary,
+  .btn-ghost,
+  .parallax-layer,
+  .parallax-hero-content,
+  .ambient-grid {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
   }
 }
