@@ -26,7 +26,7 @@ export function SiteHeader() {
         <Link href="/" className="shrink-0 transition-opacity hover:opacity-80" onClick={() => setOpen(false)}><BrandMark /></Link>
         <nav aria-label="ناوبری اصلی" className="hidden items-center gap-1 lg:flex">
           {links.slice(0, 4).map((link) => (
-            <Link key={link.href} href={link.href} className={`nav-link ${pathname === "/" && link.href === "/#about" ? "nav-link-active" : ""}`}>
+            <Link key={link.href} href={link.href} className={`nav-link ${pathname === "/" && link.href === "/#about" ? "nav-link-active" : ""}`} aria-current={pathname === "/" && link.href === "/#about" ? "page" : undefined}>
               {link.label}
             </Link>
           ))}

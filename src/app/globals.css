@@ -14,3 +14,24 @@
 
 /* Route-wide motion layer: chapter markers, ambient drift, and restrained surface entrance. */
 .route-ambient{position:absolute;z-index:0;pointer-events:none;border-radius:999px;filter:blur(80px);opacity:.18;animation:ambient-drift 16s ease-in-out infinite alternate}.route-ambient-one{top:18rem;right:-12rem;width:28rem;height:28rem;background:rgba(201,162,39,.12)}.route-ambient-two{top:52rem;left:-16rem;width:32rem;height:32rem;background:rgba(110,91,160,.08);animation-delay:-7s}.section-heading{position:relative}.section-heading:before{content:"";position:absolute;right:0;top:-1.1rem;width:3rem;height:1px;background:#c9a227;transform-origin:right;animation:chapter-line .8s cubic-bezier(.23,1,.32,1) both}.section-heading .eyebrow{display:inline-flex;align-items:center;gap:.55rem}.panel-stage{position:relative}.panel-heading{animation:hero-enter .7s cubic-bezier(.23,1,.32,1) both}.panel-content{animation:panel-content-in .75s .12s cubic-bezier(.23,1,.32,1) both}.page-shell .card-ay{animation:surface-enter .7s cubic-bezier(.23,1,.32,1) both}.page-shell .card-ay:nth-child(2){animation-delay:.06s}.page-shell .card-ay:nth-child(3){animation-delay:.12s}.page-shell .card-ay:nth-child(4){animation-delay:.18s}.page-shell .card-ay:nth-child(5){animation-delay:.24s}.page-shell .card-ay:nth-child(6){animation-delay:.3s}.page-shell .card-ay>a{position:relative;z-index:1}.page-shell table tbody tr{transition:background .2s ease,transform .2s ease}.page-shell table tbody tr:hover{background:rgba(201,162,39,.045);transform:translateX(-3px)}.page-shell form{animation:surface-enter .65s .08s cubic-bezier(.23,1,.32,1) both}.page-shell .status-chip{transition:transform .2s ease,background .2s ease}.page-shell .status-chip:hover{transform:translateY(-2px)}@keyframes ambient-drift{from{transform:translate3d(0,-18px,0) scale(.96)}to{transform:translate3d(26px,28px,0) scale(1.06)}}@keyframes chapter-line{from{transform:scaleX(0);opacity:0}to{transform:scaleX(1);opacity:1}}@keyframes surface-enter{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}@keyframes panel-content-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion:reduce){.route-ambient,.section-heading:before,.panel-heading,.panel-content,.page-shell .card-ay,.page-shell form{animation:none}.page-shell table tbody tr{transition:none}}
+
+
+/* Premium UI goal: a calm, high-contrast learning cockpit with tactile surfaces and restrained motion. */
+:root{color-scheme:dark;--ease-out:cubic-bezier(.23,1,.32,1);--ease-in-out:cubic-bezier(.77,0,.175,1)}
+html{background:#0b0b0a;scroll-padding-top:6rem}
+body{overflow-x:hidden;background:radial-gradient(circle at 72% -10%,rgba(201,162,39,.08),transparent 34rem),#0b0b0a}
+button,a,input,textarea,select{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button:disabled{cursor:not-allowed}
+.btn-primary,.btn-ghost,.nav-link,.mobile-nav-link,.menu-button,.card-ay,.benefit-card,.step-row{transition-timing-function:var(--ease-out)}
+.btn-primary:focus-visible,.btn-ghost:focus-visible,.nav-link:focus-visible,.mobile-nav-link:focus-visible,.menu-button:focus-visible,.input-ay:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(11,11,10,.95),0 0 0 5px rgba(240,194,92,.7)}
+.card-ay:focus-within{border-color:rgba(201,162,39,.42);box-shadow:0 0 0 3px rgba(201,162,39,.08),0 24px 55px -36px rgba(0,0,0,.95)}
+.card-ay:active{transform:translateY(-1px)}
+.section-title,.hero-heading,h1,h2,h3{text-wrap:balance}
+code{font-variant-numeric:tabular-nums}
+.copy-toast{animation:toast-in .28s var(--ease-out) both}
+@keyframes toast-in{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
+@media (max-width:640px){.container-ay{padding-left:1rem;padding-right:1rem}.hero-actions>*{width:100%}.hero-actions .btn-primary,.hero-actions .btn-ghost{justify-content:center}.section-title{font-size:2.15rem}.card-ay{border-radius:1.15rem}.now-playing{max-width:calc(100vw - 2rem)}}
+@media (prefers-reduced-motion:reduce){.copy-toast{animation:none}.card-ay:active{transform:none}.btn-primary,.btn-ghost,.nav-link,.mobile-nav-link,.menu-button,.card-ay,.benefit-card,.step-row{transition-duration:0.01ms}}
+
+.mobile-menu[aria-hidden="true"]{visibility:hidden;pointer-events:none}
+.mobile-menu[aria-hidden="false"]{visibility:visible;pointer-events:auto}

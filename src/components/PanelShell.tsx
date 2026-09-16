@@ -38,7 +38,7 @@ export function PanelShell({
         <aside className="card-ay h-fit p-3 lg:sticky lg:top-24">
           <nav aria-label="ناوبری پنل هنرجو" className="flex flex-col gap-1">
             {nav.map((item) => {
-              const active = pathname === item.href;
+              const active = pathname === item.href || (item.href !== "/panel" && pathname.startsWith(`${item.href}/`));
               return (
                 <Link
                   key={item.href}

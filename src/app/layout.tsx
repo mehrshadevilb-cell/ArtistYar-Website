@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Vazirmatn } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
@@ -41,6 +41,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://artistyar-website.onrender.com",
   ),
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0b0b0a",
 };
 
 const academyJsonLd = {

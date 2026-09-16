@@ -21,7 +21,7 @@ export default function HomePage() {
         <div className="hero-actions"><Link href="/courses" className="btn-primary gap-2">دیدن مسیرهای آموزشی <ArrowLeft size={16} /></Link><Link href="/assistant" className="btn-ghost gap-2">سؤال از راه‌یار <Bot size={16} /></Link></div>
         <div className="hero-trust"><span className="trust-line" /> از انتخاب مسیر تا پیشرفت هنرجو، همه‌چیز یک‌جا</div>
       </div>
-      <div className="hero-art" aria-label="نمایش مفهومی اکوسیستم راه‌یار">
+      <div className="hero-art" aria-hidden="true">
         <div className="hero-orbit orbit-a" /><div className="hero-orbit orbit-b" />
         <div className="record-disc"><div className="record-groove groove-one" /><div className="record-groove groove-two" /><div className="record-label"><Waves size={22} /><span>RY</span></div></div>
         <div className="floating-note note-one">♪</div><div className="floating-note note-two">♫</div>

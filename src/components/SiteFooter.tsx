@@ -17,27 +17,27 @@ export function SiteFooter() {
           </h3>
           <ul className="mt-4 space-y-2 text-sm text-ink-300">
             <li>
-              <Link href="/courses" className="hover:text-sand-50">
+                  <Link href="/courses" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 دوره‌ها
               </Link>
             </li>
             <li>
-              <Link href="/online" className="hover:text-sand-50">
+                  <Link href="/online" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 کلاس آنلاین
               </Link>
             </li>
             <li>
-              <Link href="/assistant" className="hover:text-sand-50">
+                  <Link href="/assistant" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 راه‌یار؛ دستیار آموزشی
               </Link>
             </li>
             <li>
-              <Link href="/track" className="hover:text-sand-50">
+                  <Link href="/track" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 پیگیری سفارش
               </Link>
             </li>
             <li>
-              <Link href="/login" className="hover:text-sand-50">
+                  <Link href="/login" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 ورود هنرجو
               </Link>
             </li>
@@ -49,17 +49,17 @@ export function SiteFooter() {
           </h3>
           <ul className="mt-4 space-y-2 text-sm text-ink-300">
             <li>
-              <Link href="/about" className="hover:text-sand-50">
+                  <Link href="/about" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 درباره آکادمی
               </Link>
             </li>
             <li>
-              <Link href="/contact" className="hover:text-sand-50">
+                  <Link href="/contact" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 پشتیبانی
               </Link>
             </li>
             <li>
-              <a href="https://www.instagram.com/prodbymehrshad/" target="_blank" rel="noreferrer" className="text-gold-400 hover:text-gold-300">
+                <a href="https://www.instagram.com/prodbymehrshad/" target="_blank" rel="noreferrer" className="rounded-sm text-gold-400 transition-colors hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 آموزش‌های اینستاگرام
               </a>
             </li>
