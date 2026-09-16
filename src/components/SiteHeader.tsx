@@ -9,6 +9,7 @@ import { useAuth } from "./AuthProvider";
 
 const links = [
   { href: "/free-player", label: "آموزش رایگان" },
+  { href: "/gallery", label: "گالری نمونه‌کار" },
   { href: "/#about", label: "چرا آرتیست‌یار" },
   { href: "/#paths", label: "روش ما" },
   { href: "/#flow", label: "مسیر هنرجو" },

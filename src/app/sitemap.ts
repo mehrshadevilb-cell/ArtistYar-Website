@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const publicRoutes = ["/", "/about", "/courses", "/free-player", "/online", "/assistant", "/contact"];
+const publicRoutes = ["/", "/about", "/gallery", "/courses", "/free-player", "/online", "/assistant", "/contact"];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyar-website.onrender.com").replace(/\/$/, "");

@@ -21,22 +21,22 @@ export const metadata: Metadata = {
     template: "%s | ArtistYar",
   },
   description:
-    "آکادمی راه‌یار؛ دوره‌های دیجیتال، کلاس آنلاین، دستیار موسیقی، تکلیف و پیگیری پیشرفت برای یادگیری تنظیم، میکس و مسترینگ.",
+    "ArtistYar و آکادمی راه‌یار؛ آموزش پروژه‌محور تنظیم، میکس و مسترینگ، تئوری موسیقی و پیانو با کلاس آنلاین، پشتیبانی هنرجو و گالری نمونه‌کار.",
   applicationName: "ArtistYar",
-  keywords: ["آکادمی راه‌یار", "آرتیست‌یار", "آموزش موسیقی", "تولید موسیقی", "میکس", "تنظیم", "مسترینگ", "کلاس آنلاین موسیقی"],
-  authors: [{ name: "ArtistYar" }],
-  creator: "ArtistYar Academy",
+  keywords: ["آکادمی راه‌یار", "آرتیست‌یار", "مهرشاد بنائی", "آموزش تنظیم", "آموزش میکس", "آموزش مسترینگ", "تولید موسیقی", "میکس و مسترینگ", "کلاس آنلاین موسیقی", "نمونه کار میکس", "نمونه کار تنظیم", "آموزش تقویت شنوایی"],
+  authors: [{ name: "مهرشاد بنائی", url: "https://www.instagram.com/prodbymehrshad/" }],
+  creator: "مهرشاد بنائی · ArtistYar Academy",
   openGraph: {
     type: "website",
     locale: "fa_IR",
     siteName: "ArtistYar",
-    title: "ArtistYar | مسیر حرفه‌ای تولید موسیقی",
-    description: "یادگیری تنظیم، میکس و مسترینگ با مسیر پروژه‌محور.",
+    title: "ArtistYar | آموزش تنظیم، میکس و مسترینگ | آکادمی راه‌یار",
+    description: "مسیر پروژه‌محور یادگیری تنظیم، میکس، مسترینگ و تولید موسیقی با مهرشاد بنائی.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "ArtistYar | آکادمی تولید موسیقی",
-    description: "آموزش حرفه‌ای تنظیم، میکس و مسترینگ.",
+    title: "ArtistYar | آموزش تنظیم، میکس و مسترینگ",
+    description: "دوره‌ها، کلاس آنلاین، نمونه‌کار صوتی و ویدیوهای آموزشی راه‌یار.",
   },
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://artistyar-website.onrender.com",
@@ -53,6 +53,17 @@ const academyJsonLd = {
   name: "ArtistYar Academy",
   description: "آموزش تولید موسیقی، تنظیم، میکس و مسترینگ.",
   inLanguage: "fa",
+  url: "https://artistyar-website.onrender.com",
+  sameAs: [
+    "https://www.instagram.com/prodbymehrshad/",
+    "https://t.me/+ZY_tAu75ccs2ZmU0",
+  ],
+  founder: {
+    "@type": "Person",
+    name: "مهرشاد بنائی",
+    sameAs: "https://www.instagram.com/prodbymehrshad/",
+    jobTitle: "مدرس تنظیم، میکس و مسترینگ",
+  },
 };
 
 export default function RootLayout({

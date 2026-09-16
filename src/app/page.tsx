@@ -1,7 +1,19 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { ArrowLeft, ArrowUpLeft, AudioLines, Bot, Check, CirclePlay, Headphones, Layers3, MessageCircle, Sparkles, Waves } from "lucide-react";
 import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { Reveal } from "@/components/Reveal";
+
+export const metadata: Metadata = {
+  title: "آموزش تنظیم، میکس و مسترینگ با مهرشاد بنائی",
+  description: "آکادمی راه‌یار و ArtistYar؛ آموزش پروژه‌محور تنظیم، میکس، مسترینگ و تولید موسیقی با کلاس آنلاین، پشتیبانی هنرجو و نمونه‌کارهای واقعی.",
+  keywords: ["آموزش تنظیم", "آموزش میکس", "آموزش مسترینگ", "مهرشاد بنائی", "راه‌یار", "ArtistYar", "تولید موسیقی"],
+  openGraph: {
+    title: "آموزش تنظیم، میکس و مسترینگ | ArtistYar",
+    description: "یادگیری واقعی تولید موسیقی با مسیر روشن، تمرین پروژه‌محور و همراهی راه‌یار.",
+    type: "website",
+  },
+};
 
 const products = [
   { icon: Waves, title: "راه‌یار", label: "مسیر اصلی", text: "مسیر جامع یادگیری تولید موسیقی؛ از مبانی و تئوری تا تنظیم، میکس و خروجی قابل انتشار.", href: "/courses" },
