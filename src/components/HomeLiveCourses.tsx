@@ -26,9 +26,9 @@ export function HomeLiveCourses() {
     <section className="container-ay py-16">
       <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
         <SectionHeading
-          eyebrow="مسیرها"
+          eyebrow="مسیرهای پیشنهادی"
           title="از بنیان تا انتشار"
-          subtitle="کاتالوگ مستقیم از سیستم راه‌یار — قیمت و وضعیت واقعی."
+          subtitle="مسیرت را انتخاب کن و یادگیری را روی موسیقی خودت جلو ببر."
         />
         <div className="flex items-center gap-3">
           <StatusChip tone={source === "rahyar" ? "ok" : source === "loading" ? "neutral" : "warn"}>
@@ -41,7 +41,7 @@ export function HomeLiveCourses() {
                   : "خطا"}
           </StatusChip>
           <Link href="/courses" className="btn-ghost !py-2.5 text-xs">
-            همه دوره‌ها
+            دیدن همه مسیرها
           </Link>
         </div>
       </div>

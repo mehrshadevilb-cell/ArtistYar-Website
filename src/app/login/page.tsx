@@ -36,12 +36,11 @@ export default function LoginPage() {
     <section className="container-ay flex justify-center py-16">
       <div className="card-ay w-full max-w-md p-8">
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-gold-500">
-          Account
+          ArtistYar / هنرجو
         </p>
         <h1 className="mt-3 text-2xl font-semibold text-sand-50">ورود به آرتیست‌یار</h1>
         <p className="mt-2 text-sm leading-7 text-ink-400">
-          با نام کاربری و رمز عبور وارد شوید. بعداً می‌توانید حساب را به ربات تلگرام
-          وصل کنید.
+          برای دیدن مسیرها، پیگیری درخواست‌ها و ادامه یادگیری وارد حساب هنرجویی‌ات شو.
         </p>
 
         <form className="mt-8 space-y-4" onSubmit={onSubmit}>
@@ -66,7 +65,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-xs leading-6 text-ink-400">
-          <p className="font-medium text-ink-300">حساب‌های دمو</p>
+          <p className="font-medium text-ink-300">حساب‌های نمونه</p>
           <p>هنرجو: <code className="text-gold-400">student</code> / <code className="text-gold-400">student123</code></p>
           <p>ادمین: <code className="text-gold-400">admin</code> / <code className="text-gold-400">admin123</code></p>
         </div>

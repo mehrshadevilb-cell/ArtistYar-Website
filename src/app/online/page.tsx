@@ -54,16 +54,16 @@ export default function OnlinePage() {
   return (
     <section className="container-ay py-16">
       <SectionHeading
-        eyebrow="Online Classes"
-        title="کلاس یک‌به‌یک"
-        subtitle={`منبع: ${source === "rahyar" ? "زنده از راه‌یار" : source === "demo" ? "دمو" : source}`}
+        eyebrow="کلاس‌های آنلاین"
+        title="با پروژه خودت یاد بگیر"
+        subtitle="اگر می‌خواهی تنظیم، میکس یا مسترینگ را روی کار خودت جلو ببری، اینجا می‌توانیم دقیق‌تر روی همان پروژه کار کنیم."
       />
 
       <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {items.map((c) => (
           <article key={c.id} className="card-ay p-6">
             <h3 className="text-lg font-medium text-sand-50">{c.name}</h3>
-            <p className="mt-3 text-sm leading-7 text-ink-400">{c.description || "کلاس آنلاین آکادمی"}</p>
+            <p className="mt-3 text-sm leading-7 text-ink-400">{c.description || "جلسه‌ای کاربردی برای جلو بردن پروژه موسیقی خودت."}</p>
             <button
               type="button"
               className="btn-primary mt-5 !py-2 text-xs"
@@ -72,7 +72,7 @@ export default function OnlinePage() {
                 setMsg("");
               }}
             >
-              درخواست ثبت‌نام
+              درخواست مشاوره
             </button>
           </article>
         ))}
@@ -80,14 +80,14 @@ export default function OnlinePage() {
 
       {selected ? (
         <div className="card-ay mx-auto mt-12 max-w-lg p-7">
-          <h3 className="text-lg font-medium text-sand-50">درخواست: {selected.name}</h3>
+          <h3 className="text-lg font-medium text-sand-50">مشاوره برای: {selected.name}</h3>
           <form className="mt-5 space-y-3" onSubmit={onInquiry}>
             <input className="input-ay" name="full_name" placeholder="نام کامل" required />
             <input className="input-ay" name="phone" placeholder="09xxxxxxxxx" required />
-            <textarea className="input-ay min-h-24" name="message" placeholder="توضیح" />
+            <textarea className="input-ay min-h-24" name="message" placeholder="بگو روی چه پروژه‌ای کار می‌کنی و کجا گیر کردی" />
             <div className="flex gap-2">
               <button type="submit" className="btn-primary flex-1" disabled={busy}>
-                {busy ? "..." : "ارسال درخواست"}
+                {busy ? "..." : "ارسال برای بررسی"}
               </button>
               <button type="button" className="btn-ghost" onClick={() => setSelected(null)}>
                 بستن

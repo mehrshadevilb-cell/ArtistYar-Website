@@ -13,7 +13,7 @@ export function LiveProductCard({ product }: { product: LiveProduct }) {
   return (
     <article className="card-ay flex h-full flex-col p-6 transition hover:border-gold-500/25 hover:bg-white/[0.045]">
       <div className="flex items-start justify-between gap-3">
-        <StatusChip tone="gold">دوره</StatusChip>
+        <StatusChip tone="gold">مسیر یادگیری</StatusChip>
         {product.is_active === false ? (
           <StatusChip tone="warn">غیرفعال</StatusChip>
         ) : (
@@ -24,7 +24,7 @@ export function LiveProductCard({ product }: { product: LiveProduct }) {
         {product.title}
       </h3>
       <p className="mt-3 flex-1 text-sm leading-7 text-ink-400">
-        {product.description || "مسیر آموزشی آکادمی آرتیست‌یار."}
+        {product.description || "آموزش کاربردی برای اینکه موسیقی را درست‌تر بسازی."}
       </p>
       <div className="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4">
         <span className="text-sm font-medium text-gold-400">
@@ -36,7 +36,7 @@ export function LiveProductCard({ product }: { product: LiveProduct }) {
           href={`/courses#p-${product.id}`}
           className="text-xs text-sand-100 underline-offset-4 hover:text-gold-300 hover:underline"
         >
-          جزئیات / سفارش
+          جزئیات و شروع مسیر
         </a>
       </div>
     </article>

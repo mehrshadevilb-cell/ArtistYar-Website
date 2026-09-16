@@ -56,9 +56,9 @@ export default function CoursesPage() {
     <section className="container-ay py-16">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <SectionHeading
-          eyebrow="Courses"
-          title="مسیرهای آموزشی آرتیست‌یار"
-          subtitle="سفارش ثبت می‌شود و تا تأیید ادمین در تلگرام در وضعیت انتظار می‌ماند."
+          eyebrow="مسیرهای آموزشی"
+          title="تنظیم، میکس و مسترینگ؛ درست و اصولی"
+          subtitle="مسیرت را انتخاب کن، تمرین کن و هر چیزی که یاد می‌گیری روی پروژه واقعی اجرا کن."
         />
         <StatusChip tone={source === "rahyar" ? "ok" : "warn"}>
           {source === "rahyar" ? "کاتالوگ زنده" : source}
@@ -73,14 +73,14 @@ export default function CoursesPage() {
             className="card-ay flex h-full flex-col p-6"
           >
             <div className="flex items-start justify-between gap-3">
-              <StatusChip tone="gold">دوره</StatusChip>
+              <StatusChip tone="gold">مسیر یادگیری</StatusChip>
               <StatusChip tone={item.is_active === false ? "warn" : "ok"}>
                 {item.is_active === false ? "غیرفعال" : "فعال"}
               </StatusChip>
             </div>
             <h3 className="mt-5 text-xl font-semibold text-sand-50">{item.title}</h3>
             <p className="mt-3 flex-1 text-sm leading-7 text-ink-400">
-              {item.description || "مسیر آموزشی آکادمی."}
+                {item.description || "آموزش کاربردی برای ساختن موسیقی بهتر."}
             </p>
             <div className="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4">
               <span className="text-sm font-medium text-gold-400">
@@ -96,7 +96,7 @@ export default function CoursesPage() {
                   setMsg("");
                 }}
               >
-                ثبت سفارش
+                شروع مسیر
               </button>
             </div>
           </article>
@@ -106,19 +106,19 @@ export default function CoursesPage() {
       {selected ? (
         <div className="card-ay mx-auto mt-12 max-w-lg p-7">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="text-lg font-medium text-sand-50">سفارش: {selected.title}</h3>
-            <StatusChip tone="gold">در انتظار تأیید</StatusChip>
+            <h3 className="text-lg font-medium text-sand-50">شروع مسیر: {selected.title}</h3>
+            <StatusChip tone="gold">ثبت درخواست</StatusChip>
           </div>
           <p className="mt-2 text-xs leading-6 text-ink-500">
-            بعد از ثبت، مبلغ را کارت‌به‌کارت کنید؛ ادمین در ربات تأیید می‌کند.
+            اطلاعاتت را بفرست تا برای شروع مسیر و جزئیات ثبت‌نام باهات هماهنگ کنیم.
           </p>
           <form className="mt-5 space-y-3" onSubmit={onOrder}>
             <input className="input-ay" name="full_name" placeholder="نام کامل" required />
             <input className="input-ay" name="phone" placeholder="09xxxxxxxxx" required />
-            <input className="input-ay" name="note" placeholder="توضیح اختیاری" />
+            <input className="input-ay" name="note" placeholder="الان روی چه چیزی کار می‌کنی؟ (اختیاری)" />
             <div className="flex gap-2">
               <button type="submit" className="btn-primary flex-1" disabled={busy}>
-                {busy ? "..." : "ثبت سفارش"}
+                {busy ? "..." : "ارسال درخواست"}
               </button>
               <button type="button" className="btn-ghost" onClick={() => setSelected(null)}>
                 بستن

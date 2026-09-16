@@ -23,12 +23,12 @@ export function SiteHeader() {
         <Link href="/" className="shrink-0 transition-opacity hover:opacity-80" onClick={() => setOpen(false)}><BrandMark /></Link>
         <div className="hidden items-center gap-3 md:flex">
           {ready && user ? <Link href={panelHref} className="btn-ghost !px-4 !py-2 text-xs">پنل من</Link> : null}
-          <a href="mailto:hello@artistyar.dev" className="header-contact">در تماس باشیم <ArrowUpLeft size={14} /></a>
+          <a href="mailto:hello@artistyar.dev" className="header-contact">مشاوره و ارتباط <ArrowUpLeft size={14} /></a>
         </div>
         <button type="button" aria-label={open ? "بستن منو" : "باز کردن منو"} aria-expanded={open} className="menu-button" onClick={() => setOpen(v => !v)}>{open ? <X size={20} /> : <Menu size={20} />}</button>
       </div>
       <div className={`mobile-menu ${open ? "mobile-menu-open" : ""}`} aria-hidden={!open}>
-        <nav className="container-ay flex flex-col gap-1 py-5">{links.map(link => <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="mobile-nav-link">{link.label}</Link>)}<a href="mailto:hello@artistyar.dev" onClick={() => setOpen(false)} className="btn-primary mt-3 text-center">در تماس باشیم</a></nav>
+        <nav className="container-ay flex flex-col gap-1 py-5">{links.map(link => <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="mobile-nav-link">{link.label}</Link>)}<a href="mailto:hello@artistyar.dev" onClick={() => setOpen(false)} className="btn-primary mt-3 text-center">مشاوره و ارتباط</a></nav>
       </div>
     </header>
   );

@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { Course } from "@/data/courses";
 
 const formatLabel = {
-  digital: "دیجیتال",
-  online: "آنلاین",
-  hybrid: "ترکیبی",
+  digital: "مسیر آموزشی",
+  online: "کلاس آنلاین",
+  hybrid: "مسیر ترکیبی",
 } as const;
 
 export function CourseCard({ course }: { course: Course }) {
@@ -28,7 +28,7 @@ export function CourseCard({ course }: { course: Course }) {
         href={`/courses#${course.id}`}
         className="mt-4 text-sm text-gold-400 transition group-hover:text-gold-300"
       >
-        جزئیات مسیر ←
+        بیشتر درباره این مسیر ←
       </Link>
     </article>
   );

@@ -9,9 +9,9 @@ export default function ContactPage() {
   return (
     <section className="container-ay py-16">
       <SectionHeading
-        eyebrow="Contact"
-        title="پشتیبانی آرتیست‌یار"
-        subtitle="برای هماهنگی دوره، کلاس و مسائل حساب کاربری از این مسیر پیام بگذارید. اتصال فرم به سیستم پشتیبانی در فاز API فعال می‌شود."
+        eyebrow="ارتباط با ما"
+        title="اگر سؤالی داری، پیام بده"
+        subtitle="برای مشاوره دوره، کلاس آنلاین یا ادامه مسیر یادگیری تنظیم و میکس، اطلاعاتت را بفرست تا باهات هماهنگ کنیم."
       />
       <form className="card-ay mx-auto mt-12 max-w-xl space-y-4 p-7">
         <div>
@@ -31,10 +31,10 @@ export default function ContactPage() {
           />
         </div>
         <button type="button" className="btn-primary w-full">
-          ارسال (فاز بعد فعال می‌شود)
+          ارسال درخواست
         </button>
         <p className="text-center text-xs text-ink-500">
-          فعلاً می‌توانید از پشتیبانی داخل ربات تلگرام هم استفاده کنید.
+          برای سؤال‌های سریع‌تر، می‌توانی از دستیار راه‌یار هم کمک بگیری.
         </p>
       </form>
     </section>

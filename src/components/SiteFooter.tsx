@@ -8,8 +8,7 @@ export function SiteFooter() {
         <div className="lg:col-span-2">
           <BrandMark />
           <p className="mt-4 max-w-md text-sm leading-7 text-ink-400">
-            آکادمی آرتیست‌یار — آموزش دقیق، مسیر شفاف، و تجربه‌ای مینیمال برای
-            هنرجویانی که موسیقی را جدی می‌گیرند.
+            آرتیست‌یار — آموزش تنظیم، میکس و مسترینگ برای هنرجویی که می‌خواهد موسیقی را درست و اصولی یاد بگیرد.
           </p>
         </div>
         <div>
@@ -29,7 +28,7 @@ export function SiteFooter() {
             </li>
             <li>
               <Link href="/assistant" className="hover:text-sand-50">
-                دستیار AI
+                راه‌یار؛ دستیار آموزشی
               </Link>
             </li>
             <li>

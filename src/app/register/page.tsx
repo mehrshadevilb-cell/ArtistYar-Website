@@ -32,11 +32,11 @@ export default function RegisterPage() {
     <section className="container-ay flex justify-center py-16">
       <div className="card-ay w-full max-w-md p-8">
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-gold-500">
-          Join
+          شروع مسیر
         </p>
         <h1 className="mt-3 text-2xl font-semibold text-sand-50">ثبت‌نام هنرجو</h1>
         <p className="mt-2 text-sm leading-7 text-ink-400">
-          حساب وب ساخته می‌شود. همگام‌سازی با ربات در پروفایل پنل انجام می‌شود.
+          حسابت را بساز تا مسیرهای آموزشی، درخواست کلاس و پیشرفتت را یک‌جا دنبال کنی.
         </p>
         <form className="mt-8 space-y-4" onSubmit={onSubmit}>
           <div>
@@ -53,7 +53,7 @@ export default function RegisterPage() {
           </div>
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
           <button type="submit" className="btn-primary w-full">
-            ساخت حساب
+            شروع یادگیری
           </button>
         </form>
         <p className="mt-6 text-center text-xs text-ink-500">

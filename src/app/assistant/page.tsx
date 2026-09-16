@@ -6,17 +6,17 @@ import { SectionHeading } from "@/components/SectionHeading";
 type Msg = { role: "user" | "assistant"; text: string };
 
 const SUGGESTIONS = [
-  "دوره‌های میکس و مسترینگ چی دارید؟",
-  "چطور در کلاس آنلاین ثبت‌نام کنم؟",
-  "Cubase برای شروع کافیه یا Studio One؟",
-  "تفاوت تنظیم و میکس چیه؟",
+  "برای شروع میکس از کجا برم؟",
+  "تفاوت تنظیم و میکس دقیقاً چیه؟",
+  "چطور وکال تمیزتری داشته باشم؟",
+  "بیت‌دپت و سمپل‌ریت یعنی چی؟",
 ];
 
 export default function AssistantPage() {
   const [messages, setMessages] = useState<Msg[]>([
     {
       role: "assistant",
-      text: "سلام؛ من دستیار آموزشی آرتیست‌یار هستم (همان موتور ربات راه‌یار). درباره دوره‌ها، کلاس‌ها و موضوعات موسیقی بپرس.",
+      text: "سلام، من راه‌یارم. درباره تنظیم، میکس، مسترینگ، ملودی و دوره‌های آرتیست‌یار هر سؤالی داری بپرس؛ با هم قدم‌به‌قدم جلو می‌ریم.",
     },
   ]);
   const [busy, setBusy] = useState(false);
@@ -87,9 +87,9 @@ export default function AssistantPage() {
   return (
     <section className="container-ay py-16">
       <SectionHeading
-        eyebrow="AI Assistant"
-        title="دستیار آموزشی"
-        subtitle="همان Chat Assistant ربات راه‌یار — کاتالوگ، دانش آکادمی و پاسخ فارسی مینیمال."
+        eyebrow="راه‌یار"
+        title="سؤالت را بپرس؛ با هم حلش می‌کنیم"
+        subtitle="دستیار آموزشی آرتیست‌یار برای سؤال‌های تنظیم، میکس، مسترینگ و مسیر یادگیری."
       />
 
       <div className="card-ay mx-auto mt-10 flex max-w-2xl flex-col overflow-hidden">
@@ -148,7 +148,7 @@ export default function AssistantPage() {
             ref={inputRef}
             className="input-ay flex-1"
             name="message"
-            placeholder="سؤالت را بنویس..."
+            placeholder="مثلاً: چرا میکسم کدر شده؟"
             disabled={busy}
             maxLength={1000}
             autoComplete="off"
