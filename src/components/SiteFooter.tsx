@@ -54,7 +54,12 @@ export function SiteFooter() {
                 پشتیبانی
               </Link>
             </li>
-            <li className="text-ink-500">همگام با ربات راه‌یار</li>
+            <li>
+              <a href="https://www.instagram.com/prodbymehrshad/" target="_blank" rel="noreferrer" className="text-gold-400 hover:text-gold-300">
+                آموزش‌های اینستاگرام
+              </a>
+            </li>
+            <li className="text-ink-500">همراه با راه‌یار</li>
           </ul>
         </div>
       </div>

@@ -4,21 +4,21 @@ import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { Reveal } from "@/components/Reveal";
 
 const benefits = [
-  { icon: AudioLines, title: "یادگیری شنیداری", text: "هر مفهوم را با مثال واقعی، تمرین و بازخورد می‌شنوید؛ نه فقط حفظ می‌کنید." },
-  { icon: Layers3, title: "مسیر مرحله‌به‌مرحله", text: "از پایه تا انتشار، مسیرتان روشن است و هر تمرین به خروجی مشخصی وصل می‌شود." },
-  { icon: Headphones, title: "همراهی حرفه‌ای", text: "با راه‌یار و مربی‌های آرتیست‌یار، هنگام ساختن تنها نمی‌مانید." },
+  { icon: AudioLines, title: "تنظیم، از پایه تا اجرا", text: "لایه‌گذاری، انتخاب صدا و ساختار قطعه را با تمرین‌های واقعی و قابل شنیدن یاد بگیر." },
+  { icon: Layers3, title: "میکس و مسترینگ اصولی", text: "به‌جای ترفندهای پراکنده، گوش و تصمیم‌گیری مهندسی‌شده برای صدای حرفه‌ای بساز." },
+  { icon: Headphones, title: "پشتیبانی دائمی هنرجو", text: "با راه‌یار و همراهی مستقیم، سؤال‌هایت بعد از پایان جلسه بی‌پاسخ نمی‌ماند." },
 ];
-const steps = ["مبانی را درست بفهم", "با پروژه واقعی تمرین کن", "صدای خودت را پیدا کن"];
+const steps = ["مبانی و گوش موسیقایی را بساز", "تنظیم و میکس را روی پروژه اجرا کن", "خروجی را برای انتشار آماده کن"];
 
 export default function HomePage() {
   return <div>
     <section className="hero-section container-ay">
       <div className="hero-copy">
-        <div className="hero-kicker"><span className="status-dot" /> آکادمی آنلاین تولید موسیقی</div>
-        <h1 className="hero-heading">صدایت را پیدا کن،<br /><span className="gold-shimmer">حرفه‌ای بساز.</span></h1>
-        <p className="hero-lead">آرتیست‌یار مسیر یادگیری موسیقی را از ابهام بیرون می‌آورد؛ با آموزش دقیق، تمرین واقعی و همراهی هوشمند راه‌یار.</p>
-        <div className="hero-actions"><Link href="/courses" className="btn-primary gap-2">شروع مسیر یادگیری <ArrowLeft size={16} /></Link><a href="#about" className="btn-ghost gap-2">بیشتر بدانید <ArrowUpLeft size={15} /></a></div>
-        <div className="hero-trust"><span className="trust-line" /> برای کسانی که موسیقی را جدی می‌گیرند</div>
+        <div className="hero-kicker"><span className="status-dot" /> آموزش تنظیم، میکس و مسترینگ</div>
+        <h1 className="hero-heading">موسیقی را بفهم،<br /><span className="gold-shimmer">حرفه‌ای بساز.</span></h1>
+        <p className="hero-lead">بهت یاد می‌دیم تنظیم و میکس رو درست و اصولی انجام بدی؛ با تمرین واقعی، گوش دقیق و پشتیبانی دائمی تا بالاخره صدای خودت را پیدا کنی.</p>
+        <div className="hero-actions"><Link href="/courses" className="btn-primary gap-2">شروع یادگیری اصولی <ArrowLeft size={16} /></Link><a href="https://www.instagram.com/prodbymehrshad/" target="_blank" rel="noreferrer" className="btn-ghost gap-2">آموزش‌های کوتاه اینستاگرام <ArrowUpLeft size={15} /></a></div>
+        <div className="hero-trust"><span className="trust-line" /> یک‌بار برای همیشه تنظیم و میکس را یاد بگیر</div>
       </div>
       <div className="hero-art" aria-label="نمایش مفهومی مسیر تولید موسیقی">
         <div className="hero-orbit orbit-a" /><div className="hero-orbit orbit-b" />
@@ -29,9 +29,9 @@ export default function HomePage() {
       </div>
     </section>
 
-    <section className="proof-strip border-y border-white/[.06]"><div className="container-ay proof-grid"><div><strong>۶+</strong><span>مسیر تخصصی</span></div><div><strong>۱۰۰٪</strong><span>پروژه‌محور</span></div><div><strong>۲۴/۷</strong><span>همراهی راه‌یار</span></div><div className="proof-note">یادگیری کمتر، <b>ساختن بیشتر.</b></div></div></section>
+    <section className="proof-strip border-y border-white/[.06]"><div className="container-ay proof-grid"><div><strong>تنظیم</strong><span>از ایده تا قطعه</span></div><div><strong>میکس</strong><span>شفاف و اصولی</span></div><div><strong>مسترینگ</strong><span>آماده انتشار</span></div><div className="proof-note">یک مسیر روشن، <b>صدای ماندگار.</b></div></div></section>
 
-    <section id="about" className="container-ay section-space"><Reveal><div className="section-intro"><p className="eyebrow">/ چرا آرتیست‌یار</p><h2 className="section-title">آموزش خوب، فقط اطلاعات نیست؛<br /><span className="text-gold-400">یک مسیر قابل ادامه است.</span></h2><p className="section-sub">برای ساختن موسیقی، لازم نیست بین ده‌ها ویدیو و توصیه گم شوید. ما مسیر را ساده، عمیق و کاربردی طراحی کرده‌ایم تا هر جلسه شما را یک قدم به صدای شخصی‌تان نزدیک‌تر کند.</p></div></Reveal><div className="benefit-grid">{benefits.map((item, i) => { const Icon = item.icon; return <Reveal key={item.title} delay={i * 90}><article className="benefit-card"><span className="benefit-icon"><Icon size={20} /></span><span className="benefit-number">۰{i + 1}</span><h3>{item.title}</h3><p>{item.text}</p></article></Reveal>; })}</div></section>
+    <section id="about" className="container-ay section-space"><Reveal><div className="section-intro"><p className="eyebrow">/ چرا آرتیست‌یار</p><h2 className="section-title">یادگیری واقعی یعنی؛<br /><span className="text-gold-400">یک‌بار برای همیشه بفهمی.</span></h2><p className="section-sub">اینجا قرار نیست فقط چند preset و ترفند حفظ کنی. از بیت‌دپت و سمپل‌ریت تا ملودی، تنظیم، میکس و مسترینگ را در زنجیره‌ای می‌بینی که به یک خروجی واقعی ختم می‌شود.</p></div></Reveal><div className="benefit-grid">{benefits.map((item, i) => { const Icon = item.icon; return <Reveal key={item.title} delay={i * 90}><article className="benefit-card"><span className="benefit-icon"><Icon size={20} /></span><span className="benefit-number">۰{i + 1}</span><h3>{item.title}</h3><p>{item.text}</p></article></Reveal>; })}</div></section>
 
     <section id="paths" className="path-section border-y border-white/[.06]"><div className="container-ay path-layout"><Reveal><div><p className="eyebrow">/ روش ما</p><h2 className="section-title mt-4">از ایده خام<br /><span className="text-gold-400">تا قطعه قابل انتشار.</span></h2><p className="section-sub max-w-xl">هر چیزی که یاد می‌گیرید برای استفاده در دنیای واقعی است. مسیر را با ریتم خودتان جلو ببرید و با هر مرحله چیزی بسازید که بتوانید به آن افتخار کنید.</p><Link href="/about" className="inline-flex items-center gap-2 mt-8 text-sm text-gold-400 hover:text-gold-300">درباره آکادمی <ArrowLeft size={15} /></Link></div></Reveal><Reveal delay={120}><div className="steps-card">{steps.map((step, i) => <div className="step-row" key={step}><span className="step-index">۰{i + 1}</span><span className="step-title">{step}</span><span className="step-arrow">↙</span></div>)}<div className="steps-footer"><span className="status-dot" /> مسیر شما از همین‌جا شروع می‌شود</div></div></Reveal></div></section>
 
