@@ -43,13 +43,21 @@ export default function AssistantPage() {
     const text = message.trim();
     if (!text || busy) return;
     setLastError(false);
-    setMessages((m) => [...m, { role: "user", text }]);
+    const nextMessages = [...messages, { role: "user" as const, text }];
+    setMessages(nextMessages);
     setBusy(true);
     try {
-      const res = await fetch("/api/rahyar/assistant", {
+      const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, client_id: clientId }),
+        body: JSON.stringify({
+          message: text,
+          client_id: clientId,
+          messages: nextMessages.map((item) => ({
+            role: item.role,
+            content: item.text,
+          })),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       const reply =
@@ -57,7 +65,7 @@ export default function AssistantPage() {
         data.error ||
         data.detail ||
         (res.ok
-          ? "پاسخی دریافت نشد. اتصال به ربات را بررسی کنید."
+          ? "پاسخی دریافت نشد. اتصال به مدل را بررسی کنید."
           : `خطای سرور (${res.status}). دوباره تلاش کنید.`);
       setMessages((m) => [...m, { role: "assistant", text: String(reply) }]);
       if (!res.ok && !data.reply) setLastError(true);
@@ -67,7 +75,7 @@ export default function AssistantPage() {
         ...m,
         {
           role: "assistant",
-          text: "خطای شبکه. اتصال اینترنت یا آدرس RAHYAR_API_URL را بررسی کنید.",
+          text: "خطای شبکه. اتصال به سرویس هوش مصنوعی را بررسی کنید.",
         },
       ]);
     } finally {
@@ -108,7 +116,7 @@ export default function AssistantPage() {
           ))}
           {busy ? (
             <div className="ml-8 rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-ink-500">
-                <span className="inline-flex gap-1" aria-hidden="true">
+              <span className="inline-flex gap-1" aria-hidden="true">
                 <span className="animate-pulse">●</span>
                 <span className="animate-pulse [animation-delay:120ms]">●</span>
                 <span className="animate-pulse [animation-delay:240ms]">●</span>
@@ -136,7 +144,7 @@ export default function AssistantPage() {
 
         {lastError ? (
           <div className="border-t border-white/[0.06] px-4 pt-2 text-xs text-red-400">
-            اتصال به backend برقرار نشد. RAHYAR_API_URL را در env سایت چک کنید.
+            اتصال به سرویس هوش مصنوعی برقرار نشد. کلیدهای BYTEZ_API_KEY یا DAHL_API_KEY را در env سایت چک کنید.
           </div>
         ) : null}
 
