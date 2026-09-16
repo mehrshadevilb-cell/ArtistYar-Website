@@ -17,13 +17,13 @@ const backend = (process.env.RAHYAR_API_URL || "").replace(/\/$/, "");
 
 export const metadata: Metadata = {
   title: {
-    default: "ArtistYar | آکادمی آنلاین تولید موسیقی",
+    default: "ArtistYar | آکادمی راه‌یار",
     template: "%s | ArtistYar",
   },
   description:
-    "آکادمی آرتیست‌یار؛ آموزش پروژه‌محور تولید موسیقی، میکس، تنظیم و مسترینگ با همراهی راه‌یار.",
+    "آکادمی راه‌یار؛ دوره‌های دیجیتال، کلاس آنلاین، دستیار موسیقی، تکلیف و پیگیری پیشرفت برای یادگیری تنظیم، میکس و مسترینگ.",
   applicationName: "ArtistYar",
-  keywords: ["آموزش موسیقی", "تولید موسیقی", "میکس", "تنظیم", "مسترینگ", "کلاس آنلاین موسیقی", "راه‌یار"],
+  keywords: ["آکادمی راه‌یار", "آرتیست‌یار", "آموزش موسیقی", "تولید موسیقی", "میکس", "تنظیم", "مسترینگ", "کلاس آنلاین موسیقی"],
   authors: [{ name: "ArtistYar" }],
   creator: "ArtistYar Academy",
   openGraph: {
