@@ -24,8 +24,30 @@ export async function POST(request: Request) {
       body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg =
+        data.reply ||
+        data.error ||
+        data.detail ||
+        (res.status === 429
+          ? "محدودیت نرخ پاسخ. کمی بعد دوباره تلاش کنید."
+          : res.status >= 500
+            ? "مدل/سرویس موقتاً در دسترس نیست؛ failover در حال تلاش است."
+            : `خطا (${res.status})`);
+      return NextResponse.json(
+        { ok: false, error: msg, reply: msg },
+        { status: res.status },
+      );
+    }
     return NextResponse.json(data, { status: res.status });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 502 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "اتصال به backend برقرار نشد. RAHYAR_API_URL و وضعیت Render را چک کنید.",
+        detail: String(e),
+      },
+      { status: 502 },
+    );
   }
 }
