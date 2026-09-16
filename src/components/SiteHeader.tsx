@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { BrandMark } from "./BrandMark";
+import { useAuth } from "./AuthProvider";
 
 const links = [
   { href: "/", label: "خانه" },
@@ -16,6 +17,9 @@ const links = [
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { user, ready } = useAuth();
+
+  const panelHref = user?.role === "admin" ? "/admin" : "/panel";
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-ink-950/70 backdrop-blur-xl">
@@ -44,12 +48,20 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Link href="/login" className="btn-ghost !px-4 !py-2 text-xs">
-            ورود
-          </Link>
-          <Link href="/courses" className="btn-primary !px-4 !py-2 text-xs">
-            شروع یادگیری
-          </Link>
+          {ready && user ? (
+            <Link href={panelHref} className="btn-primary !px-4 !py-2 text-xs">
+              پنل من
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="btn-ghost !px-4 !py-2 text-xs">
+                ورود
+              </Link>
+              <Link href="/courses" className="btn-primary !px-4 !py-2 text-xs">
+                شروع یادگیری
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -76,11 +88,11 @@ export function SiteHeader() {
               </Link>
             ))}
             <Link
-              href="/login"
+              href={user ? panelHref : "/login"}
               onClick={() => setOpen(false)}
               className="mt-2 rounded-xl border border-white/10 px-3 py-3 text-center text-sm"
             >
-              ورود
+              {user ? "پنل من" : "ورود"}
             </Link>
           </div>
         </div>
