@@ -7,7 +7,7 @@ export type CatalogResult = {
 };
 
 function backendBase(): string {
-  return (process.env.RAHYAR_API_URL || "").replace(/\/$/, "");
+  return (process.env.RAHYAR_API_URL || "https://rahyar-academy-management-system-v14.onrender.com").replace(/\/$/, "");
 }
 
 /** Server-side catalog — cached briefly to cut TTFB under load. */

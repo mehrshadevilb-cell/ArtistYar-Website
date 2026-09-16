@@ -4,6 +4,7 @@ export type ApiProduct = {
   description: string | null;
   price: number;
   is_active: boolean;
+  delivery_type?: "spotplayer" | "telegram" | string;
 };
 
 export type ApiClass = {
@@ -14,7 +15,7 @@ export type ApiClass = {
 };
 
 function backendBase(): string {
-  return (process.env.RAHYAR_API_URL || "").replace(/\/$/, "");
+  return (process.env.RAHYAR_API_URL || "https://rahyar-academy-management-system-v14.onrender.com").replace(/\/$/, "");
 }
 
 export function hasBackend(): boolean {

@@ -77,7 +77,7 @@ export default function CoursesPage() {
             className="card-ay flex h-full flex-col p-6"
           >
             <div className="flex items-start justify-between gap-3">
-              <StatusChip tone="gold">مسیر یادگیری</StatusChip>
+              <StatusChip tone="gold">{item.delivery_type === "telegram" ? "کانال تلگرام" : "دوره دیجیتال"}</StatusChip>
               <StatusChip tone={item.is_active === false ? "warn" : "ok"}>
                 {item.is_active === false ? "غیرفعال" : "فعال"}
               </StatusChip>
