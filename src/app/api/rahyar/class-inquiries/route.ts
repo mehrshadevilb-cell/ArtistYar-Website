@@ -12,7 +12,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const result = await createClassInquiry(body);
     return NextResponse.json(result);
-  } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 400 });
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "ثبت درخواست ناموفق بود. لطفاً دوباره تلاش کنید." },
+      { status: 502 },
+    );
   }
 }

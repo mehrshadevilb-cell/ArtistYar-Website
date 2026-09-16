@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function LoginPage() {
@@ -11,9 +11,11 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (ready && user) {
-    router.replace(user.role === "admin" ? "/admin" : "/panel");
-  }
+  useEffect(() => {
+    if (ready && user) {
+      router.replace(user.role === "admin" ? "/admin" : "/panel");
+    }
+  }, [ready, router, user]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -40,12 +40,11 @@ export async function POST(request: Request) {
       );
     }
     return NextResponse.json(data, { status: res.status });
-  } catch (e) {
+  } catch {
     return NextResponse.json(
       {
         ok: false,
         error: "اتصال به backend برقرار نشد. RAHYAR_API_URL و وضعیت Render را چک کنید.",
-        detail: String(e),
       },
       { status: 502 },
     );

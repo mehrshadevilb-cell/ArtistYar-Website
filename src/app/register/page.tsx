@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function RegisterPage() {
@@ -10,7 +10,9 @@ export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState("");
 
-  if (ready && user) router.replace("/panel");
+  useEffect(() => {
+    if (ready && user) router.replace("/panel");
+  }, [ready, router, user]);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -26,9 +26,9 @@ export async function GET() {
     });
     const data = await res.json();
     return NextResponse.json({ ...data, source: "rahyar" }, { status: res.status });
-  } catch (e) {
+  } catch {
     return NextResponse.json(
-      { ok: false, source: "error", error: String(e) },
+      { ok: false, source: "error", error: "وضعیت دستیار موقتاً در دسترس نیست." },
       { status: 502 },
     );
   }

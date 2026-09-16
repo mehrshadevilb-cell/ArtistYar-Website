@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import type { LiveProduct } from "@/components/LiveProductCard";
 import { SectionHeading } from "@/components/SectionHeading";
 import { StatusChip } from "@/components/StatusChip";
@@ -10,6 +11,7 @@ export default function CoursesPage() {
   const [source, setSource] = useState("...");
   const [selected, setSelected] = useState<LiveProduct | null>(null);
   const [msg, setMsg] = useState("");
+  const [paymentId, setPaymentId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -27,6 +29,7 @@ export default function CoursesPage() {
     if (!selected) return;
     setBusy(true);
     setMsg("");
+    setPaymentId(null);
     const fd = new FormData(e.currentTarget);
     const res = await fetch("/api/rahyar/orders", {
       method: "POST",
@@ -50,6 +53,7 @@ export default function CoursesPage() {
     setMsg(
       `${data.message || "ثبت شد."}\nشماره پرداخت: ${data.payment_id}\nمبلغ: ${Number(data.amount || 0).toLocaleString("fa-IR")} تومان${card}`,
     );
+    setPaymentId(Number(data.payment_id));
   }
 
   return (
@@ -127,6 +131,14 @@ export default function CoursesPage() {
           </form>
           {msg ? (
             <pre className="mt-4 whitespace-pre-wrap text-xs leading-6 text-gold-400">{msg}</pre>
+          ) : null}
+          {paymentId ? (
+            <Link
+              href={`/track?payment_id=${paymentId}`}
+              className="mt-4 inline-flex text-xs text-sand-100 underline decoration-gold-500/60 underline-offset-4 hover:text-gold-300"
+            >
+              پیگیری وضعیت سفارش
+            </Link>
           ) : null}
         </div>
       ) : null}
