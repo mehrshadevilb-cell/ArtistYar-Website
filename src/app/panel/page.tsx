@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { studentCourses, studentReservations } from "@/lib/demo-data";
+import { StatusChip } from "@/components/StatusChip";
 
 export default function PanelHomePage() {
   return (
@@ -17,6 +18,11 @@ export default function PanelHomePage() {
             <p className="mt-2 text-2xl font-semibold text-sand-50">{item.value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="flex items-start gap-3 rounded-2xl border border-gold-500/20 bg-gold-500/[.05] p-4 text-sm leading-7 text-ink-300">
+        <StatusChip tone="gold">حالت نمایشی</StatusChip>
+        <p>این نمای پنل با دادهٔ نمونه نمایش داده می‌شود؛ اتصال واقعی هنرجوها به API راه‌یار در مرحلهٔ بعدی فعال می‌شود.</p>
       </div>
 
       <div className="card-ay p-6">

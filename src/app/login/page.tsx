@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function LoginPage() {
@@ -11,9 +11,11 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (ready && user) {
-    router.replace(user.role === "admin" ? "/admin" : "/panel");
-  }
+  useEffect(() => {
+    if (ready && user) {
+      router.replace(user.role === "admin" ? "/admin" : "/panel");
+    }
+  }, [ready, router, user]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -45,22 +47,23 @@ export default function LoginPage() {
 
         <form className="mt-8 space-y-4" onSubmit={onSubmit}>
           <div>
-            <label className="mb-2 block text-xs text-ink-400">نام کاربری</label>
-            <input className="input-ay" name="username" autoComplete="username" required />
+            <label htmlFor="login-username" className="mb-2 block text-xs text-ink-400">نام کاربری</label>
+            <input id="login-username" className="input-ay" name="username" autoComplete="username" required />
           </div>
           <div>
-            <label className="mb-2 block text-xs text-ink-400">رمز عبور</label>
+            <label htmlFor="login-password" className="mb-2 block text-xs text-ink-400">رمز عبور</label>
             <input
               className="input-ay"
               type="password"
+              id="login-password"
               name="password"
               autoComplete="current-password"
               required
             />
           </div>
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+          {error ? <p className="text-sm text-red-400" role="alert">{error}</p> : null}
           <button type="submit" className="btn-primary w-full" disabled={loading}>
-            {loading ? "..." : "ورود"}
+            {loading ? "در حال ورود…" : "ورود"}
           </button>
         </form>
 

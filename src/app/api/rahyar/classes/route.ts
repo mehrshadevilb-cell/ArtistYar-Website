@@ -15,9 +15,9 @@ export async function GET() {
   try {
     const items = await fetchClasses();
     return NextResponse.json({ source: "rahyar", items });
-  } catch (e) {
+  } catch {
     return NextResponse.json(
-      { source: "error", error: String(e), items: [] },
+      { source: "error", error: "کلاس‌ها موقتاً در دسترس نیستند.", items: [] },
       { status: 502 },
     );
   }

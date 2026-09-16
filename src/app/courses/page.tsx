@@ -1,15 +1,17 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import type { LiveProduct } from "@/components/LiveProductCard";
 import { SectionHeading } from "@/components/SectionHeading";
 import { StatusChip } from "@/components/StatusChip";
 
 export default function CoursesPage() {
   const [items, setItems] = useState<LiveProduct[]>([]);
-  const [source, setSource] = useState("...");
+  const [source, setSource] = useState("در حال بارگذاری…");
   const [selected, setSelected] = useState<LiveProduct | null>(null);
   const [msg, setMsg] = useState("");
+  const [paymentId, setPaymentId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -19,7 +21,7 @@ export default function CoursesPage() {
         setSource(data.source || "unknown");
         setItems(data.items || []);
       })
-      .catch(() => setSource("error"));
+      .catch(() => setSource("خطا در دریافت مسیرها"));
   }, []);
 
   async function onOrder(e: FormEvent<HTMLFormElement>) {
@@ -27,6 +29,7 @@ export default function CoursesPage() {
     if (!selected) return;
     setBusy(true);
     setMsg("");
+    setPaymentId(null);
     const fd = new FormData(e.currentTarget);
     const res = await fetch("/api/rahyar/orders", {
       method: "POST",
@@ -50,6 +53,7 @@ export default function CoursesPage() {
     setMsg(
       `${data.message || "ثبت شد."}\nشماره پرداخت: ${data.payment_id}\nمبلغ: ${Number(data.amount || 0).toLocaleString("fa-IR")} تومان${card}`,
     );
+    setPaymentId(Number(data.payment_id));
   }
 
   return (
@@ -91,6 +95,8 @@ export default function CoursesPage() {
               <button
                 type="button"
                 className="text-xs text-sand-100 underline-offset-4 hover:text-gold-300 hover:underline"
+                aria-label={`شروع مسیر ${item.title}`}
+                disabled={item.is_active === false}
                 onClick={() => {
                   setSelected(item);
                   setMsg("");
@@ -113,12 +119,15 @@ export default function CoursesPage() {
             اطلاعاتت را بفرست تا برای شروع مسیر و جزئیات ثبت‌نام باهات هماهنگ کنیم.
           </p>
           <form className="mt-5 space-y-3" onSubmit={onOrder}>
-            <input className="input-ay" name="full_name" placeholder="نام کامل" required />
-            <input className="input-ay" name="phone" placeholder="09xxxxxxxxx" required />
-            <input className="input-ay" name="note" placeholder="الان روی چه چیزی کار می‌کنی؟ (اختیاری)" />
+            <label className="sr-only" htmlFor="course-full-name">نام کامل</label>
+            <input id="course-full-name" className="input-ay" name="full_name" placeholder="نام کامل…" autoComplete="name" required />
+            <label className="sr-only" htmlFor="course-phone">شماره موبایل</label>
+            <input id="course-phone" className="input-ay" name="phone" type="tel" inputMode="tel" placeholder="09xxxxxxxxx…" autoComplete="tel" required />
+            <label className="sr-only" htmlFor="course-note">توضیحات</label>
+            <input id="course-note" className="input-ay" name="note" placeholder="الان روی چه چیزی کار می‌کنی؟ (اختیاری)…" />
             <div className="flex gap-2">
               <button type="submit" className="btn-primary flex-1" disabled={busy}>
-                {busy ? "..." : "ارسال درخواست"}
+                {busy ? "در حال ارسال…" : "ارسال درخواست"}
               </button>
               <button type="button" className="btn-ghost" onClick={() => setSelected(null)}>
                 بستن
@@ -126,7 +135,15 @@ export default function CoursesPage() {
             </div>
           </form>
           {msg ? (
-            <pre className="mt-4 whitespace-pre-wrap text-xs leading-6 text-gold-400">{msg}</pre>
+            <pre className="mt-4 whitespace-pre-wrap text-xs leading-6 text-gold-400" aria-live="polite">{msg}</pre>
+          ) : null}
+          {paymentId ? (
+            <Link
+              href={`/track?payment_id=${paymentId}`}
+              className="mt-4 inline-flex text-xs text-sand-100 underline decoration-gold-500/60 underline-offset-4 hover:text-gold-300"
+            >
+              پیگیری وضعیت سفارش
+            </Link>
           ) : null}
         </div>
       ) : null}

@@ -74,9 +74,14 @@ export default function RootLayout({
         <AuthProvider>
           <div className="relative min-h-screen overflow-x-hidden bg-ink-950 text-sand-100">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-radial-fade" />
-            <div className="relative z-10 flex min-h-screen flex-col">
-              <SiteHeader />
-              <main className="flex-1">{children}</main>
+          <div className="relative z-10 flex min-h-screen flex-col">
+            <a href="#main-content" className="skip-link">
+              رفتن به محتوای اصلی
+            </a>
+            <SiteHeader />
+            <main id="main-content" className="flex-1">
+              {children}
+            </main>
               <SiteFooter />
             </div>
           </div>

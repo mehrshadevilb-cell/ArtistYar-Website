@@ -59,6 +59,20 @@ export async function createOrder(body: {
   );
 }
 
+export type OrderStatus = {
+  payment_id: number;
+  product_title: string;
+  amount: number;
+  status: string;
+  created_at: string;
+};
+
+export async function fetchOrderStatus(paymentId: number, phone: string): Promise<OrderStatus> {
+  return backendFetch<OrderStatus>(
+    `/api/v1/orders/${paymentId}/status?phone=${encodeURIComponent(phone)}`,
+  );
+}
+
 export async function createClassInquiry(body: {
   course_id: number;
   full_name: string;
