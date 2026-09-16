@@ -19,9 +19,9 @@ export function PanelShell({
   const { user, logout } = useAuth();
 
   return (
-    <div className="container-ay py-10">
+    <div className="container-ay panel-stage py-10">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="panel-heading">
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-gold-500">
             {title}
           </p>
@@ -56,7 +56,7 @@ export function PanelShell({
             })}
           </nav>
         </aside>
-        <div>{children}</div>
+        <div className="panel-content">{children}</div>
       </div>
     </div>
   );
