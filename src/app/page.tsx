@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AmbientBackdrop } from "@/components/AmbientBackdrop";
 import { LiveProductCard } from "@/components/LiveProductCard";
+import { Parallax, ParallaxHero } from "@/components/Parallax";
 import { Reveal } from "@/components/Reveal";
 import { ScrollCue } from "@/components/ScrollCue";
 import { SectionHeading } from "@/components/SectionHeading";
@@ -28,10 +29,10 @@ export default async function HomePage() {
 
   return (
     <div className="relative">
-      {/* Hero */}
-      <section className="relative overflow-hidden pb-10 pt-16 sm:pb-14 sm:pt-24">
+      {/* Hero with parallax depth */}
+      <ParallaxHero className="relative overflow-hidden pb-10 pt-16 sm:pb-14 sm:pt-24">
         <AmbientBackdrop />
-        <div className="container-ay relative z-10">
+        <div className="parallax-hero-content container-ay relative z-10">
           <div className="mx-auto max-w-3xl text-center">
             <p className="hero-fade text-xs font-medium uppercase tracking-[0.28em] text-gold-500">
               Academy of Serious Music
@@ -66,9 +67,10 @@ export default async function HomePage() {
 
           <ScrollCue />
         </div>
-      </section>
+      </ParallaxHero>
 
-      <section className="container-ay py-16">
+      <section className="relative container-ay py-16">
+        <Parallax speed={0.15} className="pointer-events-none absolute -left-20 top-0 -z-10 h-56 w-56 rounded-full bg-gold-500/10 blur-3xl" />
         <Reveal>
           <SectionHeading
             eyebrow="چرا آرتیست‌یار"
@@ -88,7 +90,11 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="container-ay py-16">
+      <section className="relative container-ay py-16">
+        <Parallax
+          speed={0.22}
+          className="pointer-events-none absolute -right-16 bottom-0 -z-10 h-64 w-64 rounded-full bg-white/[0.04] blur-3xl"
+        />
         <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
           <Reveal>
             <SectionHeading
@@ -120,8 +126,11 @@ export default async function HomePage() {
       <section className="container-ay py-16 pb-24">
         <Reveal>
           <div className="card-ay relative overflow-hidden px-8 py-12 sm:px-12">
+            <Parallax
+              speed={0.4}
+              className="pointer-events-none absolute -left-10 top-1/2 h-40 w-40 -translate-y-1/2 rounded-full bg-gold-500/15 blur-3xl"
+            />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-gold-500/15 via-transparent to-transparent" />
-            <div className="pointer-events-none absolute -left-10 top-1/2 h-40 w-40 -translate-y-1/2 rounded-full bg-gold-500/10 blur-3xl" />
             <div className="relative max-w-xl">
               <h2 className="text-3xl font-semibold tracking-tight text-sand-50">
                 آماده‌ای مسیرت را شروع کنی؟

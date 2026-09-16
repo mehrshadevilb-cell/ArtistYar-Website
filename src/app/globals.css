@@ -115,30 +115,20 @@ body {
 @keyframes floatSoft {
   0%,
   100% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, var(--scroll-y, 0px), 0) scale(1);
   }
   50% {
-    transform: translate3d(2%, -3%, 0) scale(1.05);
+    transform: translate3d(2%, calc(var(--scroll-y, 0px) - 3%), 0) scale(1.05);
   }
 }
 
 @keyframes floatSoftAlt {
   0%,
   100% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, var(--scroll-y, 0px), 0) scale(1);
   }
   50% {
-    transform: translate3d(-3%, 4%, 0) scale(1.08);
-  }
-}
-
-@keyframes pulseGlow {
-  0%,
-  100% {
-    opacity: 0.45;
-  }
-  50% {
-    opacity: 0.75;
+    transform: translate3d(-3%, calc(var(--scroll-y, 0px) + 4%), 0) scale(1.08);
   }
 }
 
@@ -163,6 +153,7 @@ body {
   filter: blur(60px);
   animation: floatSoft 14s ease-in-out infinite;
   will-change: transform;
+  --scroll-y: 0px;
 }
 
 .ambient-orb-a {
@@ -194,6 +185,30 @@ body {
   animation-name: floatSoft;
   animation-duration: 22s;
   animation-delay: -4s;
+}
+
+.ambient-grid {
+  transform: translate3d(0, var(--grid-shift, 0px), 0);
+  will-change: transform;
+}
+
+/* Parallax primitives */
+.parallax-layer {
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.parallax-hero {
+  --parallax-y: 0px;
+  --parallax-fade: 1;
+  --parallax-scale: 1;
+}
+
+.parallax-hero-content {
+  transform: translate3d(0, var(--parallax-y), 0) scale(var(--parallax-scale));
+  opacity: var(--parallax-fade);
+  will-change: transform, opacity;
+  transform-origin: center top;
 }
 
 .scroll-cue-line {
@@ -251,7 +266,10 @@ body {
   .gold-shimmer,
   .card-ay,
   .btn-primary,
-  .btn-ghost {
+  .btn-ghost,
+  .parallax-layer,
+  .parallax-hero-content,
+  .ambient-grid {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;
