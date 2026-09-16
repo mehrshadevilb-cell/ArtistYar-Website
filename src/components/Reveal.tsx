@@ -39,9 +39,9 @@ export function Reveal({ children, className = "", delay = 0, once = true }: Rev
     return () => io.disconnect();
   }, [once]);
 
-  const style: CSSProperties = delay
+  const style: CSSProperties = delay > 0
     ? { transitionDelay: `${delay}ms` }
-    : undefined;
+    : {};
 
   return (
     <div
