@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { LiveProductCard, type LiveProduct } from "@/components/LiveProductCard";
+import type { LiveProduct } from "@/components/LiveProductCard";
 import { SectionHeading } from "@/components/SectionHeading";
 import { StatusChip } from "@/components/StatusChip";
 
@@ -53,7 +53,7 @@ export default function CoursesPage() {
   }
 
   return (
-    <section className="container-ay py-16 fade-in">
+    <section className="container-ay py-16">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <SectionHeading
           eyebrow="Courses"
@@ -67,14 +67,39 @@ export default function CoursesPage() {
 
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
-          <LiveProductCard
+          <article
             key={item.id}
-            product={item}
-            onOrder={(p) => {
-              setSelected(p);
-              setMsg("");
-            }}
-          />
+            id={`p-${item.id}`}
+            className="card-ay flex h-full flex-col p-6"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <StatusChip tone="gold">دوره</StatusChip>
+              <StatusChip tone={item.is_active === false ? "warn" : "ok"}>
+                {item.is_active === false ? "غیرفعال" : "فعال"}
+              </StatusChip>
+            </div>
+            <h3 className="mt-5 text-xl font-semibold text-sand-50">{item.title}</h3>
+            <p className="mt-3 flex-1 text-sm leading-7 text-ink-400">
+              {item.description || "مسیر آموزشی آکادمی."}
+            </p>
+            <div className="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4">
+              <span className="text-sm font-medium text-gold-400">
+                {item.price > 0
+                  ? `${item.price.toLocaleString("fa-IR")} تومان`
+                  : "—"}
+              </span>
+              <button
+                type="button"
+                className="text-xs text-sand-100 underline-offset-4 hover:text-gold-300 hover:underline"
+                onClick={() => {
+                  setSelected(item);
+                  setMsg("");
+                }}
+              >
+                ثبت سفارش
+              </button>
+            </div>
+          </article>
         ))}
       </div>
 
