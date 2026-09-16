@@ -54,7 +54,7 @@ export async function createOrder(body: {
   phone: string;
   note?: string;
 }) {
-  return backendFetch<{ ok: boolean; payment_id: number; amount: number; message: string; card: { number: string | null; holder: string | null } }>(
+  return backendFetch<{ ok: boolean; payment_id: number; amount: number; message: string; bot_url?: string | null; card: { number: string | null; holder: string | null } }>(
     "/api/v1/orders",
     { method: "POST", body: JSON.stringify(body) },
   );
