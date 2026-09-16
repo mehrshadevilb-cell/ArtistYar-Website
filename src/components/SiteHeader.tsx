@@ -10,6 +10,7 @@ const links = [
   { href: "/", label: "خانه" },
   { href: "/courses", label: "دوره‌ها" },
   { href: "/online", label: "کلاس آنلاین" },
+  { href: "/assistant", label: "دستیار AI" },
   { href: "/about", label: "درباره" },
   { href: "/contact", label: "تماس" },
 ];

@@ -1,44 +1,30 @@
 # ArtistYar Website
 
-پلتفرم وب **آرتیست‌یار** — Next.js · RTL · مینیمال.
+پلتفرم وب **آرتیست‌یار** — متصل به ربات راه‌یار (دیتابیس + AI).
 
-هم‌تراز با ربات: `RahYar-Academy-Management-System-V14`
+## اتصال AI
 
-## قابلیت‌ها
+| سطح | کجا | چه کار می‌کند |
+|------|-----|----------------|
+| دستیار آموزشی | سایت `/assistant` + ربات | همان `ChatAssistantService` |
+| Diagnostics | سایت `/admin/ai` | self-check + status agent |
+| Developer Agent (کدنویسی/PR) | **فقط تلگرام ادمین** | امن؛ از وب باز نیست |
 
-### عمومی
-خانه · دوره‌ها (زنده/دمو) · کلاس آنلاین · درباره · تماس · ورود/ثبت‌نام
-
-### پنل‌ها
-- `/panel` هنرجو (دمو + آماده‌ی API)
-- `/admin` ادمین (دمو هم‌راستا با گزارش ربات)
-
-### اتصال backend
 ```env
-RAHYAR_API_URL=https://YOUR-RAHYAR-HOST
+RAHYAR_API_URL=https://YOUR-BOT-HOST
+RAHYAR_WEB_API_SECRET=   # optional, matches bot WEB_API_SECRET
 ```
 
-API سمت ربات:
-- `GET  /api/v1/products`
-- `GET  /api/v1/classes`
-- `POST /api/v1/orders`
-- `POST /api/v1/class-inquiries`
-- `GET  /api/v1/health`
-
-پروکسی سایت: `/api/rahyar/*`
-
-بدون `RAHYAR_API_URL` سایت با داده دمو کار می‌کند.
-
-### دمو ورود
-- student / student123
-- admin / admin123
+Backend endpoints:
+- `POST /api/v1/assistant/chat`
+- `GET  /api/v1/ai/status`
+- `GET  /api/v1/products` · `classes` · `orders` · ...
 
 ## اجرا
 ```bash
 npm install
-cp .env.example .env.local   # اختیاری
+cp .env.example .env.local
 npm run dev
 ```
 
-## قانون کسب‌وکار
-سفارش وب مثل ربات **pending** می‌ماند تا ادمین در تلگرام تأیید کند.
+دمو: `student/student123` · `admin/admin123`
