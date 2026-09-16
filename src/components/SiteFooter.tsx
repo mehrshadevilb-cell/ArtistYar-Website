@@ -28,6 +28,11 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
+              <Link href="/assistant" className="hover:text-sand-50">
+                دستیار AI
+              </Link>
+            </li>
+            <li>
               <Link href="/login" className="hover:text-sand-50">
                 ورود هنرجو
               </Link>
@@ -49,7 +54,7 @@ export function SiteFooter() {
                 پشتیبانی
               </Link>
             </li>
-            <li className="text-ink-500">همگام با ربات تلگرام راه‌یار</li>
+            <li className="text-ink-500">همگام با ربات راه‌یار</li>
           </ul>
         </div>
       </div>

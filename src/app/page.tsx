@@ -13,14 +13,14 @@ const pillars = [
     body: "رزرو، حضور و جلسات آنلاین با قواعد مشخص آکادمی، نه لیست مبهم.",
   },
   {
-    title: "همراهی مداوم",
-    body: "پشتیبانی، یادآوری، و ابزارهایی که هنرجو را در مسیر نگه می‌دارد.",
+    title: "همراهی هوشمند",
+    body: "دستیار AI و پشتیبانی، برای وقتی که مسیر نیاز به راهنمایی دارد.",
   },
 ];
 
 export default function HomePage() {
   return (
-    <>
+    <div className="fade-in">
       <section className="container-ay pb-20 pt-16 sm:pt-24">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-gold-500">
@@ -38,14 +38,14 @@ export default function HomePage() {
             <Link href="/courses" className="btn-primary">
               مشاهده دوره‌ها
             </Link>
-            <Link href="/online" className="btn-ghost">
-              کلاس‌های آنلاین
+            <Link href="/assistant" className="btn-ghost">
+              گفتگو با دستیار AI
             </Link>
           </div>
         </div>
 
         <div className="mx-auto mt-16 grid max-w-4xl gap-3 sm:grid-cols-3">
-          {["دوره دیجیتال", "جلسه یک‌به‌یک", "پشتیبانی آکادمی"].map((item) => (
+          {["دوره دیجیتال", "جلسه یک‌به‌یک", "دستیار هوشمند"].map((item) => (
             <div
               key={item}
               className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-4 text-center text-sm text-ink-300"
@@ -64,7 +64,7 @@ export default function HomePage() {
         />
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {pillars.map((item) => (
-            <div key={item.title} className="card-ay p-6">
+            <div key={item.title} className="card-ay p-6 hover:border-gold-500/20">
               <h3 className="text-lg font-medium text-sand-50">{item.title}</h3>
               <p className="mt-3 text-sm leading-7 text-ink-400">{item.body}</p>
             </div>
@@ -77,7 +77,7 @@ export default function HomePage() {
           <SectionHeading
             eyebrow="مسیرها"
             title="از بنیان تا انتشار"
-            subtitle="نمونه مسیرهای آکادمی. اتصال قیمت و ثبت‌نام زنده در فاز بعدی به سیستم ربات وصل می‌شود."
+            subtitle="نمونه مسیرها. قیمت و ثبت‌نام زنده با اتصال به راه‌یار فعال می‌شود."
           />
           <Link href="/courses" className="btn-ghost !py-2.5 text-xs">
             همه دوره‌ها
@@ -98,20 +98,19 @@ export default function HomePage() {
               آماده‌ای مسیرت را شروع کنی؟
             </h2>
             <p className="mt-4 text-sm leading-7 text-ink-400">
-              وارد حساب شو، دوره‌ها را ببین، و به‌زودی اکانت وب را با ربات تلگرام
-              همگام کن.
+              وارد حساب شو، دوره‌ها را ببین، از دستیار بپرس، و اکانت را با ربات همگام کن.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/login" className="btn-primary">
                 ورود به حساب
               </Link>
-              <Link href="/contact" className="btn-ghost">
-                گفتگو با پشتیبانی
+              <Link href="/online" className="btn-ghost">
+                کلاس آنلاین
               </Link>
             </div>
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }
