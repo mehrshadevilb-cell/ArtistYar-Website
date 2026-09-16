@@ -8,7 +8,8 @@ import {
 } from "react";
 
 type ParallaxProps = {
-  children: ReactNode;
+  /** Optional content. Decorative parallax layers may intentionally be empty. */
+  children?: ReactNode;
   /** Scroll speed relative to page. 0 = sticky-ish lag, 1 = normal, >1 = faster. Default 0.35 */
   speed?: number;
   className?: string;
