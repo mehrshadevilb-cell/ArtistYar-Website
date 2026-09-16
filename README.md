@@ -1,45 +1,44 @@
 # ArtistYar Website
 
-پلتفرم وب **آرتیست‌یار** — مدرن، مینیمال، RTL فارسی.
+پلتفرم وب **آرتیست‌یار** — Next.js · RTL · مینیمال.
 
-ریپو: private · هم‌تراز با ربات `RahYar-Academy-Management-System-V14`
+هم‌تراز با ربات: `RahYar-Academy-Management-System-V14`
 
-## آنچه آماده است
+## قابلیت‌ها
 
 ### عمومی
-- خانه، دوره‌ها، کلاس آنلاین، درباره، تماس
-- هویت بصری ink / sand / gold
+خانه · دوره‌ها (زنده/دمو) · کلاس آنلاین · درباره · تماس · ورود/ثبت‌نام
 
-### حساب کاربری
-- ورود و ثبت‌نام (دمو محلی)
-- حساب دمو:
-  - هنرجو: `student` / `student123`
-  - ادمین: `admin` / `admin123`
+### پنل‌ها
+- `/panel` هنرجو (دمو + آماده‌ی API)
+- `/admin` ادمین (دمو هم‌راستا با گزارش ربات)
 
-### پنل هنرجو `/panel`
-- نمای کلی، دوره‌ها، رزروها، پروفایل + همگام‌سازی تلگرام (دمو)
+### اتصال backend
+```env
+RAHYAR_API_URL=https://YOUR-RAHYAR-HOST
+```
 
-### پنل ادمین `/admin`
-- گزارش امروز، پرداخت‌ها، رزروها، هنرجویان، وضعیت سیستم
+API سمت ربات:
+- `GET  /api/v1/products`
+- `GET  /api/v1/classes`
+- `POST /api/v1/orders`
+- `POST /api/v1/class-inquiries`
+- `GET  /api/v1/health`
 
-### API
-- `GET /api/health`
-- `POST /api/auth/login` (اسکلت اتصال backend)
+پروکسی سایت: `/api/rahyar/*`
+
+بدون `RAHYAR_API_URL` سایت با داده دمو کار می‌کند.
+
+### دمو ورود
+- student / student123
+- admin / admin123
 
 ## اجرا
-
 ```bash
 npm install
+cp .env.example .env.local   # اختیاری
 npm run dev
 ```
 
-## فاز بعدی (backend)
-
-1. `RAHYAR_API_URL` به سرویس مشترک ربات
-2. JWT / session واقعی به‌جای localStorage
-3. لینک امن اکانت وب ↔ telegram_id
-4. دامنه + TLS
-
-## برند
-
-آرتیست‌یار / ArtistYar — آموزش جدی موسیقی، UI بدون شلوغی.
+## قانون کسب‌وکار
+سفارش وب مثل ربات **pending** می‌ماند تا ادمین در تلگرام تأیید کند.
