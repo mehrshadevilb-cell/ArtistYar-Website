@@ -74,6 +74,34 @@ export async function fetchOrderStatus(paymentId: number, phone: string): Promis
   );
 }
 
+export async function uploadOrderReceipt(paymentId: number, phone: string, receipt: File) {
+  const form = new FormData();
+  form.set("phone", phone);
+  form.set("receipt", receipt);
+  const res = await fetch(`${backendBase()}/api/v1/orders/${paymentId}/receipt`, {
+    method: "POST",
+    body: form,
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || "آپلود رسید ناموفق بود.");
+  return data as { ok: boolean; payment_id: number; status: string; message: string };
+}
+
+export type ApiLicense = {
+  id: number;
+  product_title: string;
+  status: string;
+  license_key: string | null;
+  license_url: string | null;
+  payment_id: number | null;
+  created_at: string;
+};
+
+export async function fetchLicenses(phone: string): Promise<ApiLicense[]> {
+  return backendFetch<ApiLicense[]>(`/api/v1/licenses?phone=${encodeURIComponent(phone)}`);
+}
+
 export async function createClassInquiry(body: {
   course_id: number;
   full_name: string;
