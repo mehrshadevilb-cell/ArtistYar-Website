@@ -12,7 +12,7 @@ function backendBase(): string {
 
 const packageFallbacks: LiveProduct[] = [
   {
-    id: 0,
+    id: -1,
     title: "آرتیست‌یار",
     description: "ضبط و ادیت حرفه‌ای با موبایل یا میکروفون استودیویی؛ شامل بی‌کلام کردن موزیک، کوک وکال، اصلاح تایمینگ و خروجی باکیفیت برای تولید محتوا.",
     price: 1500000,
@@ -20,7 +20,7 @@ const packageFallbacks: LiveProduct[] = [
     delivery_type: "telegram",
   },
   {
-    id: 0,
+    id: -2,
     title: "راه‌یار",
     description: "تنها مسیر یادگیری اصولی تنظیم، میکس و مسترینگ از پایه تا سطح حرفه‌ای؛ با تمرکز روی تحلیل موسیقی، تصمیم‌گیری و اجرای پروژه واقعی.",
     price: 25000000,
@@ -28,7 +28,7 @@ const packageFallbacks: LiveProduct[] = [
     delivery_type: "spotplayer",
   },
   {
-    id: 0,
+    id: -3,
     title: "راه‌یار پرو",
     description: "مسیر تخصصی‌تر برای تحلیل پروژه، تصمیم‌گیری حرفه‌ای در تنظیم، میکس و مسترینگ و حل مسئله روی پروژه‌های واقعی.",
     price: 0,
@@ -36,7 +36,7 @@ const packageFallbacks: LiveProduct[] = [
     delivery_type: "spotplayer",
   },
   {
-    id: 0,
+    id: -4,
     title: "تئوری موسیقی",
     description: "نت، ریتم، فواصل، گام‌ها، آکوردها، هارمونی، ریف، آرپژ و تربیت شنوایی برای ساخت و تحلیل موسیقی.",
     price: 380000,
@@ -51,7 +51,7 @@ function fallbackCatalog(): LiveProduct[] {
     ...demoCourses
       .filter((course) => !packageFallbacks.some((item) => item.title.replace(/‌/g, "") === course.title.replace(/‌/g, "")))
       .map((c, i) => ({
-        id: -(i + 1),
+        id: -(100 + i),
         title: c.title,
         description: c.summary,
         price: 0,
@@ -74,10 +74,14 @@ export async function getCatalog(): Promise<CatalogResult> {
     return { source: "demo", items: fallbackCatalog() };
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+
   try {
     const res = await fetch(`${base}/api/v1/products`, {
       next: { revalidate: 60 },
       headers: { Accept: "application/json" },
+      signal: controller.signal,
     });
 
     if (!res.ok) {
@@ -89,5 +93,7 @@ export async function getCatalog(): Promise<CatalogResult> {
     return { source: "rahyar", items: mergePackages(items) };
   } catch {
     return { source: "error", items: fallbackCatalog() };
+  } finally {
+    clearTimeout(timeout);
   }
 }
