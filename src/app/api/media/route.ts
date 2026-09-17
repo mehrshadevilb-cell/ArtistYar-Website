@@ -15,7 +15,7 @@ function errorMessage(error: unknown, fallback: string): string { return error i
 export async function GET(request: Request) {
   if (!hasSupabase()) return NextResponse.json({ configured: false, items: [] });
   try { const source = new URL(request.url).searchParams.get("source"); if (source === "storage") { if (!authorized(request)) return NextResponse.json({ configured: true, items: [], error: "دسترسی مدیریت معتبر نیست." }, { status: 401 }); return NextResponse.json({ configured: true, items: await listStorageFiles() }); } return NextResponse.json({ configured: true, items: await listPublishedMedia() }, { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }); }
-  catch (error) { console.error("supabase media list failed", error); return NextResponse.json({ configured: true, items: [], error: "دریافت محتوای منتشرشده ناموفق بود." }, { status: 502 }); }
+  catch (error) { console.error("supabase media list failed", error); return NextResponse.json({ configured: true, items: [], error: `Supabase: ${errorMessage(error, "دریافت محتوای منتشرشده ناموفق بود.")}` }, { status: 502 }); }
 }
 
 export async function POST(request: Request) {

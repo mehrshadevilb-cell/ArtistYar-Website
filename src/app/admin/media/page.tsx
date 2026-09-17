@@ -30,7 +30,7 @@ export default function AdminMediaPage() {
 
   async function loadItems() {
     try { const response = await fetch("/api/media"); const data = await readApiResponse(response); if (!response.ok) throw new Error(data.error || "دریافت محتوا ناموفق بود."); setItems(data.items || []); }
-    catch { setError("دریافت محتوای قبلی ناموفق بود."); }
+    catch (listError) { setError(listError instanceof Error ? listError.message : "دریافت محتوای قبلی ناموفق بود."); }
   }
 
   async function loadStorage(currentToken = token) {
