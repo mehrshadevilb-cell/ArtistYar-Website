@@ -15,10 +15,10 @@ export const metadata: Metadata = {
     "دوره تنظیم و میکس",
     "آموزش میکس مسترینگ فارسی",
   ],
-  alternates: { canonical: `${siteUrl}/amoozesh-tanzim-mix-mastering` },
+  alternates: { canonical: `${siteUrl}/amoozesh-mix-mastering` },
   openGraph: {
     type: "article",
-    url: `${siteUrl}/amoozesh-tanzim-mix-mastering`,
+    url: `${siteUrl}/amoozesh-mix-mastering`,
     title: "آموزش تنظیم، میکس و مسترینگ از پایه تا پروژه",
     description:
       "مسیر عملی آرتیست‌یار برای یادگیری تنظیم، میکس و مسترینگ با تمرین واقعی و راهنمایی راه‌یار AI.",
@@ -59,10 +59,10 @@ const articleJsonLd = {
   headline: "آموزش تنظیم، میکس و مسترینگ از پایه تا پروژه",
   description: metadata.description,
   inLanguage: "fa-IR",
-  url: `${siteUrl}/amoozesh-tanzim-mix-mastering`,
+  url: `${siteUrl}/amoozesh-mix-mastering`,
   author: { "@type": "Person", name: "مهرشاد بنائی", url: `${siteUrl}/about` },
   publisher: { "@type": "EducationalOrganization", name: "ArtistYar Academy", url: siteUrl },
-  mainEntityOfPage: `${siteUrl}/amoozesh-tanzim-mix-mastering`,
+  mainEntityOfPage: `${siteUrl}/amoozesh-mix-mastering`,
   about: ["تنظیم موسیقی", "میکس موسیقی", "مسترینگ موسیقی"],
 };
 
