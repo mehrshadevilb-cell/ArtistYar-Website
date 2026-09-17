@@ -11,6 +11,12 @@ export type ApiClass = {
   id: number;
   name: string;
   description: string | null;
+  teacher?: string | null;
+  duration_minutes?: number;
+  monthly_price?: number | null;
+  term_price?: number | null;
+  monthly_sessions?: number;
+  term_sessions?: number;
   is_active: boolean;
 };
 
