@@ -22,6 +22,32 @@ const products = [
 ];
 const studentSteps = ["مسیر یا کلاس را انتخاب کن", "درخواستت در راه‌یار بررسی می‌شود", "دسترسی، رزرو و پیشرفتت را دنبال کن"];
 const supportItems = ["تکلیف و بازخورد کلاس", "رزرو جلسه و یادآوری‌ها", "پشتیبانی و تیکت", "دستیار هوشمند موسیقی"];
+const studentProjects = [
+  {
+    code: "PRJ / 01",
+    title: "قطعه پاپ؛ از ایده تا میکس نهایی",
+    student: "پروژه هنرجو · نام محفوظ",
+    type: "تنظیم + میکس",
+    result: "ساختار قطعه منسجم‌تر شد و وکال جای درست خودش را در میکس پیدا کرد.",
+    tone: "gold",
+  },
+  {
+    code: "PRJ / 02",
+    title: "ساخت ملودی و هارمونی برای یک ایده خام",
+    student: "پروژه هنرجو · نام محفوظ",
+    type: "تئوری + آهنگسازی",
+    result: "ایده اولیه به یک اسکچ کامل با ملودی، آکورد و مسیر مشخص برای تنظیم تبدیل شد.",
+    tone: "blue",
+  },
+  {
+    code: "PRJ / 03",
+    title: "تمیزتر شدن صدا و آماده‌سازی انتشار",
+    student: "پروژه هنرجو · نام محفوظ",
+    type: "میکس + مسترینگ",
+    result: "تعادل فرکانسی، عمق و بلندی قطعه اصلاح شد تا روی سیستم‌های مختلف بهتر شنیده شود.",
+    tone: "olive",
+  },
+];
 
 export default function HomePage() {
   return <div>
@@ -49,6 +75,8 @@ export default function HomePage() {
     <section id="paths" className="path-section border-y border-white/[.06]"><div className="container-ay path-layout"><Reveal><div><p className="eyebrow">/ محصولات اصلی</p><h2 className="section-title mt-4">مسیر مناسب خودت<br /><span className="text-gold-400">را انتخاب کن.</span></h2><p className="section-sub max-w-xl">اگر تازه شروع کرده‌ای یا می‌خواهی روی پروژه‌ات دقیق‌تر کار کنی، از یکی از مسیرهای اصلی راه‌یار شروع کن.</p><Link href="/courses" className="inline-flex items-center gap-2 mt-8 text-sm text-gold-400 hover:text-gold-300">مشاهده همه مسیرها <ArrowLeft size={15} /></Link></div></Reveal><Reveal delay={120}><div className="steps-card">{products.map((product) => { const Icon = product.icon; return <Link href={product.href} key={product.title} className="step-row group"><span className="step-index"><Icon size={16} /></span><span><span className="step-title block">{product.title}</span><span className="mt-1 block text-xs text-ink-500">{product.label}</span></span><span className="step-arrow">↙</span></Link>; })}<div className="steps-footer"><span className="status-dot" /> دسترسی و تأیید از مسیر راه‌یار انجام می‌شود</div></div></Reveal></div></section>
 
     <section id="flow" className="container-ay section-space"><Reveal><div className="section-intro"><p className="eyebrow">/ مسیر هنرجو</p><h2 className="section-title">شروعش ساده است؛<br /><span className="text-gold-400">ادامه‌اش با تو و راه‌یار.</span></h2></div></Reveal><div className="benefit-grid">{studentSteps.map((step, i) => <Reveal key={step} delay={i * 80}><article className="benefit-card"><span className="benefit-icon"><span className="text-lg font-medium">۰{i + 1}</span></span><h3>{step}</h3><p>{i === 0 ? "از بین دوره‌های دیجیتال یا کلاس‌های آنلاین، چیزی را انتخاب کن که به کارت نزدیک‌تر است." : i === 1 ? "درخواستت ثبت می‌شود و تأیید پرداخت یا هماهنگی کلاس از طریق راه‌یار انجام می‌شود." : "دسترسی محتوا، رزروها، تکلیف‌ها و وضعیت پیشرفتت را در مسیر هنرجویی دنبال کن."}</p></article></Reveal>)}</div></section>
+
+    <section id="projects" className="projects-section border-y border-white/[.06]"><div className="container-ay section-space"><Reveal><div className="projects-heading"><div><p className="eyebrow">/ پروژه‌های منتخب هنرجویی</p><h2 className="section-title mt-4">یادگیری وقتی واقعی می‌شود<br /><span className="text-gold-400">که به خروجی برسد.</span></h2></div><p className="section-sub max-w-md">چند نمونه از مسیرهایی که هنرجوها روی پروژه خودشان جلو برده‌اند؛ از ایده خام تا تنظیم، میکس و آماده‌سازی انتشار.</p></div></Reveal><div className="projects-grid">{studentProjects.map((project, i) => <Reveal key={project.code} delay={i * 90}><article className={`project-card project-${project.tone}`}><div className="project-visual"><span className="project-code">{project.code}</span><div className="project-bars"><i /><i /><i /><i /><i /><i /><i /></div><span className="project-play"><CirclePlay size={20} /></span><span className="project-wave-label">STUDENT WORK / ۲۰۲۶</span></div><div className="project-meta"><span className="skill-tag">{project.type}</span><span className="project-student">{project.student}</span></div><h3>{project.title}</h3><p>{project.result}</p><div className="project-footer"><span>نتیجه مسیر</span><ArrowLeft size={15} /></div></article></Reveal>)}</div><p className="projects-note">نمونه‌ها با حفظ حریم خصوصی هنرجوها ارائه شده‌اند. خروجی هر پروژه به مسیر، تمرین و نقطه شروع هنرجو بستگی دارد.</p></div></section>
 
     <div id="courses"><HomeLiveCourses /></div>
 

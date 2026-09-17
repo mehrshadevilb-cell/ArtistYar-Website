@@ -13,6 +13,7 @@ const links = [
   { href: "/#about", label: "چرا آرتیست‌یار" },
   { href: "/#paths", label: "روش ما" },
   { href: "/#flow", label: "مسیر هنرجو" },
+  { href: "/#projects", label: "نمونه‌کارها" },
   { href: "/#courses", label: "دوره‌ها" },
   { href: "/#contact", label: "ارتباط" },
 ];
