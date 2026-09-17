@@ -165,7 +165,8 @@ export default function CoursesPage() {
         {items.map((item) => {
           const detail = detailFor(item);
           const isExpanded = expandedId === item.id;
-          const hasImage = Boolean(item.thumbnail);
+          // Telegram file IDs are not browser URLs; show the designed fallback instead of a broken image.
+          const hasImage = Boolean(item.thumbnail && /^https?:\/\//i.test(item.thumbnail));
           return (
             <article key={item.id} id={`p-${item.id}`} className="card-ay flex h-full flex-col overflow-hidden">
               <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[0.06]">

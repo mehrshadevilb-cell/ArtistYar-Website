@@ -24,7 +24,8 @@ function fallbackInitial(title: string): string {
 
 /** Server-friendly card (no client JS). Order CTA is a link to /courses. */
 export function LiveProductCard({ product }: { product: LiveProduct }) {
-  const hasImage = Boolean(product.thumbnail);
+  // Telegram file IDs are not browser URLs; use the intentional fallback artwork.
+  const hasImage = Boolean(product.thumbnail && /^https?:\/\//i.test(product.thumbnail));
 
   return (
     <article className="card-ay group flex h-full flex-col overflow-hidden transition hover:border-gold-500/25 hover:bg-white/[0.045]">
