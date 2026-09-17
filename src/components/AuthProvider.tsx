@@ -10,7 +10,7 @@ import {
 } from "react";
 import {
   getSession,
-  login as doLogin,
+  loginViaApi,
   logout as doLogout,
   registerLocal,
   saveSession,
@@ -20,7 +20,10 @@ import {
 type AuthContextValue = {
   user: SessionUser | null;
   ready: boolean;
-  login: (username: string, password: string) => { ok: true } | { ok: false; error: string };
+  login: (
+    username: string,
+    password: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   register: (input: {
     username: string;
     password: string;
@@ -41,10 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setReady(true);
   }, []);
 
-  const login = useCallback((username: string, password: string) => {
-    const session = doLogin(username, password);
-    if (!session) return { ok: false as const, error: "نام کاربری یا رمز عبور نادرست است." };
-    setUser(session);
+  const login = useCallback(async (username: string, password: string) => {
+    const result = await loginViaApi(username, password);
+    if (!result.ok) return { ok: false as const, error: result.error };
+    setUser(result.user);
     return { ok: true as const };
   }, []);
 
