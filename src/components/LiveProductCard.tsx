@@ -22,6 +22,14 @@ function fallbackInitial(title: string): string {
   return clean.slice(0, 1) || "آ";
 }
 
+function coverClass(title: string): string {
+  if (title.includes("پرو")) return "product-cover product-cover-pro";
+  if (title.includes("راه‌یار") || title.includes("راهیار")) return "product-cover product-cover-rahyar";
+  if (title.includes("تئوری")) return "product-cover product-cover-theory";
+  if (title.includes("آرتیست")) return "product-cover product-cover-artist";
+  return "product-cover";
+}
+
 /** Server-friendly card (no client JS). Order CTA is a link to /courses. */
 export function LiveProductCard({ product }: { product: LiveProduct }) {
   const hasImage = Boolean(product.thumbnail);
@@ -34,7 +42,7 @@ export function LiveProductCard({ product }: { product: LiveProduct }) {
           <img
             src={product.thumbnail!}
             alt={product.title}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+            className={`h-full w-full object-cover transition duration-500 group-hover:scale-[1.03] ${coverClass(product.title)}`}
             loading="lazy"
           />
         ) : (
