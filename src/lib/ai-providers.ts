@@ -21,11 +21,18 @@ export type AIProvider = {
 
 /** Centralized AI gateway: the website does not duplicate provider routing. */
 function gatewayUrl(): string {
-  return (process.env.RAHYAR_AI_GATEWAY_URL || "").trim().replace(/\/$/, "");
+  const explicit = (process.env.RAHYAR_AI_GATEWAY_URL || "").trim().replace(/\/$/, "");
+  if (explicit) return explicit;
+  // Same RahYar service hosts /api/v1/assistant/chat — allow a single base URL env.
+  return (process.env.RAHYAR_API_URL || "").trim().replace(/\/$/, "");
 }
 
 function gatewaySecret(): string {
-  return (process.env.RAHYAR_AI_BRIDGE_SECRET || "").trim();
+  return (
+    process.env.RAHYAR_AI_BRIDGE_SECRET
+    || process.env.RAHYAR_AI_KEY
+    || ""
+  ).trim();
 }
 
 function gatewayHeaders(): HeadersInit {
@@ -38,8 +45,16 @@ function gatewayHeaders(): HeadersInit {
 
 function requireGateway(): string {
   const url = gatewayUrl();
-  if (!url) throw new Error("RahYar AI gateway is not configured");
-  if (!gatewaySecret()) throw new Error("RahYar AI gateway secret is not configured");
+  if (!url) {
+    throw new Error(
+      "RAHYAR_API_URL یا RAHYAR_AI_GATEWAY_URL روی سرویس ArtistYar تنظیم نشده",
+    );
+  }
+  if (!gatewaySecret()) {
+    throw new Error(
+      "RAHYAR_AI_BRIDGE_SECRET روی ArtistYar و RahYar باید یکسان باشد",
+    );
+  }
   return url;
 }
 
@@ -120,7 +135,16 @@ export async function chatWithProvider(
     | { ok?: boolean; reply?: unknown; detail?: unknown }
     | null;
   if (!response.ok) {
-    const detail = typeof data?.detail === "string" ? data.detail : `HTTP ${response.status}`;
+    const detail = typeof data?.detail === "string"
+      ? data.detail
+      : typeof data?.reply === "string"
+        ? data.reply
+        : `HTTP ${response.status}`;
+    if (detail === "ai_bridge_not_configured") {
+      throw new Error(
+        "روی RahYar مقدار RAHYAR_AI_BRIDGE_SECRET ست نشده (باید با ArtistYar یکی باشد)",
+      );
+    }
     throw new Error(`RahYar gateway: ${detail}`);
   }
 
