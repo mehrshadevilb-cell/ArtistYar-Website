@@ -2,7 +2,16 @@
 
 import { useEffect } from "react";
 import Lenis from "lenis";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
+gsap.registerPlugin(ScrollTrigger);
+
+/**
+ * Single global smooth-scroll controller.
+ * Lenis drives the scroll position; ScrollTrigger is explicitly synced so
+ * scroll-linked animations never drift or stall.
+ */
 export function SmoothScroll() {
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -14,16 +23,19 @@ export function SmoothScroll() {
       syncTouch: false,
     });
 
-    let frame = 0;
+    const onScroll = () => ScrollTrigger.update();
+    lenis.on("scroll", onScroll);
+
     const raf = (time: number) => {
       lenis.raf(time);
-      frame = requestAnimationFrame(raf);
     };
 
-    frame = requestAnimationFrame(raf);
+    gsap.ticker.add(raf);
+    gsap.ticker.lagSmoothing(1000, 16);
 
     return () => {
-      cancelAnimationFrame(frame);
+      lenis.off("scroll", onScroll);
+      gsap.ticker.remove(raf);
       lenis.destroy();
     };
   }, []);
