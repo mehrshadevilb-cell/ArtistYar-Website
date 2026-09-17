@@ -119,6 +119,10 @@ export async function logout(): Promise<void> {
   }
 }
 
+export function clearLocalSession(): void {
+  removeStorageItem(STORAGE_KEY);
+}
+
 export function getSession(): SessionUser | null {
   if (typeof window === "undefined") return null;
   try {

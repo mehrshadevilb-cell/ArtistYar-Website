@@ -14,6 +14,7 @@ import {
   logout as doLogout,
   registerLocal,
   saveSession,
+  clearLocalSession,
   type SessionUser,
 } from "@/lib/auth";
 
@@ -49,11 +50,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           saveSession(data.user);
           setUser(data.user);
         } else {
-          setUser(getSession());
+          const local = getSession();
+          // An admin session is valid only when the HttpOnly server cookie is
+          // valid too. Keeping a stale local admin session causes /admin ->
+          // /login -> /admin redirect loops after cookie expiry.
+          if (local?.role === "admin") {
+            clearLocalSession();
+            setUser(null);
+          } else {
+            setUser(local);
+          }
         }
       })
       .catch(() => {
-        if (!cancelled) setUser(getSession());
+        if (!cancelled) {
+          const local = getSession();
+          setUser(local?.role === "admin" ? null : local);
+        }
       })
       .finally(() => {
         if (!cancelled) setReady(true);
