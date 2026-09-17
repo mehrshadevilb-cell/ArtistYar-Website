@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X, ArrowUpLeft, Bot } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { useAuth } from "./AuthProvider";
+import { ThemeToggle } from "./ThemeToggle";
 
 const links = [
   { href: "/courses", label: "مسیرهای آموزشی" },
@@ -47,6 +48,7 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="hidden items-center gap-3 md:flex">
+          <ThemeToggle />
           <Link href="/assistant" className="inline-flex items-center gap-1.5 text-xs text-gold-400 transition hover:text-gold-300">
             <Bot size={14} aria-hidden />
             راه‌یار AI
@@ -68,16 +70,19 @@ export function SiteHeader() {
             مشاوره رایگان <ArrowUpLeft size={14} aria-hidden="true" />
           </a>
         </div>
-        <button
-          type="button"
-          aria-label={open ? "بستن منو" : "باز کردن منو"}
-          aria-expanded={open}
-          aria-controls="mobile-navigation"
-          className="menu-button lg:hidden"
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
-        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <ThemeToggle />
+          <button
+            type="button"
+            aria-label={open ? "بستن منو" : "باز کردن منو"}
+            aria-expanded={open}
+            aria-controls="mobile-navigation"
+            className="menu-button"
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+          </button>
+        </div>
       </div>
       <div
         id="mobile-navigation"
