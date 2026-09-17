@@ -2,7 +2,15 @@ import type { Metadata } from "next";
 import { SectionHeading } from "@/components/SectionHeading";
 
 export const metadata: Metadata = {
-  title: "درباره",
+  title: "درباره آکادمی راه‌یار و مهرشاد بنائی",
+  description: "درباره آکادمی راه‌یار و مهرشاد بنائی؛ آموزش پروژه‌محور تنظیم، آهنگ‌سازی، میکس و مسترینگ با تمرین واقعی و پشتیبانی هنرجو.",
+  alternates: { canonical: "/about" },
+  openGraph: {
+    type: "profile",
+    url: "/about",
+    title: "درباره آکادمی راه‌یار و مهرشاد بنائی",
+    description: "مدرس و مسیر آموزشی ArtistYar برای یادگیری واقعی تولید موسیقی.",
+  },
 };
 
 export default function AboutPage() {

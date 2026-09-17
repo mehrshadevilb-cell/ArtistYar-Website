@@ -2,7 +2,15 @@ import type { Metadata } from "next";
 import { SectionHeading } from "@/components/SectionHeading";
 
 export const metadata: Metadata = {
-  title: "تماس",
+  title: "تماس و مشاوره آموزش موسیقی",
+  description: "برای مشاوره انتخاب دوره، کلاس آنلاین تنظیم، میکس و مسترینگ یا ادامه مسیر یادگیری با آکادمی راه‌یار در تماس باش.",
+  alternates: { canonical: "/contact" },
+  openGraph: {
+    type: "website",
+    url: "/contact",
+    title: "تماس و مشاوره آموزش موسیقی | ArtistYar",
+    description: "ارتباط با آکادمی راه‌یار برای مشاوره دوره و کلاس آنلاین تولید موسیقی.",
+  },
 };
 
 export default function ContactPage() {

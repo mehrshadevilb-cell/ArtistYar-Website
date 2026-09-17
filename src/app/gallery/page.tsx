@@ -10,6 +10,13 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "خروجی‌ها و گالری ArtistYar",
   description: "خروجی هنرجوها، آثار مهرشاد، آموزش‌های موسیقی و آرشیو محتوای Instagram آرتیست‌یار.",
+  alternates: { canonical: "/gallery" },
+  openGraph: {
+    type: "website",
+    url: "/gallery",
+    title: "گالری خروجی‌ها و آموزش‌های ArtistYar",
+    description: "نمونه‌کارهای هنرجوها، آموزش‌های موسیقی و آرشیو محتوای عمومی آرتیست‌یار.",
+  },
 };
 
 function categoryLabel(category: string) {

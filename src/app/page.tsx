@@ -24,11 +24,13 @@ export const metadata: Metadata = {
     "تولید موسیقی",
     "عیب‌یابی میکس",
   ],
+  alternates: { canonical: "/" },
   openGraph: {
     title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | ArtistYar",
     description:
       "یادگیری واقعی تولید موسیقی با مسیر روشن، تمرین پروژه‌محور و دستیار هوشمند راه‌یار — فرق این آکادمی از لحظه ورود مشخص است.",
     type: "website",
+    url: "/",
   },
 };
 
