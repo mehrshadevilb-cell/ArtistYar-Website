@@ -4,6 +4,7 @@ import { instagramGallery } from "@/data/instagram-gallery";
 import { SectionHeading } from "@/components/SectionHeading";
 import { StatusChip } from "@/components/StatusChip";
 import { listPublishedMedia } from "@/lib/supabase-media";
+import { MediaPlayer } from "@/components/MediaPlayer";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "خروجی‌ها و گالری ArtistYar", description: "خروجی هنرجوها، آثار مهرشاد، آموزش‌های موسیقی و آرشیو محتوای Instagram آرتیست‌یار." };
@@ -34,5 +35,5 @@ export default async function GalleryPage() {
   </section>;
 }
 
-function MediaCard({ item }: { item: Awaited<ReturnType<typeof listPublishedMedia>>[number] }) { return <article className="card-ay flex h-full flex-col p-6"><div className="flex items-center justify-between gap-3"><StatusChip tone={item.category === "student-work" ? "gold" : "ok"}>{item.category === "student-work" ? "نمونه‌کار هنرجو" : "آموزش رایگان"}</StatusChip><span className="text-xs text-ink-500">Supabase Storage</span></div><h3 className="mt-6 text-xl font-semibold text-sand-50">{item.title}</h3><p className="mt-3 flex-1 text-sm leading-7 text-ink-400">{item.description || "محتوای آموزشی آرتیست‌یار."}</p><a href={item.url} target="_blank" rel="noreferrer" className="mt-6 text-sm text-gold-400 hover:text-gold-300">مشاهده فایل ↗</a></article>; }
+function MediaCard({ item }: { item: Awaited<ReturnType<typeof listPublishedMedia>>[number] }) { return <article className="card-ay flex h-full flex-col p-6"><div className="flex items-center justify-between gap-3"><StatusChip tone={item.category === "student-work" ? "gold" : "ok"}>{item.category === "student-work" ? "نمونه‌کار هنرجو" : "آموزش رایگان"}</StatusChip><span className="text-xs text-ink-500">Supabase Storage</span></div><h3 className="mt-6 text-xl font-semibold text-sand-50">{item.title}</h3>{item.kind === "audio" || item.kind === "video" ? <div className="mt-5"><MediaPlayer src={item.url} kind={item.kind} title={item.title} /></div> : null}<p className="mt-3 flex-1 text-sm leading-7 text-ink-400">{item.description || "محتوای آموزشی آرتیست‌یار."}</p><a href={item.url} target="_blank" rel="noreferrer" className="mt-6 text-sm text-gold-400 hover:text-gold-300">بازکردن فایل ↗</a></article>; }
 function Empty({ text }: { text: string }) { return <p className="rounded-2xl border border-white/[.08] bg-white/[.02] p-6 text-sm leading-7 text-ink-500">{text}</p>; }
