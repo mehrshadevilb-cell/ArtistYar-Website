@@ -9,12 +9,14 @@ const supabase = configured
   ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } })
   : null;
 
+export type MediaCategory = "student-work" | "free-training" | "prodby-mehrshad";
+
 export type MediaItem = {
   id: string;
   publicId: string;
   title: string;
   description: string;
-  category: "student-work" | "free-training";
+  category: MediaCategory;
   kind: "image" | "video" | "audio" | "raw";
   format: string;
   resourceType: "image" | "video" | "raw";
@@ -47,8 +49,16 @@ type ExtractedAudioTags = {
   tag_title: string;
 };
 
+const STORAGE_FOLDERS = ["", "student-work", "free-training", "ProdBy Mehrshad", "prodby-mehrshad"];
+
 export function hasSupabase(): boolean {
   return configured;
+}
+
+export function normalizeCategory(value: unknown): MediaCategory {
+  if (value === "free-training") return "free-training";
+  if (value === "prodby-mehrshad") return "prodby-mehrshad";
+  return "student-work";
 }
 
 function clean(value: unknown, fallback = ""): string {
@@ -71,7 +81,7 @@ function toItem(row: Record<string, unknown>): MediaItem {
     publicId: String(row.storage_path),
     title: clean(row.title),
     description: clean(row.description),
-    category: row.category === "free-training" ? "free-training" : "student-work",
+    category: normalizeCategory(row.category),
     kind,
     format: ext,
     resourceType,
@@ -115,8 +125,6 @@ export async function extractAudioTags(
 
     let cover_url: string | null = null;
     if (picture?.data?.length) {
-      // Prefer uploading cover to storage when supabase is available (done by caller).
-      // Fallback: small data-URL only if under ~400KB to avoid DB bloat.
       const b64 = Buffer.from(picture.data).toString("base64");
       if (b64.length < 400_000) {
         const format = picture.format || "image/jpeg";
@@ -147,7 +155,6 @@ export async function extractAudioTags(
   }
 }
 
-/** Upload embedded cover bytes to storage and return public URL. */
 async function uploadCoverFromPicture(
   pictureData: Buffer,
   mimeFormat: string,
@@ -176,7 +183,6 @@ async function inspectAudio(
 ): Promise<Omit<ExtractedAudioTags, "tag_title"> & { tag_title: string }> {
   const tags = await extractAudioTags(buffer, mimeType);
 
-  // If we have a data-URL cover, try to re-parse and upload as real file for better performance.
   try {
     const parsed = await parseBuffer(buffer, { mimeType: mimeType || "audio/mpeg" }, { duration: false });
     const picture = parsed.common.picture?.[0];
@@ -195,18 +201,24 @@ async function inspectAudio(
   return tags;
 }
 
+function storageFolderForCategory(category: MediaCategory): string {
+  if (category === "prodby-mehrshad") return "ProdBy Mehrshad";
+  return category;
+}
+
 export async function uploadMedia(input: {
   buffer: Buffer;
   filename: string;
   mimeType: string;
   title: string;
   description: string;
-  category: "student-work" | "free-training";
+  category: MediaCategory;
   consent: boolean;
 }): Promise<MediaItem> {
   if (!supabase) throw new Error("supabase_not_configured");
   const ext = input.filename.toLowerCase().split(".").pop() || "bin";
-  const path = `${input.category}/${crypto.randomUUID()}.${ext}`;
+  const folder = storageFolderForCategory(input.category);
+  const path = `${folder}/${crypto.randomUUID()}.${ext}`;
   const upload = await supabase.storage.from(bucket).upload(path, input.buffer, {
     contentType: input.mimeType || "application/octet-stream",
     upsert: false,
@@ -215,7 +227,7 @@ export async function uploadMedia(input: {
   if (upload.error) throw new Error(upload.error.message);
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
 
-  const audio = await inspectAudio(input.buffer, input.mimeType, input.category);
+  const audio = await inspectAudio(input.buffer, input.mimeType, folder);
   const finalTitle =
     input.title.trim().length >= 3 ? input.title.trim().slice(0, 200) : audio.tag_title.slice(0, 200) || input.filename;
 
@@ -255,24 +267,27 @@ export async function listPublishedMedia(): Promise<MediaItem[]> {
     .select("*")
     .eq("status", "published")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
   if (result.error) throw new Error(result.error.message);
   return (result.data || []).map((row) => toItem(row));
 }
 
 export async function listStorageFiles(): Promise<StorageItem[]> {
   if (!supabase) return [];
-  const folders = ["", "student-work", "free-training"];
   const results = await Promise.all(
-    folders.map((folder) =>
-      supabase!.storage.from(bucket).list(folder, { limit: 100, sortBy: { column: "created_at", order: "desc" } }),
+    STORAGE_FOLDERS.map((folder) =>
+      supabase!.storage.from(bucket).list(folder, { limit: 200, sortBy: { column: "created_at", order: "desc" } }),
     ),
   );
   return results.flatMap((result, index) => {
-    if (result.error) throw new Error(result.error.message);
-    const folder = folders[index];
+    if (result.error) {
+      console.warn("storage list failed", STORAGE_FOLDERS[index], result.error.message);
+      return [];
+    }
+    const folder = STORAGE_FOLDERS[index];
     return (result.data || [])
-      .filter((file) => file.name !== ".emptyFolderPlaceholder")
+      .filter((file) => file.name !== ".emptyFolderPlaceholder" && !file.name.endsWith("/"))
+      .filter((file) => Boolean(file.metadata || file.id))
       .map((file) => {
         const path = folder ? `${folder}/${file.name}` : file.name;
         return {
@@ -291,7 +306,7 @@ export async function registerExistingMedia(input: {
   publicId: string;
   title: string;
   description: string;
-  category: "student-work" | "free-training";
+  category: MediaCategory;
   consent: boolean;
   mimeType: string;
 }) {
@@ -301,7 +316,8 @@ export async function registerExistingMedia(input: {
   const downloaded = await supabase.storage.from(bucket).download(input.publicId);
   if (downloaded.error) throw new Error(downloaded.error.message);
   const buffer = Buffer.from(await downloaded.data.arrayBuffer());
-  const audio = await inspectAudio(buffer, input.mimeType, input.category);
+  const folder = storageFolderForCategory(input.category);
+  const audio = await inspectAudio(buffer, input.mimeType, folder);
   const finalTitle =
     input.title.trim().length >= 3 ? input.title.trim().slice(0, 200) : audio.tag_title.slice(0, 200) || input.publicId;
 
@@ -342,13 +358,13 @@ export async function refreshMediaTags(publicId: string): Promise<MediaItem> {
   if (!existing.data) throw new Error("media_not_found");
 
   const mimeType = String(existing.data.mime_type || "audio/mpeg");
-  const category =
-    existing.data.category === "free-training" ? "free-training" : "student-work";
+  const category = normalizeCategory(existing.data.category);
+  const folder = storageFolderForCategory(category);
 
   const downloaded = await supabase.storage.from(bucket).download(publicId);
   if (downloaded.error) throw new Error(downloaded.error.message);
   const buffer = Buffer.from(await downloaded.data.arrayBuffer());
-  const audio = await inspectAudio(buffer, mimeType, category);
+  const audio = await inspectAudio(buffer, mimeType, folder);
 
   const result = await supabase
     .from("media_assets")
