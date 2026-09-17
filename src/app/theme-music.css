@@ -439,3 +439,22 @@ html.light .menu-button:focus-visible,
 html.light .input-ay:focus-visible {
   box-shadow: 0 0 0 3px rgba(248, 244, 236, 0.95), 0 0 0 5px rgba(154, 122, 24, 0.55);
 }
+
+
+/* Premium 3D scroll layer */
+.hero-scroll-depth {
+  perspective: 1200px;
+  perspective-origin: 50% 45%;
+  transform-style: preserve-3d;
+}
+.scroll-depth {
+  perspective: 1200px;
+  perspective-origin: 50% 50%;
+  transform-style: preserve-3d;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-scroll-depth,
+  .scroll-depth {
+    transform: none !important;
+  }
+}
