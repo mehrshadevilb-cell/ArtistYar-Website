@@ -1,11 +1,13 @@
 -- Run in Supabase SQL Editor after creating the `artistyar-media` public bucket.
+-- Also create folder structure in Storage: student-work/, free-training/, ProdBy Mehrshad/
+
 create table if not exists public.media_assets (
   id uuid primary key default gen_random_uuid(),
   storage_path text not null unique,
   public_url text not null,
   title text not null,
   description text not null default '',
-  category text not null check (category in ('student-work', 'free-training')),
+  category text not null check (category in ('student-work', 'free-training', 'prodby-mehrshad')),
   mime_type text not null default 'application/octet-stream',
   file_ext text not null default '',
   artist text not null default '',
@@ -22,6 +24,18 @@ create table if not exists public.media_assets (
 );
 
 alter table public.media_assets enable row level security;
+
+-- Migrate existing DBs: widen category check
+do $$
+begin
+  alter table public.media_assets drop constraint if exists media_assets_category_check;
+  alter table public.media_assets
+    add constraint media_assets_category_check
+    check (category in ('student-work', 'free-training', 'prodby-mehrshad'));
+exception when others then
+  null;
+end $$;
+
 alter table public.media_assets add column if not exists artist text not null default '';
 alter table public.media_assets add column if not exists album text not null default '';
 alter table public.media_assets add column if not exists genre text not null default '';
@@ -29,5 +43,6 @@ alter table public.media_assets add column if not exists year integer;
 alter table public.media_assets add column if not exists duration numeric;
 alter table public.media_assets add column if not exists cover_url text;
 alter table public.media_assets add column if not exists metadata jsonb not null default '{}'::jsonb;
+
 -- The website uses the server-only secret key for all reads/writes.
 -- No public table policy is needed because public visitors receive only API-filtered records.
