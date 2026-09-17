@@ -15,6 +15,7 @@ const links = [
   { href: "/#flow", label: "مسیر هنرجو" },
   { href: "/#projects", label: "نمونه‌کارها" },
   { href: "/#feedback", label: "بازخورد هنرجوها" },
+  { href: "/#quick-consultation", label: "مشاوره رایگان" },
   { href: "/#courses", label: "دوره‌ها" },
   { href: "/#contact", label: "ارتباط" },
 ];

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft, ArrowUpLeft, AudioLines, Bot, Check, CirclePlay, Headphones, Layers3, MessageCircle, Sparkles, Waves } from "lucide-react";
 import { HomeLiveCourses } from "@/components/HomeLiveCourses";
+import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 import { Reveal } from "@/components/Reveal";
 
 export const metadata: Metadata = {
@@ -100,5 +101,6 @@ export default function HomePage() {
     <div id="courses"><HomeLiveCourses /></div>
 
     <section id="contact" className="container-ay section-space"><Reveal><div className="contact-card"><div className="contact-glow" /><div className="relative"><p className="eyebrow">/ هنوز مطمئن نیستی؟</p><h2 className="section-title mt-4">سؤالت را از<br /><span className="text-gold-400">راه‌یار بپرس.</span></h2><p className="section-sub max-w-lg">برای انتخاب دوره، تنظیم، میکس، مسترینگ یا تئوری موسیقی، دستیار راه‌یار می‌تواند راهنمایی‌ات کند.</p><div className="flex flex-wrap gap-3 mt-8"><Link href="/assistant" className="btn-primary gap-2">رفتن به دستیار <Bot size={16} /></Link><Link href="/contact" className="btn-ghost">ارتباط با پشتیبانی</Link></div></div><div className="contact-mark"><Waves size={52} strokeWidth={1} /><span>RAHYAR<br />ACADEMY</span></div></div></Reveal></section>
+    <QuickConsultationForm />
   </div>;
 }
