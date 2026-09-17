@@ -31,7 +31,7 @@ async function backendFetch<T>(path: string, init?: RequestInit): Promise<T> {
       "Content-Type": "application/json",
       ...(init?.headers || {}),
     },
-    next: { revalidate: 30 },
+    ...(init?.cache === "no-store" ? {} : { next: { revalidate: 30 } }),
   });
   if (!res.ok) {
     const detail = await res.text();
@@ -113,4 +113,58 @@ export async function createClassInquiry(body: {
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+
+export type ApiChapter = { title: string; time: number };
+export type ApiFreeLesson = {
+  id: number;
+  slug: string;
+  title: string;
+  description: string | null;
+  duration_label: string;
+  video_url: string | null;
+  thumbnail_url: string | null;
+  chapters: ApiChapter[];
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function fetchFreeLessons(): Promise<ApiFreeLesson[]> {
+  const res = await fetch("/api/rahyar/free-lessons", { cache: "no-store" });
+  if (!res.ok) throw new Error("free_lessons_unavailable");
+  return res.json() as Promise<ApiFreeLesson[]>;
+}
+
+function adminHeaders(apiKey: string) {
+  return { "Content-Type": "application/json", "X-Admin-Key": apiKey };
+}
+
+export async function fetchAdminFreeLessons(apiKey: string): Promise<ApiFreeLesson[]> {
+  return backendFetch<ApiFreeLesson[]>("/api/v1/admin/free-lessons", {
+    headers: adminHeaders(apiKey),
+    cache: "no-store",
+  });
+}
+
+export type FreeLessonInput = Omit<ApiFreeLesson, "id" | "created_at" | "updated_at">;
+
+export async function saveAdminFreeLesson(apiKey: string, input: FreeLessonInput, id?: number) {
+  return backendFetch<ApiFreeLesson>(id ? `/api/v1/admin/free-lessons/${id}` : "/api/v1/admin/free-lessons", {
+    method: id ? "PUT" : "POST",
+    headers: adminHeaders(apiKey),
+    body: JSON.stringify(input),
+    cache: "no-store",
+  });
+}
+
+export async function deleteAdminFreeLesson(apiKey: string, id: number) {
+  const res = await fetch(`${backendBase()}/api/v1/admin/free-lessons/${id}`, {
+    method: "DELETE",
+    headers: adminHeaders(apiKey),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
 }
