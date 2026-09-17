@@ -12,7 +12,6 @@ type NormalizedMessage = ChatMessage;
 
 function normalizeMessages(value: unknown): NormalizedMessage[] {
   if (!Array.isArray(value)) return [];
-
   return value
     .filter((message): message is Record<string, unknown> => Boolean(message) && typeof message === "object")
     .map((message): NormalizedMessage | null => {
@@ -23,6 +22,13 @@ function normalizeMessages(value: unknown): NormalizedMessage[] {
     })
     .filter((message): message is NormalizedMessage => message !== null)
     .slice(-20);
+}
+
+function clientIdFromRequest(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const real = request.headers.get("x-real-ip")?.trim();
+  const value = forwarded || real || "artistyar-web-anonymous";
+  return value.slice(0, 64);
 }
 
 export async function POST(request: Request) {
@@ -57,6 +63,7 @@ export async function POST(request: Request) {
       withSystemPrompt,
       typeof body.provider === "string" ? body.provider : undefined,
       typeof body.model === "string" ? body.model : undefined,
+      clientIdFromRequest(request),
     );
 
     return NextResponse.json({
