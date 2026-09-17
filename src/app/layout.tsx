@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { FloatingAssistant } from "@/components/FloatingAssistant";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic"],
@@ -18,15 +19,15 @@ const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").re
 
 export const metadata: Metadata = {
   title: {
-    default: "ArtistYar | آکادمی راه‌یار",
+    default: "ArtistYar | آکادمی راه‌یار — آموزش تنظیم، میکس و مسترینگ با AI",
     template: "%s | ArtistYar",
   },
   description:
-    "ArtistYar و آکادمی راه‌یار؛ آموزش پروژه‌محور تنظیم، میکس و مسترینگ، تئوری موسیقی و پیانو با کلاس آنلاین، پشتیبانی هنرجو و گالری نمونه‌کار.",
+    "آکادمی راه‌یار و ArtistYar: آموزش پروژه‌محور تنظیم، میکس و مسترینگ با کلاس آنلاین، پشتیبانی هنرجو، گالری نمونه‌کار و دستیار هوشمند راه‌یار AI. مسیر روشن یادگیری تولید موسیقی با مهرشاد بنائی.",
   applicationName: "ArtistYar",
   alternates: { canonical: siteUrl },
   category: "education",
-  classification: "Music education academy",
+  classification: "Music education academy with AI assistant",
   referrer: "origin-when-cross-origin",
   keywords: [
     "آکادمی راه‌یار",
@@ -38,37 +39,65 @@ export const metadata: Metadata = {
     "تولید موسیقی",
     "میکس و مسترینگ",
     "کلاس آنلاین موسیقی",
+    "دستیار هوش مصنوعی موسیقی",
+    "راه‌یار AI",
+    "عیب‌یابی میکس",
     "نمونه کار میکس",
-    "نمونه کار تنظیم",
     "آموزش تقویت شنوایی",
   ],
   authors: [{ name: "مهرشاد بنائی", url: "https://www.instagram.com/prodbymehrshad/" }],
   creator: "مهرشاد بنائی · ArtistYar Academy",
+  publisher: "ArtistYar Academy",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
     type: "website",
     locale: "fa_IR",
     siteName: "ArtistYar",
-    title: "ArtistYar | آموزش تنظیم، میکس و مسترینگ | آکادمی راه‌یار",
-    description: "مسیر پروژه‌محور یادگیری تنظیم، میکس، مسترینگ و تولید موسیقی با مهرشاد بنائی.",
+    title: "ArtistYar | آموزش تنظیم، میکس و مسترینگ + راه‌یار AI",
+    description:
+      "مسیر پروژه‌محور یادگیری تنظیم، میکس، مسترینگ و تولید موسیقی — با دستیار هوشمند راه‌یار که از لحظه ورود کنارت است.",
     url: siteUrl,
   },
   twitter: {
     card: "summary_large_image",
-    title: "ArtistYar | آموزش تنظیم، میکس و مسترینگ",
-    description: "دوره‌ها، کلاس آنلاین، نمونه‌کار صوتی و ویدیوهای آموزشی راه‌یار.",
+    title: "ArtistYar | آموزش تنظیم، میکس و مسترینگ + راه‌یار AI",
+    description: "دوره‌ها، کلاس آنلاین، نمونه‌کار و دستیار هوشمند موسیقی راه‌یار.",
   },
   metadataBase: new URL(siteUrl),
+  other: {
+    "ai-content-declaration":
+      "This site offers an educational AI assistant specialized in music production (mix, master, arrangement).",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b0b0a",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0b0b0a" },
+    { media: "(prefers-color-scheme: light)", color: "#0b0b0a" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
 };
 
 const academyJsonLd = {
   "@context": "https://schema.org",
   "@type": "EducationalOrganization",
   name: "ArtistYar Academy",
-  description: "آموزش تولید موسیقی، تنظیم، میکس و مسترینگ.",
+  alternateName: ["آکادمی راه‌یار", "آرتیست‌یار"],
+  description:
+    "آموزش تولید موسیقی، تنظیم، میکس و مسترینگ با کلاس آنلاین، دوره‌های دیجیتال و دستیار هوشمند راه‌یار AI.",
   inLanguage: "fa",
   url: siteUrl,
   sameAs: [
@@ -87,6 +116,7 @@ const academyJsonLd = {
     "مسترینگ موسیقی",
     "تئوری موسیقی",
     "تولید موسیقی الکترونیک",
+    "دستیار هوش مصنوعی آموزشی",
   ],
   hasOfferCatalog: {
     "@type": "OfferCatalog",
@@ -95,6 +125,7 @@ const academyJsonLd = {
       { "@type": "Offer", name: "دوره جامع تنظیم، میکس و مسترینگ", url: `${siteUrl}/courses` },
       { "@type": "Offer", name: "دوره تئوری موسیقی", url: `${siteUrl}/courses` },
       { "@type": "Offer", name: "کلاس آنلاین تولید موسیقی", url: `${siteUrl}/online` },
+      { "@type": "Offer", name: "دستیار راه‌یار AI", url: `${siteUrl}/assistant` },
     ],
   },
 };
@@ -113,6 +144,19 @@ const websiteJsonLd = {
   },
 };
 
+const softwareJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "راه‌یار AI",
+  applicationCategory: "EducationalApplication",
+  operatingSystem: "Web",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "IRR" },
+  description:
+    "دستیار هوشمند آموزشی برای عیب‌یابی میکس و مسترینگ، توضیح مفاهیم موسیقی و راهنمای مسیر یادگیری در آکادمی راه‌یار.",
+  url: `${siteUrl}/assistant`,
+  inLanguage: "fa",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -128,6 +172,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }}
         />
         {backend ? (
           <>
@@ -151,6 +199,7 @@ export default function RootLayout({
                 {children}
               </main>
               <SiteFooter />
+              <FloatingAssistant />
             </div>
           </div>
         </AuthProvider>
