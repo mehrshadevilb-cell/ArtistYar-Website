@@ -6,7 +6,10 @@ const SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
 type SessionPayload = { username: string; issuedAt: number };
 
 function secret(): string {
-  return process.env.ARTISTYAR_SESSION_SECRET || "";
+  // Keep existing deployments working during the one-time migration to the
+  // dedicated session secret. Once ARTISTYAR_SESSION_SECRET is configured,
+  // new sessions use it and operators can rotate the admin password safely.
+  return process.env.ARTISTYAR_SESSION_SECRET || process.env.ARTISTYAR_ADMIN_PASSWORD || "";
 }
 
 function signature(payload: string): string {
