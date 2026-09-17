@@ -5,6 +5,7 @@ import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 import { Reveal } from "@/components/Reveal";
 import { DepthScene } from "@/components/DepthScene";
+import { ScrollDepth } from "@/components/ScrollDepth";
 import { HighlightStories } from "@/components/HighlightStories";
 import { instagramGallery } from "@/data/instagram-gallery";
 
@@ -177,7 +178,8 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-        <DepthScene className="hero-art">
+        <ScrollDepth className="hero-scroll-depth" intensity={0.7}>
+          <DepthScene className="hero-art">
           <div className="hero-orbit orbit-a" />
           <div className="hero-orbit orbit-b" />
           <div className="record-disc">
@@ -209,7 +211,8 @@ export default function HomePage() {
           <div className="art-caption">
             <Sparkles size={15} /> آموزش، تمرین، پیگیری.
           </div>
-        </DepthScene>
+          </DepthScene>
+        </ScrollDepth>
       </section>
 
       <section className="proof-strip border-y border-white/[.06]">
