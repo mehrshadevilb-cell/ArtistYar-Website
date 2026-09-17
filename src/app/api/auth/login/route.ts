@@ -40,26 +40,32 @@ export async function POST(request: Request) {
   }
 
   if (safeEqual(username, adminUser) && safeEqual(password, adminPass)) {
-    const response = NextResponse.json({
-      ok: true,
-      user: {
-        id: "admin",
-        username: adminUser,
-        fullName: "مدیر آکادمی",
-        role: "admin" as const,
-        telegramLinked: true,
-        telegramId: "owner",
-      },
-    });
+    try {
+      const response = NextResponse.json({
+        ok: true,
+        user: {
+          id: "admin",
+          username: adminUser,
+          fullName: "مدیر آکادمی",
+          role: "admin" as const,
+          telegramLinked: true,
+          telegramId: "owner",
+        },
+      });
 
-    // The admin session is now an HttpOnly cookie. No upload/admin token is
-    // returned to JavaScript or stored in sessionStorage/localStorage.
-    response.cookies.set(
-      ADMIN_SESSION_COOKIE,
-      createAdminSession(adminUser),
-      adminSessionCookieOptions,
-    );
-    return response;
+      // The admin session is an HttpOnly cookie. No secret is returned to JS.
+      response.cookies.set(
+        ADMIN_SESSION_COOKIE,
+        createAdminSession(adminUser),
+        adminSessionCookieOptions,
+      );
+      return response;
+    } catch {
+      return NextResponse.json(
+        { ok: false, error: "تنظیمات نشست ادمین روی سرور کامل نیست. با پشتیبانی تماس بگیر." },
+        { status: 503 },
+      );
+    }
   }
 
   return NextResponse.json({ ok: false, error: "نام کاربری یا رمز عبور نادرست است." }, { status: 401 });
