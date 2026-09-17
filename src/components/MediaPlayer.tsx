@@ -23,6 +23,8 @@ type MediaPlayerProps = {
   album?: string | null;
   genre?: string | null;
   year?: number | null;
+  /** When true, disable browser download UI, context menu, and hide direct link. */
+  protectDownload?: boolean;
 };
 
 export function MediaPlayer({
@@ -34,6 +36,7 @@ export function MediaPlayer({
   album,
   genre,
   year,
+  protectDownload = false,
 }: MediaPlayerProps) {
   const ref = useRef<HTMLMediaElement | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -53,6 +56,20 @@ export function MediaPlayer({
     setFailed(false);
     setCoverError(false);
   }, [src]);
+
+  useEffect(() => {
+    if (!protectDownload) return;
+    const block = (event: Event) => {
+      event.preventDefault();
+    };
+    const node = ref.current;
+    node?.addEventListener("contextmenu", block);
+    document.addEventListener("dragstart", block);
+    return () => {
+      node?.removeEventListener("contextmenu", block);
+      document.removeEventListener("dragstart", block);
+    };
+  }, [protectDownload, src]);
 
   async function toggle() {
     if (!ref.current || failed) return;
@@ -95,6 +112,7 @@ export function MediaPlayer({
       className={`media-player rounded-2xl border border-white/[.08] bg-white/[.03] overflow-hidden ${
         kind === "video" ? "media-player-video" : "media-player-audio"
       } ${failed ? "media-player-failed" : ""}`}
+      onContextMenu={protectDownload ? (e) => e.preventDefault() : undefined}
     >
       {kind === "video" ? (
         <video
@@ -104,6 +122,9 @@ export function MediaPlayer({
           src={src}
           preload="metadata"
           poster={coverUrl || undefined}
+          controlsList={protectDownload ? "nodownload noplaybackrate noremoteplayback" : undefined}
+          disablePictureInPicture={protectDownload}
+          playsInline
           onLoadedMetadata={onLoaded}
           onCanPlay={() => setReady(true)}
           onTimeUpdate={onTime}
@@ -116,6 +137,7 @@ export function MediaPlayer({
           onError={() => setFailed(true)}
           aria-label={title}
           className="aspect-video w-full bg-black object-cover"
+          style={protectDownload ? { pointerEvents: "auto" } : undefined}
         />
       ) : (
         <>
@@ -125,6 +147,7 @@ export function MediaPlayer({
             }}
             src={src}
             preload="metadata"
+            controlsList={protectDownload ? "nodownload" : undefined}
             onLoadedMetadata={onLoaded}
             onCanPlay={() => setReady(true)}
             onTimeUpdate={onTime}
@@ -146,6 +169,7 @@ export function MediaPlayer({
                   alt={`کاور ${title}`}
                   className="h-full w-full object-cover"
                   onError={() => setCoverError(true)}
+                  draggable={!protectDownload}
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-gold-400/70">
@@ -198,10 +222,15 @@ export function MediaPlayer({
 
       {failed ? (
         <div className="media-player-message border-t border-white/[.08] p-4 text-sm text-ink-400">
-          پخش این فایل ممکن نیست.{" "}
-          <a href={src} target="_blank" rel="noreferrer" className="text-gold-400 hover:text-gold-300">
-            بازکردن مستقیم فایل
-          </a>
+          پخش این فایل ممکن نیست.
+          {protectDownload ? null : (
+            <>
+              {" "}
+              <a href={src} target="_blank" rel="noreferrer" className="text-gold-400 hover:text-gold-300">
+                بازکردن مستقیم فایل
+              </a>
+            </>
+          )}
         </div>
       ) : (
         <div className="media-player-controls flex items-center gap-3 border-t border-white/[.08] px-4 py-3">
