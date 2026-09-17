@@ -659,3 +659,15 @@ body {
     transform: translateY(-6px);
   }
 }
+
+
+/* Native-feeling scroll foundation. Lenis handles desktop smoothing; touch
+   devices remain on the browser's native scroll path. */
+html {
+  scroll-behavior: auto;
+  overscroll-behavior-x: none;
+}
+
+body {
+  overscroll-behavior-x: none;
+}
