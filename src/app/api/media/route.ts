@@ -4,16 +4,18 @@ import {
   hasSupabase,
   listPublishedMedia,
   listStorageFiles,
+  normalizeCategory,
   registerExistingMedia,
   refreshMediaTags,
   updateMedia,
   uploadMedia,
+  type MediaCategory,
 } from "@/lib/supabase-media";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
-const allowedCategories = new Set(["student-work", "free-training"]);
+const allowedCategories = new Set<MediaCategory>(["student-work", "free-training", "prodby-mehrshad"]);
 
 function authorized(request: Request): boolean {
   const expected = process.env.ARTISTYAR_UPLOAD_ADMIN_TOKEN;
@@ -58,8 +60,8 @@ export async function POST(request: Request) {
     const file = form.get("file");
     const title = String(form.get("title") || "").trim();
     const description = String(form.get("description") || "").trim();
-    const category = String(form.get("category") || "");
-    const consent = form.get("consent") === "true";
+    const category = normalizeCategory(form.get("category"));
+    const consent = form.get("consent") === "true" || category === "prodby-mehrshad";
     if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "فایل را انتخاب کنید." }, { status: 400 });
     if (!title || title.length < 3)
       return NextResponse.json({ ok: false, error: "عنوان محتوا را کامل وارد کنید." }, { status: 400 });
@@ -78,7 +80,7 @@ export async function POST(request: Request) {
       mimeType: file.type || "application/octet-stream",
       title,
       description,
-      category: category as "student-work" | "free-training",
+      category,
       consent,
     });
     return NextResponse.json({
@@ -103,12 +105,11 @@ export async function PUT(request: Request) {
     const publicId = String(body.publicId || "").trim();
     const title = String(body.title || "").trim();
     const description = String(body.description || "").trim();
-    const category = body.category === "free-training" ? "free-training" : "student-work";
-    const consent = body.consent === true;
+    const category = normalizeCategory(body.category);
+    const consent = body.consent === true || category === "prodby-mehrshad";
 
     if (!publicId) return NextResponse.json({ ok: false, error: "شناسه فایل لازم است." }, { status: 400 });
 
-    // Re-extract MP3 tags + embedded cover for an existing file
     if (body.action === "refresh-tags") {
       const item = await refreshMediaTags(publicId);
       return NextResponse.json({
