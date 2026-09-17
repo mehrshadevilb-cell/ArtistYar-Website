@@ -14,7 +14,7 @@ const vazirmatn = Vazirmatn({
 });
 
 const backend = (process.env.RAHYAR_API_URL || "").replace(/\/$/, "");
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyar.ir").replace(/\/$/, "");
 
 export const metadata: Metadata = {
   title: {
