@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hasCloudinary, listPublishedMedia, uploadMedia } from "@/lib/cloudinary";
+import { deleteMedia, hasCloudinary, listPublishedMedia, updateMedia, uploadMedia } from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,5 +42,39 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("cloudinary upload failed", error);
     return NextResponse.json({ ok: false, error: "آپلود ناموفق بود. تنظیمات Cloudinary و نوع فایل را بررسی کنید." }, { status: 502 });
+  }
+}
+
+export async function PUT(request: Request) {
+  if (!authorized(request)) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
+  if (!hasCloudinary()) return NextResponse.json({ ok: false, error: "اتصال Cloudinary هنوز تنظیم نشده است." }, { status: 503 });
+  try {
+    const body = await request.json();
+    const publicId = String(body.publicId || "").trim();
+    const title = String(body.title || "").trim();
+    const description = String(body.description || "").trim();
+    const resourceType = body.resourceType === "video" || body.resourceType === "raw" ? body.resourceType : "image";
+    if (!publicId || !title || title.length < 3) return NextResponse.json({ ok: false, error: "شناسه و عنوان معتبر لازم است." }, { status: 400 });
+    const item = await updateMedia({ publicId, resourceType, title, description });
+    return NextResponse.json({ ok: true, item, message: "اطلاعات محتوا به‌روزرسانی شد." });
+  } catch (error) {
+    console.error("cloudinary update failed", error);
+    return NextResponse.json({ ok: false, error: "ویرایش محتوا ناموفق بود." }, { status: 502 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  if (!authorized(request)) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
+  if (!hasCloudinary()) return NextResponse.json({ ok: false, error: "اتصال Cloudinary هنوز تنظیم نشده است." }, { status: 503 });
+  try {
+    const body = await request.json();
+    const publicId = String(body.publicId || "").trim();
+    const resourceType = body.resourceType === "video" || body.resourceType === "raw" ? body.resourceType : "image";
+    if (!publicId) return NextResponse.json({ ok: false, error: "شناسه فایل لازم است." }, { status: 400 });
+    await deleteMedia({ publicId, resourceType });
+    return NextResponse.json({ ok: true, message: "فایل حذف شد." });
+  } catch (error) {
+    console.error("cloudinary delete failed", error);
+    return NextResponse.json({ ok: false, error: "حذف محتوا ناموفق بود." }, { status: 502 });
   }
 }

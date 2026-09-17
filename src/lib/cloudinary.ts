@@ -19,6 +19,7 @@ export type PublishedMedia = {
   category: "student-work" | "free-training";
   kind: "image" | "video" | "audio" | "raw";
   format: string;
+  resourceType: "image" | "video" | "raw";
   url: string;
   createdAt: string;
   tags: string[];
@@ -73,6 +74,7 @@ function toPublishedMedia(resource: Record<string, unknown>): PublishedMedia {
     category,
     kind,
     format: String(resource.format || ""),
+    resourceType: resource.resource_type === "video" ? "video" : resource.resource_type === "image" ? "image" : "raw",
     url: String(resource.secure_url || resource.url),
     createdAt: String(resource.created_at || ""),
     tags: category === "student-work" ? ["نمونه‌کار هنرجو"] : ["آموزش رایگان"],
@@ -88,4 +90,18 @@ export async function listPublishedMedia(): Promise<PublishedMedia[]> {
     .max_results(100)
     .execute();
   return (result.resources || []).map((resource: Record<string, unknown>) => toPublishedMedia(resource));
+}
+
+export async function updateMedia(input: { publicId: string; resourceType: "image" | "video" | "raw"; title: string; description: string }) {
+  if (!configured) throw new Error("cloudinary_not_configured");
+  const result = await cloudinary.api.update(input.publicId, {
+    resource_type: input.resourceType,
+    context: { title: safeValue(input.title), description: safeValue(input.description), status: "published" },
+  });
+  return toPublishedMedia(result as Record<string, unknown>);
+}
+
+export async function deleteMedia(input: { publicId: string; resourceType: "image" | "video" | "raw" }) {
+  if (!configured) throw new Error("cloudinary_not_configured");
+  return cloudinary.uploader.destroy(input.publicId, { resource_type: input.resourceType, invalidate: true });
 }
