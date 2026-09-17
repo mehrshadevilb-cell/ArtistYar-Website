@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X, ArrowUpLeft } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { useAuth } from "./AuthProvider";
+import { ThemeToggle } from "./ThemeToggle";
 
 const links = [
   { href: "/free-player", label: "آموزش رایگان" },
@@ -44,6 +45,7 @@ export function SiteHeader() {
           <Link href="/track" className="text-xs text-ink-400 transition hover:text-gold-300">
             پیگیری سفارش
           </Link>
+          <ThemeToggle />
           {ready && user ? <Link href={panelHref} className="btn-ghost !px-4 !py-2 text-xs">پنل من</Link> : null}
           {!ready || !user ? <Link href="/login" className="btn-ghost !px-4 !py-2 text-xs">ورود</Link> : null}
           <a href="mailto:hello@artistyar.dev" className="header-contact">مشاوره و ارتباط <ArrowUpLeft size={14} aria-hidden="true" /></a>
@@ -54,6 +56,10 @@ export function SiteHeader() {
         <nav aria-label="ناوبری موبایل" className="container-ay flex flex-col gap-1 py-5">
           {links.map(link => <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="mobile-nav-link">{link.label}</Link>)}
           <Link href="/track" onClick={() => setOpen(false)} className="mobile-nav-link">پیگیری سفارش</Link>
+          <div className="flex items-center justify-between px-4 py-3 text-sm text-ink-300">
+            <span>حالت نمایش</span>
+            <ThemeToggle />
+          </div>
           {ready && user ? <Link href={panelHref} onClick={() => setOpen(false)} className="mobile-nav-link">پنل من</Link> : <Link href="/login" onClick={() => setOpen(false)} className="mobile-nav-link">ورود هنرجو</Link>}
           <a href="mailto:hello@artistyar.dev" onClick={() => setOpen(false)} className="btn-primary mt-3 text-center">مشاوره و ارتباط</a>
         </nav>

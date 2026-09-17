@@ -88,6 +88,11 @@ export default function RootLayout({
     <html lang="fa" dir="rtl" className={vazirmatn.variable}>
       <head>
         <script
+          dangerouslySetInnerHTML={{
+            __html: `(() => { try { const stored = localStorage.getItem("artistyar-theme"); const theme = stored === "light" || stored === "dark" ? stored : (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"); document.documentElement.classList.toggle("theme-light", theme === "light"); document.documentElement.dataset.theme = theme; document.documentElement.style.colorScheme = theme; document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#f7f4ec" : "#0b0b0a"); } catch (_) {} })();`,
+          }}
+        />
+        <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(academyJsonLd) }}
         />
