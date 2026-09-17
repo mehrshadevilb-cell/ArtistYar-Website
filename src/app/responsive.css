@@ -100,6 +100,11 @@
   .assistant-md pre {
     max-width: calc(100vw - 5rem);
   }
+  /* Chat panel: use dynamic viewport for mobile browser chrome */
+  .assistant-chat-scroll {
+    max-height: min(38rem, calc(100dvh - 16rem)) !important;
+    min-height: min(18rem, 45dvh) !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
