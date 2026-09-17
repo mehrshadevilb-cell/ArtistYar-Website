@@ -1,50 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { studentCourses, studentReservations } from "@/lib/demo-data";
-import { StatusChip } from "@/components/StatusChip";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function PanelHomePage() {
+  const { user } = useAuth();
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[
-          { label: "دوره فعال", value: String(studentCourses.length) },
-          { label: "رزرو پیش‌رو", value: String(studentReservations.length) },
-          { label: "وضعیت", value: "فعال" },
-        ].map((item) => (
-          <div key={item.label} className="dashboard-stat card-ay p-5">
-            <p className="text-xs text-ink-500">{item.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-sand-50">{item.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex items-start gap-3 rounded-2xl border border-gold-500/20 bg-gold-500/[.05] p-4 text-sm leading-7 text-ink-300">
-        <StatusChip tone="gold">حالت نمایشی</StatusChip>
-        <p>این نمای پنل با دادهٔ نمونه نمایش داده می‌شود؛ اتصال واقعی هنرجوها به API راه‌یار در مرحلهٔ بعدی فعال می‌شود.</p>
-      </div>
-
-      <div className="dashboard-panel card-ay p-6">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-medium text-sand-50">رزروهای نزدیک</h2>
-          <Link href="/panel/reservations" className="text-xs text-gold-400">
-            همه
-          </Link>
-        </div>
-        <ul className="mt-4 space-y-3">
-          {studentReservations.map((r) => (
-            <li
-              key={r.id}
-              className="dashboard-row flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 text-sm"
-            >
-              <span className="text-sand-100">
-                {r.course} · {r.date} · {r.time}
-              </span>
-              <span className="text-xs text-ink-400">{r.status}</span>
-            </li>
-          ))}
-        </ul>
+      <div className="card-ay p-6">
+        <p className="text-xs text-ink-500">خوش آمدی</p>
+        <h2 className="mt-2 text-xl font-semibold text-sand-50">{user?.fullName || user?.username || "هنرجو"}</h2>
+        <p className="mt-3 text-sm leading-7 text-ink-400">
+          پنل هنرجو بدون داده آزمایشی است. دوره‌ها و رزروهای واقعی پس از اتصال حساب به ربات راه‌یار اینجا نمایش داده می‌شوند.
+        </p>
       </div>
 
       <div className="dashboard-panel card-ay p-6">
@@ -55,6 +24,9 @@ export default function PanelHomePage() {
           </Link>
           <Link href="/panel/profile" className="btn-primary !py-2 text-xs">
             اتصال به ربات
+          </Link>
+          <Link href="/courses" className="btn-ghost !py-2 text-xs">
+            مشاهده دوره‌ها
           </Link>
         </div>
       </div>
