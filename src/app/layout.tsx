@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { FloatingAssistant } from "@/components/FloatingAssistant";
+import { SiteAnalytics } from "@/components/SiteAnalytics";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic"],
@@ -208,6 +209,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <ThemeProvider>
           <AuthProvider>
+            <SiteAnalytics />
             <div className="site-root relative min-h-screen overflow-x-hidden">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-radial-fade" />
               <div className="route-ambient route-ambient-one" aria-hidden="true" />
