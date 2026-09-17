@@ -1,4 +1,4 @@
-/* Device optimization: mobile · tablet · laptop · large / TV */
+/* Device optimization: mobile · tablet · laptop · large / TV (Enhanced) */
 
 @supports (padding: max(0px)) {
   .site-header .container-ay {
@@ -10,6 +10,7 @@
   }
 }
 
+/* Tablet portrait / landscape */
 @media (min-width: 768px) and (max-width: 1023px) {
   .hero-section {
     grid-template-columns: 1fr;
@@ -39,8 +40,12 @@
     grid-template-columns: 1fr;
     gap: 2.5rem;
   }
+  .container-ay {
+    max-width: 46rem;
+  }
 }
 
+/* Laptop */
 @media (min-width: 1024px) and (max-width: 1439px) {
   .hero-section {
     gap: 3rem;
@@ -50,6 +55,7 @@
   }
 }
 
+/* Large desktop */
 @media (min-width: 1440px) {
   .container-ay {
     max-width: 78rem;
@@ -71,15 +77,40 @@
   }
 }
 
+/* TV / 4K / ultra-wide */
 @media (min-width: 1920px) {
   .container-ay {
-    max-width: 90rem;
+    max-width: 92rem;
   }
   .hero-section {
-    min-height: 720px;
+    min-height: 760px;
+    gap: 5rem;
+  }
+  .hero-heading {
+    font-size: clamp(5rem, 4.8vw, 7.2rem);
+  }
+  .section-title {
+    font-size: clamp(2.8rem, 2.6vw, 3.6rem);
+  }
+  .hero-lead,
+  .section-sub {
+    font-size: 1.18rem;
+    line-height: 2.1;
+  }
+  .benefit-grid {
+    gap: 1.35rem;
+  }
+  .benefit-card {
+    min-height: 280px;
+    padding: 2.1rem;
+  }
+  .section-space {
+    padding-top: 8.5rem;
+    padding-bottom: 8.5rem;
   }
 }
 
+/* Mobile refinements */
 @media (max-width: 640px) {
   .btn-primary,
   .btn-ghost {
@@ -100,10 +131,20 @@
   .assistant-md pre {
     max-width: calc(100vw - 5rem);
   }
-  /* Chat panel: use dynamic viewport for mobile browser chrome */
   .assistant-chat-scroll {
     max-height: min(38rem, calc(100dvh - 16rem)) !important;
     min-height: min(18rem, 45dvh) !important;
+  }
+  .container-ay {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .hero-actions > * {
+    width: 100%;
+  }
+  .hero-actions .btn-primary,
+  .hero-actions .btn-ghost {
+    justify-content: center;
   }
 }
 
