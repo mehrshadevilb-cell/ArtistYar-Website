@@ -12,6 +12,10 @@ type ScrollDepthProps = {
   intensity?: number;
 };
 
+/**
+ * Desktop-only scroll depth. CSS keeps the mobile layout flat so narrow
+ * WebViews cannot crop or project the hero outside the viewport.
+ */
 export function ScrollDepth({ children, className = "", intensity = 1 }: ScrollDepthProps) {
   const root = useRef<HTMLDivElement | null>(null);
 
@@ -19,44 +23,54 @@ export function ScrollDepth({ children, className = "", intensity = 1 }: ScrollD
     const el = root.current;
     if (!el) return;
 
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (reduce.matches) return;
+    const mm = gsap.matchMedia();
 
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        el,
-        {
-          rotateX: 5 * intensity,
-          rotateY: -2 * intensity,
-          scale: 0.985,
-          y: 28,
-          transformPerspective: 1200,
-          transformOrigin: "50% 50%",
-        },
-        {
-          rotateX: -3 * intensity,
-          rotateY: 2 * intensity,
-          scale: 1,
-          y: 0,
-          ease: "none",
-          scrollTrigger: {
-            trigger: el,
-            start: "top bottom",
-            end: "bottom top",
-            scrub: 0.8,
-            invalidateOnRefresh: true,
-          },
-        },
-      );
-    }, el);
+    mm.add(
+      {
+        desktop: "(min-width: 768px) and (prefers-reduced-motion: no-preference)",
+      },
+      ({ conditions }) => {
+        if (!conditions?.desktop) return;
 
-    return () => ctx.revert();
+        const ctx = gsap.context(() => {
+          gsap.fromTo(
+            el,
+            {
+              rotateX: 5 * intensity,
+              rotateY: -2 * intensity,
+              scale: 0.985,
+              y: 28,
+              transformPerspective: 1200,
+              transformOrigin: "50% 50%",
+            },
+            {
+              rotateX: -3 * intensity,
+              rotateY: 2 * intensity,
+              scale: 1,
+              y: 0,
+              ease: "none",
+              scrollTrigger: {
+                trigger: el,
+                start: "top bottom",
+                end: "bottom top",
+                scrub: 0.8,
+                invalidateOnRefresh: true,
+              },
+            },
+          );
+        }, el);
+
+        return () => ctx.revert();
+      },
+    );
+
+    return () => mm.revert();
   }, [intensity]);
 
   return (
     <div
       ref={root}
-      className={"scroll-depth " + className}
+      className={`scroll-depth ${className}`.trim()}
       style={{ transformStyle: "preserve-3d", willChange: "transform" }}
     >
       {children}
