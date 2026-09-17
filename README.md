@@ -35,16 +35,16 @@ Backend endpoints:
 - `GET  /api/v1/products` · `classes` · `orders` · ...
 
 ## آپلود محتوای رسانه‌ای
-برای نگهداری پایدار فایل‌های نمونه‌کار هنرجو و آموزش رایگان، این متغیرها را در محیط Render تنظیم کنید:
+برای نگهداری پایدار فایل‌های نمونه‌کار هنرجو و آموزش رایگان، از Supabase Storage استفاده می‌شود. این متغیرها را در محیط Render تنظیم کنید:
 
 ```env
-CLOUDINARY_CLOUD_NAME=...
-CLOUDINARY_API_KEY=...
-CLOUDINARY_API_SECRET=...
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_SECRET_KEY=sb_secret_...
+SUPABASE_BUCKET=artistyar-media
 ARTISTYAR_UPLOAD_ADMIN_TOKEN=یک_کلید_تصادفی_قوی
 ```
 
-بعد از ورود به `/admin`، از منوی **مدیریت محتوا** فایل صوتی، ویدیویی، تصویری یا PDF را آپلود کنید. برای نمونه‌کار هنرجو تأیید رضایت انتشار الزامی است. فایل‌ها در Cloudinary ذخیره می‌شوند و محتوای منتشرشده در گالری عمومی نمایش داده خواهد شد.
+در Supabase یک Storage bucket عمومی با نام `artistyar-media` بسازید و جدول `media_assets` را طبق migration پروژه ایجاد کنید. بعد از ورود به `/admin`، از منوی **مدیریت محتوا** فایل صوتی، ویدیویی، تصویری یا PDF را آپلود کنید. برای نمونه‌کار هنرجو تأیید رضایت انتشار الزامی است. فایل‌ها در Supabase Storage ذخیره می‌شوند و محتوای منتشرشده در گالری عمومی نمایش داده خواهد شد. پلن رایگان Supabase سقف ۵۰MB برای هر فایل دارد.
 
 ## اجرا
 ```bash
