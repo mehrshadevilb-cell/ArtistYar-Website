@@ -37,6 +37,23 @@ function InstagramCard({ item }: { item: (typeof instagramGallery)[number] }) {
           <ExternalLink size={13} /> Instagram
         </span>
       </div>
+      {item.coverUrl ? (
+        <a
+          href={item.href}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`مشاهدهٔ ${item.title} در Instagram`}
+          className="group mt-5 flex justify-center overflow-hidden rounded-2xl border border-white/[.08] bg-black/30"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={item.coverUrl}
+            alt={`کاور ${item.title} در Instagram`}
+            className="block max-h-[520px] w-full object-contain transition duration-500 group-hover:scale-[1.02]"
+            loading="lazy"
+          />
+        </a>
+      ) : null}
       <h3 className="mt-6 text-xl font-semibold text-sand-50">{item.title}</h3>
       <p className="mt-3 flex-1 text-sm leading-7 text-ink-400">{item.description}</p>
       <div className="mt-5 flex flex-wrap gap-2">
@@ -171,6 +188,15 @@ export default async function GalleryPage() {
               rel="noreferrer"
               className="flex items-center justify-between gap-4 rounded-2xl border border-white/[.08] bg-white/[.02] p-5 transition hover:border-gold-400/40 hover:bg-white/[.04]"
             >
+              {item.coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.coverUrl}
+                  alt=""
+                  className="h-16 w-12 shrink-0 rounded-lg object-cover"
+                  loading="lazy"
+                />
+              ) : null}
               <span>
                 <strong className="block text-sm text-sand-50">{item.title}</strong>
                 <span className="mt-1 block text-xs text-ink-500">{item.tags.join(" · ")}</span>
