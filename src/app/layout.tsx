@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Vazirmatn } from "next/font/google";
 import "./globals.css";
+import "./theme-music.css";
 import "./responsive.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
