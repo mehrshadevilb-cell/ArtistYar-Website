@@ -18,6 +18,7 @@ export type MediaItem = {
   url: string;
   createdAt: string;
 };
+export type StorageItem = { path: string; name: string; mimeType: string; size: number; createdAt: string; url: string };
 
 export function hasSupabase(): boolean { return configured; }
 function clean(value: unknown, fallback = ""): string { return typeof value === "string" ? value.trim().slice(0, 500) : fallback; }
@@ -46,6 +47,26 @@ export async function listPublishedMedia(): Promise<MediaItem[]> {
   const result = await supabase.from("media_assets").select("*").eq("status", "published").order("created_at", { ascending: false }).limit(100);
   if (result.error) throw new Error(result.error.message);
   return (result.data || []).map((row) => toItem(row));
+}
+
+export async function listStorageFiles(): Promise<StorageItem[]> {
+  if (!supabase) return [];
+  const folders = ["", "student-work", "free-training"];
+  const results = await Promise.all(folders.map((folder) => supabase!.storage.from(bucket).list(folder, { limit: 100, sortBy: { column: "created_at", order: "desc" } })));
+  return results.flatMap((result, index) => {
+    if (result.error) throw new Error(result.error.message);
+    const folder = folders[index];
+    return (result.data || []).filter((file) => file.name !== ".emptyFolderPlaceholder").map((file) => { const path = folder ? `${folder}/${file.name}` : file.name; return { path, name: file.name, mimeType: String(file.metadata?.mimetype || "application/octet-stream"), size: Number(file.metadata?.size || 0), createdAt: String(file.created_at || ""), url: supabase!.storage.from(bucket).getPublicUrl(path).data.publicUrl }; });
+  });
+}
+
+export async function registerExistingMedia(input: { publicId: string; title: string; description: string; category: "student-work" | "free-training"; consent: boolean; mimeType: string }) {
+  if (!supabase) throw new Error("supabase_not_configured");
+  const publicUrl = supabase.storage.from(bucket).getPublicUrl(input.publicId).data.publicUrl;
+  const ext = input.publicId.toLowerCase().split(".").pop() || "bin";
+  const result = await supabase.from("media_assets").upsert({ storage_path: input.publicId, public_url: publicUrl, title: input.title.trim().slice(0, 200), description: input.description.trim().slice(0, 1000), category: input.category, mime_type: input.mimeType, file_ext: ext, consent: input.consent, status: "published" }, { onConflict: "storage_path" }).select().single();
+  if (result.error) throw new Error(result.error.message);
+  return toItem(result.data);
 }
 
 export async function updateMedia(input: { publicId: string; title: string; description: string }) {

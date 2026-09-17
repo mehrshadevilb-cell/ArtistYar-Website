@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteMedia, hasSupabase, listPublishedMedia, updateMedia, uploadMedia } from "@/lib/supabase-media";
+import { deleteMedia, hasSupabase, listPublishedMedia, listStorageFiles, registerExistingMedia, updateMedia, uploadMedia } from "@/lib/supabase-media";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,9 +12,9 @@ function authorized(request: Request): boolean {
 }
 function errorMessage(error: unknown, fallback: string): string { return error instanceof Error && error.message ? error.message.slice(0, 240) : fallback; }
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!hasSupabase()) return NextResponse.json({ configured: false, items: [] });
-  try { return NextResponse.json({ configured: true, items: await listPublishedMedia() }, { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }); }
+  try { const source = new URL(request.url).searchParams.get("source"); if (source === "storage") { if (!authorized(request)) return NextResponse.json({ configured: true, items: [], error: "دسترسی مدیریت معتبر نیست." }, { status: 401 }); return NextResponse.json({ configured: true, items: await listStorageFiles() }); } return NextResponse.json({ configured: true, items: await listPublishedMedia() }, { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }); }
   catch (error) { console.error("supabase media list failed", error); return NextResponse.json({ configured: true, items: [], error: "دریافت محتوای منتشرشده ناموفق بود." }, { status: 502 }); }
 }
 
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   if (!authorized(request)) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
-  try { const body = await request.json(); const publicId = String(body.publicId || "").trim(); const title = String(body.title || "").trim(); const description = String(body.description || "").trim(); if (!publicId || title.length < 3) return NextResponse.json({ ok: false, error: "شناسه و عنوان معتبر لازم است." }, { status: 400 }); const item = await updateMedia({ publicId, title, description }); return NextResponse.json({ ok: true, item, message: "اطلاعات محتوا به‌روزرسانی شد." }); }
+  try { const body = await request.json(); const publicId = String(body.publicId || "").trim(); const title = String(body.title || "").trim(); const description = String(body.description || "").trim(); const category = body.category === "free-training" ? "free-training" : "student-work"; const consent = body.consent === true; if (!publicId || title.length < 3) return NextResponse.json({ ok: false, error: "شناسه و عنوان معتبر لازم است." }, { status: 400 }); if (body.action === "register") { if (category === "student-work" && !consent) return NextResponse.json({ ok: false, error: "برای نمونه‌کار هنرجو، تأیید رضایت لازم است." }, { status: 400 }); const item = await registerExistingMedia({ publicId, title, description, category, consent, mimeType: String(body.mimeType || "application/octet-stream") }); return NextResponse.json({ ok: true, item, message: "فایل موجود در گالری ثبت شد." }); } const item = await updateMedia({ publicId, title, description }); return NextResponse.json({ ok: true, item, message: "اطلاعات محتوا به‌روزرسانی شد." }); }
   catch (error) { return NextResponse.json({ ok: false, error: `Supabase: ${errorMessage(error, "ویرایش ناموفق بود.")}` }, { status: 502 }); }
 }
 
