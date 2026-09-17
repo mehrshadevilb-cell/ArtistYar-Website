@@ -14,6 +14,7 @@ const links = [
   { href: "/#paths", label: "روش ما" },
   { href: "/#flow", label: "مسیر هنرجو" },
   { href: "/#projects", label: "نمونه‌کارها" },
+  { href: "/#feedback", label: "بازخورد هنرجوها" },
   { href: "/#courses", label: "دوره‌ها" },
   { href: "/#contact", label: "ارتباط" },
 ];

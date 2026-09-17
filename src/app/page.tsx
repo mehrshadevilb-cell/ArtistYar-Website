@@ -48,6 +48,23 @@ const studentProjects = [
     tone: "olive",
   },
 ];
+const studentFeedback = [
+  {
+    quote: "قبل از این کلاس‌ها هر بار وسط پروژه گیر می‌کردم. حالا می‌دانم باید مشکل را از کجا پیدا کنم و چطور مرحله‌به‌مرحله جلو بروم.",
+    name: "هنرجوی مسیر تنظیم و میکس",
+    detail: "بازخورد ثبت‌شده در مسیر آموزشی",
+  },
+  {
+    quote: "چیزی که برای من مهم بود این بود که فقط درباره پلاگین‌ها حرف نزدیم؛ روی پروژه خودم کار کردیم و دلیل هر تصمیم را فهمیدم.",
+    name: "هنرجوی کلاس آنلاین",
+    detail: "بازخورد ثبت‌شده پس از کلاس",
+  },
+  {
+    quote: "راه‌یار باعث شد تکلیف‌ها و ادامه مسیرم مشخص باشد. وقتی سؤالی داشتم، لازم نبود یادگیری را رها کنم و از اول شروع کنم.",
+    name: "هنرجوی دوره راه‌یار",
+    detail: "بازخورد ثبت‌شده در پنل هنرجو",
+  },
+];
 
 export default function HomePage() {
   return <div>
@@ -77,6 +94,8 @@ export default function HomePage() {
     <section id="flow" className="container-ay section-space"><Reveal><div className="section-intro"><p className="eyebrow">/ مسیر هنرجو</p><h2 className="section-title">شروعش ساده است؛<br /><span className="text-gold-400">ادامه‌اش با تو و راه‌یار.</span></h2></div></Reveal><div className="benefit-grid">{studentSteps.map((step, i) => <Reveal key={step} delay={i * 80}><article className="benefit-card"><span className="benefit-icon"><span className="text-lg font-medium">۰{i + 1}</span></span><h3>{step}</h3><p>{i === 0 ? "از بین دوره‌های دیجیتال یا کلاس‌های آنلاین، چیزی را انتخاب کن که به کارت نزدیک‌تر است." : i === 1 ? "درخواستت ثبت می‌شود و تأیید پرداخت یا هماهنگی کلاس از طریق راه‌یار انجام می‌شود." : "دسترسی محتوا، رزروها، تکلیف‌ها و وضعیت پیشرفتت را در مسیر هنرجویی دنبال کن."}</p></article></Reveal>)}</div></section>
 
     <section id="projects" className="projects-section border-y border-white/[.06]"><div className="container-ay section-space"><Reveal><div className="projects-heading"><div><p className="eyebrow">/ پروژه‌های منتخب هنرجویی</p><h2 className="section-title mt-4">یادگیری وقتی واقعی می‌شود<br /><span className="text-gold-400">که به خروجی برسد.</span></h2></div><p className="section-sub max-w-md">چند نمونه از مسیرهایی که هنرجوها روی پروژه خودشان جلو برده‌اند؛ از ایده خام تا تنظیم، میکس و آماده‌سازی انتشار.</p></div></Reveal><div className="projects-grid">{studentProjects.map((project, i) => <Reveal key={project.code} delay={i * 90}><article className={`project-card project-${project.tone}`}><div className="project-visual"><span className="project-code">{project.code}</span><div className="project-bars"><i /><i /><i /><i /><i /><i /><i /></div><span className="project-play"><CirclePlay size={20} /></span><span className="project-wave-label">STUDENT WORK / ۲۰۲۶</span></div><div className="project-meta"><span className="skill-tag">{project.type}</span><span className="project-student">{project.student}</span></div><h3>{project.title}</h3><p>{project.result}</p><div className="project-footer"><span>نتیجه مسیر</span><ArrowLeft size={15} /></div></article></Reveal>)}</div><p className="projects-note">نمونه‌ها با حفظ حریم خصوصی هنرجوها ارائه شده‌اند. خروجی هر پروژه به مسیر، تمرین و نقطه شروع هنرجو بستگی دارد.</p></div></section>
+
+    <section id="feedback" className="feedback-section container-ay section-space"><Reveal><div className="projects-heading"><div><p className="eyebrow">/ صدای هنرجوها</p><h2 className="section-title mt-4">مسیر را از زبان<br /><span className="text-gold-400">خودشان بشنو.</span></h2></div><p className="section-sub max-w-md">بازخوردهای کوتاه از تجربه هنرجوها در مسیر یادگیری؛ با تمرکز روی چیزی که در عمل برایشان تغییر کرده است.</p></div></Reveal><div className="feedback-grid">{studentFeedback.map((feedback, i) => <Reveal key={feedback.name} delay={i * 90}><article className="feedback-card"><div className="feedback-quote">“</div><p className="feedback-text">{feedback.quote}</p><div className="feedback-author"><span className="feedback-avatar">۰{i + 1}</span><span><strong>{feedback.name}</strong><small>{feedback.detail}</small></span></div></article></Reveal>)}</div><p className="projects-note">نام و جزئیات هویتی هنرجوها برای حفظ حریم خصوصی نمایش داده نشده است.</p></section>
 
     <div id="courses"><HomeLiveCourses /></div>
 
