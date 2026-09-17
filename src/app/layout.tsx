@@ -10,6 +10,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { FloatingAssistant } from "@/components/FloatingAssistant";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { TelegramMiniAppBridge } from "@/components/TelegramMiniAppBridge";
+import { SmoothScroll } from "@/components/SmoothScroll";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic"],
@@ -209,6 +210,7 @@ export default function RootLayout({
         ) : null}
       </head>
       <body className="font-sans antialiased">
+        <SmoothScroll />
         <ThemeProvider>
           <AuthProvider>
             <TelegramMiniAppBridge />
