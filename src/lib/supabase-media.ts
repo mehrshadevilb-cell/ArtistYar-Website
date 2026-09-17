@@ -5,7 +5,9 @@ const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const bucket = process.env.SUPABASE_BUCKET || "artistyar-media";
 const configured = Boolean(url && secret);
-const supabase = configured ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
+const supabase = configured
+  ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } })
+  : null;
 
 export type MediaItem = {
   id: string;
@@ -25,41 +27,235 @@ export type MediaItem = {
   duration: number | null;
   coverUrl: string | null;
 };
-export type StorageItem = { path: string; name: string; mimeType: string; size: number; createdAt: string; url: string };
 
-export function hasSupabase(): boolean { return configured; }
-function clean(value: unknown, fallback = ""): string { return typeof value === "string" ? value.trim().slice(0, 500) : fallback; }
+export type StorageItem = {
+  path: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+  url: string;
+};
+
+type ExtractedAudioTags = {
+  artist: string;
+  album: string;
+  genre: string;
+  year: number | null;
+  duration: number | null;
+  cover_url: string | null;
+  tag_title: string;
+};
+
+export function hasSupabase(): boolean {
+  return configured;
+}
+
+function clean(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value.trim().slice(0, 500) : fallback;
+}
+
 function toItem(row: Record<string, unknown>): MediaItem {
   const mime = String(row.mime_type || "");
   const ext = String(row.file_ext || "").toLowerCase();
-  const kind = mime.startsWith("image/") ? "image" : mime.startsWith("video/") ? "video" : mime.startsWith("audio/") || ["mp3", "wav", "m4a", "ogg", "flac", "aac"].includes(ext) ? "audio" : "raw";
+  const kind = mime.startsWith("image/")
+    ? "image"
+    : mime.startsWith("video/")
+      ? "video"
+      : mime.startsWith("audio/") || ["mp3", "wav", "m4a", "ogg", "flac", "aac"].includes(ext)
+        ? "audio"
+        : "raw";
   const resourceType = kind === "image" ? "image" : kind === "video" || kind === "audio" ? "video" : "raw";
-  return { id: String(row.id), publicId: String(row.storage_path), title: clean(row.title), description: clean(row.description), category: row.category === "free-training" ? "free-training" : "student-work", kind, format: ext, resourceType, url: String(row.public_url), createdAt: String(row.created_at || ""), artist: clean(row.artist), album: clean(row.album), genre: clean(row.genre), year: row.year ? Number(row.year) : null, duration: row.duration ? Number(row.duration) : null, coverUrl: row.cover_url ? String(row.cover_url) : null };
+  return {
+    id: String(row.id),
+    publicId: String(row.storage_path),
+    title: clean(row.title),
+    description: clean(row.description),
+    category: row.category === "free-training" ? "free-training" : "student-work",
+    kind,
+    format: ext,
+    resourceType,
+    url: String(row.public_url),
+    createdAt: String(row.created_at || ""),
+    artist: clean(row.artist),
+    album: clean(row.album),
+    genre: clean(row.genre),
+    year: row.year ? Number(row.year) : null,
+    duration: row.duration ? Number(row.duration) : null,
+    coverUrl: row.cover_url ? String(row.cover_url) : null,
+  };
 }
 
-async function inspectAudio(buffer: Buffer, mimeType: string) {
-  if (!mimeType.startsWith("audio/") && !["mp3", "wav", "m4a", "ogg", "flac", "aac"].some((ext) => mimeType.includes(ext))) return { artist: "", album: "", genre: "", year: null as number | null, duration: null as number | null, coverUrl: null as string | null, metadata: {} };
-  const parsed = await parseBuffer(buffer, { mimeType });
-  const picture = parsed.common.picture?.[0];
-  return { artist: parsed.common.artist || "", album: parsed.common.album || "", genre: parsed.common.genre?.[0] || "", year: parsed.common.year || null, duration: parsed.format.duration || null, coverUrl: picture ? `data:${picture.format};base64,${Buffer.from(picture.data).toString("base64")}` : null, metadata: { title: parsed.common.title || "", track: parsed.common.track, disk: parsed.common.disk } };
+/** Extract ID3 / common tags + embedded cover from an audio buffer. */
+export async function extractAudioTags(
+  buffer: Buffer,
+  mimeType: string,
+): Promise<ExtractedAudioTags> {
+  const empty: ExtractedAudioTags = {
+    artist: "",
+    album: "",
+    genre: "",
+    year: null,
+    duration: null,
+    cover_url: null,
+    tag_title: "",
+  };
+
+  const isAudio =
+    mimeType.startsWith("audio/") ||
+    ["mp3", "mpeg", "wav", "wave", "m4a", "mp4", "ogg", "flac", "aac", "x-m4a"].some((ext) =>
+      mimeType.toLowerCase().includes(ext),
+    );
+
+  if (!isAudio || buffer.length < 64) return empty;
+
+  try {
+    const parsed = await parseBuffer(buffer, { mimeType: mimeType || "audio/mpeg" }, { duration: true });
+    const picture = parsed.common.picture?.[0];
+
+    let cover_url: string | null = null;
+    if (picture?.data?.length) {
+      // Prefer uploading cover to storage when supabase is available (done by caller).
+      // Fallback: small data-URL only if under ~400KB to avoid DB bloat.
+      const b64 = Buffer.from(picture.data).toString("base64");
+      if (b64.length < 400_000) {
+        const format = picture.format || "image/jpeg";
+        cover_url = `data:${format};base64,${b64}`;
+      }
+    }
+
+    const yearRaw = parsed.common.year ?? parsed.common.date;
+    let year: number | null = null;
+    if (typeof yearRaw === "number") year = yearRaw;
+    else if (typeof yearRaw === "string") {
+      const m = yearRaw.match(/\d{4}/);
+      if (m) year = Number(m[0]);
+    }
+
+    return {
+      artist: clean(parsed.common.artist || parsed.common.albumartist || ""),
+      album: clean(parsed.common.album || ""),
+      genre: clean(Array.isArray(parsed.common.genre) ? parsed.common.genre[0] : parsed.common.genre || ""),
+      year,
+      duration: parsed.format.duration ? Math.round(parsed.format.duration) : null,
+      cover_url,
+      tag_title: clean(parsed.common.title || ""),
+    };
+  } catch (error) {
+    console.warn("extractAudioTags failed", error);
+    return empty;
+  }
 }
 
-export async function uploadMedia(input: { buffer: Buffer; filename: string; mimeType: string; title: string; description: string; category: "student-work" | "free-training"; consent: boolean }): Promise<MediaItem> {
+/** Upload embedded cover bytes to storage and return public URL. */
+async function uploadCoverFromPicture(
+  pictureData: Buffer,
+  mimeFormat: string,
+  category: string,
+): Promise<string | null> {
+  if (!supabase || pictureData.length < 32) return null;
+  const ext = mimeFormat.includes("png") ? "png" : mimeFormat.includes("webp") ? "webp" : "jpg";
+  const path = `${category}/covers/${crypto.randomUUID()}.${ext}`;
+  const contentType = mimeFormat.startsWith("image/") ? mimeFormat : `image/${ext === "jpg" ? "jpeg" : ext}`;
+  const upload = await supabase.storage.from(bucket).upload(path, pictureData, {
+    contentType,
+    upsert: false,
+    cacheControl: "31536000",
+  });
+  if (upload.error) {
+    console.warn("cover upload failed", upload.error.message);
+    return null;
+  }
+  return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+}
+
+async function inspectAudio(
+  buffer: Buffer,
+  mimeType: string,
+  category: string,
+): Promise<Omit<ExtractedAudioTags, "tag_title"> & { tag_title: string }> {
+  const tags = await extractAudioTags(buffer, mimeType);
+
+  // If we have a data-URL cover, try to re-parse and upload as real file for better performance.
+  try {
+    const parsed = await parseBuffer(buffer, { mimeType: mimeType || "audio/mpeg" }, { duration: false });
+    const picture = parsed.common.picture?.[0];
+    if (picture?.data?.length) {
+      const uploaded = await uploadCoverFromPicture(
+        Buffer.from(picture.data),
+        picture.format || "image/jpeg",
+        category,
+      );
+      if (uploaded) tags.cover_url = uploaded;
+    }
+  } catch {
+    // keep data-URL fallback from extractAudioTags
+  }
+
+  return tags;
+}
+
+export async function uploadMedia(input: {
+  buffer: Buffer;
+  filename: string;
+  mimeType: string;
+  title: string;
+  description: string;
+  category: "student-work" | "free-training";
+  consent: boolean;
+}): Promise<MediaItem> {
   if (!supabase) throw new Error("supabase_not_configured");
   const ext = input.filename.toLowerCase().split(".").pop() || "bin";
   const path = `${input.category}/${crypto.randomUUID()}.${ext}`;
-  const upload = await supabase.storage.from(bucket).upload(path, input.buffer, { contentType: input.mimeType || "application/octet-stream", upsert: false, cacheControl: "31536000" });
+  const upload = await supabase.storage.from(bucket).upload(path, input.buffer, {
+    contentType: input.mimeType || "application/octet-stream",
+    upsert: false,
+    cacheControl: "31536000",
+  });
   if (upload.error) throw new Error(upload.error.message);
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-  const audio = await inspectAudio(input.buffer, input.mimeType);
-  const inserted = await supabase.from("media_assets").insert({ storage_path: path, public_url: publicUrl, title: input.title.trim().slice(0, 200), description: input.description.trim().slice(0, 1000), category: input.category, mime_type: input.mimeType, file_ext: ext, ...audio, consent: input.consent, status: "published" }).select().single();
-  if (inserted.error) { await supabase.storage.from(bucket).remove([path]); throw new Error(inserted.error.message); }
+
+  const audio = await inspectAudio(input.buffer, input.mimeType, input.category);
+  const finalTitle =
+    input.title.trim().length >= 3 ? input.title.trim().slice(0, 200) : audio.tag_title.slice(0, 200) || input.filename;
+
+  const inserted = await supabase
+    .from("media_assets")
+    .insert({
+      storage_path: path,
+      public_url: publicUrl,
+      title: finalTitle,
+      description: input.description.trim().slice(0, 1000),
+      category: input.category,
+      mime_type: input.mimeType,
+      file_ext: ext,
+      artist: audio.artist,
+      album: audio.album,
+      genre: audio.genre,
+      year: audio.year,
+      duration: audio.duration,
+      cover_url: audio.cover_url,
+      consent: input.consent,
+      status: "published",
+    })
+    .select()
+    .single();
+
+  if (inserted.error) {
+    await supabase.storage.from(bucket).remove([path]);
+    throw new Error(inserted.error.message);
+  }
   return toItem(inserted.data);
 }
 
 export async function listPublishedMedia(): Promise<MediaItem[]> {
   if (!supabase) return [];
-  const result = await supabase.from("media_assets").select("*").eq("status", "published").order("created_at", { ascending: false }).limit(100);
+  const result = await supabase
+    .from("media_assets")
+    .select("*")
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(100);
   if (result.error) throw new Error(result.error.message);
   return (result.data || []).map((row) => toItem(row));
 }
@@ -67,29 +263,124 @@ export async function listPublishedMedia(): Promise<MediaItem[]> {
 export async function listStorageFiles(): Promise<StorageItem[]> {
   if (!supabase) return [];
   const folders = ["", "student-work", "free-training"];
-  const results = await Promise.all(folders.map((folder) => supabase!.storage.from(bucket).list(folder, { limit: 100, sortBy: { column: "created_at", order: "desc" } })));
+  const results = await Promise.all(
+    folders.map((folder) =>
+      supabase!.storage.from(bucket).list(folder, { limit: 100, sortBy: { column: "created_at", order: "desc" } }),
+    ),
+  );
   return results.flatMap((result, index) => {
     if (result.error) throw new Error(result.error.message);
     const folder = folders[index];
-    return (result.data || []).filter((file) => file.name !== ".emptyFolderPlaceholder").map((file) => { const path = folder ? `${folder}/${file.name}` : file.name; return { path, name: file.name, mimeType: String(file.metadata?.mimetype || "application/octet-stream"), size: Number(file.metadata?.size || 0), createdAt: String(file.created_at || ""), url: supabase!.storage.from(bucket).getPublicUrl(path).data.publicUrl }; });
+    return (result.data || [])
+      .filter((file) => file.name !== ".emptyFolderPlaceholder")
+      .map((file) => {
+        const path = folder ? `${folder}/${file.name}` : file.name;
+        return {
+          path,
+          name: file.name,
+          mimeType: String(file.metadata?.mimetype || "application/octet-stream"),
+          size: Number(file.metadata?.size || 0),
+          createdAt: String(file.created_at || ""),
+          url: supabase!.storage.from(bucket).getPublicUrl(path).data.publicUrl,
+        };
+      });
   });
 }
 
-export async function registerExistingMedia(input: { publicId: string; title: string; description: string; category: "student-work" | "free-training"; consent: boolean; mimeType: string }) {
+export async function registerExistingMedia(input: {
+  publicId: string;
+  title: string;
+  description: string;
+  category: "student-work" | "free-training";
+  consent: boolean;
+  mimeType: string;
+}) {
   if (!supabase) throw new Error("supabase_not_configured");
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(input.publicId).data.publicUrl;
   const ext = input.publicId.toLowerCase().split(".").pop() || "bin";
   const downloaded = await supabase.storage.from(bucket).download(input.publicId);
   if (downloaded.error) throw new Error(downloaded.error.message);
-  const audio = await inspectAudio(Buffer.from(await downloaded.data.arrayBuffer()), input.mimeType);
-  const result = await supabase.from("media_assets").upsert({ storage_path: input.publicId, public_url: publicUrl, title: input.title.trim().slice(0, 200), description: input.description.trim().slice(0, 1000), category: input.category, mime_type: input.mimeType, file_ext: ext, ...audio, consent: input.consent, status: "published" }, { onConflict: "storage_path" }).select().single();
+  const buffer = Buffer.from(await downloaded.data.arrayBuffer());
+  const audio = await inspectAudio(buffer, input.mimeType, input.category);
+  const finalTitle =
+    input.title.trim().length >= 3 ? input.title.trim().slice(0, 200) : audio.tag_title.slice(0, 200) || input.publicId;
+
+  const result = await supabase
+    .from("media_assets")
+    .upsert(
+      {
+        storage_path: input.publicId,
+        public_url: publicUrl,
+        title: finalTitle,
+        description: input.description.trim().slice(0, 1000),
+        category: input.category,
+        mime_type: input.mimeType,
+        file_ext: ext,
+        artist: audio.artist,
+        album: audio.album,
+        genre: audio.genre,
+        year: audio.year,
+        duration: audio.duration,
+        cover_url: audio.cover_url,
+        consent: input.consent,
+        status: "published",
+      },
+      { onConflict: "storage_path" },
+    )
+    .select()
+    .single();
+  if (result.error) throw new Error(result.error.message);
+  return toItem(result.data);
+}
+
+/** Re-download file and re-extract MP3 tags + cover for an existing published asset. */
+export async function refreshMediaTags(publicId: string): Promise<MediaItem> {
+  if (!supabase) throw new Error("supabase_not_configured");
+
+  const existing = await supabase.from("media_assets").select("*").eq("storage_path", publicId).maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  if (!existing.data) throw new Error("media_not_found");
+
+  const mimeType = String(existing.data.mime_type || "audio/mpeg");
+  const category =
+    existing.data.category === "free-training" ? "free-training" : "student-work";
+
+  const downloaded = await supabase.storage.from(bucket).download(publicId);
+  if (downloaded.error) throw new Error(downloaded.error.message);
+  const buffer = Buffer.from(await downloaded.data.arrayBuffer());
+  const audio = await inspectAudio(buffer, mimeType, category);
+
+  const result = await supabase
+    .from("media_assets")
+    .update({
+      artist: audio.artist,
+      album: audio.album,
+      genre: audio.genre,
+      year: audio.year,
+      duration: audio.duration,
+      cover_url: audio.cover_url,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("storage_path", publicId)
+    .select()
+    .single();
+
   if (result.error) throw new Error(result.error.message);
   return toItem(result.data);
 }
 
 export async function updateMedia(input: { publicId: string; title: string; description: string }) {
   if (!supabase) throw new Error("supabase_not_configured");
-  const result = await supabase.from("media_assets").update({ title: input.title.trim().slice(0, 200), description: input.description.trim().slice(0, 1000), updated_at: new Date().toISOString() }).eq("storage_path", input.publicId).select().single();
+  const result = await supabase
+    .from("media_assets")
+    .update({
+      title: input.title.trim().slice(0, 200),
+      description: input.description.trim().slice(0, 1000),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("storage_path", input.publicId)
+    .select()
+    .single();
   if (result.error) throw new Error(result.error.message);
   return toItem(result.data);
 }
