@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, item: media, message: "محتوا با موفقیت در Cloudinary آپلود و منتشر شد." });
   } catch (error) {
     console.error("cloudinary upload failed", error);
-    const detail = error instanceof Error ? error.message : "unknown";
+    const detail = error instanceof Error ? error.message : typeof error === "object" && error !== null && "message" in error ? String((error as { message?: unknown }).message || "unknown") : String(error || "unknown");
     const message = detail.includes("Invalid file") || detail.includes("Unsupported") ? "فرمت فایل توسط Cloudinary پشتیبانی نمی‌شود." : detail && detail !== "unknown" ? `Cloudinary: ${detail.slice(0, 240)}` : "آپلود ناموفق بود. تنظیمات Cloudinary و نوع فایل را بررسی کنید.";
     return NextResponse.json({ ok: false, error: message }, { status: 502 });
   }
