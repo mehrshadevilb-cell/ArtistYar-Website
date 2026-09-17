@@ -164,6 +164,18 @@ export default function HomePage() {
               تنها دوره نیست — <strong className="font-medium text-gold-400">راه‌یار AI</strong> از همین صفحه کنارت است
             </span>
           </div>
+          <div className="hero-signal-row" aria-label="ویژگی‌های مسیر یادگیری">
+            <div className="hero-signal-card">
+              <span className="hero-signal-index">۰۱</span>
+              <strong>یادگیری عملی</strong>
+              <small>از پروژه تا خروجی</small>
+            </div>
+            <div className="hero-signal-card hero-signal-card-active">
+              <span className="hero-signal-index">۰۲</span>
+              <strong>همراهی هوشمند</strong>
+              <small>پاسخ، تمرین، پیگیری</small>
+            </div>
+          </div>
         </div>
         <DepthScene className="hero-art">
           <div className="hero-orbit orbit-a" />
