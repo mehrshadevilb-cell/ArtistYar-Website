@@ -15,6 +15,15 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**.cdninstagram.com" },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/amoozesh-mix-mastering",
+        destination: "/amoozesh-tanzim-mix-mastering",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
