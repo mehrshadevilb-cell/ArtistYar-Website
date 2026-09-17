@@ -13,7 +13,7 @@ export default function PanelHomePage() {
           { label: "رزرو پیش‌رو", value: String(studentReservations.length) },
           { label: "وضعیت", value: "فعال" },
         ].map((item) => (
-          <div key={item.label} className="card-ay p-5">
+          <div key={item.label} className="dashboard-stat card-ay p-5">
             <p className="text-xs text-ink-500">{item.label}</p>
             <p className="mt-2 text-2xl font-semibold text-sand-50">{item.value}</p>
           </div>
@@ -25,7 +25,7 @@ export default function PanelHomePage() {
         <p>این نمای پنل با دادهٔ نمونه نمایش داده می‌شود؛ اتصال واقعی هنرجوها به API راه‌یار در مرحلهٔ بعدی فعال می‌شود.</p>
       </div>
 
-      <div className="card-ay p-6">
+      <div className="dashboard-panel card-ay p-6">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-medium text-sand-50">رزروهای نزدیک</h2>
           <Link href="/panel/reservations" className="text-xs text-gold-400">
@@ -36,7 +36,7 @@ export default function PanelHomePage() {
           {studentReservations.map((r) => (
             <li
               key={r.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 text-sm"
+              className="dashboard-row flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 text-sm"
             >
               <span className="text-sand-100">
                 {r.course} · {r.date} · {r.time}
@@ -47,7 +47,7 @@ export default function PanelHomePage() {
         </ul>
       </div>
 
-      <div className="card-ay p-6">
+      <div className="dashboard-panel card-ay p-6">
         <h2 className="text-lg font-medium text-sand-50">اقدام سریع</h2>
         <div className="mt-4 flex flex-wrap gap-3">
           <Link href="/online" className="btn-ghost !py-2 text-xs">

@@ -35,7 +35,7 @@ export function PanelShell({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        <aside className="card-ay h-fit p-3 lg:sticky lg:top-24">
+        <aside className="card-ay panel-nav h-fit p-3 lg:sticky lg:top-24">
           <nav aria-label="ناوبری پنل هنرجو" className="flex flex-col gap-1">
             {nav.map((item) => {
               const active = pathname === item.href || (item.href !== "/panel" && pathname.startsWith(`${item.href}/`));

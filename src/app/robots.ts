@@ -24,7 +24,7 @@ export default function robots(): MetadataRoute.Robots {
           "anthropic-ai",
           "cohere-ai",
         ],
-        allow: ["/", "/assistant", "/courses", "/about", "/gallery", "/free-player", "/online", "/contact"],
+        allow: ["/", "/assistant", "/courses", "/about", "/gallery", "/free-player", "/online", "/contact", "/llms.txt"],
         disallow: ["/admin/", "/panel/", "/api/"],
       },
     ],
