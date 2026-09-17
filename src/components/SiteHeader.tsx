@@ -10,6 +10,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 const links = [
   { href: "/courses", label: "مسیرهای آموزشی" },
+  { href: "/projects", label: "بازار پروژه" },
   { href: "/online", label: "کلاس آنلاین" },
   { href: "/assistant", label: "راه‌یار AI" },
   { href: "/free-player", label: "آموزش رایگان" },
