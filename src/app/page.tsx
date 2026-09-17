@@ -121,6 +121,7 @@ const homepageCoursesJsonLd = {
     { "@type": "ListItem", position: 1, name: "دوره جامع تنظیم، میکس و مسترینگ", url: "/courses" },
     { "@type": "ListItem", position: 2, name: "دوره تئوری موسیقی", url: "/courses" },
     { "@type": "ListItem", position: 3, name: "کلاس آنلاین تنظیم، میکس و مسترینگ", url: "/online" },
+    { "@type": "ListItem", position: 4, name: "راهنمای آموزش تنظیم، میکس و مسترینگ", url: "/amoozesh-tanzim-mix-mastering" },
   ],
 };
 
@@ -151,6 +152,9 @@ export default function HomePage() {
               سؤال از راه‌یار AI <Bot size={16} />
             </Link>
           </div>
+          <Link href="/amoozesh-tanzim-mix-mastering" className="mt-5 inline-flex text-sm text-ink-400 underline decoration-white/20 underline-offset-8 transition hover:text-gold-300 hover:decoration-gold-400/60">
+            راهنمای آموزش تنظیم، میکس و مسترینگ از پایه تا پروژه ←
+          </Link>
           <div className="hero-trust">
             <span className="trust-line" />
             <span>

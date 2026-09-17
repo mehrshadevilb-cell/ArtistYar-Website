@@ -4,6 +4,7 @@ const publicRoutes: { path: string; priority: number; changeFrequency: "weekly" 
   { path: "/", priority: 1, changeFrequency: "weekly" },
   { path: "/assistant", priority: 0.95, changeFrequency: "weekly" },
   { path: "/courses", priority: 0.9, changeFrequency: "weekly" },
+  { path: "/amoozesh-tanzim-mix-mastering", priority: 0.95, changeFrequency: "weekly" },
   { path: "/free-player", priority: 0.9, changeFrequency: "monthly" },
   { path: "/online", priority: 0.85, changeFrequency: "monthly" },
   { path: "/gallery", priority: 0.8, changeFrequency: "weekly" },
