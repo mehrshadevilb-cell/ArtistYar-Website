@@ -23,7 +23,7 @@ type AuthContextValue = {
   login: (
     username: string,
     password: string,
-  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  ) => Promise<{ ok: true; user: SessionUser } | { ok: false; error: string }>;
   register: (input: {
     username: string;
     password: string;
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await loginViaApi(username, password);
     if (!result.ok) return { ok: false as const, error: result.error };
     setUser(result.user);
-    return { ok: true as const };
+    return { ok: true as const, user: result.user };
   }, []);
 
   const register = useCallback(

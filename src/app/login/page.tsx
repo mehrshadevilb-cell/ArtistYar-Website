@@ -21,24 +21,21 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const fd = new FormData(e.currentTarget);
-    const username = String(fd.get("username") || "");
-    const password = String(fd.get("password") || "");
-    const result = await login(username, password);
-    setLoading(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    // Role comes from session after login; navigate by stored session
-    const sessionRaw = typeof window !== "undefined" ? localStorage.getItem("artistyar_session_v1") : null;
-    let role: "admin" | "student" = "student";
     try {
-      if (sessionRaw) role = (JSON.parse(sessionRaw) as { role?: string }).role === "admin" ? "admin" : "student";
+      const fd = new FormData(e.currentTarget);
+      const username = String(fd.get("username") || "");
+      const password = String(fd.get("password") || "");
+      const result = await login(username, password);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.push(result.user.role === "admin" ? "/admin" : "/panel");
     } catch {
-      role = "student";
+      setError("ورود انجام نشد. لطفاً دوباره تلاش کن.");
+    } finally {
+      setLoading(false);
     }
-    router.push(role === "admin" ? "/admin" : "/panel");
   }
 
   return (
