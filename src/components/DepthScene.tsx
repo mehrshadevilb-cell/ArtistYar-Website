@@ -7,10 +7,11 @@ type DepthSceneProps = {
   className?: string;
 };
 
-/** A dependency-free 3D stage: scroll depth + pointer tilt, with reduced-motion support. */
+/** A dependency-free 3D stage: scroll depth + pointer tilt, paused when offscreen. */
 export function DepthScene({ children, className = "" }: DepthSceneProps) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const frame = useRef(0);
+  const frame = useRef<number | null>(null);
+  const visible = useRef(false);
   const target = useRef({ x: 0, y: 0, progress: 0 });
   const current = useRef({ x: 0, y: 0, progress: 0 });
 
@@ -25,11 +26,21 @@ export function DepthScene({ children, className = "" }: DepthSceneProps) {
     };
 
     const onPointer = (event: PointerEvent) => {
-      target.current.x = ((event.clientX / window.innerWidth) - 0.5) * 2;
-      target.current.y = ((event.clientY / window.innerHeight) - 0.5) * 2;
+      const rect = el.getBoundingClientRect();
+      target.current.x = ((event.clientX - rect.left) / Math.max(rect.width, 1) - 0.5) * 2;
+      target.current.y = ((event.clientY - rect.top) / Math.max(rect.height, 1) - 0.5) * 2;
+    };
+
+    const stop = () => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+      frame.current = null;
     };
 
     const tick = () => {
+      if (!visible.current || document.visibilityState === "hidden") {
+        frame.current = null;
+        return;
+      }
       const t = target.current;
       const c = current.current;
       c.x += (t.x - c.x) * 0.07;
@@ -42,17 +53,40 @@ export function DepthScene({ children, className = "" }: DepthSceneProps) {
       frame.current = requestAnimationFrame(tick);
     };
 
-    measure();
-    frame.current = requestAnimationFrame(tick);
+    const start = () => {
+      if (frame.current === null && visible.current && document.visibilityState !== "hidden") {
+        frame.current = requestAnimationFrame(tick);
+      }
+    };
+
+    const observer = new IntersectionObserver(([entry]) => {
+      visible.current = Boolean(entry?.isIntersecting);
+      if (visible.current) {
+        measure();
+        start();
+      } else {
+        stop();
+      }
+    }, { rootMargin: "160px 0px" });
+
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") stop();
+      else start();
+    };
+
+    observer.observe(el);
     window.addEventListener("scroll", measure, { passive: true });
     window.addEventListener("resize", measure, { passive: true });
-    window.addEventListener("pointermove", onPointer, { passive: true });
+    el.addEventListener("pointermove", onPointer, { passive: true });
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      cancelAnimationFrame(frame.current);
+      stop();
+      observer.disconnect();
       window.removeEventListener("scroll", measure);
       window.removeEventListener("resize", measure);
-      window.removeEventListener("pointermove", onPointer);
+      el.removeEventListener("pointermove", onPointer);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
