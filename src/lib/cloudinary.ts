@@ -83,13 +83,9 @@ function toPublishedMedia(resource: Record<string, unknown>): PublishedMedia {
 
 export async function listPublishedMedia(): Promise<PublishedMedia[]> {
   if (!configured) return [];
-  const result = await cloudinary.search
-    .expression("folder:artistyar/* AND context.status=published")
-    .with_field("context")
-    .sort_by("created_at", "desc")
-    .max_results(100)
-    .execute();
-  return (result.resources || []).map((resource: Record<string, unknown>) => toPublishedMedia(resource));
+  const requests = (["image", "video", "raw"] as const).flatMap((resourceType) => ["artistyar/student-work", "artistyar/free-training"].map((prefix) => cloudinary.api.resources({ type: "upload", resource_type: resourceType, prefix, context: true, max_results: 100 })));
+  const results = await Promise.all(requests);
+  return results.flatMap((result) => (result.resources || []).filter((resource: Record<string, unknown>) => (resource.context as Record<string, string> | undefined)?.status === "published").map((resource: Record<string, unknown>) => toPublishedMedia(resource))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function updateMedia(input: { publicId: string; resourceType: "image" | "video" | "raw"; title: string; description: string }) {

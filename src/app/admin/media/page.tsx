@@ -5,6 +5,12 @@ import { Check, CloudUpload, LoaderCircle, Pencil, ShieldCheck, Trash2, X } from
 
 type MediaItem = { id: string; publicId: string; title: string; description: string; category: string; kind: string; resourceType: "image" | "video" | "raw"; url: string; createdAt: string };
 
+async function readApiResponse(response: Response): Promise<Record<string, any>> {
+  const text = await response.text();
+  try { return JSON.parse(text) as Record<string, any>; }
+  catch { throw new Error(response.status === 413 ? "حجم فایل از محدودیت سرور بیشتر است." : `پاسخ نامعتبر از سرور دریافت شد (${response.status}). احتمالاً deploy جدید هنوز فعال نشده است.`); }
+}
+
 export default function AdminMediaPage() {
   const [token, setToken] = useState("");
   const [items, setItems] = useState<MediaItem[]>([]);
@@ -20,7 +26,7 @@ export default function AdminMediaPage() {
   }, []);
 
   async function loadItems() {
-    try { const response = await fetch("/api/media"); const data = await response.json(); setItems(data.items || []); }
+    try { const response = await fetch("/api/media"); const data = await readApiResponse(response); if (!response.ok) throw new Error(data.error || "دریافت محتوا ناموفق بود."); setItems(data.items || []); }
     catch { setError("دریافت محتوای قبلی ناموفق بود."); }
   }
 
@@ -29,7 +35,7 @@ export default function AdminMediaPage() {
     const form = new FormData(event.currentTarget); form.set("consent", form.get("consent") === "on" ? "true" : "false");
     try {
       const response = await fetch("/api/media", { method: "POST", headers: { "x-artistyar-admin-token": token }, body: form });
-      const data = await response.json(); if (!response.ok || data.ok === false) throw new Error(data.error || "آپلود ناموفق بود.");
+      const data = await readApiResponse(response); if (!response.ok || data.ok === false) throw new Error(data.error || "آپلود ناموفق بود.");
       window.sessionStorage.setItem("artistyar-upload-token", token); setMessage(data.message || "آپلود انجام شد."); event.currentTarget.reset(); await loadItems();
     } catch (uploadError) { setError(uploadError instanceof Error ? uploadError.message : "آپلود ناموفق بود."); }
     finally { setBusy(false); }
@@ -40,7 +46,7 @@ export default function AdminMediaPage() {
     const form = new FormData(event.currentTarget);
     try {
       const response = await fetch("/api/media", { method: "PUT", headers: { "Content-Type": "application/json", "x-artistyar-admin-token": token }, body: JSON.stringify({ publicId: editing.publicId, resourceType: editing.resourceType, title: form.get("title"), description: form.get("description") }) });
-      const data = await response.json(); if (!response.ok || data.ok === false) throw new Error(data.error || "ویرایش ناموفق بود.");
+      const data = await readApiResponse(response); if (!response.ok || data.ok === false) throw new Error(data.error || "ویرایش ناموفق بود.");
       setEditing(null); setMessage(data.message || "ویرایش انجام شد."); await loadItems();
     } catch (editError) { setError(editError instanceof Error ? editError.message : "ویرایش ناموفق بود."); }
     finally { setBusy(false); }
@@ -51,7 +57,7 @@ export default function AdminMediaPage() {
     setBusy(true); setMessage(""); setError("");
     try {
       const response = await fetch("/api/media", { method: "DELETE", headers: { "Content-Type": "application/json", "x-artistyar-admin-token": token }, body: JSON.stringify({ publicId: item.publicId, resourceType: item.resourceType }) });
-      const data = await response.json(); if (!response.ok || data.ok === false) throw new Error(data.error || "حذف ناموفق بود.");
+      const data = await readApiResponse(response); if (!response.ok || data.ok === false) throw new Error(data.error || "حذف ناموفق بود.");
       setMessage(data.message || "فایل حذف شد."); await loadItems();
     } catch (deleteError) { setError(deleteError instanceof Error ? deleteError.message : "حذف ناموفق بود."); }
     finally { setBusy(false); }
