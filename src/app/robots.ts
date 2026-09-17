@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://artistyar-website.onrender.com";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir";
 
   return {
     rules: [
@@ -14,4 +14,3 @@ export default function robots(): MetadataRoute.Robots {
     sitemap: `${baseUrl.replace(/\/$/, "")}/sitemap.xml`,
   };
 }
-
