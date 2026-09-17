@@ -6,6 +6,7 @@ import { Check, ChevronLeft, Clock3, LockKeyhole, Play, RotateCcw, Sparkles } fr
 import { SectionHeading } from "@/components/SectionHeading";
 import { StatusChip } from "@/components/StatusChip";
 import { fetchFreeLessons, type ApiFreeLesson } from "@/lib/rahyar-api";
+import { fallbackFreeLessons } from "@/lib/free-lessons-fallback";
 
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -20,6 +21,7 @@ export default function FreePlayerPage() {
   const [speed, setSpeed] = useState("1");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [usingFallback, setUsingFallback] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const activeLesson = useMemo(() => lessons.find((lesson) => lesson.id === activeId) || lessons[0], [lessons, activeId]);
   const activeProgress = activeLesson ? progress[activeLesson.id] || 0 : 0;
@@ -31,14 +33,25 @@ export default function FreePlayerPage() {
     } catch {
       // Local progress is optional and should never block playback.
     }
-    fetchFreeLessons()
-      .then((data) => {
-        setLessons(data);
-        setActiveId(data[0]?.id || null);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    loadLessons();
   }, []);
+
+  async function loadLessons() {
+    setLoading(true);
+    setError(false);
+    try {
+      const data = await fetchFreeLessons();
+      setUsingFallback(data.every((lesson) => lesson.id < 0));
+      setLessons(data);
+      setActiveId(data[0]?.id || null);
+    } catch {
+      setUsingFallback(true);
+      setLessons(fallbackFreeLessons);
+      setActiveId(fallbackFreeLessons[0]?.id || null);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.playbackRate = Number(speed);
@@ -54,7 +67,11 @@ export default function FreePlayerPage() {
 
   function saveProgress(next: Record<number, number>) {
     setProgress(next);
-    window.localStorage.setItem("artistyar_free_player_progress", JSON.stringify(next));
+    try {
+      window.localStorage.setItem("artistyar_free_player_progress", JSON.stringify(next));
+    } catch {
+      // Progress persistence is optional and must never break playback.
+    }
   }
 
   function onTimeUpdate(event: SyntheticEvent<HTMLVideoElement>) {
@@ -93,7 +110,8 @@ export default function FreePlayerPage() {
         <div className="card-ay mx-auto mt-10 max-w-xl p-8 text-center">
           <p className="eyebrow">اتصال به کتابخانه</p>
           <h2 className="mt-3 text-xl font-medium text-sand-50">فعلاً امکان دریافت درس‌ها نیست</h2>
-          <p className="mt-3 text-sm leading-7 text-ink-400">اتصال backend را بررسی کن و دوباره صفحه را بارگذاری کن.</p>
+          <p className="mt-3 text-sm leading-7 text-ink-400">آموزش‌های نمونه آماده‌اند؛ برای دریافت کتابخانهٔ زنده دوباره تلاش کن.</p>
+          <button type="button" onClick={() => void loadLessons()} className="btn-primary mt-5 !py-2 text-sm">تلاش دوباره</button>
         </div>
       ) : !activeLesson ? (
         <div className="card-ay mx-auto mt-10 max-w-xl p-8 text-center">
@@ -179,6 +197,11 @@ export default function FreePlayerPage() {
                 <h2 className="text-base font-medium text-sand-50">فصل‌های این درس</h2>
                 <span className="text-xs text-ink-500">{activeLesson.duration_label}</span>
               </div>
+              {usingFallback ? (
+                <div className="mt-4 rounded-xl border border-gold-400/20 bg-gold-400/[.06] p-3 text-xs leading-6 text-gold-200">
+                  کتابخانهٔ اصلی موقتاً در دسترس نیست؛ این فهرست نمونه نمایش داده شده است. لینک ویدیوها را می‌توان از پنل مدیریت اضافه کرد.
+                </div>
+              ) : null}
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
                 {activeLesson.chapters.map((chapter, index) => (
                   <button

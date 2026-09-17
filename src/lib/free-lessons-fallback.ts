@@ -1,0 +1,58 @@
+import type { ApiFreeLesson } from "@/lib/rahyar-api";
+
+export const fallbackFreeLessons: ApiFreeLesson[] = [
+  {
+    id: -1,
+    slug: "hearing-reverb",
+    title: "تمرین شنیداری ریورب در میکس",
+    description: "در این آموزش کوتاه می‌بینی چطور فاصله، عمق و فضای ریورب را با گوش تشخیص بدهی و تصمیم دقیق‌تری برای میکس بگیری.",
+    duration_label: "۰۸:۳۰",
+    video_url: null,
+    thumbnail_url: "/instagram-covers/hearing-reverb.jpg",
+    chapters: [
+      { title: "ریورب چه چیزی را تغییر می‌دهد؟", time: 0 },
+      { title: "تشخیص فاصله با گوش", time: 150 },
+      { title: "تمرین روی پروژه", time: 390 },
+    ],
+    sort_order: 1,
+    is_active: true,
+    created_at: "",
+    updated_at: "",
+  },
+  {
+    id: -2,
+    slug: "sample-rate-basics",
+    title: "سمپل‌ریت چیست و چه زمانی مهم می‌شود؟",
+    description: "مفهوم سمپل‌ریت را ساده و کاربردی یاد بگیر و بدان در پروژهٔ واقعی چه تصمیمی باید بگیری.",
+    duration_label: "۰۶:۴۵",
+    video_url: null,
+    thumbnail_url: "/instagram-covers/sample-rate.jpg",
+    chapters: [
+      { title: "تعریف سادهٔ سمپل‌ریت", time: 0 },
+      { title: "اشتباه‌های رایج", time: 130 },
+      { title: "تنظیم پیشنهادی پروژه", time: 300 },
+    ],
+    sort_order: 2,
+    is_active: true,
+    created_at: "",
+    updated_at: "",
+  },
+  {
+    id: -3,
+    slug: "compression-basics",
+    title: "کمپرسور را با گوش تنظیم کن",
+    description: "به‌جای حفظ‌کردن عددها، نسبت، اتک و ریلیز را با شنیدن تغییرات سیگنال تنظیم کن.",
+    duration_label: "۱۰:۲۰",
+    video_url: null,
+    thumbnail_url: "/instagram-covers/hearing-compression.jpg",
+    chapters: [
+      { title: "کمپرسور چه می‌کند؟", time: 0 },
+      { title: "اتک و ریلیز", time: 210 },
+      { title: "تمرین و چک نهایی", time: 480 },
+    ],
+    sort_order: 3,
+    is_active: true,
+    created_at: "",
+    updated_at: "",
+  },
+];
