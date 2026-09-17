@@ -34,6 +34,18 @@ Backend endpoints:
 - `GET  /api/v1/ai/status`
 - `GET  /api/v1/products` · `classes` · `orders` · ...
 
+## آپلود محتوای رسانه‌ای
+برای نگهداری پایدار فایل‌های نمونه‌کار هنرجو و آموزش رایگان، این متغیرها را در محیط Render تنظیم کنید:
+
+```env
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+ARTISTYAR_UPLOAD_ADMIN_TOKEN=یک_کلید_تصادفی_قوی
+```
+
+بعد از ورود به `/admin`، از منوی **مدیریت محتوا** فایل صوتی، ویدیویی، تصویری یا PDF را آپلود کنید. برای نمونه‌کار هنرجو تأیید رضایت انتشار الزامی است. فایل‌ها در Cloudinary ذخیره می‌شوند و محتوای منتشرشده در گالری عمومی نمایش داده خواهد شد.
+
 ## اجرا
 ```bash
 npm install

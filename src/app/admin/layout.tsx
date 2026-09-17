@@ -8,6 +8,7 @@ const nav = [
   { href: "/admin/payments", label: "پرداخت‌ها" },
   { href: "/admin/reservations", label: "رزروها" },
   { href: "/admin/students", label: "هنرجویان" },
+  { href: "/admin/media", label: "مدیریت محتوا" },
   { href: "/admin/ai", label: "AI Agent" },
   { href: "/admin/system", label: "وضعیت سیستم" },
 ];
