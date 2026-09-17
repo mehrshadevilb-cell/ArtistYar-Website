@@ -19,11 +19,7 @@ export type AIProvider = {
   authScheme: "raw" | "bearer";
 };
 
-/**
- * The website deliberately does not maintain a second provider router.
- * RahYar is the single AI gateway so Bytez/Dahl/OpenRouter/etc. discovery,
- * failover, cooldowns and knowledge context stay identical across surfaces.
- */
+/** Centralized AI gateway: the website does not duplicate provider routing. */
 function gatewayUrl(): string {
   return (process.env.RAHYAR_AI_GATEWAY_URL || "").trim().replace(/\/$/, "");
 }
@@ -48,17 +44,15 @@ function requireGateway(): string {
 }
 
 export function getConfiguredProviders(): AIProvider[] {
-  return [
-    {
-      id: "rahyar-gateway",
-      name: "RahYar AI Gateway",
-      baseUrl: gatewayUrl(),
-      modelsUrl: `${gatewayUrl()}/api/v1/ai/status`,
-      apiKey: gatewaySecret() || undefined,
-      modelsRequireAuth: true,
-      authScheme: "raw",
-    },
-  ];
+  return [{
+    id: "rahyar-gateway",
+    name: "RahYar AI Gateway",
+    baseUrl: gatewayUrl(),
+    modelsUrl: `${gatewayUrl()}/api/v1/ai/status`,
+    apiKey: gatewaySecret() || undefined,
+    modelsRequireAuth: true,
+    authScheme: "raw",
+  }];
 }
 
 export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
@@ -71,12 +65,9 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
   });
   const data = await response.json().catch(() => null) as { agent_status?: string } | null;
   if (!response.ok) throw new Error(`RahYar gateway status HTTP ${response.status}`);
-
-  // The gateway intentionally hides provider credentials and exposes status
-  // text rather than a public model catalog. Keep a synthetic route entry for
-  // callers that only need to know whether the centralized AI stack is alive.
-  if (!data?.agent_status) return [];
-  return [{ id: "centralized-router", provider: provider.id, task: "chat" }];
+  return data?.agent_status
+    ? [{ id: "centralized-router", provider: provider.id, task: "chat" }]
+    : [];
 }
 
 export async function discoverAllModels() {
@@ -106,12 +97,12 @@ export async function chatWithProvider(
   _provider: AIProvider,
   _model: string,
   messages: ChatMessage[],
+  clientId = "artistyar-web",
 ) {
   const gateway = requireGateway();
   const lastUserMessage = [...messages]
     .reverse()
     .find((message) => message.role === "user" && message.content.trim());
-
   if (!lastUserMessage) throw new Error("No user message was provided");
 
   const response = await fetch(`${gateway}/api/v1/assistant/chat`, {
@@ -119,7 +110,7 @@ export async function chatWithProvider(
     headers: gatewayHeaders(),
     body: JSON.stringify({
       message: lastUserMessage.content.slice(0, 1000),
-      client_id: "artistyar-web",
+      client_id: clientId.slice(0, 64),
     }),
     cache: "no-store",
     signal: AbortSignal.timeout(70_000),
@@ -128,7 +119,6 @@ export async function chatWithProvider(
   const data = await response.json().catch(() => null) as
     | { ok?: boolean; reply?: unknown; detail?: unknown }
     | null;
-
   if (!response.ok) {
     const detail = typeof data?.detail === "string" ? data.detail : `HTTP ${response.status}`;
     throw new Error(`RahYar gateway: ${detail}`);
@@ -143,9 +133,10 @@ export async function autoChat(
   messages: ChatMessage[],
   _preferredProvider?: string,
   _preferredModel?: string,
+  clientId = "artistyar-web",
 ) {
   const provider = getConfiguredProviders()[0];
-  const reply = await chatWithProvider(provider, "centralized-router", messages);
+  const reply = await chatWithProvider(provider, "centralized-router", messages, clientId);
   return {
     reply,
     provider: provider.id,
