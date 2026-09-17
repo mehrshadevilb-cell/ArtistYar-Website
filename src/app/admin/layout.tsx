@@ -1,25 +1,18 @@
-"use client";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { AdminShell } from "./AdminShell";
+import {
+  ADMIN_SESSION_COOKIE,
+  verifyAdminSession,
+} from "@/lib/server-admin-auth";
 
-import { RequireAuth } from "@/components/RequireAuth";
-import { PanelShell } from "@/components/PanelShell";
+export const dynamic = "force-dynamic";
 
-const nav = [
-  { href: "/admin", label: "گزارش امروز" },
-  { href: "/admin/payments", label: "پرداخت‌ها" },
-  { href: "/admin/reservations", label: "رزروها" },
-  { href: "/admin/videos", label: "مدیریت ویدیوها" },
-  { href: "/admin/students", label: "هنرجویان" },
-  { href: "/admin/media", label: "مدیریت محتوا" },
-  { href: "/admin/ai", label: "AI Agent" },
-  { href: "/admin/system", label: "وضعیت سیستم" },
-];
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const session = verifyAdminSession(cookieStore.get(ADMIN_SESSION_COOKIE)?.value);
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <RequireAuth role="admin">
-      <PanelShell title="Admin Panel" nav={nav}>
-        {children}
-      </PanelShell>
-    </RequireAuth>
-  );
+  if (!session) redirect("/login?next=/admin");
+
+  return <AdminShell>{children}</AdminShell>;
 }

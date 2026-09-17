@@ -5,6 +5,7 @@ import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 import { Reveal } from "@/components/Reveal";
 import { DepthScene } from "@/components/DepthScene";
+import { HighlightStories } from "@/components/HighlightStories";
 import { instagramGallery } from "@/data/instagram-gallery";
 
 export const metadata: Metadata = {
@@ -316,6 +317,16 @@ export default function HomePage() {
               </p>
             </div>
           </Reveal>
+          <div className="mt-10 rounded-[1.75rem] border border-white/[.08] bg-white/[.02] p-5 sm:p-7">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="eyebrow">/ هایلایت‌های منتخب</p>
+                <h3 className="mt-2 text-xl font-medium text-sand-50">چند لحظه از مسیر یادگیری</h3>
+              </div>
+              <span className="text-xs text-ink-500">Instagram / PUBLIC</span>
+            </div>
+            <HighlightStories items={instagramGallery} />
+          </div>
           <div className="projects-grid">
             {studentProjects.map((project, i) => (
               <Reveal key={project.code} delay={i * 90}>

@@ -30,15 +30,12 @@ RAHYAR_AI_BRIDGE_SECRET=YOUR_SHARED_SECRET
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_SECRET_KEY=sb_secret_...
 SUPABASE_BUCKET=artistyar-media
-ARTISTYAR_UPLOAD_ADMIN_TOKEN=یک_کلید_تصادفی_قوی
+ARTISTYAR_SESSION_SECRET=یک_کلید تصادفی طولانی برای امضای نشست ادمین
 ```
 
 جدول `media_assets` را طبق `supabase/media_assets.sql` بساز (دسته‌ها: `student-work`, `free-training`, `prodby-mehrshad`).
 
-اگر ویرایش عنوان/توضیح ذخیره نمی‌شود:
-1. توکن `ARTISTYAR_UPLOAD_ADMIN_TOKEN` را در Render و در فیلد پنل یکی کن.
-2. constraint دسته در Supabase را با اسکریپت SQL به‌روز کن.
-3. Deploy جدید سایت را روی Render تأیید کن.
+اگر ویرایش عنوان/توضیح ذخیره نمی‌شود، اتصال Supabase، نام bucket، اجرای `supabase/media_assets.sql` و مقدار `ARTISTYAR_SESSION_SECRET` را بررسی کن؛ سپس deploy جدید سایت را تأیید کن.
 
 ## لایسنس‌های SpotPlayer
 

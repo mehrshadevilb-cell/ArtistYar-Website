@@ -6,7 +6,7 @@ const SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
 type SessionPayload = { username: string; issuedAt: number };
 
 function secret(): string {
-  return process.env.ARTISTYAR_ADMIN_PASSWORD || "";
+  return process.env.ARTISTYAR_SESSION_SECRET || "";
 }
 
 function signature(payload: string): string {
@@ -14,6 +14,7 @@ function signature(payload: string): string {
 }
 
 export function createAdminSession(username: string): string {
+  if (!secret()) throw new Error("artistyar_session_secret_missing");
   const payload = `${username}:${Date.now()}`;
   return `${Buffer.from(payload).toString("base64url")}.${signature(payload)}`;
 }

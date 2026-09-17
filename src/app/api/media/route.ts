@@ -33,7 +33,6 @@ function errorMessage(error: unknown, fallback: string): string {
 export async function GET(request: Request) {
   if (!hasSupabase()) return NextResponse.json({ configured: false, items: [] });
   try {
-    await ensureMediaBucket();
     const source = new URL(request.url).searchParams.get("source");
     if (source === "storage") {
       if (!(await authorized()))
@@ -66,7 +65,7 @@ export async function POST(request: Request) {
     const consent = form.get("consent") === "true" || category === "prodby-mehrshad";
     if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "فایل را انتخاب کنید." }, { status: 400 });
     if (!title || title.length < 3) return NextResponse.json({ ok: false, error: "عنوان محتوا را کامل وارد کنید." }, { status: 400 });
-    if (!allowedCategories.has(category)) return NextResponse.json({ ok: false, error: "دسته‌بندی معتبر نیست." }, { status: 400 });
+    if (!category || !allowedCategories.has(category)) return NextResponse.json({ ok: false, error: "دسته‌بندی معتبر نیست." }, { status: 400 });
     if (category === "student-work" && !consent)
       return NextResponse.json({ ok: false, error: "برای انتشار نمونه‌کار هنرجو، تأیید رضایت لازم است." }, { status: 400 });
     if (file.size <= 0 || file.size > MAX_FILE_SIZE)
@@ -107,7 +106,8 @@ export async function PUT(request: Request) {
     }
     if (body.action === "register") {
       if (title.length < 3) return NextResponse.json({ ok: false, error: "عنوان معتبر لازم است." }, { status: 400 });
-      if (category === "student-work" && !consent)
+    if (!category) return NextResponse.json({ ok: false, error: "دسته‌بندی معتبر نیست." }, { status: 400 });
+    if (category === "student-work" && !consent)
         return NextResponse.json({ ok: false, error: "برای نمونه‌کار هنرجو، تأیید رضایت لازم است." }, { status: 400 });
       const item = await registerExistingMedia({
         publicId,

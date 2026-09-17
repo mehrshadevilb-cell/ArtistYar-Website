@@ -55,10 +55,11 @@ export function hasSupabase(): boolean {
   return configured;
 }
 
-export function normalizeCategory(value: unknown): MediaCategory {
+export function normalizeCategory(value: unknown): MediaCategory | null {
   if (value === "free-training") return "free-training";
   if (value === "prodby-mehrshad") return "prodby-mehrshad";
-  return "student-work";
+  if (value === "student-work") return "student-work";
+  return null;
 }
 
 function clean(value: unknown, fallback = ""): string {
@@ -81,7 +82,7 @@ function toItem(row: Record<string, unknown>): MediaItem {
     publicId: String(row.storage_path),
     title: clean(row.title),
     description: clean(row.description),
-    category: normalizeCategory(row.category),
+    category: normalizeCategory(row.category) || "student-work",
     kind,
     format: ext,
     resourceType,
@@ -358,7 +359,7 @@ export async function refreshMediaTags(publicId: string): Promise<MediaItem> {
   if (!existing.data) throw new Error("media_not_found");
 
   const mimeType = String(existing.data.mime_type || "audio/mpeg");
-  const category = normalizeCategory(existing.data.category);
+  const category = normalizeCategory(existing.data.category) || "student-work";
   const folder = storageFolderForCategory(category);
 
   const downloaded = await supabase.storage.from(bucket).download(publicId);

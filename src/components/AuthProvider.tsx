@@ -29,7 +29,7 @@ type AuthContextValue = {
     password: string;
     fullName: string;
   }) => { ok: true } | { ok: false; error: string };
-  logout: () => void;
+  logout: () => Promise<void>;
   linkTelegram: (telegramId: string) => void;
 };
 
@@ -40,8 +40,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setUser(getSession());
-    setReady(true);
+    let cancelled = false;
+    fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
+      .then(async (response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.authenticated && data.user) {
+          saveSession(data.user);
+          setUser(data.user);
+        } else {
+          setUser(getSession());
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setUser(getSession());
+      })
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
@@ -61,8 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const logout = useCallback(() => {
-    doLogout();
+  const logout = useCallback(async () => {
+    await doLogout();
     setUser(null);
   }, []);
 

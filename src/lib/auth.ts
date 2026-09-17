@@ -64,16 +64,12 @@ export async function loginViaApi(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok || !data.user) {
-      const local = login(username, password);
-      if (local) return { ok: true, user: local };
       return { ok: false, error: data.error || "نام کاربری یا رمز عبور نادرست است." };
     }
     const user = data.user as SessionUser;
     if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
     return { ok: true, user };
   } catch {
-    const local = login(username, password);
-    if (local) return { ok: true, user: local };
     return { ok: false, error: "ارتباط با سرور ورود برقرار نشد." };
   }
 }
@@ -105,8 +101,12 @@ export function registerLocal(input: {
   return session;
 }
 
-export function logout(): void {
-  if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
+export async function logout(): Promise<void> {
+  try {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+  } finally {
+    if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
+  }
 }
 
 export function getSession(): SessionUser | null {
