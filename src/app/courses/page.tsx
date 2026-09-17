@@ -61,8 +61,9 @@ export default function CoursesPage() {
       <div className="product-grid mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((item) => {
           const slug = slugify(item.title);
+          const key = item.id > 0 ? String(item.id) : `fallback-${slug}`;
           return (
-            <article key={item.id} className="card-ay group flex h-full flex-col overflow-hidden transition hover:border-gold-500/25 hover:bg-white/[.035]">
+            <article key={key} className="card-ay group flex h-full flex-col overflow-hidden transition hover:border-gold-500/25 hover:bg-white/[.035]">
               <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[.06]">
                 {item.thumbnail ? (
                   <Image
@@ -97,11 +98,7 @@ export default function CoursesPage() {
                   <span className="text-sm font-medium text-gold-400">
                     {item.price > 0 ? `${item.price.toLocaleString("fa-IR")} تومان` : "تماس بگیرید"}
                   </span>
-                  <Link
-                    href={`/courses/${slug}`}
-                    className="btn-ghost min-h-11 !px-4 !py-2.5 text-center text-xs"
-                    aria-label={`مشاهده صفحه ${item.title}`}
-                  >
+                  <Link href={`/courses/${slug}`} className="btn-ghost min-h-11 !px-4 !py-2.5 text-center text-xs" aria-label={`مشاهده صفحه ${item.title}`}>
                     مشاهده مسیر
                   </Link>
                 </div>
@@ -111,9 +108,7 @@ export default function CoursesPage() {
         })}
       </div>
 
-      {!items.length && source === "در حال بارگذاری…" ? (
-        <div className="py-20 text-center text-sm text-ink-500">در حال دریافت محصولات…</div>
-      ) : null}
+      {!items.length && source === "در حال بارگذاری…" ? <div className="py-20 text-center text-sm text-ink-500">در حال دریافت محصولات…</div> : null}
     </section>
   );
 }
