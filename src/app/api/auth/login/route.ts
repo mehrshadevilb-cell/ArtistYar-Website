@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { createHmac, timingSafeEqual } from "crypto";
+import { timingSafeEqual } from "crypto";
+import {
+  ADMIN_SESSION_COOKIE,
+  adminSessionCookieOptions,
+  createAdminSession,
+} from "@/lib/server-admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,13 +14,6 @@ function safeEqual(a: string, b: string): boolean {
   const bb = Buffer.from(b);
   if (ba.length !== bb.length) return false;
   return timingSafeEqual(ba, bb);
-}
-
-function sessionToken(username: string): string {
-  const secret = process.env.ARTISTYAR_ADMIN_PASSWORD || process.env.ARTISTYAR_UPLOAD_ADMIN_TOKEN || "artistyar";
-  const payload = `${username}:${Date.now()}`;
-  const sig = createHmac("sha256", secret).update(payload).digest("hex").slice(0, 32);
-  return Buffer.from(`${payload}:${sig}`).toString("base64url");
 }
 
 export async function POST(request: Request) {
@@ -42,7 +40,7 @@ export async function POST(request: Request) {
   }
 
   if (safeEqual(username, adminUser) && safeEqual(password, adminPass)) {
-    return NextResponse.json({
+    const response = NextResponse.json({
       ok: true,
       user: {
         id: "admin",
@@ -52,8 +50,16 @@ export async function POST(request: Request) {
         telegramLinked: true,
         telegramId: "owner",
       },
-      token: sessionToken(adminUser),
     });
+
+    // The admin session is now an HttpOnly cookie. No upload/admin token is
+    // returned to JavaScript or stored in sessionStorage/localStorage.
+    response.cookies.set(
+      ADMIN_SESSION_COOKIE,
+      createAdminSession(adminUser),
+      adminSessionCookieOptions,
+    );
+    return response;
   }
 
   return NextResponse.json({ ok: false, error: "نام کاربری یا رمز عبور نادرست است." }, { status: 401 });

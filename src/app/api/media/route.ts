@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import {
   deleteMedia,
   hasSupabase,
@@ -11,15 +12,17 @@ import {
   uploadMedia,
   type MediaCategory,
 } from "@/lib/supabase-media";
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const allowedCategories = new Set<MediaCategory>(["student-work", "free-training", "prodby-mehrshad"]);
 
-function authorized(request: Request): boolean {
-  const expected = process.env.ARTISTYAR_UPLOAD_ADMIN_TOKEN;
-  return Boolean(expected && request.headers.get("x-artistyar-admin-token") === expected);
+async function authorized(): Promise<boolean> {
+  const cookieStore = await cookies();
+  const session = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  return Boolean(verifyAdminSession(session));
 }
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -31,7 +34,7 @@ export async function GET(request: Request) {
   try {
     const source = new URL(request.url).searchParams.get("source");
     if (source === "storage") {
-      if (!authorized(request))
+      if (!(await authorized()))
         return NextResponse.json({ configured: true, items: [], error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
       return NextResponse.json({ configured: true, items: await listStorageFiles() });
     }
@@ -53,7 +56,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!authorized(request)) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
+  if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
     const form = await request.formData();
@@ -98,7 +101,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!authorized(request)) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
+  if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
     const body = await request.json();
@@ -112,11 +115,7 @@ export async function PUT(request: Request) {
 
     if (body.action === "refresh-tags") {
       const item = await refreshMediaTags(publicId);
-      return NextResponse.json({
-        ok: true,
-        item,
-        message: "تگ‌های MP3 و کاور دوباره استخراج و ذخیره شدند.",
-      });
+      return NextResponse.json({ ok: true, item, message: "تگ‌های MP3 و کاور دوباره استخراج و ذخیره شدند." });
     }
 
     if (body.action === "register") {
@@ -149,7 +148,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!authorized(request)) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
+  if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
     const body = await request.json();
