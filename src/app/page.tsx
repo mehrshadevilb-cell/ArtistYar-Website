@@ -52,6 +52,32 @@ const studentFeedback = [
     detail: "بازخورد ثبت‌شده در پنل هنرجو",
   },
 ];
+const faqs = [
+  {
+    question: "از کدام مسیر آموزشی شروع کنم؟",
+    answer: "اگر تازه شروع کرده‌ای، راه‌یار مسیر جامع‌تری برایت می‌سازد. اگر فقط می‌خواهی پایه‌هایت را بهتر کنی، تئوری موسیقی انتخاب مناسبی است. برای کار دقیق روی پروژه خودت هم می‌توانی کلاس آنلاین بگیری یا از مشاوره رایگان شروع کنی.",
+  },
+  {
+    question: "بعد از پرداخت، دسترسی دوره چطور فعال می‌شود؟",
+    answer: "درخواست و پرداخت از طریق سایت ثبت می‌شود، اما تأیید نهایی توسط تیم راه‌یار انجام می‌شود. بعد از تأیید، دسترسی محصول متناسب با نوع آن فعال می‌شود؛ دوره‌های آموزشی از طریق SpotPlayer و محصول آرتیست‌یار از طریق کانال‌های تلگرام.",
+  },
+  {
+    question: "آیا می‌توانم قبل از خرید راهنمایی بگیرم؟",
+    answer: "بله. فرم مشاوره رایگان انتهای همین صفحه را پر کن و بگو روی چه چیزی کار می‌کنی. بر اساس تجربه، هدف و پروژه‌ات برای انتخاب مسیر بهتر راهنمایی‌ات می‌کنیم.",
+  },
+  {
+    question: "کلاس‌های آنلاین شامل چه موضوعاتی هستند؟",
+    answer: "در حال حاضر مسیرهای کلاس آنلاین شامل تنظیم، میکس و مسترینگ و همچنین تئوری، هارمونی و گوش‌نوازی هستند. کلاس‌ها با تمرکز روی پروژه خود هنرجو جلو می‌روند.",
+  },
+  {
+    question: "رسید پرداخت را کجا ارسال کنم؟",
+    answer: "بعد از ثبت سفارش، شماره کارت و فرم ارسال رسید در همین سایت نمایش داده می‌شود. رسید را همان‌جا ارسال کن تا درخواستت برای بررسی در راه‌یار ثبت شود و بتوانی وضعیت سفارش را پیگیری کنی.",
+  },
+  {
+    question: "اگر در طول یادگیری سؤال داشته باشم چه؟",
+    answer: "از پشتیبانی و تیکت راه‌یار استفاده کن یا سؤال موسیقی‌ات را از دستیار راه‌یار بپرس. برای کلاس‌های آنلاین، تکلیف، بازخورد و پیگیری پیشرفت هم در مسیر هنرجویی در نظر گرفته شده است.",
+  },
+];
 
 export default function HomePage() {
   return <div>
@@ -83,6 +109,8 @@ export default function HomePage() {
     <section id="projects" className="projects-section border-y border-white/[.06]"><div className="container-ay section-space"><Reveal><div className="projects-heading"><div><p className="eyebrow">/ پروژه‌های منتخب هنرجویی</p><h2 className="section-title mt-4">یادگیری وقتی واقعی می‌شود<br /><span className="text-gold-400">که به خروجی برسد.</span></h2></div><p className="section-sub max-w-md">این نمونه‌ها از محتوای عمومی و تأییدشده گالری آرتیست‌یار انتخاب شده‌اند و برای شنیدن، به پست اصلی اینستاگرام ارجاع می‌دهند.</p></div></Reveal><div className="projects-grid">{studentProjects.map((project, i) => <Reveal key={project.code} delay={i * 90}><article className={`project-card project-${project.tone}`}><div className="project-visual"><span className="project-code">{project.code}</span><div className="project-bars"><i /><i /><i /><i /><i /><i /><i /></div><a href={project.href} target="_blank" rel="noreferrer" aria-label={`مشاهده ${project.title}`} className="project-play"><CirclePlay size={20} /></a><span className="project-wave-label">INSTAGRAM / PUBLIC</span></div><div className="project-meta"><span className="skill-tag">{project.type}</span><span className="project-student">{project.student}</span></div><h3>{project.title}</h3><p>{project.result}</p><div className="project-footer"><a href={project.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 hover:text-gold-300">مشاهده پست اصلی <ArrowLeft size={15} /></a></div></article></Reveal>)}</div><p className="projects-note">منبع هر نمونه در اینستاگرام مشخص است. معرفی نام یا اثر هنرجوها فقط با رضایت آن‌ها انجام می‌شود.</p></div></section>
 
     <section id="feedback" className="feedback-section container-ay section-space"><Reveal><div className="projects-heading"><div><p className="eyebrow">/ صدای هنرجوها</p><h2 className="section-title mt-4">مسیر را از زبان<br /><span className="text-gold-400">خودشان بشنو.</span></h2></div><p className="section-sub max-w-md">بازخوردهای کوتاه از تجربه هنرجوها در مسیر یادگیری؛ با تمرکز روی چیزی که در عمل برایشان تغییر کرده است.</p></div></Reveal><div className="feedback-grid">{studentFeedback.map((feedback, i) => <Reveal key={feedback.name} delay={i * 90}><article className="feedback-card"><div className="feedback-quote">“</div><p className="feedback-text">{feedback.quote}</p><div className="feedback-author"><span className="feedback-avatar">۰{i + 1}</span><span><strong>{feedback.name}</strong><small>{feedback.detail}</small></span></div></article></Reveal>)}</div><p className="projects-note">نام و جزئیات هویتی هنرجوها برای حفظ حریم خصوصی نمایش داده نشده است.</p></section>
+
+    <section id="faq" className="faq-section container-ay section-space"><Reveal><div className="projects-heading"><div><p className="eyebrow">/ پرسش‌های متداول</p><h2 className="section-title mt-4">قبل از شروع،<br /><span className="text-gold-400">جوابت را پیدا کن.</span></h2></div><p className="section-sub max-w-md">سؤال‌های رایج درباره انتخاب مسیر، پرداخت، دسترسی و همراهی راه‌یار را اینجا جواب داده‌ایم.</p></div></Reveal><div className="faq-list">{faqs.map((faq, i) => <Reveal key={faq.question} delay={i * 50}><details className="faq-item"><summary><span className="faq-index">۰{i + 1}</span><span>{faq.question}</span><span className="faq-plus" aria-hidden="true" /></summary><p>{faq.answer}</p></details></Reveal>)}</div></section>
 
     <div id="courses"><HomeLiveCourses /></div>
 
