@@ -17,12 +17,25 @@ ARTISTYAR_ADMIN_PASSWORD=یک_رمز_قوی_اختصاصی
 
 ## اتصال AI
 
-AI سایت providerها را مستقیم صدا نمی‌زند؛ سایت به **RahYar AI Gateway** وصل می‌شود.
+سایت خودش مدل‌ها را از کلیدهای env کشف می‌کند و به **بهترین مدل موجود** وصل می‌شود.
+حداقل یکی از این کلیدها را روی سرویس سایت (Render و غیره) ست کن:
+
+```env
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+GROQ_API_KEY=
+OPENROUTER_API_KEY=
+GOOGLE_GENERATIVE_AI_API_KEY=   # یا GEMINI_API_KEY / GOOGLE_API_KEY
+```
+
+اختیاری — Gateway راه‌یار به‌عنوان fallback:
 
 ```env
 RAHYAR_AI_GATEWAY_URL=https://YOUR-BOT-HOST
 RAHYAR_AI_BRIDGE_SECRET=YOUR_SHARED_SECRET
 ```
+
+بعد از deploy، `/api/ai/providers` لیست providerها و مدل‌های کشف‌شده را برمی‌گرداند.
 
 ## همگام‌سازی سایت و ربات
 
@@ -55,6 +68,6 @@ python scripts/import_spotplayer_licenses.py path/to/licenses.xlsx --apply
 ```bash
 npm install
 cp .env.example .env.local
-# ARTISTYAR_ADMIN_* را در .env.local پر کن
+# ARTISTYAR_ADMIN_* و حداقل یک AI key را در .env.local پر کن
 npm run dev
 ```
