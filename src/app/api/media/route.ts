@@ -12,6 +12,7 @@ import {
   uploadMedia,
   type MediaCategory,
 } from "@/lib/supabase-media";
+import { ensureMediaBucket } from "@/lib/supabase-storage";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-auth";
 
 export const runtime = "nodejs";
@@ -32,6 +33,7 @@ function errorMessage(error: unknown, fallback: string): string {
 export async function GET(request: Request) {
   if (!hasSupabase()) return NextResponse.json({ configured: false, items: [] });
   try {
+    await ensureMediaBucket();
     const source = new URL(request.url).searchParams.get("source");
     if (source === "storage") {
       if (!(await authorized()))
@@ -45,11 +47,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("supabase media list failed", error);
     return NextResponse.json(
-      {
-        configured: true,
-        items: [],
-        error: `Supabase: ${errorMessage(error, "دریافت محتوای منتشرشده ناموفق بود.")}`,
-      },
+      { configured: true, items: [], error: `Supabase: ${errorMessage(error, "دریافت محتوای منتشرشده ناموفق بود.")}` },
       { status: 502 },
     );
   }
@@ -59,6 +57,7 @@ export async function POST(request: Request) {
   if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
+    await ensureMediaBucket();
     const form = await request.formData();
     const file = form.get("file");
     const title = String(form.get("title") || "").trim();
@@ -66,17 +65,13 @@ export async function POST(request: Request) {
     const category = normalizeCategory(form.get("category"));
     const consent = form.get("consent") === "true" || category === "prodby-mehrshad";
     if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "فایل را انتخاب کنید." }, { status: 400 });
-    if (!title || title.length < 3)
-      return NextResponse.json({ ok: false, error: "عنوان محتوا را کامل وارد کنید." }, { status: 400 });
-    if (!allowedCategories.has(category))
-      return NextResponse.json({ ok: false, error: "دسته‌بندی معتبر نیست." }, { status: 400 });
+    if (!title || title.length < 3) return NextResponse.json({ ok: false, error: "عنوان محتوا را کامل وارد کنید." }, { status: 400 });
+    if (!allowedCategories.has(category)) return NextResponse.json({ ok: false, error: "دسته‌بندی معتبر نیست." }, { status: 400 });
     if (category === "student-work" && !consent)
-      return NextResponse.json(
-        { ok: false, error: "برای انتشار نمونه‌کار هنرجو، تأیید رضایت لازم است." },
-        { status: 400 },
-      );
+      return NextResponse.json({ ok: false, error: "برای انتشار نمونه‌کار هنرجو، تأیید رضایت لازم است." }, { status: 400 });
     if (file.size <= 0 || file.size > MAX_FILE_SIZE)
       return NextResponse.json({ ok: false, error: "حجم فایل باید بین ۱ بایت و ۵۰ مگابایت باشد." }, { status: 400 });
+
     const item = await uploadMedia({
       buffer: Buffer.from(await file.arrayBuffer()),
       filename: file.name,
@@ -86,17 +81,10 @@ export async function POST(request: Request) {
       category,
       consent,
     });
-    return NextResponse.json({
-      ok: true,
-      item,
-      message: "محتوا با موفقیت در Supabase آپلود و منتشر شد. تگ‌های MP3 و کاور استخراج شدند.",
-    });
+    return NextResponse.json({ ok: true, item, message: "محتوا با موفقیت در Supabase آپلود و منتشر شد. تگ‌های MP3 و کاور استخراج شدند." });
   } catch (error) {
     console.error("supabase media upload failed", error);
-    return NextResponse.json(
-      { ok: false, error: `Supabase: ${errorMessage(error, "آپلود ناموفق بود.")}` },
-      { status: 502 },
-    );
+    return NextResponse.json({ ok: false, error: `Supabase: ${errorMessage(error, "آپلود ناموفق بود.")}` }, { status: 502 });
   }
 }
 
@@ -104,6 +92,7 @@ export async function PUT(request: Request) {
   if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
+    await ensureMediaBucket();
     const body = await request.json();
     const publicId = String(body.publicId || "").trim();
     const title = String(body.title || "").trim();
@@ -112,19 +101,14 @@ export async function PUT(request: Request) {
     const consent = body.consent === true || category === "prodby-mehrshad";
 
     if (!publicId) return NextResponse.json({ ok: false, error: "شناسه فایل لازم است." }, { status: 400 });
-
     if (body.action === "refresh-tags") {
       const item = await refreshMediaTags(publicId);
       return NextResponse.json({ ok: true, item, message: "تگ‌های MP3 و کاور دوباره استخراج و ذخیره شدند." });
     }
-
     if (body.action === "register") {
       if (title.length < 3) return NextResponse.json({ ok: false, error: "عنوان معتبر لازم است." }, { status: 400 });
       if (category === "student-work" && !consent)
-        return NextResponse.json(
-          { ok: false, error: "برای نمونه‌کار هنرجو، تأیید رضایت لازم است." },
-          { status: 400 },
-        );
+        return NextResponse.json({ ok: false, error: "برای نمونه‌کار هنرجو، تأیید رضایت لازم است." }, { status: 400 });
       const item = await registerExistingMedia({
         publicId,
         title,
@@ -135,15 +119,11 @@ export async function PUT(request: Request) {
       });
       return NextResponse.json({ ok: true, item, message: "فایل موجود در گالری ثبت شد. تگ‌ها استخراج شدند." });
     }
-
     if (title.length < 3) return NextResponse.json({ ok: false, error: "شناسه و عنوان معتبر لازم است." }, { status: 400 });
     const item = await updateMedia({ publicId, title, description });
     return NextResponse.json({ ok: true, item, message: "اطلاعات محتوا به‌روزرسانی شد." });
   } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: `Supabase: ${errorMessage(error, "ویرایش ناموفق بود.")}` },
-      { status: 502 },
-    );
+    return NextResponse.json({ ok: false, error: `Supabase: ${errorMessage(error, "ویرایش ناموفق بود.")}` }, { status: 502 });
   }
 }
 
@@ -151,15 +131,13 @@ export async function DELETE(request: Request) {
   if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
+    await ensureMediaBucket();
     const body = await request.json();
     const publicId = String(body.publicId || "").trim();
     if (!publicId) return NextResponse.json({ ok: false, error: "شناسه فایل لازم است." }, { status: 400 });
     await deleteMedia(publicId);
     return NextResponse.json({ ok: true, message: "فایل حذف شد." });
   } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: `Supabase: ${errorMessage(error, "حذف ناموفق بود.")}` },
-      { status: 502 },
-    );
+    return NextResponse.json({ ok: false, error: `Supabase: ${errorMessage(error, "حذف ناموفق بود.")}` }, { status: 502 });
   }
 }
