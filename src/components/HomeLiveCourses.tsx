@@ -23,8 +23,8 @@ export function HomeLiveCourses() {
   }, []);
 
   return (
-    <section className="container-ay py-16">
-      <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
+    <section className="container-ay py-20 sm:py-24">
+      <div className="flex flex-col items-start justify-between gap-8 sm:flex-row sm:items-end">
         <SectionHeading
           eyebrow="مسیرهای پیشنهادی"
           title="از بنیان تا انتشار"
@@ -47,15 +47,15 @@ export function HomeLiveCourses() {
       </div>
 
       {source === "loading" ? (
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="card-ay h-48 animate-pulse bg-white/[0.04]" />
+            <div key={i} className="card-ay h-72 animate-pulse bg-white/[0.04]" />
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p className="mt-10 text-sm text-ink-400">فعلاً دوره‌ای برای نمایش نیست.</p>
+        <p className="mt-12 text-sm text-ink-400">فعلاً دوره‌ای برای نمایش نیست.</p>
       ) : (
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((p) => (
             <LiveProductCard key={p.id} product={p} />
           ))}
