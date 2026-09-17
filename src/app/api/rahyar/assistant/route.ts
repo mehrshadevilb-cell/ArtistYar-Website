@@ -16,12 +16,18 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
+
   try {
     const body = await request.json();
+    const bridgeSecret = process.env.RAHYAR_AI_BRIDGE_SECRET || "";
     const res = await fetch(`${backend}/api/v1/assistant/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(bridgeSecret ? { "X-Rahyar-AI-Key": bridgeSecret } : {}),
+      },
       body: JSON.stringify(body),
+      cache: "no-store",
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {

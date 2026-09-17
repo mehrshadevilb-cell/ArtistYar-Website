@@ -25,7 +25,7 @@ const SUGGESTIONS = [
   { label: "شروع میکس", text: "برای شروع میکس از کجا برم؟" },
   { label: "تنظیم یا میکس؟", text: "تفاوت تنظیم و میکس دقیقاً چیه؟" },
   { label: "وکال تمیز", text: "چطور وکال تمیزتری داشته باشم؟" },
-  { label: "مفاهیم پایه", text: "بیت‌دپت و سمپل‌ریت یعنی چی؟" },
+  { label: "سئو + طراحی", text: "برای صفحه اصلی ArtistYar یک پیشنهاد سئو و طراحی حرفه‌ای بده" },
 ];
 
 type Msg = {
@@ -198,14 +198,14 @@ export default function AssistantPage() {
           <div className="max-w-2xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold-500/20 bg-gold-500/[0.08] px-3 py-1.5 text-xs text-gold-300">
               <Sparkles size={14} aria-hidden="true" />
-              <span>دستیار آموزشی آرتیست‌یار</span>
+              <span>دستیار آموزشی و رشد آرتیست‌یار</span>
             </div>
             <h1 className="text-3xl font-semibold leading-[1.45] tracking-tight text-sand-50 sm:text-5xl">
               سؤالت را بپرس؛
               <span className="gold-shimmer block">با هم حلش می‌کنیم.</span>
             </h1>
             <p className="mt-4 max-w-xl text-sm leading-8 text-ink-300 sm:text-base">
-              از تنظیم و میکس تا مسترینگ و مسیر یادگیری، راه‌یار کمک می‌کند سؤال بعدی‌ات را به یک قدم عملی تبدیل کنی.
+              از تنظیم و میکس تا مسترینگ، سئو و طراحی تجربه کاربری؛ راه‌یار سؤال بعدی‌ات را به یک قدم عملی تبدیل می‌کند.
             </p>
           </div>
           <div className="hidden items-center gap-2 text-xs text-ink-500 sm:flex">
@@ -225,7 +225,7 @@ export default function AssistantPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h2 className="truncate text-sm font-semibold text-sand-50">راه‌یار AI</h2>
-                    <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-ink-400">BETA</span>
+                    <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-ink-400">۳ متخصص موازی</span>
                   </div>
                   <p className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-500">
                     {connection === "ready" ? <Wifi size={12} aria-hidden="true" /> : <WifiOff size={12} aria-hidden="true" />}
