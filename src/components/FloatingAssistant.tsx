@@ -37,7 +37,7 @@ export function FloatingAssistant() {
 
   return (
     <div
-      className={`fixed z-[60] transition-all duration-500 ease-out ${
+      className={`floating-assistant fixed z-[60] transition-all duration-500 ease-out ${
         visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
       } bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-[max(1rem,env(safe-area-inset-left))] sm:bottom-7 sm:left-7`}
     >
