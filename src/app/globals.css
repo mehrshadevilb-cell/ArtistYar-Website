@@ -1,1 +1,5 @@
-PLACEHOLDER
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* TEMP - full content follows in next commit if truncated */
+:root{color-scheme:dark;--bg:#0b0b0a;--fg:#f5efe3}
