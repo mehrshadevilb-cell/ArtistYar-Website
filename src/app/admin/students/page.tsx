@@ -1,114 +1,26 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { licenseStats, spotplayerLicenses, spotplayerLicensesImportedAt } from "@/data/spotplayer-licenses";
-import { listLocalMembers } from "@/lib/auth";
+import { FormEvent, useEffect, useState } from "react";
+import { Edit3, Search, Save, X } from "lucide-react";
 
-function formatBytes(n: number) {
-  if (n <= 0) return "۰";
-  if (n < 1024 ** 2) return `${Math.round(n / 1024)} KB`;
-  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
-  return `${(n / 1024 ** 3).toFixed(1)} GB`;
-}
+type Student = { id: number; full_name: string; phone: string | null; email: string | null; bio: string | null; level: string | null; experience_years: number; telegram_id: string | null; telegram_username: string | null; created_at: string };
+type Draft = Omit<Student, "id" | "created_at" | "telegram_id" | "telegram_username">;
 
-function formatWatch(sec: number) {
-  if (sec <= 0) return "۰";
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  if (h > 0) return `${h}س ${m}د`;
-  return `${m} دقیقه`;
-}
+const emptyDraft: Draft = { full_name: "", phone: "", email: "", bio: "", level: "", experience_years: 0 };
 
 export default function AdminStudentsPage() {
+  const [students, setStudents] = useState<Student[]>([]);
   const [q, setQ] = useState("");
-  const stats = licenseStats();
-  const localWeb = listLocalMembers();
+  const [editing, setEditing] = useState<Student | null>(null);
+  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return spotplayerLicenses;
-    return spotplayerLicenses.filter(
-      (l) =>
-        l.name.toLowerCase().includes(needle) ||
-        l.phone.includes(needle) ||
-        l.courses.some((c) => c.toLowerCase().includes(needle)),
-    );
-  }, [q]);
+  async function load() { setLoading(true); setError(""); try { const response = await fetch(`/api/rahyar/admin/students?q=${encodeURIComponent(q)}`, { cache: "no-store" }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "دریافت هنرجوها ناموفق بود."); setStudents(data); } catch (cause) { setError(cause instanceof Error ? cause.message : "دریافت هنرجوها ناموفق بود."); } finally { setLoading(false); } }
+  useEffect(() => { void load(); }, []);
+  function edit(student: Student) { setEditing(student); setDraft({ full_name: student.full_name, phone: student.phone || "", email: student.email || "", bio: student.bio || "", level: student.level || "", experience_years: student.experience_years }); }
+  async function save(event: FormEvent) { event.preventDefault(); if (!editing) return; setLoading(true); setError(""); try { const response = await fetch(`/api/rahyar/admin/students?id=${editing.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) }); const data = await response.json(); if (!response.ok) throw new Error(data.detail || data.error || "ذخیره پروفایل ناموفق بود."); setStudents((items) => items.map((item) => item.id === editing.id ? data : item)); setEditing(null); setMessage("پروفایل هنرجو ذخیره شد."); } catch (cause) { setError(cause instanceof Error ? cause.message : "ذخیره پروفایل ناموفق بود."); } finally { setLoading(false); } }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-medium text-sand-50">هنرجویان SpotPlayer</h2>
-          <p className="mt-1 text-xs leading-6 text-ink-500">
-            {stats.total} لایسنس از فایل واقعی ({spotplayerLicensesImportedAt}) · {stats.activated} فعال · {stats.inactive}{" "}
-            غیرفعال
-          </p>
-        </div>
-        <input
-          className="input-ay max-w-xs"
-          placeholder="جستجو نام / موبایل / دوره…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-      </div>
-
-      <div className="card-ay overflow-x-auto">
-        <table className="w-full min-w-[720px] text-right text-sm">
-          <thead className="border-b border-white/[0.06] text-xs text-ink-500">
-            <tr>
-              <th className="px-4 py-3 font-medium">نام</th>
-              <th className="px-4 py-3 font-medium">موبایل</th>
-              <th className="px-4 py-3 font-medium">دوره‌ها</th>
-              <th className="px-4 py-3 font-medium">وضعیت</th>
-              <th className="px-4 py-3 font-medium">تماشا</th>
-              <th className="px-4 py-3 font-medium">دانلود</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((l) => (
-              <tr key={l.id} className="border-b border-white/[0.04] last:border-0">
-                <td className="px-4 py-3 text-sand-100">{l.name}</td>
-                <td className="px-4 py-3 tabular-nums text-ink-300" dir="ltr">
-                  {l.phone}
-                </td>
-                <td className="px-4 py-3 text-xs leading-6 text-ink-400">{l.courses.join(" · ")}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`rounded-full px-2 py-1 text-[10px] ${
-                      l.activated ? "bg-emerald-400/10 text-emerald-300" : "bg-white/[.06] text-ink-500"
-                    }`}
-                  >
-                    {l.activated ? "فعال" : "فعال‌نشده"}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-ink-300">{formatWatch(l.watch_seconds)}</td>
-                <td className="px-4 py-3 text-ink-300">{formatBytes(l.download_bytes)}</td>
-              </tr>
-            ))}
-            {!filtered.length ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-ink-500">
-                  نتیجه‌ای یافت نشد.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
-
-      {localWeb.length ? (
-        <div className="card-ay p-5">
-          <h3 className="text-sm font-medium text-sand-50">ثبت‌نام‌های وب‌سایت (محلی)</h3>
-          <ul className="mt-3 space-y-2 text-xs text-ink-400">
-            {localWeb.map((m) => (
-              <li key={m.id}>
-                {m.fullName} · {m.username}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </div>
-  );
+  return <div className="space-y-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow">/ هویت canonical</p><h2 className="mt-3 text-2xl font-semibold text-sand-50">پروفایل هنرجوها</h2><p className="mt-2 text-sm leading-7 text-ink-400">اطلاعات از دیتابیس مشترک ربات و سایت خوانده می‌شود؛ تغییرات برای هر دو کانال اعمال می‌شود.</p></div><div className="flex gap-2"><input className="input-ay w-64" value={q} onChange={(event) => setQ(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void load(); }} placeholder="نام یا موبایل…" /><button className="btn-ghost !px-4" type="button" onClick={() => void load()} disabled={loading}><Search size={16} />جستجو</button></div></div>{error ? <p className="rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-xs text-red-300" role="alert">{error}</p> : null}{message ? <p className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs text-emerald-300" role="status">{message}</p> : null}<div className="card-ay overflow-x-auto"><table className="w-full min-w-[850px] text-right text-sm"><thead className="border-b border-white/[.06] text-xs text-ink-500"><tr><th className="px-4 py-3">نام</th><th className="px-4 py-3">موبایل</th><th className="px-4 py-3">تلگرام</th><th className="px-4 py-3">سطح</th><th className="px-4 py-3">عملیات</th></tr></thead><tbody>{students.map((student) => <tr key={student.id} className="border-b border-white/[.04]"><td className="px-4 py-3 text-sand-100">{student.full_name}</td><td className="px-4 py-3 text-ink-300" dir="ltr">{student.phone || "—"}</td><td className="px-4 py-3 text-ink-400">{student.telegram_username ? `@${student.telegram_username}` : student.telegram_id ? "متصل" : "بدون اتصال"}</td><td className="px-4 py-3 text-ink-400">{student.level || "—"}</td><td className="px-4 py-3"><button type="button" className="btn-ghost !px-3 !py-1.5 text-xs" onClick={() => edit(student)}><Edit3 size={13} />ویرایش</button></td></tr>)}{!students.length ? <tr><td colSpan={5} className="px-4 py-8 text-center text-ink-500">هنرجویی پیدا نشد.</td></tr> : null}</tbody></table></div>{editing ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4"><form className="card-ay w-full max-w-xl space-y-4 p-6" onSubmit={save}><div className="flex items-center justify-between"><h3 className="text-lg font-medium text-sand-50">ویرایش پروفایل {editing.full_name}</h3><button type="button" className="text-ink-400" onClick={() => setEditing(null)}><X size={18} /></button></div><div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2 text-xs text-ink-400">نام کامل<input className="input-ay" value={draft.full_name} onChange={(event) => setDraft({ ...draft, full_name: event.target.value })} required /></label><label className="space-y-2 text-xs text-ink-400">موبایل<input className="input-ay" dir="ltr" value={draft.phone || ""} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></label><label className="space-y-2 text-xs text-ink-400">ایمیل<input className="input-ay" dir="ltr" value={draft.email || ""} onChange={(event) => setDraft({ ...draft, email: event.target.value })} /></label><label className="space-y-2 text-xs text-ink-400">سطح<input className="input-ay" value={draft.level || ""} onChange={(event) => setDraft({ ...draft, level: event.target.value })} /></label></div><label className="space-y-2 text-xs text-ink-400">سابقه به سال<input className="input-ay" type="number" min="0" max="80" value={draft.experience_years} onChange={(event) => setDraft({ ...draft, experience_years: Number(event.target.value) })} /></label><label className="space-y-2 text-xs text-ink-400">بیوگرافی<textarea className="input-ay min-h-28" value={draft.bio || ""} onChange={(event) => setDraft({ ...draft, bio: event.target.value })} /></label><button className="btn-primary w-full gap-2" disabled={loading}><Save size={16} />ذخیره پروفایل</button></form></div> : null}</div>;
 }

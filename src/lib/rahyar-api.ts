@@ -138,33 +138,26 @@ export async function fetchFreeLessons(): Promise<ApiFreeLesson[]> {
   return res.json() as Promise<ApiFreeLesson[]>;
 }
 
-function adminHeaders(apiKey: string) {
-  return { "Content-Type": "application/json", "X-Admin-Key": apiKey };
-}
-
-export async function fetchAdminFreeLessons(apiKey: string): Promise<ApiFreeLesson[]> {
-  return backendFetch<ApiFreeLesson[]>("/api/v1/admin/free-lessons", {
-    headers: adminHeaders(apiKey),
-    cache: "no-store",
-  });
+export async function fetchAdminFreeLessons(): Promise<ApiFreeLesson[]> {
+  const response = await fetch("/api/rahyar/admin/free-lessons", { cache: "no-store" });
+  if (!response.ok) throw new Error((await response.text()) || `HTTP ${response.status}`);
+  return response.json() as Promise<ApiFreeLesson[]>;
 }
 
 export type FreeLessonInput = Omit<ApiFreeLesson, "id" | "created_at" | "updated_at">;
 
-export async function saveAdminFreeLesson(apiKey: string, input: FreeLessonInput, id?: number) {
-  return backendFetch<ApiFreeLesson>(id ? `/api/v1/admin/free-lessons/${id}` : "/api/v1/admin/free-lessons", {
+export async function saveAdminFreeLesson(input: FreeLessonInput, id?: number) {
+  const response = await fetch(id ? `/api/rahyar/admin/free-lessons/${id}` : "/api/rahyar/admin/free-lessons", {
     method: id ? "PUT" : "POST",
-    headers: adminHeaders(apiKey),
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
     cache: "no-store",
   });
+  if (!response.ok) throw new Error((await response.text()) || `HTTP ${response.status}`);
+  return response.json() as Promise<ApiFreeLesson>;
 }
 
-export async function deleteAdminFreeLesson(apiKey: string, id: number) {
-  const res = await fetch(`${backendBase()}/api/v1/admin/free-lessons/${id}`, {
-    method: "DELETE",
-    headers: adminHeaders(apiKey),
-    cache: "no-store",
-  });
+export async function deleteAdminFreeLesson(id: number) {
+  const res = await fetch(`/api/rahyar/admin/free-lessons/${id}`, { method: "DELETE", cache: "no-store" });
   if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
 }
