@@ -12,6 +12,12 @@ export const metadata: Metadata = {
   description: "خروجی هنرجوها، آثار مهرشاد، آموزش‌های موسیقی و آرشیو محتوای Instagram آرتیست‌یار.",
 };
 
+function categoryLabel(category: string) {
+  if (category === "student-work") return "نمونه‌کار هنرجو";
+  if (category === "prodby-mehrshad") return "ProdBy Mehrshad";
+  return "آموزش رایگان";
+}
+
 function InstagramCard({ item }: { item: (typeof instagramGallery)[number] }) {
   return (
     <article className="card-ay gallery-card flex h-full flex-col p-6">
@@ -60,6 +66,7 @@ export default async function GalleryPage() {
   );
   const educationInstagram = instagramGallery.filter((item) => item.kind === "video");
   const studentUploads = uploadedMedia.filter((item) => item.category === "student-work");
+  const mehrshadUploads = uploadedMedia.filter((item) => item.category === "prodby-mehrshad");
   const educationUploads = uploadedMedia.filter((item) => item.category === "free-training");
 
   return (
@@ -78,7 +85,7 @@ export default async function GalleryPage() {
         <a href="#mehrshad-portfolio" className="card-ay p-5 transition hover:-translate-y-1">
           <Mic2 className="text-gold-400" size={22} />
           <strong className="mt-4 block text-sand-50">آثار مهرشاد</strong>
-          <span className="mt-2 block text-xs text-ink-500">تنظیم، میکس و مسترینگ</span>
+          <span className="mt-2 block text-xs text-ink-500">ProdBy Mehrshad · تنظیم و میکس</span>
         </a>
         <a href="#education" className="card-ay p-5 transition hover:-translate-y-1">
           <FolderOpen className="text-gold-400" size={22} />
@@ -113,15 +120,20 @@ export default async function GalleryPage() {
 
       <section id="mehrshad-portfolio" className="scroll-mt-28 pt-20">
         <SectionHeading
-          eyebrow="02 / نمونه‌کار"
+          eyebrow="02 / ProdBy Mehrshad"
           title="آثار و پروژه‌های مهرشاد"
-          subtitle="نمونه‌هایی از تنظیم، میکس و مسترینگ مهرشاد بنائی؛ ارجاع هر اثر به پست اصلی Instagram انجام می‌شود."
+          subtitle="نمونه‌کارهای شخصی از فولدر ProdBy Mehrshad در Supabase، جدا از خروجی هنرجوها؛ به‌همراه آرشیو Instagram."
         />
         <div className="gallery-grid mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {mehrshadUploads.map((item) => (
+            <MediaCard key={item.id} item={item} />
+          ))}
           {creatorInstagram.map((item) => (
             <InstagramCard key={item.id} item={item} />
           ))}
-          {!creatorInstagram.length ? <Empty text="هنوز اثری برای نمایش در این بخش ثبت نشده است." /> : null}
+          {!mehrshadUploads.length && !creatorInstagram.length ? (
+            <Empty text="هنوز اثری برای نمایش در این بخش ثبت نشده است. فایل‌های فولدر ProdBy Mehrshad را از پنل مدیریت محتوا ثبت کن." />
+          ) : null}
         </div>
       </section>
 
@@ -190,8 +202,8 @@ function MediaCard({ item }: { item: Awaited<ReturnType<typeof listPublishedMedi
   return (
     <article className="card-ay gallery-card flex h-full flex-col p-6">
       <div className="flex items-center justify-between gap-3">
-        <StatusChip tone={item.category === "student-work" ? "gold" : "ok"}>
-          {item.category === "student-work" ? "نمونه‌کار هنرجو" : "آموزش رایگان"}
+        <StatusChip tone={item.category === "prodby-mehrshad" ? "gold" : item.category === "student-work" ? "gold" : "ok"}>
+          {categoryLabel(item.category)}
         </StatusChip>
         <span className="text-xs text-ink-500">{item.format ? item.format.toUpperCase() : "فایل"}</span>
       </div>
@@ -209,6 +221,7 @@ function MediaCard({ item }: { item: Awaited<ReturnType<typeof listPublishedMedi
             album={item.album || null}
             genre={item.genre || null}
             year={item.year}
+            protectDownload={item.kind === "video"}
           />
         </div>
       ) : item.coverUrl ? (
@@ -221,12 +234,14 @@ function MediaCard({ item }: { item: Awaited<ReturnType<typeof listPublishedMedi
       ) : null}
 
       <p className="mt-4 flex-1 text-sm leading-7 text-ink-400">
-        {item.description || "محتوای آموزشی آرتیست‌یار."}
+        {item.description || (item.category === "prodby-mehrshad" ? "نمونه‌کار ProdBy Mehrshad." : "محتوای آموزشی آرتیست‌یار.")}
       </p>
 
-      <a href={item.url} target="_blank" rel="noreferrer" className="mt-5 text-sm text-gold-400 hover:text-gold-300">
-        بازکردن فایل ↗
-      </a>
+      {item.kind === "video" ? null : (
+        <a href={item.url} target="_blank" rel="noreferrer" className="mt-5 text-sm text-gold-400 hover:text-gold-300">
+          بازکردن فایل ↗
+        </a>
+      )}
     </article>
   );
 }
