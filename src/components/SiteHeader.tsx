@@ -9,7 +9,10 @@ import { useAuth } from "./AuthProvider";
 
 const links = [
   { href: "/free-player", label: "آموزش رایگان" },
-  { href: "/gallery", label: "گالری نمونه‌کار" },
+  { href: "/gallery", label: "گالری خروجی‌ها" },
+  { href: "/gallery#student-projects", label: "پروژه‌های هنرجوها" },
+  { href: "/gallery#mehrshad-portfolio", label: "آثار مهرشاد" },
+  { href: "/gallery#education", label: "آموزش‌ها و فایل‌ها" },
   { href: "/#about", label: "چرا آرتیست‌یار" },
   { href: "/#paths", label: "روش ما" },
   { href: "/#flow", label: "مسیر هنرجو" },
