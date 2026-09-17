@@ -4,6 +4,7 @@ import { ArrowLeft, Bot, Check, CirclePlay, MessageCircle, Sparkles, Waves } fro
 import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 import { Reveal } from "@/components/Reveal";
+import { DepthScene } from "@/components/DepthScene";
 import { instagramGallery } from "@/data/instagram-gallery";
 
 export const metadata: Metadata = {
@@ -151,7 +152,7 @@ export default function HomePage() {
             <span className="trust-line" /> از انتخاب مسیر تا پیشرفت هنرجو، همه‌چیز یک‌جا
           </div>
         </div>
-        <div className="hero-art" aria-hidden="true">
+        <DepthScene className="hero-art">
           <div className="hero-orbit orbit-a" />
           <div className="hero-orbit orbit-b" />
           <div className="record-disc">
@@ -183,7 +184,7 @@ export default function HomePage() {
           <div className="art-caption">
             <Sparkles size={15} /> آموزش، تمرین، پیگیری.
           </div>
-        </div>
+        </DepthScene>
       </section>
 
       {/* Compact proof strip */}
