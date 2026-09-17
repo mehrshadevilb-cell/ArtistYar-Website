@@ -10,6 +10,14 @@ export function SiteFooter() {
           <p className="mt-4 max-w-md text-sm leading-7 text-ink-400">
             آرتیست‌یار — آموزش تنظیم، میکس و مسترینگ برای هنرجویی که می‌خواهد موسیقی را درست و اصولی یاد بگیرد.
           </p>
+          <a
+            href="https://rahyar-academy-management-system-v14.onrender.com"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-5 inline-flex text-sm text-gold-400 transition hover:text-gold-300"
+          >
+            ورود به سامانه آکادمی راه‌یار ←
+          </a>
         </div>
         <div>
           <h3 className="text-xs font-medium uppercase tracking-[0.18em] text-ink-500">

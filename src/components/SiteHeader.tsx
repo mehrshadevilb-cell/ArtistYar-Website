@@ -8,13 +8,11 @@ import { BrandMark } from "./BrandMark";
 import { useAuth } from "./AuthProvider";
 
 const links = [
+  { href: "/courses", label: "مسیرهای آموزشی" },
+  { href: "/online", label: "کلاس آنلاین" },
   { href: "/free-player", label: "آموزش رایگان" },
   { href: "/gallery", label: "گالری خروجی‌ها" },
-  { href: "/gallery#student-projects", label: "پروژه‌های هنرجوها" },
-  { href: "/gallery#mehrshad-portfolio", label: "آثار مهرشاد" },
-  { href: "/gallery#education", label: "آموزش‌ها و فایل‌ها" },
-  { href: "/#about", label: "چرا آرتیست‌یار" },
-  { href: "/#paths", label: "روش ما" },
+  { href: "/about", label: "درباره آکادمی" },
   { href: "/#flow", label: "مسیر هنرجو" },
   { href: "/#projects", label: "نمونه‌کارها" },
   { href: "/#feedback", label: "بازخورد هنرجوها" },
@@ -46,7 +44,7 @@ export function SiteHeader() {
           </Link>
           {ready && user ? <Link href={panelHref} className="btn-ghost !px-4 !py-2 text-xs">پنل من</Link> : null}
           {!ready || !user ? <Link href="/login" className="btn-ghost !px-4 !py-2 text-xs">ورود</Link> : null}
-          <a href="mailto:hello@artistyar.dev" className="header-contact">مشاوره و ارتباط <ArrowUpLeft size={14} aria-hidden="true" /></a>
+          <a href="mailto:hello@artistyar.dev" className="header-contact">مشاوره رایگان <ArrowUpLeft size={14} aria-hidden="true" /></a>
         </div>
         <button type="button" aria-label={open ? "بستن منو" : "باز کردن منو"} aria-expanded={open} aria-controls="mobile-navigation" className="menu-button lg:hidden" onClick={() => setOpen(v => !v)}>{open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}</button>
       </div>
@@ -55,7 +53,7 @@ export function SiteHeader() {
           {links.map(link => <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="mobile-nav-link">{link.label}</Link>)}
           <Link href="/track" onClick={() => setOpen(false)} className="mobile-nav-link">پیگیری سفارش</Link>
           {ready && user ? <Link href={panelHref} onClick={() => setOpen(false)} className="mobile-nav-link">پنل من</Link> : <Link href="/login" onClick={() => setOpen(false)} className="mobile-nav-link">ورود هنرجو</Link>}
-          <a href="mailto:hello@artistyar.dev" onClick={() => setOpen(false)} className="btn-primary mt-3 text-center">مشاوره و ارتباط</a>
+          <a href="mailto:hello@artistyar.dev" onClick={() => setOpen(false)} className="btn-primary mt-3 text-center">مشاوره رایگان</a>
         </nav>
       </div>
     </header>

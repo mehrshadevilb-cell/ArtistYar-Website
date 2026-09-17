@@ -24,6 +24,10 @@ export const metadata: Metadata = {
   description:
     "ArtistYar و آکادمی راه‌یار؛ آموزش پروژه‌محور تنظیم، میکس و مسترینگ، تئوری موسیقی و پیانو با کلاس آنلاین، پشتیبانی هنرجو و گالری نمونه‌کار.",
   applicationName: "ArtistYar",
+  alternates: { canonical: siteUrl },
+  category: "education",
+  classification: "Music education academy",
+  referrer: "origin-when-cross-origin",
   keywords: [
     "آکادمی راه‌یار",
     "آرتیست‌یار",
@@ -77,6 +81,36 @@ const academyJsonLd = {
     sameAs: "https://www.instagram.com/prodbymehrshad/",
     jobTitle: "مدرس تنظیم، میکس و مسترینگ",
   },
+  knowsAbout: [
+    "تنظیم موسیقی",
+    "میکس موسیقی",
+    "مسترینگ موسیقی",
+    "تئوری موسیقی",
+    "تولید موسیقی الکترونیک",
+  ],
+  hasOfferCatalog: {
+    "@type": "OfferCatalog",
+    name: "مسیرهای آموزشی ArtistYar",
+    itemListElement: [
+      { "@type": "Offer", name: "دوره جامع تنظیم، میکس و مسترینگ", url: `${siteUrl}/courses` },
+      { "@type": "Offer", name: "دوره تئوری موسیقی", url: `${siteUrl}/courses` },
+      { "@type": "Offer", name: "کلاس آنلاین تولید موسیقی", url: `${siteUrl}/online` },
+    ],
+  },
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "ArtistYar | آکادمی راه‌یار",
+  url: siteUrl,
+  inLanguage: "fa-IR",
+  publisher: { "@type": "EducationalOrganization", name: "ArtistYar Academy", url: siteUrl },
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${siteUrl}/courses?search={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
 };
 
 export default function RootLayout({
@@ -90,6 +124,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(academyJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
         {backend ? (
           <>

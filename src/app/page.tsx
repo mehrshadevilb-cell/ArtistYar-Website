@@ -98,9 +98,32 @@ const faqs = [
   },
 ];
 
+const homepageFaqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((faq) => ({
+    "@type": "Question",
+    name: faq.question,
+    acceptedAnswer: { "@type": "Answer", text: faq.answer },
+  })),
+};
+
+const homepageCoursesJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: "مسیرهای آموزشی آکادمی راه‌یار",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "دوره جامع تنظیم، میکس و مسترینگ", url: "/courses" },
+    { "@type": "ListItem", position: 2, name: "دوره تئوری موسیقی", url: "/courses" },
+    { "@type": "ListItem", position: 3, name: "کلاس آنلاین تنظیم، میکس و مسترینگ", url: "/online" },
+  ],
+};
+
 export default function HomePage() {
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageFaqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
       {/* Hero — primary focus */}
       <section className="hero-section container-ay">
         <div className="hero-copy">
