@@ -1,0 +1,115 @@
+/* Device optimization: mobile · tablet · laptop · large / TV */
+
+@supports (padding: max(0px)) {
+  .site-header .container-ay {
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+    padding-right: max(1.25rem, env(safe-area-inset-right));
+  }
+  main.page-shell {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .hero-section {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    gap: 2.5rem;
+    padding-top: 3.5rem;
+    padding-bottom: 3.5rem;
+  }
+  .hero-heading {
+    font-size: clamp(2.8rem, 6vw, 4.2rem);
+  }
+  .hero-art {
+    min-height: 360px;
+    max-width: 420px;
+    margin-inline: auto;
+  }
+  .benefit-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .proof-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .proof-note {
+    display: none;
+  }
+  .path-layout {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .hero-section {
+    gap: 3rem;
+  }
+  .container-ay {
+    max-width: 68rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  .container-ay {
+    max-width: 78rem;
+  }
+  .hero-heading {
+    font-size: clamp(4.5rem, 5.5vw, 6.5rem);
+  }
+  .section-title {
+    font-size: clamp(2.4rem, 3vw, 3.25rem);
+  }
+  .hero-lead,
+  .section-sub {
+    font-size: 1.12rem;
+    line-height: 2.05;
+  }
+  .benefit-card {
+    min-height: 260px;
+    padding: 1.9rem;
+  }
+}
+
+@media (min-width: 1920px) {
+  .container-ay {
+    max-width: 90rem;
+  }
+  .hero-section {
+    min-height: 720px;
+  }
+}
+
+@media (max-width: 640px) {
+  .btn-primary,
+  .btn-ghost {
+    min-height: 48px;
+  }
+  .menu-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .hero-heading {
+    font-size: clamp(2.4rem, 11vw, 3.2rem);
+    line-height: 1.2;
+  }
+  .hero-lead {
+    font-size: 0.95rem;
+    line-height: 1.95;
+  }
+  .assistant-md pre {
+    max-width: calc(100vw - 5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fixed.z-\[60\] {
+    transition: none !important;
+  }
+}
+
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .gold-shimmer {
+    -webkit-font-smoothing: antialiased;
+  }
+}
