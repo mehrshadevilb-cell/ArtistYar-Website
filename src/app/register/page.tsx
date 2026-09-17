@@ -29,12 +29,6 @@ export default function RegisterPage() {
     const fullName = String(form.get("fullName") || "").trim();
     const phone = String(form.get("phone") || "").trim();
     const password = String(form.get("password") || "");
-    const confirmation = String(form.get("passwordConfirmation") || "");
-    if (password !== confirmation) {
-      setError("تکرار رمز عبور با رمز اصلی یکسان نیست.");
-      setLoading(false);
-      return;
-    }
     try {
       const response = await fetch("/api/rahyar/students/register", {
         method: "POST",
@@ -69,7 +63,6 @@ export default function RegisterPage() {
           <label className="block"><span className="mb-2 block text-xs text-ink-400">نام و نام خانوادگی</span><input className="input-ay" name="fullName" autoComplete="name" required minLength={2} /></label>
           <label className="block"><span className="mb-2 block text-xs text-ink-400">شماره موبایل</span><input className="input-ay" name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="0912…" required minLength={10} /></label>
           <label className="block"><span className="mb-2 block text-xs text-ink-400">انتخاب رمز عبور</span><input className="input-ay" type="password" name="password" autoComplete="new-password" required minLength={6} /></label>
-          <label className="block"><span className="mb-2 block text-xs text-ink-400">تکرار رمز عبور</span><input className="input-ay" type="password" name="passwordConfirmation" autoComplete="new-password" required minLength={6} /></label>
           {error ? <p className="text-sm leading-6 text-red-400" role="alert">{error}</p> : null}
           <button type="submit" className="btn-primary w-full" disabled={loading}>{loading ? "در حال ثبت‌نام…" : "ثبت‌نام و ورود"}</button>
         </form>
