@@ -19,7 +19,6 @@ function readLocalStudents(): StoredMember[] {
   try {
     const raw = localStorage.getItem(MEMBERS_KEY);
     const local = raw ? (JSON.parse(raw) as StoredMember[]) : [];
-    // Drop any legacy demo accounts if still present in storage
     return local.filter(
       (u) =>
         u.role !== "admin" &&
@@ -47,9 +46,7 @@ export function login(username: string, password: string): SessionUser | null {
   );
   if (!found) return null;
   const { password: _, ...session } = found;
-  if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  }
+  if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
   return session;
 }
 
@@ -67,16 +64,12 @@ export async function loginViaApi(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok || !data.user) {
-      // Fall back to student local login if API rejects (not admin)
       const local = login(username, password);
       if (local) return { ok: true, user: local };
       return { ok: false, error: data.error || "نام کاربری یا رمز عبور نادرست است." };
     }
     const user = data.user as SessionUser;
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-      if (data.token) sessionStorage.setItem("artistyar_admin_token", String(data.token));
-    }
+    if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
     return { ok: true, user };
   } catch {
     const local = login(username, password);
@@ -94,9 +87,7 @@ export function registerLocal(input: {
   if (username.length < 3) return { error: "نام کاربری حداقل ۳ کاراکتر باشد." };
   if (input.password.length < 6) return { error: "رمز عبور حداقل ۶ کاراکتر باشد." };
   if (!input.fullName.trim()) return { error: "نام کامل را وارد کن." };
-  if (["admin", "student"].includes(username.toLowerCase())) {
-    return { error: "این نام کاربری مجاز نیست." };
-  }
+  if (["admin", "student"].includes(username.toLowerCase())) return { error: "این نام کاربری مجاز نیست." };
   if (readLocalStudents().some((u) => u.username.toLowerCase() === username.toLowerCase())) {
     return { error: "این نام کاربری قبلاً ثبت شده است." };
   }
@@ -110,17 +101,12 @@ export function registerLocal(input: {
   };
   writeLocalStudent(member);
   const { password: _, ...session } = member;
-  if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  }
+  if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
   return session;
 }
 
 export function logout(): void {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem(STORAGE_KEY);
-    sessionStorage.removeItem("artistyar_admin_token");
-  }
+  if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
 }
 
 export function getSession(): SessionUser | null {
@@ -135,9 +121,7 @@ export function getSession(): SessionUser | null {
 }
 
 export function saveSession(user: SessionUser): void {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-  }
+  if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
 }
 
 export function listLocalMembers(): SessionUser[] {
