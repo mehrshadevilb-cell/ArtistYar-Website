@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { StatusChip } from "./StatusChip";
 
 export type LiveProduct = {
@@ -38,10 +39,12 @@ export function LiveProductCard({ product }: { product: LiveProduct }) {
     <article className="card-ay group flex h-full flex-col overflow-hidden transition hover:border-gold-500/25 hover:bg-white/[0.045]">
       <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[0.06]">
         {hasImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={product.thumbnail!}
             alt={product.title}
+            fill
+            sizes="(max-width: 640px) calc(100vw - 2rem), (max-width: 1100px) 50vw, 25vw"
+            quality={78}
             className={`h-full w-full object-cover transition duration-500 group-hover:scale-[1.03] ${coverClass(product.title)}`}
             loading="lazy"
           />
@@ -59,7 +62,7 @@ export function LiveProductCard({ product }: { product: LiveProduct }) {
         )}
       </div>
 
-      <div className="flex flex-1 flex-col p-6">
+      <div className="flex flex-1 flex-col p-4 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <StatusChip tone="gold">
             {product.delivery_type === "telegram" ? "کانال تلگرام" : "دوره دیجیتال"}
@@ -71,22 +74,22 @@ export function LiveProductCard({ product }: { product: LiveProduct }) {
           )}
         </div>
 
-        <h3 className="mt-5 text-xl font-semibold tracking-tight text-sand-50">
+        <h3 className="mt-4 text-lg font-semibold tracking-tight text-sand-50 sm:mt-5 sm:text-xl">
           {product.title}
         </h3>
         <p className="mt-3 flex-1 text-sm leading-7 text-ink-400">
           {product.description || "آموزش کاربردی برای اینکه موسیقی را درست‌تر بسازی."}
         </p>
 
-        <div className="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4">
-          <span className="text-sm font-medium text-gold-400">
+        <div className="mt-5 flex flex-col items-stretch gap-3 border-t border-white/[0.06] pt-4 sm:mt-6 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm font-medium text-gold-400 sm:shrink-0">
             {product.price > 0
               ? `${product.price.toLocaleString("fa-IR")} تومان`
               : "تماس بگیرید"}
           </span>
           <a
             href={`/courses#p-${product.id}`}
-            className="text-xs text-sand-100 underline-offset-4 hover:text-gold-300 hover:underline"
+            className="btn-ghost min-h-11 !px-3 !py-2.5 text-center text-xs sm:min-h-0 sm:!border-0 sm:!bg-transparent sm:!px-0 sm:!py-0"
           >
             جزئیات و شروع مسیر
           </a>

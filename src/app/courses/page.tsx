@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Check, ChevronDown, Copy, ShieldCheck } from "lucide-react";
 import type { LiveProduct } from "@/components/LiveProductCard";
 import { SectionHeading } from "@/components/SectionHeading";
@@ -13,6 +14,14 @@ function coverTone(title: string): string {
   if (title.includes("تئوری")) return "from-sky-500/20 via-indigo-900/25 to-ink-950";
   if (title.includes("آرتیست")) return "from-violet-500/20 via-fuchsia-900/20 to-ink-950";
   return "from-white/10 via-white/[0.03] to-ink-950";
+}
+
+function coverClass(title: string): string {
+  if (title.includes("پرو")) return "product-cover product-cover-pro";
+  if (title.includes("راه‌یار") || title.includes("راهیار")) return "product-cover product-cover-rahyar";
+  if (title.includes("تئوری")) return "product-cover product-cover-theory";
+  if (title.includes("آرتیست")) return "product-cover product-cover-artist";
+  return "product-cover";
 }
 
 export default function CoursesPage() {
@@ -170,11 +179,13 @@ export default function CoursesPage() {
             <article key={item.id} id={`p-${item.id}`} className="card-ay flex h-full flex-col overflow-hidden">
               <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[0.06]">
                 {hasImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={item.thumbnail!}
                     alt={item.title}
-                    className="h-full w-full object-cover"
+                    fill
+                    sizes="(max-width: 640px) calc(100vw - 2rem), (max-width: 1100px) 50vw, 25vw"
+                    quality={78}
+                    className={`h-full w-full object-cover ${coverClass(item.title)}`}
                     loading="lazy"
                   />
                 ) : (
@@ -189,7 +200,7 @@ export default function CoursesPage() {
                 )}
               </div>
 
-              <div className="flex flex-1 flex-col p-6">
+              <div className="flex flex-1 flex-col p-4 sm:p-6">
                 <div className="flex items-start justify-between gap-3">
                   <StatusChip tone="gold">
                     {item.delivery_type === "telegram" ? "کانال تلگرام" : "دوره دیجیتال"}
@@ -198,7 +209,7 @@ export default function CoursesPage() {
                     {item.is_active === false ? "غیرفعال" : "فعال"}
                   </StatusChip>
                 </div>
-                <h3 className="mt-5 text-xl font-semibold text-sand-50">{item.title}</h3>
+                <h3 className="mt-4 text-lg font-semibold text-sand-50 sm:mt-5 sm:text-xl">{item.title}</h3>
                 <p className="mt-3 flex-1 text-sm leading-7 text-ink-400">
                   {item.description || detail.intro}
                 </p>
@@ -231,13 +242,13 @@ export default function CoursesPage() {
                     </p>
                   </div>
                 ) : null}
-                <div className="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4">
-                  <span className="text-sm font-medium text-gold-400">
+                <div className="mt-5 flex flex-col items-stretch gap-3 border-t border-white/[0.06] pt-4 sm:mt-6 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-sm font-medium text-gold-400 sm:shrink-0">
                     {item.price > 0 ? `${item.price.toLocaleString("fa-IR")} تومان` : "—"}
                   </span>
                   <button
                     type="button"
-                    className="text-xs text-sand-100 underline-offset-4 hover:text-gold-300 hover:underline"
+                    className="btn-ghost min-h-11 !px-3 !py-2.5 text-center text-xs sm:min-h-0 sm:!border-0 sm:!bg-transparent sm:!px-0 sm:!py-0"
                     aria-label={`شروع مسیر ${item.title}`}
                     disabled={item.is_active === false}
                     onClick={() => {
