@@ -45,7 +45,10 @@ export async function uploadMedia(input: {
   if (!configured) throw new Error("cloudinary_not_configured");
   if (!input.consent && input.category === "student-work") throw new Error("student_consent_required");
   const folder = input.category === "student-work" ? "artistyar/student-work" : "artistyar/free-training";
-  const resourceType = input.mimeType.startsWith("image/") ? "image" : input.mimeType.startsWith("audio/") || input.mimeType.startsWith("video/") ? "video" : "raw";
+  const extension = input.filename.toLowerCase().split(".").pop() || "";
+  const imageExtensions = new Set(["jpg", "jpeg", "png", "webp", "gif", "avif"]);
+  const mediaExtensions = new Set(["mp3", "wav", "m4a", "ogg", "flac", "aac", "mp4", "mov", "webm", "mkv"]);
+  const resourceType = input.mimeType.startsWith("image/") || imageExtensions.has(extension) ? "image" : input.mimeType.startsWith("audio/") || input.mimeType.startsWith("video/") || mediaExtensions.has(extension) ? "video" : "raw";
   const context = {
     title: safeValue(input.title),
     description: safeValue(input.description),
