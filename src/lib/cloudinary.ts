@@ -40,10 +40,12 @@ export async function uploadMedia(input: {
   description: string;
   category: "student-work" | "free-training";
   consent: boolean;
+  mimeType: string;
 }): Promise<PublishedMedia> {
   if (!configured) throw new Error("cloudinary_not_configured");
   if (!input.consent && input.category === "student-work") throw new Error("student_consent_required");
   const folder = input.category === "student-work" ? "artistyar/student-work" : "artistyar/free-training";
+  const resourceType = input.mimeType.startsWith("image/") ? "image" : input.mimeType.startsWith("audio/") || input.mimeType.startsWith("video/") ? "video" : "raw";
   const context = {
     title: safeValue(input.title),
     description: safeValue(input.description),
@@ -54,7 +56,7 @@ export async function uploadMedia(input: {
   };
   const result = await new Promise<UploadApiResponse>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder, resource_type: "auto", context, use_filename: true, unique_filename: true, overwrite: false },
+      { folder, resource_type: resourceType, context, use_filename: true, unique_filename: true, overwrite: false },
       (error, response) => error || !response ? reject(error || new Error("cloudinary_upload_failed")) : resolve(response),
     );
     stream.end(input.buffer);
@@ -65,7 +67,7 @@ export async function uploadMedia(input: {
 function toPublishedMedia(resource: Record<string, unknown>): PublishedMedia {
   const context = (resource.context || {}) as Record<string, string>;
   const category = context.category === "free-training" ? "free-training" : "student-work";
-  const kind = resource.resource_type === "video" ? "video" : resource.resource_type === "image" ? "image" : resource.resource_type === "raw" && ["mp3", "wav", "m4a", "ogg"].includes(String(resource.format)) ? "audio" : "raw";
+  const kind = resource.resource_type === "image" ? "image" : ["mp3", "wav", "m4a", "ogg", "flac", "aac"].includes(String(resource.format).toLowerCase()) ? "audio" : resource.resource_type === "video" ? "video" : "raw";
   return {
     id: String(resource.asset_id || resource.public_id),
     publicId: String(resource.public_id),

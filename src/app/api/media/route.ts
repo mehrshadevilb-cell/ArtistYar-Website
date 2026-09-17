@@ -37,11 +37,13 @@ export async function POST(request: Request) {
     if (!allowedCategories.has(category)) return NextResponse.json({ ok: false, error: "دسته‌بندی معتبر نیست." }, { status: 400 });
     if (category === "student-work" && !consent) return NextResponse.json({ ok: false, error: "برای انتشار نمونه‌کار هنرجو، تأیید رضایت لازم است." }, { status: 400 });
     if (file.size <= 0 || file.size > MAX_FILE_SIZE) return NextResponse.json({ ok: false, error: "حجم فایل باید بین ۱ بایت و ۲۵۰ مگابایت باشد." }, { status: 400 });
-    const media = await uploadMedia({ buffer: Buffer.from(await file.arrayBuffer()), filename: file.name, title, description, category: category as "student-work" | "free-training", consent });
+    const media = await uploadMedia({ buffer: Buffer.from(await file.arrayBuffer()), filename: file.name, mimeType: file.type || "application/octet-stream", title, description, category: category as "student-work" | "free-training", consent });
     return NextResponse.json({ ok: true, item: media, message: "محتوا با موفقیت در Cloudinary آپلود و منتشر شد." });
   } catch (error) {
     console.error("cloudinary upload failed", error);
-    return NextResponse.json({ ok: false, error: "آپلود ناموفق بود. تنظیمات Cloudinary و نوع فایل را بررسی کنید." }, { status: 502 });
+    const detail = error instanceof Error ? error.message : "unknown";
+    const message = detail.includes("Invalid file") || detail.includes("Unsupported") ? "فرمت فایل توسط Cloudinary پشتیبانی نمی‌شود." : "آپلود ناموفق بود. تنظیمات Cloudinary و نوع فایل را بررسی کنید.";
+    return NextResponse.json({ ok: false, error: message }, { status: 502 });
   }
 }
 
