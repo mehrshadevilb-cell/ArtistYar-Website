@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowUpLeft, AudioLines, Bot, Check, CirclePlay, Headphones,
 import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 import { Reveal } from "@/components/Reveal";
+import { instagramGallery } from "@/data/instagram-gallery";
 
 export const metadata: Metadata = {
   title: "آموزش تنظیم، میکس و مسترینگ با مهرشاد بنائی",
@@ -23,32 +24,17 @@ const products = [
 ];
 const studentSteps = ["مسیر یا کلاس را انتخاب کن", "درخواستت در راه‌یار بررسی می‌شود", "دسترسی، رزرو و پیشرفتت را دنبال کن"];
 const supportItems = ["تکلیف و بازخورد کلاس", "رزرو جلسه و یادآوری‌ها", "پشتیبانی و تیکت", "دستیار هوشمند موسیقی"];
-const studentProjects = [
-  {
-    code: "PRJ / 01",
-    title: "قطعه پاپ؛ از ایده تا میکس نهایی",
-    student: "پروژه هنرجو · نام محفوظ",
-    type: "تنظیم + میکس",
-    result: "ساختار قطعه منسجم‌تر شد و وکال جای درست خودش را در میکس پیدا کرد.",
-    tone: "gold",
-  },
-  {
-    code: "PRJ / 02",
-    title: "ساخت ملودی و هارمونی برای یک ایده خام",
-    student: "پروژه هنرجو · نام محفوظ",
-    type: "تئوری + آهنگسازی",
-    result: "ایده اولیه به یک اسکچ کامل با ملودی، آکورد و مسیر مشخص برای تنظیم تبدیل شد.",
-    tone: "blue",
-  },
-  {
-    code: "PRJ / 03",
-    title: "تمیزتر شدن صدا و آماده‌سازی انتشار",
-    student: "پروژه هنرجو · نام محفوظ",
-    type: "میکس + مسترینگ",
-    result: "تعادل فرکانسی، عمق و بلندی قطعه اصلاح شد تا روی سیستم‌های مختلف بهتر شنیده شود.",
-    tone: "olive",
-  },
-];
+const studentProjects = instagramGallery
+  .filter((item) => item.tags.includes("نمونه‌کار هنرجو") || item.tags.includes("خروجی آموزشی"))
+  .map((item, index) => ({
+    code: `IG / 0${index + 1}`,
+    title: item.title,
+    student: item.tags.includes("نمونه‌کار هنرجو") ? "خروجی عمومی هنرجو" : "خروجی آموزش راه‌یار",
+    type: item.tags.filter((tag) => !["نمونه‌کار هنرجو", "خروجی آموزشی"].includes(tag)).join(" + "),
+    result: item.description,
+    tone: index === 0 ? "gold" : "blue",
+    href: item.href,
+  }));
 const studentFeedback = [
   {
     quote: "قبل از این کلاس‌ها هر بار وسط پروژه گیر می‌کردم. حالا می‌دانم باید مشکل را از کجا پیدا کنم و چطور مرحله‌به‌مرحله جلو بروم.",
@@ -94,7 +80,7 @@ export default function HomePage() {
 
     <section id="flow" className="container-ay section-space"><Reveal><div className="section-intro"><p className="eyebrow">/ مسیر هنرجو</p><h2 className="section-title">شروعش ساده است؛<br /><span className="text-gold-400">ادامه‌اش با تو و راه‌یار.</span></h2></div></Reveal><div className="benefit-grid">{studentSteps.map((step, i) => <Reveal key={step} delay={i * 80}><article className="benefit-card"><span className="benefit-icon"><span className="text-lg font-medium">۰{i + 1}</span></span><h3>{step}</h3><p>{i === 0 ? "از بین دوره‌های دیجیتال یا کلاس‌های آنلاین، چیزی را انتخاب کن که به کارت نزدیک‌تر است." : i === 1 ? "درخواستت ثبت می‌شود و تأیید پرداخت یا هماهنگی کلاس از طریق راه‌یار انجام می‌شود." : "دسترسی محتوا، رزروها، تکلیف‌ها و وضعیت پیشرفتت را در مسیر هنرجویی دنبال کن."}</p></article></Reveal>)}</div></section>
 
-    <section id="projects" className="projects-section border-y border-white/[.06]"><div className="container-ay section-space"><Reveal><div className="projects-heading"><div><p className="eyebrow">/ پروژه‌های منتخب هنرجویی</p><h2 className="section-title mt-4">یادگیری وقتی واقعی می‌شود<br /><span className="text-gold-400">که به خروجی برسد.</span></h2></div><p className="section-sub max-w-md">چند نمونه از مسیرهایی که هنرجوها روی پروژه خودشان جلو برده‌اند؛ از ایده خام تا تنظیم، میکس و آماده‌سازی انتشار.</p></div></Reveal><div className="projects-grid">{studentProjects.map((project, i) => <Reveal key={project.code} delay={i * 90}><article className={`project-card project-${project.tone}`}><div className="project-visual"><span className="project-code">{project.code}</span><div className="project-bars"><i /><i /><i /><i /><i /><i /><i /></div><span className="project-play"><CirclePlay size={20} /></span><span className="project-wave-label">STUDENT WORK / ۲۰۲۶</span></div><div className="project-meta"><span className="skill-tag">{project.type}</span><span className="project-student">{project.student}</span></div><h3>{project.title}</h3><p>{project.result}</p><div className="project-footer"><span>نتیجه مسیر</span><ArrowLeft size={15} /></div></article></Reveal>)}</div><p className="projects-note">نمونه‌ها با حفظ حریم خصوصی هنرجوها ارائه شده‌اند. خروجی هر پروژه به مسیر، تمرین و نقطه شروع هنرجو بستگی دارد.</p></div></section>
+    <section id="projects" className="projects-section border-y border-white/[.06]"><div className="container-ay section-space"><Reveal><div className="projects-heading"><div><p className="eyebrow">/ پروژه‌های منتخب هنرجویی</p><h2 className="section-title mt-4">یادگیری وقتی واقعی می‌شود<br /><span className="text-gold-400">که به خروجی برسد.</span></h2></div><p className="section-sub max-w-md">این نمونه‌ها از محتوای عمومی و تأییدشده گالری آرتیست‌یار انتخاب شده‌اند و برای شنیدن، به پست اصلی اینستاگرام ارجاع می‌دهند.</p></div></Reveal><div className="projects-grid">{studentProjects.map((project, i) => <Reveal key={project.code} delay={i * 90}><article className={`project-card project-${project.tone}`}><div className="project-visual"><span className="project-code">{project.code}</span><div className="project-bars"><i /><i /><i /><i /><i /><i /><i /></div><a href={project.href} target="_blank" rel="noreferrer" aria-label={`مشاهده ${project.title}`} className="project-play"><CirclePlay size={20} /></a><span className="project-wave-label">INSTAGRAM / PUBLIC</span></div><div className="project-meta"><span className="skill-tag">{project.type}</span><span className="project-student">{project.student}</span></div><h3>{project.title}</h3><p>{project.result}</p><div className="project-footer"><a href={project.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 hover:text-gold-300">مشاهده پست اصلی <ArrowLeft size={15} /></a></div></article></Reveal>)}</div><p className="projects-note">منبع هر نمونه در اینستاگرام مشخص است. معرفی نام یا اثر هنرجوها فقط با رضایت آن‌ها انجام می‌شود.</p></div></section>
 
     <section id="feedback" className="feedback-section container-ay section-space"><Reveal><div className="projects-heading"><div><p className="eyebrow">/ صدای هنرجوها</p><h2 className="section-title mt-4">مسیر را از زبان<br /><span className="text-gold-400">خودشان بشنو.</span></h2></div><p className="section-sub max-w-md">بازخوردهای کوتاه از تجربه هنرجوها در مسیر یادگیری؛ با تمرکز روی چیزی که در عمل برایشان تغییر کرده است.</p></div></Reveal><div className="feedback-grid">{studentFeedback.map((feedback, i) => <Reveal key={feedback.name} delay={i * 90}><article className="feedback-card"><div className="feedback-quote">“</div><p className="feedback-text">{feedback.quote}</p><div className="feedback-author"><span className="feedback-avatar">۰{i + 1}</span><span><strong>{feedback.name}</strong><small>{feedback.detail}</small></span></div></article></Reveal>)}</div><p className="projects-note">نام و جزئیات هویتی هنرجوها برای حفظ حریم خصوصی نمایش داده نشده است.</p></section>
 
