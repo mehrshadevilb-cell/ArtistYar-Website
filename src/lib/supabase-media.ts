@@ -243,7 +243,6 @@ export async function uploadMedia(input: {
       mime_type: input.mimeType,
       file_ext: ext,
       artist: audio.artist,
-      album: audio.album,
       genre: audio.genre,
       year: audio.year,
       duration: audio.duration,
@@ -334,7 +333,6 @@ export async function registerExistingMedia(input: {
         mime_type: input.mimeType,
         file_ext: ext,
         artist: audio.artist,
-        album: audio.album,
         genre: audio.genre,
         year: audio.year,
         duration: audio.duration,
@@ -371,7 +369,6 @@ export async function refreshMediaTags(publicId: string): Promise<MediaItem> {
     .from("media_assets")
     .update({
       artist: audio.artist,
-      album: audio.album,
       genre: audio.genre,
       year: audio.year,
       duration: audio.duration,
