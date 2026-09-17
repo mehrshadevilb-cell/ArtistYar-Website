@@ -78,13 +78,14 @@ export async function uploadOrderReceipt(paymentId: number, phone: string, recei
   const form = new FormData();
   form.set("phone", phone);
   form.set("receipt", receipt);
-  const res = await fetch(`${backendBase()}/api/v1/orders/${paymentId}/receipt`, {
+
+  const res = await fetch(`/api/rahyar/orders/receipt?payment_id=${encodeURIComponent(paymentId)}`, {
     method: "POST",
     body: form,
     cache: "no-store",
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || "آپلود رسید ناموفق بود.");
+  if (!res.ok) throw new Error(data.error || "آپلود رسید ناموفق بود.");
   return data as { ok: boolean; payment_id: number; status: string; message: string };
 }
 
