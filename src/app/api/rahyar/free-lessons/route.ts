@@ -15,8 +15,12 @@ export async function GET() {
       });
     }
     const lessons = await response.json();
-    return NextResponse.json(Array.isArray(lessons) && lessons.length ? lessons : fallbackFreeLessons, {
-      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
+    const hasLessons = Array.isArray(lessons) && lessons.length > 0;
+    return NextResponse.json(hasLessons ? lessons : fallbackFreeLessons, {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        ...(hasLessons ? {} : { "X-Free-Lessons-Source": "fallback" }),
+      },
     });
   } catch {
     return NextResponse.json(fallbackFreeLessons, {

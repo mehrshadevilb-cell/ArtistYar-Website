@@ -24,6 +24,10 @@ RAHYAR_AI_GATEWAY_URL=https://YOUR-BOT-HOST
 RAHYAR_AI_BRIDGE_SECRET=YOUR_SHARED_SECRET
 ```
 
+## همگام‌سازی سایت و ربات
+
+ثبت‌نام، ورود هنرجو، سفارش، پرداخت، لایسنس SpotPlayer و لینک‌های ArtistYar از API و دیتابیس مشترک RahYar استفاده می‌کنند. بنابراین متغیر `RAHYAR_API_URL` باید به همان backend ربات اشاره کند. برای نمایش سایت درون تلگرام، در backend مقدار `TELEGRAM_WEB_APP_URL=https://artistyaar.ir` را تنظیم کن و URL را در BotFather از مسیر **Bot Settings → Web Login** به‌عنوان Allowed URL ثبت کن.
+
 ## رسانه (Supabase)
 
 ```env

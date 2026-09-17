@@ -7,12 +7,12 @@ import { useAuth } from "@/components/AuthProvider";
 
 const errorMessages: Record<string, string> = {
   invalid_phone: "شماره موبایل معتبر نیست.",
-  phone_already_registered: "این شماره قبلاً ثبت‌نام کرده است. از صفحه ورود وارد شو.",
+  phone_already_registered: "این شماره قبلاً در سایت ثبت‌نام کرده است. از صفحه ورود وارد شو.",
   registration_backend_unavailable: "ارتباط با سامانه ثبت‌نام برقرار نشد؛ دوباره تلاش کن.",
 };
 
 export default function RegisterPage() {
-  const { user, ready, register } = useAuth();
+  const { user, ready, login } = useAuth();
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,11 +40,11 @@ export default function RegisterPage() {
         setError(errorMessages[data.detail || data.error] || "ثبت‌نام انجام نشد. اطلاعات را بررسی کن.");
         return;
       }
-      const localResult = register({ username: data.user?.phone || phone, password, fullName });
-      if (localResult.ok) {
+      const loginResult = await login(data.user?.phone || phone, password);
+      if (loginResult.ok) {
         router.replace("/panel");
       } else {
-        setError(localResult.error || "ثبت‌نام انجام شد؛ از صفحه ورود وارد شو.");
+        setError(loginResult.error || "ثبت‌نام انجام شد؛ از صفحه ورود وارد شو.");
       }
     } catch {
       setError("ارتباط با سامانه ثبت‌نام برقرار نشد؛ دوباره تلاش کن.");
@@ -58,7 +58,7 @@ export default function RegisterPage() {
       <div className="card-ay w-full max-w-md p-8">
         <p className="text-xs font-medium uppercase tracking-[.22em] text-gold-500">شروع مسیر</p>
         <h1 className="mt-3 text-2xl font-semibold text-sand-50">ثبت‌نام هنرجو</h1>
-        <p className="mt-2 text-sm leading-7 text-ink-400">فقط نام، شماره موبایل و یک رمز عبور انتخاب کن. شماره با حساب‌ها و دسترسی‌های SpotPlayer تطبیق داده می‌شود.</p>
+        <p className="mt-2 text-sm leading-7 text-ink-400">فقط نام، شماره موبایل و یک رمز عبور انتخاب کن. اگر این شماره فقط در SpotPlayer یا ربات ثبت شده باشد، اولین ثبت‌نام سایت همان سابقه و دسترسی‌ها را به حساب تو متصل می‌کند.</p>
         <form className="mt-8 space-y-4" onSubmit={onSubmit}>
           <label className="block"><span className="mb-2 block text-xs text-ink-400">نام و نام خانوادگی</span><input className="input-ay" name="fullName" autoComplete="name" required minLength={2} /></label>
           <label className="block"><span className="mb-2 block text-xs text-ink-400">شماره موبایل</span><input className="input-ay" name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="0912…" required minLength={10} /></label>

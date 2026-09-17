@@ -46,6 +46,7 @@ export default function FreePlayerPage() {
       setActiveId(data[0]?.id || null);
     } catch {
       setUsingFallback(true);
+      setError(false);
       setLessons(fallbackFreeLessons);
       setActiveId(fallbackFreeLessons[0]?.id || null);
     } finally {

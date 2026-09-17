@@ -9,6 +9,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { FloatingAssistant } from "@/components/FloatingAssistant";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
+import { TelegramMiniAppBridge } from "@/components/TelegramMiniAppBridge";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic"],
@@ -187,6 +188,7 @@ export default function RootLayout({
     <html lang="fa" dir="rtl" className={`${vazirmatn.variable} dark`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script src="https://telegram.org/js/telegram-web-app.js" async />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(academyJsonLd) }}
@@ -209,6 +211,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <ThemeProvider>
           <AuthProvider>
+            <TelegramMiniAppBridge />
             <SiteAnalytics />
             <div className="site-root relative min-h-screen overflow-x-hidden">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-radial-fade" />

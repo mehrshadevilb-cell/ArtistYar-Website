@@ -8,6 +8,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const backend = (process.env.RAHYAR_API_URL || "https://rahyar-academy-management-system-v14.onrender.com").replace(/\/$/, "");
 
 function safeEqual(a: string, b: string): boolean {
   const ba = Buffer.from(a);
@@ -66,6 +67,21 @@ export async function POST(request: Request) {
         { status: 503 },
       );
     }
+  }
+
+  try {
+    const response = await fetch(`${backend}/api/v1/students/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: username, password }),
+      cache: "no-store",
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok && data.ok && data.user) {
+      return NextResponse.json(data);
+    }
+  } catch {
+    return NextResponse.json({ ok: false, error: "student_login_backend_unavailable" }, { status: 503 });
   }
 
   return NextResponse.json({ ok: false, error: "نام کاربری یا رمز عبور نادرست است." }, { status: 401 });
