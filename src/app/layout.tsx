@@ -3,6 +3,7 @@ import { Vazirmatn } from "next/font/google";
 import "./globals.css";
 import "./responsive.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { FloatingAssistant } from "@/components/FloatingAssistant";
@@ -84,7 +85,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0b0b0a" },
-    { media: "(prefers-color-scheme: light)", color: "#0b0b0a" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f1e8" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -158,14 +159,32 @@ const softwareJsonLd = {
   inLanguage: "fa",
 };
 
+const themeInitScript = `
+(function(){
+  try {
+    var k = 'artistyar-theme';
+    var t = localStorage.getItem(k);
+    if (t !== 'light' && t !== 'dark') {
+      t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+    document.documentElement.classList.add(t);
+    document.documentElement.style.colorScheme = t;
+    document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {
+    document.documentElement.classList.add('dark');
+  }
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fa" dir="rtl" className={vazirmatn.variable}>
+    <html lang="fa" dir="rtl" className={`${vazirmatn.variable} dark`} suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(academyJsonLd) }}
@@ -186,24 +205,26 @@ export default function RootLayout({
         ) : null}
       </head>
       <body className="font-sans antialiased">
-        <AuthProvider>
-          <div className="relative min-h-screen overflow-x-hidden bg-ink-950 text-sand-100">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-radial-fade" />
-            <div className="route-ambient route-ambient-one" aria-hidden="true" />
-            <div className="route-ambient route-ambient-two" aria-hidden="true" />
-            <div className="relative z-10 flex min-h-screen flex-col">
-              <a href="#main-content" className="skip-link">
-                رفتن به محتوای اصلی
-              </a>
-              <SiteHeader />
-              <main id="main-content" className="page-shell flex-1">
-                {children}
-              </main>
-              <SiteFooter />
-              <FloatingAssistant />
+        <ThemeProvider>
+          <AuthProvider>
+            <div className="site-root relative min-h-screen overflow-x-hidden">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-radial-fade" />
+              <div className="route-ambient route-ambient-one" aria-hidden="true" />
+              <div className="route-ambient route-ambient-two" aria-hidden="true" />
+              <div className="relative z-10 flex min-h-screen flex-col">
+                <a href="#main-content" className="skip-link">
+                  رفتن به محتوای اصلی
+                </a>
+                <SiteHeader />
+                <main id="main-content" className="page-shell flex-1">
+                  {children}
+                </main>
+                <SiteFooter />
+                <FloatingAssistant />
+              </div>
             </div>
-          </div>
-        </AuthProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
