@@ -245,7 +245,7 @@ export default function AssistantPage() {
               </button>
             </div>
 
-            <div className="min-h-[22rem] max-h-[38rem] space-y-6 overflow-y-auto px-4 py-6 sm:px-6" aria-live="polite" aria-busy={busy}>
+            <div className="assistant-chat-scroll min-h-[22rem] max-h-[38rem] space-y-6 overflow-y-auto px-4 py-6 sm:px-6" aria-live="polite" aria-busy={busy}>
               {messages.map((message) => (
                 <div key={message.id} className={`group flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}>
                   <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${message.role === "user" ? "bg-white/[0.08] text-ink-300" : message.error ? "bg-red-400/10 text-red-300" : "bg-gold-500/15 text-gold-400"}`}>
