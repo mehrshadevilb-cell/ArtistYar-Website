@@ -8,16 +8,20 @@ const SYSTEM_PROMPT = `تو راه‌یار، دستیار آموزشی آرتی
 اگر سؤال خارج از حوزه موسیقی بود، کوتاه و محترمانه بگو تمرکزت روی موسیقی و آرتیست‌یار است.
 پاسخ‌ها را به فارسی و با لحن حرفه‌ای و دوستانه بنویس.`;
 
-function normalizeMessages(value: unknown): ChatMessage[] {
+type NormalizedMessage = ChatMessage;
+
+function normalizeMessages(value: unknown): NormalizedMessage[] {
   if (!Array.isArray(value)) return [];
 
   return value
     .filter((message): message is Record<string, unknown> => Boolean(message) && typeof message === "object")
-    .map((message) => ({
-      role: message.role === "assistant" ? "assistant" : "user",
-      content: typeof message.content === "string" ? message.content.trim() : "",
-    }))
-    .filter((message) => message.content.length > 0)
+    .map((message): NormalizedMessage | null => {
+      const role = message.role === "assistant" ? "assistant" : "user";
+      const content = typeof message.content === "string" ? message.content.trim() : "";
+      if (!content) return null;
+      return { role, content };
+    })
+    .filter((message): message is NormalizedMessage => message !== null)
     .slice(-20);
 }
 
@@ -31,10 +35,10 @@ export async function POST(request: Request) {
     };
 
     const incoming = normalizeMessages(body.messages);
-    const messages = incoming.length
+    const messages: ChatMessage[] = incoming.length
       ? incoming
       : typeof body.message === "string" && body.message.trim()
-        ? [{ role: "user" as const, content: body.message.trim() }]
+        ? [{ role: "user", content: body.message.trim() }]
         : [];
 
     if (!messages.length) {
