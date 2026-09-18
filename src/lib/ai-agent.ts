@@ -2,12 +2,21 @@ import { autoChat, chatWithProvider, discoverAllModels, getConfiguredProviders, 
 
 export type AgentResult = { provider:string; model:string; ok:boolean; reply?:string; error?:string; durationMs:number };
 
+const AGENT_TIMEOUT_MS = 35_000;
+const DISCOVERY_CACHE_MS = 30_000;
+let candidateCache: { expiresAt:number; value:Awaited<ReturnType<typeof candidates>> } | null = null;
+
+function withTimeout<T>(promise:Promise<T>, ms=AGENT_TIMEOUT_MS):Promise<T>{
+  return Promise.race([promise,new Promise<T>((_,reject)=>setTimeout(()=>reject(new Error("Agent timeout")),ms))]);
+}
+
 const AGENT_SYSTEM = `تو یکی از اعضای یک تیم Multi-Agent برای توسعه و نگهداری ArtistYar-Website هستی.
 مسئله را مستقل و فنی بررسی کن. اگر task کدنویسی است، فایل‌های درگیر، معماری، ریسک‌ها و تست‌ها را مشخص کن.
 مستقیماً production را تغییر نمی‌دهی؛ خروجی تو توسط Lead Agent و owner بررسی می‌شود.
 پاسخ فارسی باشد و نام فایل‌ها/APIها/کد انگلیسی بماند.`;
 
 async function candidates() {
+  if (candidateCache && candidateCache.expiresAt > Date.now()) return candidateCache.value;
   const providers = getConfiguredProviders();
   const entries = await discoverAllModels();
   const out:Array<{provider:AIProvider;model:string;rank:number}> = [];
@@ -56,6 +65,7 @@ async function candidates() {
     }
     if (!added) break;
   }
+  candidateCache = { expiresAt: Date.now() + DISCOVERY_CACHE_MS, value: balanced };
   return balanced;
 }
 
@@ -78,7 +88,7 @@ Give:
 5) tests
 6) checks for other agents`}
     ];
-    const reply=await chatWithProvider(provider,model,messages,"artistyar-multi-agent");
+    const reply=await withTimeout(chatWithProvider(provider,model,messages,"artistyar-multi-agent"));
     return {provider:provider.id,model,ok:true,reply,durationMs:Date.now()-started};
   } catch(error) {
     return {provider:provider.id,model,ok:false,error:error instanceof Error?error.message:String(error),durationMs:Date.now()-started};
@@ -97,7 +107,7 @@ export async function runMultiAgent(task:string, context="", maxAgents=12) {
   const failedProviders=new Set<string>();
   const successful:AgentResult[]=[];
 
-  for (let offset=0; offset<pool.length && successful.length < Math.max(2, Math.min(maxAgents, 4)); offset+=6) {
+  for (let offset=0; offset<pool.length && successful.length < Math.max(2, Math.min(maxAgents, 4)); offset+=8) {
     const wave=pool.slice(offset, offset+6).filter(c=>!failedProviders.has(c.provider.id));
     if(!wave.length) continue;
     const waveResults=await Promise.all(wave.map(c=>ask(c.provider,c.model,task,context)));
@@ -278,10 +288,10 @@ Rules:
     const wave = coderPool.slice(offset, offset + 6).filter(candidate => !failedCoderProviders.has(candidate.provider.id));
     const waveResults = await Promise.all(wave.map(async candidate => {
       try {
-        const reply = await chatWithProvider(candidate.provider, candidate.model, [
+        const reply = await withTimeout(chatWithProvider(candidate.provider, candidate.model, [
           { role:"system", content:"تو Coding Agent پروژه ArtistYar-Website هستی. خروجی دقیق و قابل اعمال بده. پاسخ نهایی JSON خالص باشد." },
           { role:"user", content:coderPrompt },
-        ], "artistyar-development-coder");
+        ], "artistyar-development-coder"));
         const parsed = extractJson<{changes?: ProposedChange[];notes?:string}>(reply);
         const changes = Array.isArray(parsed?.changes)
           ? parsed!.changes.filter(x => x && typeof x.path === "string" && typeof x.content === "string").slice(0, 8)
@@ -312,7 +322,7 @@ Rules:
         const reply = await chatWithProvider(candidate.provider, candidate.model, [
           { role:"system", content:"تو Coding Agent پروژه ArtistYar-Website هستی. خروجی دقیق و قابل اعمال بده. پاسخ نهایی JSON خالص باشد." },
           { role:"user", content:coderPrompt },
-        ], "artistyar-development-coder-backup");
+        ], "artistyar-development-coder-backup"));
         const parsed = extractJson<{changes?: ProposedChange[];notes?:string}>(reply);
         const changes = Array.isArray(parsed?.changes)
           ? parsed!.changes.filter(x => x && typeof x.path === "string" && typeof x.content === "string").slice(0, 8)
@@ -348,10 +358,10 @@ Rules:
   );
   const reviews = await Promise.all(reviewers.map(async c => {
     try {
-      return await chatWithProvider(c.provider, c.model, [
+      return await withTimeout(chatWithProvider(c.provider, c.model, [
         { role:"system", content:"تو Senior Reviewer پروژه ArtistYar-Website هستی. کد را از نظر correctness، امنیت، TypeScript، Next.js و regression بررسی کن." },
         { role:"user", content:`TASK:\n${task}\n\nPLAN:\n${planning.synthesis.reply}\n\nPROPOSALS:\n${proposalText}\n\nدر ابتدای پاسخ دقیقاً بنویس APPROVE <شماره> یا REJECT ALL، سپس دلیل کوتاه و فنی بده.` },
-      ], "artistyar-development-reviewer");
+      ], "artistyar-development-reviewer"));
     } catch { return "REJECT ALL — reviewer failed"; }
   }));
 
