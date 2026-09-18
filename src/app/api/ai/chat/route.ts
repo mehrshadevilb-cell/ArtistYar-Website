@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       messages?: unknown;
       provider?: unknown;
       model?: unknown;
+      client_id?: unknown;
     };
 
     const incoming = normalizeMessages(body.messages);
@@ -59,11 +60,16 @@ export async function POST(request: Request) {
       ...messages,
     ];
 
+    const clientId =
+      typeof body.client_id === "string" && body.client_id.trim()
+        ? body.client_id.trim().slice(0, 64)
+        : clientIdFromRequest(request);
+
     const result = await autoChat(
       withSystemPrompt,
       typeof body.provider === "string" ? body.provider : undefined,
       typeof body.model === "string" ? body.model : undefined,
-      clientIdFromRequest(request),
+      clientId,
     );
 
     return NextResponse.json({
