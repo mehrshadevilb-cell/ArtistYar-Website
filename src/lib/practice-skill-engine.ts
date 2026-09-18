@@ -134,7 +134,8 @@ export async function getSkillDashboard(userId: string) {
   }
   const skillStats = (Object.keys(SKILL_META) as SkillKey[]).map(key => {
     const stats = calcSkill(bySkill.get(key) || []);
-    return { key, ...SKILL_META[key], ...stats, level: skillLevel(stats.xp), progress: stats.level >= 500 ? 100 : stats.xp % 100 };
+    const level = skillLevel(stats.xp);
+    return { key, ...SKILL_META[key], ...stats, level, progress: level >= 500 ? 100 : stats.xp % 100 };
   });
   const weakest = [...skillStats].sort((a, b) => a.rating - b.rating || a.recentAccuracy - b.recentAccuracy)[0];
   const overallAccuracy = skillStats.filter(s => s.attempts).reduce((s, x) => s + x.accuracy, 0) / Math.max(1, skillStats.filter(s => s.attempts).length);
