@@ -25,10 +25,21 @@ export default function AdminVideosPage() {
   async function uploadVideo(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setUploading(true); setError(""); setMessage("");
     const formElement = event.currentTarget;
-    const form = new FormData(formElement); form.set("category", "free-training"); form.set("consent", "true");
+    const form = new FormData(formElement);
+    const file = form.get("file");
     const uploadTitle = String(form.get("title") || "").trim();
+    if (!(file instanceof File)) {
+      setError("فایل ویدیو را انتخاب کن.");
+      setUploading(false);
+      return;
+    }
     try {
-      const response = await fetch("/api/media", { method: "POST", body: form });
+      // Use the dedicated free-training endpoint so this form gets the 1 GB
+      // video limit instead of the generic 50 MB media endpoint.
+      const uploadForm = new FormData();
+      uploadForm.set("file", file);
+      uploadForm.set("kind", "video");
+      const response = await fetch("/api/free-training-assets", { method: "POST", body: uploadForm, credentials: "include" });
       const data = await response.json() as UploadResponse;
       if (!response.ok || !data.ok || !data.item?.url) throw new Error(data.error || "آپلود ویدیو ناموفق بود.");
       setDraft((current) => ({ ...current, title: current.title || uploadTitle, slug: current.slug || `lesson-${Date.now()}`, video_url: data.item!.url }));
