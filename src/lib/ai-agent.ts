@@ -87,20 +87,41 @@ Give:
 
 export async function runMultiAgent(task:string, context="", maxAgents=12) {
   const all=await candidates();
-  const selected=all.slice(0,Math.max(1,Math.min(maxAgents,24)));
-  // All selected models are invoked concurrently.
-  const results=await Promise.all(selected.map(c=>ask(c.provider,c.model,task,context)));
-  const successful=results.filter(r=>r.ok && r.reply);
+  if (!all.length) throw new Error("هیچ Agent کدنویسی/تحلیلی فعالی پیدا نشد.");
+  
+  // Do not freeze the run to the first N models. Providers can expose stale,
+  // premium-only, exhausted, or temporarily unavailable models. Run in waves
+  // and promote later candidates automatically when earlier ones fail.
+  const pool=all.slice(0, Math.min(all.length, Math.max(24, maxAgents * 3)));
+  const results:AgentResult[]=[];
+  const failedProviders=new Set<string>();
+  const successful:AgentResult[]=[];
+
+  for (let offset=0; offset<pool.length && successful.length < Math.max(2, Math.min(maxAgents, 4)); offset+=6) {
+    const wave=pool.slice(offset, offset+6).filter(c=>!failedProviders.has(c.provider.id));
+    if(!wave.length) continue;
+    const waveResults=await Promise.all(wave.map(c=>ask(c.provider,c.model,task,context)));
+    results.push(...waveResults);
+    for(const r of waveResults){
+      if(r.ok && r.reply) successful.push(r);
+      else {
+        const msg=r.error || "";
+        const modelOnly=/premium model|requires an active paid plan|requires .*balance|plan .*allows|model .*not available|model .*unavailable|model .*not found|unknown model|unsupported model|permission.?denied.*model|model.*permission/i.test(msg);
+        const providerFatal=!modelOnly && /no credits|insufficient.?quota|billing|credit|payment|invalid.?api.?key|incorrect.?api.?key|authentication|unauthorized|401|403|permission.?denied|api key not valid|account.?deactivated|exceeded.?your.?current.?quota|http 405|http 404/i.test(msg);
+        if(providerFatal) failedProviders.add(r.provider);
+      }
+    }
+  }
+
   if(!successful.length) {
     const diagnostics = results
       .map(r => `${r.provider}/${r.model}: ${r.error || "empty response"}`)
-      .slice(0, 8)
+      .slice(0, 12)
       .join(" | ");
     throw new Error(`هیچ Agent فعالی پاسخ نداد. خطاهای واقعی: ${diagnostics}`);
   }
 
-  const reports=successful.map((r,i)=>`AGENT ${i+1} — ${r.provider} / ${r.model}:
-${r.reply}`).join("\n\n---\n\n").slice(0,50000);
+  const reports=successful.map((r,i)=>`AGENT ${i+1} — ${r.provider} / ${r.model}:\n${r.reply}`).join("\n\n---\n\n").slice(0,50000);
   const lead=`تو Lead Agent پروژه ArtistYar هستی. گزارش Agentهای مستقل را برای TASK زیر تلفیق کن.
 از بین پیشنهادها یک برنامه واحد، عملی و قابل بررسی بساز؛ تکرار را حذف کن و اختلاف‌نظرها را صریح ذکر کن.
 
@@ -118,7 +139,7 @@ ${reports}
 - تست و verification
 - اختلاف‌نظرهای مهم`;
   const synthesis=await autoChat([{role:"system",content:AGENT_SYSTEM},{role:"user",content:lead}],undefined,undefined,"artistyar-multi-agent-lead");
-  return {ok:true,task,totalAgents:selected.length,successfulAgents:successful.length,results,synthesis:{provider:synthesis.provider,model:synthesis.model,reply:synthesis.reply}};
+  return {ok:true,task,totalAgents:results.length,successfulAgents:successful.length,results,synthesis:{provider:synthesis.provider,model:synthesis.model,reply:synthesis.reply}};
 }
 
 
@@ -268,7 +289,7 @@ Rules:
         return { agent: candidate.provider.id + "/" + candidate.model, changes, notes: parsed?.notes };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        const modelOnlyAccess = /premium model|requires an active paid plan|requires .*balance|plan .*allows|model .*not available|model .*unavailable|permission.?denied.*model|model.*permission/i.test(message);
+        const modelOnlyAccess = /premium model|requires an active paid plan|requires .*balance|plan .*allows|model .*not available|model .*unavailable|model .*not found|unknown model|unsupported model|permission.?denied.*model|model.*permission/i.test(message);
         const fatal = !modelOnlyAccess && /no credits|insufficient.?quota|billing|credit|payment|invalid.?api.?key|incorrect.?api.?key|authentication|unauthorized|401|403|permission.?denied|account.?deactivated|http 404|http 405|not available/i.test(message);
         if (fatal) failedCoderProviders.add(candidate.provider.id);
         return { agent: candidate.provider.id + "/" + candidate.model, changes:[], notes: message };
