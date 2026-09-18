@@ -174,7 +174,7 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
     );
   }
 
-  if (stageLocked) {
+  if (stageLocked && !pro) {
     return (
       <section className="mt-10">
         <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>
@@ -184,13 +184,13 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
           <p className="eyebrow text-gold-300">PRACTICE STAGE LIMIT</p>
           <h1 className="mt-3 text-2xl font-semibold text-sand-50">مراحل رایگان این تمرین تمام شد</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-8 text-ink-400">
-            بدون اشتراک تا ۵ مرحله، با Pro تا ۴۰ مرحله در مدت فعال بودن اشتراک
+            بدون اشتراک ۵ مرحله در دسترس است؛ Pro در تمام مدت فعال بودن اشتراک بدون سقف مرحله
             {proExpiresAt
               ? ` و اشتراک فعلی تا ${new Date(proExpiresAt).toLocaleDateString("fa-IR")} فعال است.`
               : "."}
           </p>
           <p className="mt-4 text-sm text-gold-200">
-            {pro ? `اشتراک فعال · ${subscriptionDays} مرحله` : "برای ادامه، اشتراک فعال کن."}
+            {pro ? `اشتراک فعال · بدون سقف مرحله${proExpiresAt ? ` · تا ${new Date(proExpiresAt).toLocaleDateString("fa-IR")}` : ""}` : "برای ادامه، اشتراک فعال کن."}
           </p>
         </div>
       </section>
@@ -208,7 +208,7 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
           <p className="eyebrow mt-5">THEORY LAB · PROGRESSIVE</p>
           <h1 className="mt-3 text-2xl font-semibold text-sand-50">از فاصله‌های ساده تا expert</h1>
           <p className="mt-3 text-sm leading-8 text-ink-400">
-            اول فقط ۲m و ۲M؛ با XP و مرحله، کم‌کم فواصل سخت‌تر باز می‌شوند. ترتیب گزینه‌ها تصادفی است. غلط = XP منفی.
+            تمرین از سطح مناسب شروع می‌شود و با عملکردت سخت‌تر یا آسان‌تر می‌شود. XP فقط برای پیشرفت است؛ مهارت واقعی با دقت و تکرار سنجیده می‌شود.
           </p>
           <p className="mt-2 text-xs text-violet-200">
             {tierLabel} · مرحله {round + 1} · XP {xp}
