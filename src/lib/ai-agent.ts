@@ -217,58 +217,39 @@ async function ask(provider: AIProvider, model: string, task: string, context: s
 }
 
 export async function runMultiAgent(task: string, context = "", maxAgents = 12) {
-  const capped = Math.min(Math.max(2, maxAgents), HARD_MAX_AGENTS);
+  const capped = Math.min(Math.max(1, maxAgents), HARD_MAX_AGENTS);
   const all = await candidates();
   if (!all.length) throw new Error("هیچ Agent کدنویسی/تحلیلی فعالی پیدا نشد.");
-  const pool = all.slice(0, Math.min(all.length, Math.max(24, capped * 3)));
+  // One execution owner; other models are sequential failover only.
+  const pool = all.slice(0, Math.min(all.length, Math.max(8, capped)));
   const results: AgentResult[] = [];
   const failedProviders = new Set<string>();
-  const successful: AgentResult[] = [];
-  const targetSuccess = Math.max(2, Math.min(capped, 4));
-  for (let offset = 0; offset < pool.length && successful.length < targetSuccess; offset += 8) {
-    const wave = pool.slice(offset, offset + 8).filter((c) => !failedProviders.has(c.provider.id));
-    if (!wave.length) continue;
-    const waveResults = await Promise.all(wave.map((c) => ask(c.provider, c.model, task, context)));
-    results.push(...waveResults);
-    for (const r of waveResults) {
-      if (r.ok && r.reply && r.reply.trim().length > 40) successful.push(r);
-      else if (r.error && isProviderFatal(r.error)) failedProviders.add(r.provider);
-    }
+  let winner: AgentResult | undefined;
+  for (const candidate of pool) {
+    if (failedProviders.has(candidate.provider.id)) continue;
+    const result = await ask(candidate.provider, candidate.model, task, context);
+    results.push(result);
+    if (result.ok && result.reply && result.reply.trim().length > 40) { winner = result; break; }
+    if (result.error && isProviderFatal(result.error)) failedProviders.add(result.provider.id);
   }
-  if (!successful.length) {
-    const diagnostics = results
-      .map((r) => `${r.provider}/${r.model}: ${r.error || "empty response"}`)
-      .slice(0, 12)
-      .join(" | ");
+  if (!winner) {
+    const diagnostics = results.map((r) => `${r.provider}/${r.model}: ${r.error || "empty response"}`).slice(0, 12).join(" | ");
     throw new Error(`هیچ Agent فعالی پاسخ نداد. خطاهای واقعی: ${diagnostics}`);
   }
-  const ranked = [...successful].sort((a, b) => (b.reply?.length || 0) - (a.reply?.length || 0));
-  const reports = ranked
-    .slice(0, 6)
-    .map((r, i) => `AGENT ${i + 1} — ${r.provider} / ${r.model}:\n${r.reply}`)
-    .join("\n\n---\n\n")
-    .slice(0, 55_000);
-  const lead = `تو Lead Agent پروژه ArtistYar هستی. گزارش Agentهای مستقل را برای TASK زیر تلفیق کن.
-از بین پیشنهادها یک برنامه واحد، عملی و قابل بررسی بساز؛ تکرار را حذف کن و اختلاف‌نظرها را صریح ذکر کن.
+  const lead = `تو Lead Agent پروژه ArtistYar هستی. برنامه Agent اجراکننده را برای TASK زیر به یک برنامه واحد و عملی تبدیل کن.
+تکرار و brainstorming اضافه ممنوع؛ فقط تصمیم نهایی، مراحل اجرا، فایل‌های دقیق و تست‌ها را بده.
 
-TASK:\n${task}\n\nAGENT REPORTS:\n${reports}\n\nخروجی ساخت‌یافته:\n- جمع‌بندی\n- راه‌حل/تصمیم پیشنهادی\n- مراحل پیاده‌سازی (مرتب)\n- فایل‌های درگیر (exact paths)\n- تست و verification\n- اختلاف‌نظرهای مهم\n- ریسک‌های regression`;
-  const synthesis = await autoChat(
-    [
-      { role: "system", content: AGENT_SYSTEM },
-      { role: "user", content: lead },
-    ],
-    undefined,
-    undefined,
-    "artistyar-multi-agent-lead",
-  );
-  return {
-    ok: true,
-    task,
-    totalAgents: results.length,
-    successfulAgents: successful.length,
-    results,
-    synthesis: { provider: synthesis.provider, model: synthesis.model, reply: synthesis.reply },
-  };
+TASK:\n${task}\n\nOWNER REPORT:\n${winner.reply}`;
+  let synthesisReply = winner.reply, synthesisProvider = winner.provider, synthesisModel = winner.model;
+  try {
+    const synthesis = await autoChat(
+      [{ role: "system", content: AGENT_SYSTEM }, { role: "user", content: lead }],
+      undefined, undefined, "artistyar-multi-agent-lead",
+    );
+    synthesisReply = synthesis.reply; synthesisProvider = synthesis.provider; synthesisModel = synthesis.model;
+  } catch {}
+  return { ok: true, task, totalAgents: results.length, successfulAgents: 1, results,
+    synthesis: { provider: synthesisProvider, model: synthesisModel, reply: synthesisReply } };
 }
 
 type DevelopmentResult = {
