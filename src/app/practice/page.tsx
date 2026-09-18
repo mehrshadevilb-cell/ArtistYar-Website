@@ -239,7 +239,7 @@ function GameStage({ active, toneRound, setToneRound, toneAnswer, setToneAnswer,
 
   const answer=(correct:boolean,gameId:string,advance:()=>void)=>{
     if(locked) return;
-    advance(); markStage(gameId);
+    advance(); markStage();
   };
   if(locked) return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button><div className="card-ay mt-5 p-8 text-center"><Award className="mx-auto text-gold-300" size={32}/><h1 className="mt-4 text-xl font-semibold text-sand-50">تمرین امروز این بازی کامل شد.</h1><p className="mt-2 text-sm leading-7 text-ink-400">{user?"۵ مرحله‌ی روزانه‌ی عضو":"۵ مرحله‌ی رایگان روزانه"} تمام شد. فردا دوباره سؤال‌های تازه آماده می‌شوند.</p></div></section>;
 
