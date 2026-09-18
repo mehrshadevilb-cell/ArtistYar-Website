@@ -55,7 +55,7 @@ export function PracticeProBanner({ onUpgrade }: Props) {
             <span className="eyebrow text-emerald-200">PRO ACTIVE</span>
             <h2 className="mt-2 text-lg font-medium text-sand-50">اشتراک Pro فعال است</h2>
             <p className="mt-1 text-xs leading-6 text-ink-400">
-              ۴۰ مرحله در روز · Professional Audio Skills · Voicing روزانه
+              مراحل تمرین = مدت اشتراک · Professional Audio Skills · Voicing روزانه
               {proExpires ? ` · تا ${new Date(proExpires).toLocaleDateString("fa-IR")}` : ""}
             </p>
           </div>
@@ -74,9 +74,9 @@ export function PracticeProBanner({ onUpgrade }: Props) {
           <span className="eyebrow">PRACTICE PRO · ۴۰٬۰۰۰ تومان / ماه</span>
           <h2 className="mt-2 text-lg font-medium text-sand-50">برای تمرین حرفه‌ای، Pro شو</h2>
           <ul className="mt-2 space-y-1 text-xs leading-6 text-ink-400">
-            <li>· ۴۰ مرحله روزانه به‌جای ۵ مرحله</li>
+            <li>· تعداد مراحل تمرین برابر مدت اشتراک به‌جای ۵ مرحله رایگان</li>
             <li>· Professional Audio Skills (Reverb / Saturation / Masking / Transient)</li>
-            <li>· ۱ Voicing پیانو روزانه · سؤال‌های AI سخت‌تر</li>
+            <li>· ۱ Voicing پیانو روزانه · تحلیل‌های AI با سهمیه جداگانه</li>
           </ul>
         </div>
         <button type="button" className="btn-primary shrink-0 !px-5 !py-2.5 text-xs" onClick={onUpgrade}>
