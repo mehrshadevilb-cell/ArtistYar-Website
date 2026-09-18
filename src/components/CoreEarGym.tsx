@@ -47,12 +47,13 @@ export function CoreEarGym({ onBack }:{onBack?:()=>void}){
   const [q,setQ]=useState<Question|null>(null);
   const [answer,setAnswer]=useState<string|null>(null);
   const [loading,setLoading]=useState(false);
+  const [result,setResult]=useState<{ok:boolean;correct:string;responseTimeMs:number}|null>(null);
   const [rating,setRating]=useState<number|null>(null);
   const started=useRef(0);
 
   const loadAdaptive=useCallback(async()=>{
     if(!user?.id)return;
-    setLoading(true); setAnswer(null);
+    setLoading(true); setAnswer(null); setResult(null);
     try{
       const p=await fetch("/api/practice/adaptive?userId="+encodeURIComponent(user.id),{cache:"no-store",credentials:"include"}).then(r=>r.json());
       const match=p?.exercises?.find((x:{gameId?:string})=>x.gameId===game);
@@ -69,6 +70,7 @@ export function CoreEarGym({ onBack }:{onBack?:()=>void}){
     setAnswer(value);
     const ok=String(q.answer)===value;
     const responseTimeMs=started.current?Math.max(1,Date.now()-started.current):0;
+    setResult({ok,correct:String(q.answer),responseTimeMs});
     if(user?.id){
       await fetch("/api/practice/progress",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({
         userId:user.id,username:user.username,fullName:user.fullName,telegramId:user.telegramId,
