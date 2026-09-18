@@ -175,7 +175,7 @@ export default function MusicAnalyzerLab() {
             ["RMS", metrics.rmsDbfs.toFixed(1) + " dBFS", AudioWaveform],
             ["Crest", metrics.crestFactorDb.toFixed(1) + " dB", Waves],
             ["Stereo Corr.", metrics.stereoCorrelation == null ? "N/A" : metrics.stereoCorrelation.toFixed(2), Sparkles]
-          ].map(([label, value, Icon]) => { const MetricIcon = Icon as React.ElementType; return <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[.03] p-4"><div className="flex items-center gap-2 text-xs text-ink-500"><MetricIcon size={14} className="text-cyan-300" />{label}</div><p className="mt-2 text-sm font-medium text-sand-50">{String(value)}</p></div>; })}
+          ].map(([label, value, Icon]) => { const MetricIcon = Icon as React.ElementType; return <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[.03] p-4"><div className="flex items-center gap-2 text-xs text-ink-500"><MetricIcon size={14} className="text-cyan-300" />{String(label)}</div><p className="mt-2 text-sm font-medium text-sand-50">{String(value)}</p></div>; })}
         </div> : null}
 
         <button type="button" disabled={!file || !metrics || measuring || loading || quota.remaining <= 0} onClick={() => void analyze()} className="btn-primary mt-6">
