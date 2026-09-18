@@ -10,6 +10,12 @@ const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_R
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 const MEMBER_DAILY_STAGES = 5;\nconst PRO_DAILY_STAGES = 40;
 
+async function isProUser(userId: string) {
+  if (!db) return false;
+  const { data } = await db.from("practice_subscriptions").select("id").eq("user_id", userId).eq("status", "active").gt("expires_at", new Date().toISOString()).limit(1);
+  return Boolean(data?.length);
+}
+
 async function dailyUsage(userId: string, gameId: string) {
   if (!db) return 0;
   const start = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
@@ -31,20 +37,27 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   if (!body.userId || !body.username) return NextResponse.json({ ok: false, error: "اطلاعات کاربر ناقص است." }, { status: 400 });
   try {
-    const usedToday = await dailyUsage(String(body.userId), String(body.gameId || "unknown"));
-    if (usedToday >= MEMBER_DAILY_STAGES) {
-      return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit: MEMBER_DAILY_STAGES, used: usedToday, remaining: 0 }, { status: 429 });
+    const userId = String(body.userId).slice(0, 120);
+    const gameId = String(body.gameId || "unknown").slice(0, 80);
+    const pro = await isProUser(userId);
+    const dailyLimit = pro ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES;
+    const usedToday = await dailyUsage(userId, gameId);
+    if (usedToday >= dailyLimit) {
+      return NextResponse.json({ ok: false, code: "daily_limit_reached", pro, dailyLimit, used: usedToday, remaining: 0 }, { status: 429 });
     }
     const row = await savePracticeResult({
-      user_id: String(body.userId).slice(0, 120),
+      user_id: userId,
       username: String(body.username).slice(0, 120),
       full_name: String(body.fullName || body.username).slice(0, 160),
-      game_id: gameId.slice(0, 80),
+      game_id: gameId,
       score: Number(body.score) || 0,
       accuracy: Number(body.accuracy) || 0,
       streak: Number(body.streak) || 0,
       best_score: Number(body.bestScore) || 0,
-      metadata: typeof body.metadata === "object" && body.metadata ? body.metadata : {},
+      metadata: {
+        ...(typeof body.metadata === "object" && body.metadata ? body.metadata : {}),
+        ...(body.telegramId ? { telegramId: String(body.telegramId).slice(0, 50) } : {}),
+      },
     });
     return NextResponse.json({ ok: true, row });
   } catch (error) { return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "ذخیره ناموفق بود." }, { status: 503 }); }
