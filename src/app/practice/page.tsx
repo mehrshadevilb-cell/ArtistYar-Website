@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, Dispatch, RefObject, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { AudioLines, Award, Check, CircleHelp, Ear, FileAudio, Flame, Headphones, LockKeyhole, Pause, Play, RotateCcw, Sparkles, Target, Upload, Volume2, Waves, X } from "lucide-react";
 import { SectionHeading } from "@/components/SectionHeading";
 import { useAuth } from "@/components/AuthProvider";
@@ -130,7 +130,27 @@ export default function PracticePage() {
 
 type AIPracticeQuestion = { gameId: "tone"|"eq"|"compressor"|"phase"; prompt: string; hint: string; answer: string|number; options: Array<string|number>; audio: Record<string, number|string>; difficulty: number; source: string; fingerprint?: string };
 
-function GameStage({ active, toneRound, setToneRound, toneAnswer, setToneAnswer, eqRound, setEqRound, eqAnswer, setEqAnswer, compressorRound, setCompressorRound, compressorAnswer, setCompressorAnswer, phaseAnswer, setPhaseAnswer, onBack, onReset }: any) {
+type GameStageProps = {
+  active: Exclude<GameId, "hub" | "personal" | "voicing" | "pro-arcade" | "theory">;
+  toneRound: number;
+  setToneRound: Dispatch<SetStateAction<number>>;
+  toneAnswer: number | null;
+  setToneAnswer: Dispatch<SetStateAction<number | null>>;
+  eqRound: number;
+  setEqRound: Dispatch<SetStateAction<number>>;
+  eqAnswer: string | null;
+  setEqAnswer: Dispatch<SetStateAction<string | null>>;
+  compressorRound: number;
+  setCompressorRound: Dispatch<SetStateAction<number>>;
+  compressorAnswer: string | null;
+  setCompressorAnswer: Dispatch<SetStateAction<string | null>>;
+  phaseAnswer: number | null;
+  setPhaseAnswer: Dispatch<SetStateAction<number | null>>;
+  onBack: () => void;
+  onReset: () => void;
+};
+
+function GameStage({ active, toneRound, setToneRound, toneAnswer, setToneAnswer, eqRound, setEqRound, eqAnswer, setEqAnswer, compressorRound, setCompressorRound, compressorAnswer, setCompressorAnswer, phaseAnswer, setPhaseAnswer, onBack, onReset }: GameStageProps) {
   const { user } = useAuth();
   const [stage,setStage]=useState(0);
   const [limit,setLimit]=useState(user ? DAILY_MEMBER_STAGES : DAILY_GUEST_STAGES);
