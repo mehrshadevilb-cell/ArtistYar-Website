@@ -16,6 +16,11 @@ import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { TelegramMiniAppBridge } from "@/components/TelegramMiniAppBridge";
 import { SmoothScroll } from "@/components/SmoothScroll";
 
+// Keep HTML aligned with the current Next.js asset manifest after each deploy.
+// Static JS/CSS assets remain cacheable; only the document shell must revalidate.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const vazirmatn = Vazirmatn({
   subsets: ["arabic"],
   weight: ["400", "500", "600"],
