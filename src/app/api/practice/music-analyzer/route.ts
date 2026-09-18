@@ -107,7 +107,7 @@ export async function POST(request: Request) {
   if (db) await db.from("practice_records").insert({
     user_id: userId || telegramId, username: userId || telegramId, full_name: "", game_id: "music-analyzer",
     score: 5, accuracy: 100, streak: 1, best_score: 5,
-    metadata: { genre, focus, fileName: file.name.slice(0, 120), durationSec: duration, metrics: enriched, source: analysis.source }
+    metadata: { genre, focus, fileName: file.name.slice(0, 120), durationSec: enriched.durationSec, metrics: enriched, source: analysis.source }
   });
   return NextResponse.json({ ok: true, analysis, metrics: enriched, quota: { limit, used: used + 1, remaining: Math.max(0, limit - used - 1), pro } });
 }
