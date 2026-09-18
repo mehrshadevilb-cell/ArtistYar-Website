@@ -66,15 +66,19 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
 
-  // Audit trail via payment_requests table when possible
-  await db.from("practice_payment_requests").insert({
-    user_id: userId,
-    reference: note ? `admin:${session.username}:${note}` : `admin:${session.username}:manual`,
-    amount_toman: 40000 * months,
-    status: "approved",
-    reviewed_at: now.toISOString(),
-    reviewed_by: session.username,
-  }).then(() => undefined).catch(() => undefined);
+  // Audit trail is additive; its failure must not roll back a valid admin grant.
+  try {
+    await db.from("practice_payment_requests").insert({
+      user_id: userId,
+      reference: note ? `admin:${session.username}:${note}` : `admin:${session.username}:manual`,
+      amount_toman: 40000 * months,
+      status: "approved",
+      reviewed_at: now.toISOString(),
+      reviewed_by: session.username,
+    });
+  } catch {
+    // The subscription has already been created successfully.
+  }
 
   return NextResponse.json({
     ok: true,
