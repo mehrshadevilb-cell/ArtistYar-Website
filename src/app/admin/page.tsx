@@ -22,6 +22,23 @@ export default function AdminHomePage() {
         </p>
         <StatusChip tone="ok">داده واقعی</StatusChip>
       </div>
+      <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[.06] p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-sand-50">🚀 توسعه سایت با AI</h2>
+              <span className="rounded-full border border-emerald-400/25 px-2 py-1 text-[10px] text-emerald-400">CODE → APPLY → PR</span>
+            </div>
+            <p className="mt-2 max-w-2xl text-xs leading-6 text-ink-400">
+              دقیقاً بنویس چه چیزی در سایت تغییر کند؛ AI پروژه را بررسی می‌کند، کدنویسی می‌کند، Review می‌گیرد و تغییرات را در یک Branch و Draft PR اعمال می‌کند.
+            </p>
+          </div>
+          <a href="/admin/ai#development-agent" className="btn-ghost !py-2.5 text-xs">
+            شروع کدنویسی
+          </a>
+        </div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((c) => (
           <div key={c.label} className="card-ay p-5">
