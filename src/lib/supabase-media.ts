@@ -761,7 +761,26 @@ export async function listFreeTrainingStorageFiles(): Promise<StorageItem[]> {
         return {
           path,
           name: file.name,
-          mimeType: String(file.metadata?.mimetype || "video/mp4"),
+          mimeType: (() => {
+            const mime = String(file.metadata?.mimetype || "").toLowerCase();
+            if (mime.startsWith("video/")) return mime;
+            const ext = String(file.name || "").toLowerCase().split(".").pop() || "";
+            const byExt: Record<string, string> = {
+              mp4: "video/mp4",
+              webm: "video/webm",
+              mov: "video/quicktime",
+              m4v: "video/x-m4v",
+              mkv: "video/x-matroska",
+              avi: "video/x-msvideo",
+              mpeg: "video/mpeg",
+              mpg: "video/mpeg",
+              ogv: "video/ogg",
+              "3gp": "video/3gpp",
+              ts: "video/mp2t",
+              m2ts: "video/mp2t",
+            };
+            return byExt[ext] || "video/mp4";
+          })(),
           size: Number(file.metadata?.size || 0),
           createdAt: String(file.created_at || ""),
           url: supabase!.storage.from(bucket).getPublicUrl(path).data.publicUrl,
