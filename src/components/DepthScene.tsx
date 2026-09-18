@@ -7,7 +7,7 @@ type DepthSceneProps = {
   className?: string;
 };
 
-/** Desktop 3D stage. Mobile stays flat to avoid WebView/viewport cropping. */
+/** Desktop 3D stage. Mobile stays flat. Never captures pointer events. */
 export function DepthScene({ children, className = "" }: DepthSceneProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const frame = useRef<number | null>(null);
@@ -110,7 +110,7 @@ export function DepthScene({ children, className = "" }: DepthSceneProps) {
     observer.observe(el);
     window.addEventListener("scroll", measure, { passive: true });
     window.addEventListener("resize", measure, { passive: true });
-    el.addEventListener("pointermove", onPointer, { passive: true });
+    window.addEventListener("pointermove", onPointer, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
@@ -118,7 +118,7 @@ export function DepthScene({ children, className = "" }: DepthSceneProps) {
       observer.disconnect();
       window.removeEventListener("scroll", measure);
       window.removeEventListener("resize", measure);
-      el.removeEventListener("pointermove", onPointer);
+      window.removeEventListener("pointermove", onPointer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
@@ -128,10 +128,11 @@ export function DepthScene({ children, className = "" }: DepthSceneProps) {
     "--depth-rotate-y": "0deg",
     "--depth-shift-y": "0px",
     "--depth-glow": "0.12",
+    pointerEvents: "none",
   } as CSSProperties;
 
   return (
-    <div ref={ref} className={`depth-scene ${className}`.trim()} style={style}>
+    <div ref={ref} className={`depth-scene ${className}`.trim()} style={style} aria-hidden="true">
       <div className="depth-scene-grid" aria-hidden="true" />
       <div className="depth-scene-content">{children}</div>
     </div>

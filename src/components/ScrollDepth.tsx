@@ -12,10 +12,7 @@ type ScrollDepthProps = {
   intensity?: number;
 };
 
-/**
- * Desktop-only scroll depth. CSS keeps the mobile layout flat so narrow
- * WebViews cannot crop or project the hero outside the viewport.
- */
+/** Desktop-only scroll depth. Never intercepts pointer events. */
 export function ScrollDepth({ children, className = "", intensity = 1 }: ScrollDepthProps) {
   const root = useRef<HTMLDivElement | null>(null);
 
@@ -71,7 +68,8 @@ export function ScrollDepth({ children, className = "", intensity = 1 }: ScrollD
     <div
       ref={root}
       className={`scroll-depth ${className}`.trim()}
-      style={{ transformStyle: "preserve-3d", willChange: "transform" }}
+      style={{ transformStyle: "preserve-3d", willChange: "transform", pointerEvents: "none" }}
+      aria-hidden="true"
     >
       {children}
     </div>

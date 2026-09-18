@@ -7,6 +7,7 @@ import { Menu, X, ArrowUpLeft, Bot } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { useAuth } from "./AuthProvider";
 import { ThemeToggle } from "./ThemeToggle";
+import { SafeLink } from "./SafeLink";
 
 const primaryLinks = [
   { href: "/courses", label: "مسیرهای آموزشی" },
@@ -59,26 +60,28 @@ export function SiteHeader() {
 
         <nav aria-label="ناوبری اصلی" className="hidden items-center gap-0.5 lg:flex">
           {primaryLinks.map((link) => (
-            <Link
+            <SafeLink
               key={link.href}
               href={link.href}
+              hard={link.href === "/courses" || link.href === "/assistant"}
               className={`nav-link ${pathname === link.href ? "nav-link-active" : ""}`}
               aria-current={pathname === link.href ? "page" : undefined}
             >
               {link.label}
-            </Link>
+            </SafeLink>
           ))}
         </nav>
 
         <div className="hidden items-center gap-2.5 md:flex">
           <ThemeToggle />
-          <Link
+          <SafeLink
             href="/assistant"
+            hard
             className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-gold-400 transition hover:bg-white/[0.05] hover:text-gold-300"
           >
             <Bot size={14} aria-hidden />
             راه‌یار AI
-          </Link>
+          </SafeLink>
           {ready && user ? (
             <Link href={panelHref} className="btn-ghost !px-4 !py-2 text-xs">
               پنل من
@@ -118,9 +121,15 @@ export function SiteHeader() {
           className="container-ay flex max-h-[min(70dvh,32rem)] flex-col gap-0.5 overflow-y-auto overscroll-contain py-4 pb-[max(1rem,var(--tg-safe-bottom))]"
         >
           {[...primaryLinks, ...moreLinks].map((link) => (
-            <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="mobile-nav-link">
+            <SafeLink
+              key={link.href}
+              href={link.href}
+              hard={link.href === "/courses" || link.href === "/assistant"}
+              onClick={() => setOpen(false)}
+              className="mobile-nav-link"
+            >
               {link.label}
-            </Link>
+            </SafeLink>
           ))}
           {ready && user ? (
             <Link href={panelHref} onClick={() => setOpen(false)} className="mobile-nav-link">
@@ -131,14 +140,15 @@ export function SiteHeader() {
               ورود هنرجو
             </Link>
           )}
-          <Link
+          <SafeLink
             href="/assistant"
+            hard
             onClick={() => setOpen(false)}
             className="btn-primary mt-3 flex items-center justify-center gap-2 text-center"
           >
             <Bot size={16} aria-hidden />
             سؤال از راه‌یار AI
-          </Link>
+          </SafeLink>
         </nav>
       </div>
     </header>
