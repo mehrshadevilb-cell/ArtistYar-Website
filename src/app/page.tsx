@@ -10,6 +10,7 @@ import { HeroActions } from "@/components/HeroActions";
 import { SafeLink } from "@/components/SafeLink";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { instagramGallery } from "@/data/instagram-gallery";
+import { HeroDifferentiator } from "@/components/HeroDifferentiator";
 
 export const metadata: Metadata = {
   title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | مهرشاد بنائی",
@@ -197,6 +198,7 @@ export default function HomePage() {
               فقط ویدیو نیست — <strong className="font-medium text-gold-400">راه‌یار</strong> تا نتیجه کنارت می‌ماند
             </span>
           </div>
+          <HeroDifferentiator />
           <div className="hero-signal-row" aria-label="تمرکز مسیر">
             <div className="hero-signal-card">
               <span className="hero-signal-index">۰۱</span>
