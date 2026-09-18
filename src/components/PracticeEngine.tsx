@@ -13,9 +13,10 @@ import { SkillEngineDashboard } from "@/components/SkillEngineDashboard";
 import { PracticeProBanner } from "@/components/PracticeProBanner";
 import { ProArcadeLab } from "@/components/ProArcadeLab";
 import { DailyVoicingLab } from "@/components/DailyVoicingLab";
+import { CoreEarGym } from "@/components/CoreEarGym";
 import { AudioWaveform } from "lucide-react";
 
-type GameId = "hub" | "theory" | "pro-arcade" | "voicing" | "personal";
+type GameId = "hub" | "core-ear" | "theory" | "pro-arcade" | "voicing" | "personal";
 
 export default function PracticeEngine() {
   const [active, setActive] = useState<GameId>("hub");
@@ -45,6 +46,21 @@ export default function PracticeEngine() {
                 <span className="text-xs text-ink-500">آپلود فایل · میکس + تنظیم · Peak/RMS · AI و roadmap</span>
               </span>
             </a>
+
+            <button
+              type="button"
+              className="card-ay flex items-center gap-4 border-cyan-400/20 p-5 text-right"
+              onClick={() => setActive("core-ear")}
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-300">
+                <AudioWaveform size={22} />
+              </span>
+              <span className="flex-1">
+                <span className="eyebrow">ADAPTIVE · ۱۰ دقیقه</span>
+                <strong className="mt-1 block text-sand-50">Core Ear Gym</strong>
+                <span className="text-xs text-ink-500">Frequency · EQ · Compression · Phase با سختی شخصی</span>
+              </span>
+            </button>
 
             <button
               type="button"
@@ -97,6 +113,7 @@ export default function PracticeEngine() {
         </div>
       )}
 
+      {active === "core-ear" && <CoreEarGym onBack={() => setActive("hub")} />}
       {active === "theory" && <TheoryLab onBack={() => setActive("hub")} />}
       {active === "voicing" && <DailyVoicingLab onBack={() => setActive("hub")} />}
       {active === "pro-arcade" && <ProArcadeLab onBack={() => setActive("hub")} />}
