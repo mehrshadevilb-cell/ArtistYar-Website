@@ -17,14 +17,16 @@ function dayKey() {
 }
 
 export async function GET(request: Request) {
-  const userId = new URL(request.url).searchParams.get("userId")?.trim();
+  const params = new URL(request.url).searchParams;
+  const userId = params.get("userId")?.trim();
+  const gameId = params.get("gameId")?.trim() || "tone";
   if (!userId) return NextResponse.json({ ok: true, registered: false, dailyLimit: GUEST_DAILY_STAGES, used: 0, remaining: GUEST_DAILY_STAGES, pro: false, proPriceToman: PRO_PRICE_TOMAN });
   if (!db) return NextResponse.json({ ok: true, registered: true, dailyLimit: MEMBER_DAILY_STAGES, used: 0, remaining: MEMBER_DAILY_STAGES, pro: false, proPriceToman: PRO_PRICE_TOMAN });
 
   const start = new Date(`${dayKey()}T00:00:00.000Z`);
   const end = new Date(start.getTime() + 86400000);
   const [{ data: rows }, { data: sub }] = await Promise.all([
-    db.from("practice_records").select("id").eq("user_id", userId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString()),
+    db.from("practice_records").select("id").eq("user_id", userId).eq("game_id", gameId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString()),
     db.from("practice_subscriptions").select("id,expires_at,status").eq("user_id", userId).eq("status", "active").gt("expires_at", new Date().toISOString()).order("expires_at", { ascending: false }).limit(1),
   ]);
   const used = rows?.length || 0;
