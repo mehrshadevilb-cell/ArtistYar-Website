@@ -4,6 +4,7 @@ import { ChangeEvent, RefObject, useEffect, useMemo, useRef, useState } from "re
 import { AudioLines, Award, Check, CircleHelp, Ear, FileAudio, Flame, Gamepad2, Headphones, LockKeyhole, Pause, Play, RotateCcw, Sparkles, Target, Upload, Volume2, Waves, X } from "lucide-react";
 import { SectionHeading } from "@/components/SectionHeading";
 import { useAuth } from "@/components/AuthProvider";
+import type { SessionUser } from "@/lib/auth";
 import { PracticeProgressPanel } from "@/components/PracticeProgressPanel";
 import { TheoryLab } from "@/components/TheoryLab";
 
@@ -58,6 +59,7 @@ function playTone(frequency: number, duration = 1.3, pan = 0) {
 }
 
 export default function PracticePage() {
+  const { user } = useAuth();
   const [active, setActive] = useState<GameId>("hub");
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -79,7 +81,12 @@ export default function PracticePage() {
   const rankProgress = Math.min(100, Math.round(((score - rankFloor) / (rankCeiling - rankFloor)) * 100));
 
   useEffect(() => { try { const saved = JSON.parse(localStorage.getItem("artistyar_arcade_score") || "{}"); setScore(Number(saved.score) || 0); setStreak(Number(saved.streak) || 0); } catch { /* local-only progress is optional */ } }, []);
-  function record(correct: boolean) { const nextScore = score + (correct ? 10 : 0); const nextStreak = correct ? streak + 1 : 0; setScore(nextScore); setStreak(nextStreak); localStorage.setItem("artistyar_arcade_score", JSON.stringify({ score: nextScore, streak: nextStreak })); }
+  function record(correct: boolean) {
+    const nextScore = score + (correct ? 10 : 0); const nextStreak = correct ? streak + 1 : 0;
+    setScore(nextScore); setStreak(nextStreak);
+    localStorage.setItem("artistyar_arcade_score", JSON.stringify({ score: nextScore, streak: nextStreak }));
+    if (user?.id && user.username) void fetch("/api/practice/progress",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({userId:user.id,username:user.username,fullName:user.fullName,gameId:active,score:correct?10:0,accuracy:correct?100:0,streak:nextStreak,bestScore:nextScore,metadata:{dailyKey:new Date().toISOString().slice(0,10)}})}).catch(()=>{});
+  }
   function uploadPersonal(event: ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file) return; if (personalUrl) URL.revokeObjectURL(personalUrl); setPersonalUrl(URL.createObjectURL(file)); setPersonalName(file.name); }
   function resetGame() { setToneAnswer(null); setEqAnswer(null); setPhaseAnswer(null); setCompressorAnswer(null); }
 
@@ -146,6 +153,7 @@ function ProArcade({ onBack }: { onBack: () => void }) {
       setBest(value);
       localStorage.setItem("artistyar_pro_arcade_v2", JSON.stringify({ best: value }));
     }
+    if (user?.id && user.username) void fetch("/api/practice/progress",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({userId:user.id,username:user.username,fullName:user.fullName,gameId:`pro-${mode}`,score:value,accuracy:value>0?100:0,streak:0,bestScore:Math.max(value,best),metadata:{dailyKey:new Date().toISOString().slice(0,10)}})}).catch(()=>{});
   }
 
   function stopTimer() { if (timer.current) { window.clearTimeout(timer.current); timer.current = null; } }
