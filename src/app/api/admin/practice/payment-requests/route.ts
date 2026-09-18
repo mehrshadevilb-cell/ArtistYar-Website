@@ -10,7 +10,6 @@ const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
-function auth() { return verifyAdminSession((cookies() as unknown as Promise<{get:(name:string)=>{value?:string}|undefined}>)).then?.(() => null); }
 
 export async function GET() {
   const session = verifyAdminSession((await cookies()).get(ADMIN_SESSION_COOKIE)?.value);
