@@ -247,21 +247,34 @@ Rules:
 - Keep the project TypeScript/Next.js conventions.
 `;
 
-  const coderResults = await Promise.all(coders.map(async c => {
-    try {
-      const reply = await chatWithProvider(c.provider, c.model, [
-        { role:"system", content:"تو Coding Agent پروژه ArtistYar-Website هستی. خروجی دقیق و قابل اعمال بده. پاسخ نهایی JSON خالص باشد." },
-        { role:"user", content:coderPrompt },
-      ], "artistyar-development-coder");
-      const parsed = extractJson<{changes?: ProposedChange[];notes?:string}>(reply);
-      const changes = Array.isArray(parsed?.changes)
-        ? parsed!.changes.filter(x => x && typeof x.path === "string" && typeof x.content === "string").slice(0, 8)
-        : [];
-      return { agent:`${c.provider.id}/${c.model}`, changes, notes:parsed?.notes };
-    } catch {
-      return { agent:`${c.provider.id}/${c.model}`, changes:[], notes:"coder failed" };
-    }
-  }));
+  // Run coding candidates in waves. Failed providers are quarantined for this
+  // execution and later candidates are promoted automatically.
+  const coderPool = candidates.slice(0, Math.min(candidates.length, Math.max(16, maxAgents * 2)));
+  const coderResults: Array<{agent:string;changes:ProposedChange[];notes?:string}> = [];
+  const failedCoderProviders = new Set<string>();
+
+  for (let offset = 0; offset < coderPool.length && coderResults.filter(p => p.changes.length).length < 2; offset += 6) {
+    const wave = coderPool.slice(offset, offset + 6).filter(candidate => !failedCoderProviders.has(candidate.provider.id));
+    const waveResults = await Promise.all(wave.map(async candidate => {
+      try {
+        const reply = await chatWithProvider(candidate.provider, candidate.model, [
+          { role:"system", content:"تو Coding Agent پروژه ArtistYar-Website هستی. خروجی دقیق و قابل اعمال بده. پاسخ نهایی JSON خالص باشد." },
+          { role:"user", content:coderPrompt },
+        ], "artistyar-development-coder");
+        const parsed = extractJson<{changes?: ProposedChange[];notes?:string}>(reply);
+        const changes = Array.isArray(parsed?.changes)
+          ? parsed!.changes.filter(x => x && typeof x.path === "string" && typeof x.content === "string").slice(0, 8)
+          : [];
+        return { agent: candidate.provider.id + "/" + candidate.model, changes, notes: parsed?.notes };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const fatal = /no credits|insufficient.?quota|billing|credit|payment|invalid.?api.?key|incorrect.?api.?key|authentication|unauthorized|401|403|permission.?denied|account.?deactivated|http 404|http 405|not available|requires an active paid plan|premium model/i.test(message);
+        if (fatal) failedCoderProviders.add(candidate.provider.id);
+        return { agent: candidate.provider.id + "/" + candidate.model, changes:[], notes: message };
+      }
+    }));
+    coderResults.push(...waveResults);
+  }
 
   let usable = coderResults.filter(p => p.changes.length);
 
