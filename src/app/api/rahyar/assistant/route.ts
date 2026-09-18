@@ -16,11 +16,25 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
+  const bridgeSecret = process.env.RAHYAR_AI_BRIDGE_SECRET || "";
+  if (!bridgeSecret) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "RAHYAR_AI_BRIDGE_SECRET تنظیم نشده. دستیار پس از پیکربندی فعال می‌شود.",
+      },
+      { status: 503 },
+    );
+  }
   try {
     const body = await request.json();
     const res = await fetch(`${backend}/api/v1/assistant/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-rahyar-ai-key": bridgeSecret,
+      },
       body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
