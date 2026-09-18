@@ -515,7 +515,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
     const rawIds = rawEntries
       .filter((entry) =>
         provider.id !== "xkiro" ||
-        env("XKIRO_FREE_ONLY") !== "1" ||
+        env("XKIRO_FREE_ONLY") === "0" ||
         entry.tier === "free",
       )
       .map((entry) => entry.id);
