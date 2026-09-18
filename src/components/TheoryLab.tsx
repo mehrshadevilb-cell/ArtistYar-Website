@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { usePracticeAccess } from "@/components/usePracticeAccess";
 import { ArrowLeft, Music2, Play } from "lucide-react";
 
 const roots = ["C", "D", "E", "F", "G", "A", "B"];
@@ -63,11 +64,14 @@ function tierIndex(xp: number, round: number) {
 
 export function TheoryLab({ onBack }: { onBack: () => void }) {
   const { user } = useAuth();
+  const { loading: accessLoading, stageLimit, pro, subscriptionDays, proExpiresAt } = usePracticeAccess();
   const [mode, setMode] = useState<"interval" | "chord">("interval");
   const [root, setRoot] = useState("C");
   const [answer, setAnswer] = useState<string | null>(null);
   const [round, setRound] = useState(0);
   const [xp, setXp] = useState(0);
+  const stageNumber = round + 1;
+  const stageLocked = !accessLoading && stageNumber > stageLimit;
 
   useEffect(() => {
     try {
@@ -158,6 +162,26 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
   };
 
   const tierLabel = ["مبتدی · فقط ۲m / ۲M", "مقدماتی · تا ۳M", "متوسط · تا ۵P", "حرفه‌ای · همه فواصل"][tier];
+
+  if (accessLoading) {
+    return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button><div className="card-ay mt-5 p-8 text-center text-sm text-ink-400">در حال بررسی دسترسی تمرین…</div></section>;
+  }
+
+  if (stageLocked) {
+    return (
+      <section className="mt-10">
+        <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button>
+        <div className="card-ay mt-5 p-8 text-center">
+          <p className="eyebrow text-gold-300">PRACTICE STAGE LIMIT</p>
+          <h1 className="mt-3 text-2xl font-semibold text-sand-50">مراحل رایگان این تمرین تمام شد</h1>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-8 text-ink-400">
+            بدون اشتراک تا ۵ مرحله در این تمرین فعال است. با اشتراک، تعداد مراحل برابر با مدت اشتراک محاسبه می‌شود{proExpiresAt ? " و اشتراک فعلی تا " + new Date(proExpiresAt).toLocaleDateString("fa-IR") + " فعال است." : "."}
+          </p>
+          <p className="mt-4 text-sm text-gold-200">{pro ? `اشتراک فعال · ${subscriptionDays} مرحله` : "برای ادامه، اشتراک فعال کن."}</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="mt-10">
