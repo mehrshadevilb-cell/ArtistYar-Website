@@ -33,7 +33,7 @@ async function candidates() {
 
   const seen = new Set<string>();
   const unique = out.sort((a,b)=>b.rank-a.rank).filter(c=>{
-    const key=`${c.provider.id}::`${c.model}`;
+    const key=`${c.provider.id}::${c.model}`;
     if(seen.has(key)) return false; seen.add(key); return true;
   });
 
@@ -194,7 +194,7 @@ export async function runDevelopmentTask(
     }
     const seen = new Set<string>();
     const unique = result.sort((a,b)=>b.rank-a.rank).filter(c => {
-      const k = `${c.provider.id}::`${c.model}`;
+      const k = `${c.provider.id}::${c.model}`;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
