@@ -42,8 +42,7 @@ window.artistYarBrowserSeparate=async(file,onProgress)=>{
   }
   for(let i=0;i<N;i++){const w=norm[i]||1;for(const a of stems){a[i]/=w;a[N+i]/=w}}
   const vocals=stems[3], instrumental=new Float32Array(2*N);
-  for(let i=0;i<2*N;i++)instrumental[i]=audio.left[i%N*0+Math.floor(i/N)]||0;
-  for(let i=0;i<N;i++){instrumental[i]=audio.left[i]-vocals[i];instrumental[N+i]=audio.right[i]-vocals[N+i]}
+     for(let i=0;i<N;i++){instrumental[i]=audio.left[i]-vocals[i];instrumental[N+i]=audio.right[i]-vocals[N+i]}
   const zip=window.JSZip;if(!zip)throw new Error('ZIP runtime is unavailable.');
   const z=new zip();z.file('vocals_demucs.wav',wav(vocals));z.file('instrumental_demucs.wav',wav(instrumental));
   ['drums','bass','other','vocals'].forEach((n,i)=>z.file(n+'.wav',wav(stems[i])));
