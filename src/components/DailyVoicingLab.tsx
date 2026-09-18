@@ -12,8 +12,8 @@ import {
   Sparkles,
   BookOpen,
 } from "lucide-react";
-import { ProGate } from "@/components/PracticeProGate";
 import { useAuth } from "@/components/AuthProvider";
+import { usePracticeAccess } from "@/components/usePracticeAccess";
 
 type FingerNote = {
   note: string;
@@ -301,8 +301,7 @@ async function playVoicing(notes: string[]) {
 
 export function DailyVoicingLab({ onBack }: { onBack: () => void }) {
   const { user } = useAuth();
-  const [pro, setPro] = useState(user?.role === "admin");
-  const [checking, setChecking] = useState(user?.role !== "admin");
+  const { loading: checking, pro, stageLimit, subscriptionDays, proExpiresAt } = usePracticeAccess();
   const [played, setPlayed] = useState(false);
   const [practiced, setPracticed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -314,40 +313,6 @@ export function DailyVoicingLab({ onBack }: { onBack: () => void }) {
 
   const lh = lesson.fingering.filter((f) => f.hand === "LH");
   const rh = lesson.fingering.filter((f) => f.hand === "RH");
-
-  useEffect(() => {
-    if (user?.role === "admin") {
-      setPro(true);
-      setChecking(false);
-      return;
-    }
-    if (!user?.id) {
-      setPro(false);
-      setChecking(false);
-      return;
-    }
-    let cancelled = false;
-    const ids = [user.id, user.telegramId].filter(Boolean).map(String);
-    fetch(
-      "/api/practice/status?userId=" +
-        encodeURIComponent(ids[0]) +
-        (ids[1] ? "&telegramId=" + encodeURIComponent(ids[1]) : ""),
-      { cache: "no-store", credentials: "include" },
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) setPro(Boolean(data?.pro));
-      })
-      .catch(() => {
-        if (!cancelled) setPro(false);
-      })
-      .finally(() => {
-        if (!cancelled) setChecking(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, user?.role, user?.telegramId]);
 
   const markPracticed = async () => {
     if (practiced || saving) return;
@@ -398,13 +363,16 @@ export function DailyVoicingLab({ onBack }: { onBack: () => void }) {
     );
   }
 
-  if (!pro) {
+  if (stageLimit < 1) {
     return (
-      <ProGate
-        onBack={onBack}
-        title="Voicing روزانه"
-        body="هر روز یک voicing پیانو با انگشت‌گذاری، نحوهٔ گرفتن و سبک استفاده — فقط برای Pro."
-      />
+      <section className="mt-10">
+        <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button>
+        <div className="card-ay mt-5 p-8 text-center">
+          <p className="eyebrow text-gold-300">PRACTICE ACCESS</p>
+          <h1 className="mt-3 text-2xl font-semibold text-sand-50">دسترسی تمرین فعال نیست</h1>
+          <p className="mt-3 text-sm text-ink-400">حداقل ۵ مرحله برای کاربران بدون اشتراک فعال است.</p>
+        </div>
+      </section>
     );
   }
 
@@ -556,7 +524,7 @@ export function DailyVoicingLab({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-ink-500">هر روز یک voicing جدید بر اساس تاریخ. امروز را روی پیانو تکرار کن.</p>
+          <p className="text-xs text-ink-500">هر روز یک voicing جدید بر اساس تاریخ. امروز را روی پیانو تکرار کن. \n            </p>
           <button
             type="button"
             className="btn-primary !px-4 !py-2 text-xs"
