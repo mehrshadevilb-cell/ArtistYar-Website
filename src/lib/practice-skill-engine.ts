@@ -4,6 +4,11 @@ const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
+// Mirrors MAX_SESSION_SCORE in practice-progress.ts: xp for a single event is
+// client-supplied (see /api/practice/progress), so it must be bounded here
+// too or a crafted request can inflate total_xp/overall_level indefinitely.
+const MAX_EVENT_XP = 300;
+
 export type SkillKey = "ear_training" | "harmony" | "mixing" | "dynamics" | "stereo" | "critical_listening";
 
 type EventRow = {
@@ -84,7 +89,7 @@ export async function recordSkillEvent(input: {
 }) {
   if (!db) return;
   const skill = skillForGame(input.gameId);
-  const xp = Math.max(0, Math.round(input.xp));
+  const xp = Math.max(0, Math.min(MAX_EVENT_XP, Math.round(input.xp)));
   await db.from("practice_skill_events").insert({
     user_id: input.userId, skill, game_id: input.gameId, xp,
     accuracy: clamp(input.accuracy, 0, 100), difficulty: clamp(Number(input.difficulty) || 0, 0, 500),
