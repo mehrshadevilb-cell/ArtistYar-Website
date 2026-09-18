@@ -17,37 +17,85 @@ function dayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function collectIds(...values: Array<string | null | undefined>) {
+  const ids = new Set<string>();
+  for (const value of values) {
+    const cleaned = String(value || "").trim();
+    if (cleaned) ids.add(cleaned);
+  }
+  return [...ids];
+}
+
+async function findActivePro(userIds: string[]) {
+  if (!db || !userIds.length) return null;
+  const { data } = await db
+    .from("practice_subscriptions")
+    .select("id,expires_at,status,user_id")
+    .in("user_id", userIds)
+    .eq("status", "active")
+    .gt("expires_at", new Date().toISOString())
+    .order("expires_at", { ascending: false })
+    .limit(1);
+  return data?.[0] || null;
+}
+
+async function countDailyUsage(userIds: string[]) {
+  if (!db || !userIds.length) return 0;
+  const start = new Date(`${dayKey()}T00:00:00.000Z`);
+  const end = new Date(start.getTime() + 86400000);
+  const { data } = await db
+    .from("practice_records")
+    .select("id")
+    .in("user_id", userIds)
+    .gte("played_at", start.toISOString())
+    .lt("played_at", end.toISOString());
+  return data?.length || 0;
+}
+
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const userId = params.get("userId")?.trim();
-  const gameId = params.get("gameId")?.trim() || "tone";
-  if (!userId) return NextResponse.json({ ok: true, registered: false, dailyLimit: GUEST_DAILY_STAGES, used: 0, remaining: GUEST_DAILY_STAGES, pro: false, proPriceToman: PRO_PRICE_TOMAN });
-  if (!db) return NextResponse.json({ ok: true, registered: true, dailyLimit: MEMBER_DAILY_STAGES, used: 0, remaining: MEMBER_DAILY_STAGES, pro: false, proPriceToman: PRO_PRICE_TOMAN });
+  const telegramId = params.get("telegramId")?.trim();
 
-  const start = new Date(`${dayKey()}T00:00:00.000Z`);
-  const end = new Date(start.getTime() + 86400000);
-  const [{ data: rows }, { data: sub }] = await Promise.all([
-    db.from("practice_records").select("id").eq("user_id", userId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString()),
-    db.from("practice_subscriptions").select("id,expires_at,status").eq("user_id", userId).eq("status", "active").gt("expires_at", new Date().toISOString()).order("expires_at", { ascending: false }).limit(1),
-  ]);
-  const used = rows?.length || 0;
-  return NextResponse.json({ ok: true, registered: true, dailyLimit: sub?.length ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES, used, remaining: Math.max(0, (sub?.length ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES) - used), pro: Boolean(sub?.length), proPriceToman: PRO_PRICE_TOMAN, proExpiresAt: sub?.[0]?.expires_at || null });
+  if (!userId && !telegramId) {
+    return NextResponse.json({
+      ok: true, registered: false, dailyLimit: GUEST_DAILY_STAGES, used: 0,
+      remaining: GUEST_DAILY_STAGES, pro: false, proPriceToman: PRO_PRICE_TOMAN,
+    });
+  }
+
+  if (!db) {
+    return NextResponse.json({
+      ok: true, registered: true, dailyLimit: MEMBER_DAILY_STAGES, used: 0,
+      remaining: MEMBER_DAILY_STAGES, pro: false, proPriceToman: PRO_PRICE_TOMAN,
+    });
+  }
+
+  const ids = collectIds(userId, telegramId);
+  const [used, sub] = await Promise.all([countDailyUsage(ids), findActivePro(ids)]);
+  const pro = Boolean(sub);
+  const dailyLimit = pro ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES;
+
+  return NextResponse.json({
+    ok: true, registered: true, dailyLimit, used,
+    remaining: Math.max(0, dailyLimit - used), pro,
+    proPriceToman: PRO_PRICE_TOMAN, proExpiresAt: sub?.expires_at || null,
+  });
 }
 
 export async function POST(request: Request) {
   if (!db) return NextResponse.json({ ok: false, error: "practice_store_not_configured" }, { status: 503 });
   const body = await request.json().catch(() => ({}));
   const userId = String(body.userId || "").trim();
-  const gameId = String(body.gameId || "tone").trim();
-  if (!userId) return NextResponse.json({ ok: false, error: "userId_required" }, { status: 400 });
+  const telegramId = String(body.telegramId || "").trim();
+  if (!userId && !telegramId) return NextResponse.json({ ok: false, error: "userId_required" }, { status: 400 });
 
-  const start = new Date(`${dayKey()}T00:00:00.000Z`);
-  const end = new Date(start.getTime() + 86400000);
-  const { data: rows, error } = await db.from("practice_records").select("id").eq("user_id", userId).eq("game_id", gameId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
-  const used = rows?.length || 0;
-  const { data: sub } = await db.from("practice_subscriptions").select("id").eq("user_id", userId).eq("status", "active").gt("expires_at", new Date().toISOString()).limit(1);
-  const dailyLimit = sub?.length ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES;
-  if (used >= dailyLimit) return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit, used, remaining: 0 }, { status: 429 });
-  return NextResponse.json({ ok: true, dailyLimit, used, remaining: dailyLimit - used, pro: Boolean(sub?.length) });
+  const ids = collectIds(userId, telegramId);
+  const used = await countDailyUsage(ids);
+  const sub = await findActivePro(ids);
+  const dailyLimit = sub ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES;
+  if (used >= dailyLimit) {
+    return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit, used, remaining: 0 }, { status: 429 });
+  }
+  return NextResponse.json({ ok: true, dailyLimit, used, remaining: dailyLimit - used, pro: Boolean(sub) });
 }
