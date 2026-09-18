@@ -101,11 +101,20 @@ export default function PracticePage() {
   const rankProgress = Math.min(100, Math.round(((score - rankFloor) / (rankCeiling - rankFloor)) * 100));
 
   useEffect(() => { try { const saved = JSON.parse(localStorage.getItem("artistyar_arcade_score") || "{}"); setScore(Number(saved.score) || 0); setStreak(Number(saved.streak) || 0); } catch { /* local-only progress is optional */ } }, []);
-  function record(correct: boolean) {
-    const nextScore = score + (correct ? 10 : 0); const nextStreak = correct ? streak + 1 : 0;
+  async function record(correct: boolean) {
+    const nextScore = score + (correct ? 10 : 0);
+    const nextStreak = correct ? streak + 1 : 0;
+    if (user?.id && user.username) {
+      try {
+        const response = await fetch("/api/practice/progress",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({
+          userId:user.id,username:user.username,fullName:user.fullName,gameId:active,score:correct?10:0,accuracy:correct?100:0,streak:nextStreak,bestScore:nextScore,
+          metadata:{dailyKey:new Date().toISOString().slice(0,10),level:practiceLevel(nextScore)}
+        })});
+        if (response.status===429) return;
+      } catch { return; }
+    }
     setScore(nextScore); setStreak(nextStreak);
     localStorage.setItem("artistyar_arcade_score", JSON.stringify({ score: nextScore, streak: nextStreak }));
-    if (user?.id && user.username) void fetch("/api/practice/progress",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({userId:user.id,username:user.username,fullName:user.fullName,gameId:active,score:correct?10:0,accuracy:correct?100:0,streak:nextStreak,bestScore:nextScore,metadata:{dailyKey:new Date().toISOString().slice(0,10)}})}).catch(()=>{});
   }
   function uploadPersonal(event: ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file) return; if (personalUrl) URL.revokeObjectURL(personalUrl); setPersonalUrl(URL.createObjectURL(file)); setPersonalName(file.name); }
   function resetGame() { setToneAnswer(null); setEqAnswer(null); setPhaseAnswer(null); setCompressorAnswer(null); }
