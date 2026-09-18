@@ -87,7 +87,7 @@ export function DailyVoicingLab({ onBack }: { onBack: () => void }) {
           username: user.username,
           fullName: user.fullName,
           gameId: "voicing",
-          score: correct ? 25 : 0,
+          score: correct ? 25 : -5,
           accuracy: correct ? 100 : 0,
           streak: correct ? 1 : 0,
           bestScore: correct ? 25 : 0,
@@ -140,7 +140,7 @@ export function DailyVoicingLab({ onBack }: { onBack: () => void }) {
           </div>
           <div className="rounded-2xl border border-white/10 bg-black/20 p-5"><p className="text-xs text-ink-500">کاربرد حرفه‌ای</p><p className="mt-3 text-sm leading-8 text-sand-100">{voicing.tip}</p><div className="mt-4 rounded-xl border border-gold-400/15 bg-gold-400/[.06] p-4"><span className="text-[11px] text-gold-300">در تنظیم استفاده کن</span><p className="mt-1 text-sm text-ink-200">{voicing.use}</p></div></div>
         </div>
-        <div className="mt-5 rounded-2xl border border-cyan-400/15 bg-cyan-400/[.05] p-5"><div className="flex items-center gap-2"><Sparkles size={16} className="text-cyan-200" /><strong className="text-sm text-sand-50">تمرین شنیداری امروز</strong></div><p className="mt-3 text-sm leading-7 text-ink-300">بدون نگاه کردن به جواب، کیفیت آکورد را از روی voicing حدس بزن.</p><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{choices.map((choice) => <button key={choice} type="button" disabled={showAnswer} onClick={() => answerVoicing(choice)} className={`rounded-xl border px-3 py-3 text-xs transition ${showAnswer && choice === voicing.quality ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-100" : picked === choice ? "border-red-400/50 bg-red-400/10 text-red-100" : "border-white/10 text-ink-200 hover:border-gold-400/40"}`} dir="ltr">{choice}</button>)}</div>{showAnswer && <p className="mt-4 flex items-center gap-2 text-sm text-emerald-200"><Check size={15} /> پاسخ امروز: {voicing.quality} · این رکورد در گزارش استفاده ثبت شد.</p>}</div>
+        <div className="mt-5 rounded-2xl border border-cyan-400/15 bg-cyan-400/[.05] p-5"><div className="flex items-center gap-2"><Sparkles size={16} className="text-cyan-200" /><strong className="text-sm text-sand-50">تمرین شنیداری امروز</strong></div><p className="mt-3 text-sm leading-7 text-ink-300">بدون نگاه کردن به جواب، کیفیت آکورد را از روی voicing حدس بزن.</p><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{choices.map((choice) => <button key={choice} type="button" disabled={showAnswer} onClick={() => answerVoicing(choice)} className={`rounded-xl border px-3 py-3 text-xs transition ${showAnswer && choice === voicing.quality ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-100" : picked === choice ? "border-red-400/50 bg-red-400/10 text-red-100" : "border-white/10 text-ink-200 hover:border-gold-400/40"}`} dir="ltr">{choice}</button>)}</div>{showAnswer && <p className={`mt-4 flex items-center gap-2 text-sm ${picked === voicing.quality ? "text-emerald-200" : "text-red-200"}`}><Check size={15} /> {picked === voicing.quality ? "درست — +25 امتیاز." : "نادرست — 5- امتیاز."} پاسخ امروز: {voicing.quality} · این رکورد در گزارش استفاده ثبت شد.</p></div>
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-ink-500"><span>این تمرین بر اساس تاریخ روز انتخاب می‌شود و تکرار همان روز ندارد.</span>{showAnswer && <button type="button" className="btn-ghost !px-3 !py-2 text-xs" onClick={() => { setPicked(null); setShowAnswer(false); }}><RotateCcw size={13} /> مرور دوباره</button>}</div>
       </div>
     </section>
