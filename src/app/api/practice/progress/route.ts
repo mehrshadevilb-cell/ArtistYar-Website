@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
-const MEMBER_DAILY_STAGES = 15;
+const MEMBER_DAILY_STAGES = 5;\nconst PRO_DAILY_STAGES = 40;
 
 async function dailyUsage(userId: string, gameId: string) {
   if (!db) return 0;
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       user_id: String(body.userId).slice(0, 120),
       username: String(body.username).slice(0, 120),
       full_name: String(body.fullName || body.username).slice(0, 160),
-      game_id: String(body.gameId || "unknown").slice(0, 80),
+      game_id: gameId.slice(0, 80),
       score: Number(body.score) || 0,
       accuracy: Number(body.accuracy) || 0,
       streak: Number(body.streak) || 0,
