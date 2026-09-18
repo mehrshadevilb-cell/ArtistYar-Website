@@ -116,7 +116,7 @@ function toItem(row: Record<string, unknown>): MediaItem {
       : mime.startsWith("audio/") || ["mp3", "wav", "m4a", "ogg", "flac", "aac"].includes(ext)
         ? "audio"
         : "raw";
-  const resourceType = kind === "image" ? "image" : kind === "video" || kind === "audio" ? "video" : "raw";
+  const resourceType = kind === "image" ? "image" : kind === "video" ? "video" : "raw";
   return {
     id: String(row.id),
     publicId: String(row.storage_path),
@@ -170,7 +170,7 @@ export async function extractAudioTags(
     let cover_url: string | null = null;
     if (picture?.data?.length) {
       const b64 = Buffer.from(picture.data).toString("base64");
-      if (b64.length < 400_000) {
+      if (b64.length < 120_000) {
         const format = picture.format || "image/jpeg";
         cover_url = `data:${format};base64,${b64}`;
       }
@@ -192,7 +192,9 @@ export async function extractAudioTags(
       duration: parsed.format.duration ? Math.round(parsed.format.duration) : null,
       cover_url,
       tag_title: clean(parsed.common.title || ""),
-      cover_data: picture?.data?.length && picture.data.length < 300_000 ? Buffer.from(picture.data) : null,
+      // Keep embedded artwork up to 2 MB so normal high-resolution album covers are preserved.
+      // Larger artwork is intentionally skipped to avoid turning a media upload into a huge image upload.
+      cover_data: picture?.data?.length && picture.data.length <= 2_000_000 ? Buffer.from(picture.data) : null,
       cover_format: picture?.format || "image/jpeg",
     };
   } catch (error) {
@@ -359,6 +361,7 @@ export async function uploadMedia(input: {
     file_ext: ext,
     artist: audio.artist,
     genre: audio.genre,
+    album: audio.album,
     year: audio.year,
     duration: audio.duration,
     cover_url: audio.cover_url,
