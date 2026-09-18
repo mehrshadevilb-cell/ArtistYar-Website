@@ -66,9 +66,9 @@ export default function PracticeEngine() {
                 <Gamepad2 size={22} />
               </span>
               <span className="flex-1">
-                <span className="eyebrow">PRO</span>
+                <span className="eyebrow">PRACTICE</span>
                 <strong className="mt-1 block text-sand-50">Professional Audio Skills</strong>
-                <span className="text-xs text-ink-500">Reverb · Saturation · Masking · Transient</span>
+                <span className="text-xs text-ink-500">۵ مرحله رایگان · اشتراک = مدت اشتراک</span>
               </span>
             </button>
             <button type="button" className="card-ay flex items-center gap-4 p-5 text-right" onClick={() => setActive("theory")}>
