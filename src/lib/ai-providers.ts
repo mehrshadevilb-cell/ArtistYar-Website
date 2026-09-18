@@ -63,6 +63,8 @@ const MODEL_RANK: Record<string, number> = {
   "openai/gpt-4o-mini": 88,
   "anthropic/claude-3.5-sonnet": 99,
   "google/gemini-2.0-flash-001": 94,
+  "google/gemini-2.5-flash": 95,
+  "google/gemini-2.5-pro": 98,
   "meta-llama/llama-3.3-70b-instruct": 87,
 };
 
@@ -74,10 +76,21 @@ function rankForModel(id: string): number {
       return rank - 2;
     }
   }
-  // Prefer larger / newer-sounding names slightly
   if (/gpt-4|claude-3|gemini-2|llama-3\.3|70b|sonnet|pro/i.test(id)) return 80;
   if (/mini|flash|haiku|8b|instant/i.test(id)) return 60;
   return 40;
+}
+
+/** Drop non-chat / specialty models from discovery lists */
+function isChatCapableModel(id: string): boolean {
+  if (
+    /embed|whisper|tts|dall-e|moderation|realtime|audio|image|vision-preview|transcribe|sora|batch|search-preview|diarize|codex|computer-use|image-generation/i.test(
+      id,
+    )
+  ) {
+    return false;
+  }
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -180,7 +193,6 @@ export function getConfiguredProviders(): AIProvider[] {
     });
   }
 
-  // Optional centralized RahYar gateway (backend bot)
   const gw = gatewayUrl();
   const secret = gatewaySecret();
   if (gw && secret) {
@@ -241,9 +253,11 @@ const ANTHROPIC_FALLBACK_MODELS = [
 ];
 
 const GEMINI_FALLBACK_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
   "gemini-2.0-flash",
-  "gemini-1.5-pro",
   "gemini-1.5-flash",
+  "gemini-1.5-pro",
 ];
 
 export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
@@ -265,7 +279,6 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
     }
 
     if (provider.chatStyle === "anthropic") {
-      // Anthropic has no public models list endpoint for all accounts
       return ANTHROPIC_FALLBACK_MODELS.map((id) => ({
         id,
         provider: provider.id,
@@ -306,9 +319,9 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
               rank: rankForModel(raw),
             };
           })
-          .filter((m) => m.id && !/embedding|aqa|gecko/i.test(m.id)) || [];
+          .filter((m) => m.id && isChatCapableModel(m.id) && !/embedding|aqa|gecko/i.test(m.id)) || [];
       return models.length
-        ? models
+        ? models.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 20)
         : GEMINI_FALLBACK_MODELS.map((id) => ({
             id,
             provider: provider.id,
@@ -334,13 +347,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
     const list = (data?.data || [])
       .map((item) => (typeof item?.id === "string" ? item.id : ""))
       .filter(Boolean)
-      .filter((id) => {
-        // Keep chat-capable models; drop embeddings / whisper / tts / image
-        if (/embed|whisper|tts|dall-e|moderation|realtime|audio|image|vision-preview/i.test(id)) {
-          return false;
-        }
-        return true;
-      })
+      .filter(isChatCapableModel)
       .map((id) => ({
         id,
         provider: provider.id,
@@ -348,8 +355,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
         rank: rankForModel(id),
       }));
 
-    // Prefer higher-ranked models first, keep a reasonable set
-    return list.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 40);
+    return list.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 25);
   } catch {
     return [];
   }
@@ -402,7 +408,6 @@ async function chatOpenAICompatible(
     max_tokens: 2048,
   };
 
-  // OpenRouter extras
   const headers: Record<string, string> = {
     ...(authHeaders(provider) as Record<string, string>),
   };
@@ -606,8 +611,15 @@ export async function chatWithProvider(
   }
 }
 
+/** True when the provider account is unusable (billing, invalid key, quota). */
+function isProviderFatalError(message: string): boolean {
+  return /no credits|insufficient.?quota|billing|credit|payment|invalid.?api.?key|incorrect.?api.?key|authentication|unauthorized|401|403|permission.?denied|api key not valid/i.test(
+    message,
+  );
+}
+
 // ---------------------------------------------------------------------------
-// Auto-select best model across all configured providers
+// Auto-select best model — diversify across providers, skip broken accounts
 // ---------------------------------------------------------------------------
 export async function autoChat(
   messages: ChatMessage[],
@@ -622,7 +634,6 @@ export async function autoChat(
     );
   }
 
-  // Build candidate list: preferred first, then ranked discovery
   type Candidate = { provider: AIProvider; model: string; rank: number };
   const candidates: Candidate[] = [];
 
@@ -633,6 +644,7 @@ export async function autoChat(
     if (!provider) continue;
 
     for (const m of entry.models) {
+      if (!isChatCapableModel(m.id)) continue;
       candidates.push({
         provider,
         model: m.id,
@@ -640,12 +652,15 @@ export async function autoChat(
       });
     }
 
-    // If discovery returned nothing but provider is configured, try a safe default
     if (entry.models.length === 0 && provider.chatStyle !== "rahyar") {
       const defaults: Record<string, string[]> = {
         openai: ["gpt-4o-mini", "gpt-4o"],
         groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
-        openrouter: ["openai/gpt-4o-mini", "meta-llama/llama-3.3-70b-instruct"],
+        openrouter: [
+          "google/gemini-2.5-flash",
+          "openai/gpt-4o-mini",
+          "meta-llama/llama-3.3-70b-instruct",
+        ],
         anthropic: ANTHROPIC_FALLBACK_MODELS,
         google: GEMINI_FALLBACK_MODELS,
       };
@@ -659,7 +674,6 @@ export async function autoChat(
     }
   }
 
-  // Preferred explicit selection
   if (preferredProvider || preferredModel) {
     const preferred = candidates.filter((c) => {
       if (preferredProvider && c.provider.id !== preferredProvider) return false;
@@ -672,16 +686,32 @@ export async function autoChat(
     }
   }
 
-  // Dedupe by provider+model, keep highest rank order
+  // Deduplicate, then interleave providers so we don't burn all attempts on one dead account
   const seen = new Set<string>();
-  const ordered = candidates
-    .sort((a, b) => b.rank - a.rank)
-    .filter((c) => {
-      const key = `${c.provider.id}::${c.model}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+  const byProvider = new Map<string, Candidate[]>();
+  for (const c of candidates.sort((a, b) => b.rank - a.rank)) {
+    const key = `${c.provider.id}::${c.model}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const list = byProvider.get(c.provider.id) || [];
+    list.push(c);
+    byProvider.set(c.provider.id, list);
+  }
+
+  // Round-robin across providers (best model of each, then second-best, …)
+  const ordered: Candidate[] = [];
+  let depth = 0;
+  let added = true;
+  while (added && ordered.length < 24) {
+    added = false;
+    for (const list of byProvider.values()) {
+      if (depth < list.length) {
+        ordered.push(list[depth]);
+        added = true;
+      }
+    }
+    depth += 1;
+  }
 
   if (!ordered.length) {
     throw new Error(
@@ -690,11 +720,13 @@ export async function autoChat(
   }
 
   const errors: string[] = [];
+  const skippedProviders = new Set<string>();
+  const maxAttempts = Math.min(ordered.length, 10);
 
-  // Try top candidates (limit attempts to avoid long timeouts)
-  const maxAttempts = Math.min(ordered.length, 5);
   for (let i = 0; i < maxAttempts; i++) {
     const { provider, model } = ordered[i];
+    if (skippedProviders.has(provider.id)) continue;
+
     try {
       const reply = await chatWithProvider(
         provider,
@@ -710,10 +742,14 @@ export async function autoChat(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${provider.id}/${model}: ${msg}`);
+      // Billing / invalid key → skip entire provider for remaining attempts
+      if (isProviderFatalError(msg)) {
+        skippedProviders.add(provider.id);
+      }
     }
   }
 
   throw new Error(
-    `اتصال به مدل‌های هوش مصنوعی برقرار نشد. ${errors.slice(0, 3).join(" | ")}`,
+    `اتصال به مدل‌های هوش مصنوعی برقرار نشد. ${errors.slice(0, 4).join(" | ")}`,
   );
 }
