@@ -8,6 +8,7 @@ export type AIModel = {
   provider: string;
   task?: string;
   rank?: number;
+  accessTier?: string;
 };
 
 export type AIProvider = {
@@ -184,7 +185,7 @@ export function getConfiguredProviders(): AIProvider[] {
     env("AGENTROUTER_API_KEY") || env("AGENT_ROUTER_API_KEY"),
     env("AGENTROUTER_BASE_URL") ||
       env("AGENT_ROUTER_BASE_URL") ||
-      "https://agentrouter.org/v1",
+      "https://co.agentrouter.org/v1",
     [
       env("AGENTROUTER_MODEL") || "gpt-5.5",
       "kimi-k2.6",
@@ -456,7 +457,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
     }
 
     if (provider.chatStyle === "google") {
-      const url = `${provider.baseUrl}/models?key=${encodeURIComponent(provider.apiKey || "")}`;
+      const url = `${provider.baseUrl}/models`;
       const response = await fetch(url, {
         method: "GET",
         cache: "no-store",
@@ -519,13 +520,15 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       )
       .map((entry) => entry.id);
 
-    const list = rawIds
-      .filter(isChatCapableModelStrict)
-      .map((id) => ({
-        id,
+    const list = rawEntries
+      .filter((entry) => rawIds.includes(entry.id))
+      .filter((entry) => isChatCapableModelStrict(entry.id))
+      .map((entry) => ({
+        id: entry.id,
         provider: provider.id,
         task: "chat" as const,
-        rank: rankForModel(id),
+        accessTier: entry.tier,
+        rank: rankForModel(entry.id) + (entry.tier === "free" ? 35 : entry.tier === "paid" ? 10 : 0),
       }));
 
     if (list.length) {
@@ -759,7 +762,7 @@ export async function chatWithProvider(
 }
 
 function isModelAccessError(message: string): boolean {
-  return /premium model|requires an active paid plan|requires .*balance|plan .*allows|model .*not available|model .*unavailable|permission.?denied.*model|model.*permission/i.test(message);
+  return /premium model|requires an active paid plan|requires .*balance|plan .*allows|model .*not available|model .*unavailable|model .*not found|unknown model|unsupported model|permission.?denied.*model|model.*permission/i.test(message);
 }
 
 function isProviderFatalError(message: string): boolean {
