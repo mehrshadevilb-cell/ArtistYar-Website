@@ -5,6 +5,7 @@ import { PanelShell } from "@/components/PanelShell";
 const nav = [
   { href: "/admin", label: "گزارش امروز" },
   { href: "/admin/payments", label: "پرداخت‌ها" },
+  { href: "/admin/practice/subscriptions", label: "اشتراک Practice Pro" },
   { href: "/admin/reservations", label: "رزروها" },
   { href: "/admin/videos", label: "مدیریت ویدیوها" },
   { href: "/admin/students", label: "هنرجویان" },
