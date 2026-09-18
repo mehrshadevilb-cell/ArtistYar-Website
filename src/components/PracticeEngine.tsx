@@ -63,101 +63,154 @@ function formatHz(v: number) {
 
 let sharedAudioContext: AudioContext | null = null;
 
-async function getAudioContext() {
+function getAudioContext() {
   if (typeof window === "undefined") return null;
-  const AC = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const AC =
+    window.AudioContext ||
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AC) return null;
   sharedAudioContext ||= new AC();
-  if (sharedAudioContext.state === "suspended") await sharedAudioContext.resume();
+  if (sharedAudioContext.state === "suspended") void sharedAudioContext.resume();
   return sharedAudioContext;
 }
 
-function playTone(frequency: number, duration = 1.15, pan = 0) {
-  void (async () => {
-    const ctx = await getAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
+function createImpulseLikeSource(ctx: AudioContext, duration: number, seed = 1) {
+  const length = Math.floor(ctx.sampleRate * duration);
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let state = Math.max(1, Math.floor(seed * 1000003));
+  for (let i = 0; i < length; i++) {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    const noise = (state / 4294967296) * 2 - 1;
+    const t = i / ctx.sampleRate;
+    const env = Math.exp(-t * 7.5);
+    data[i] = noise * env * 0.8;
+  }
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  return source;
+}
+
+function playTone(frequency: number, duration = 1.35) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime + 0.02;
+  const out = ctx.createGain();
+  const low = ctx.createBiquadFilter();
+  low.type = "lowpass";
+  low.frequency.value = Math.min(12000, Math.max(1200, frequency * 6));
+  out.gain.setValueAtTime(0.0001, now);
+  out.gain.exponentialRampToValueAtTime(0.16, now + 0.025);
+  out.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  low.connect(out).connect(ctx.destination);
+
+  // Fundamental + quiet harmonic structure makes frequency identification
+  // feel closer to a musical ear-training reference than a bare test oscillator.
+  [1, 2, 3].forEach((mult, index) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(frequency, now);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    if (panner) { panner.pan.value = Math.max(-1, Math.min(1, pan)); osc.connect(gain).connect(panner).connect(ctx.destination); }
-    else osc.connect(gain).connect(ctx.destination);
+    osc.type = index === 0 ? "sine" : "triangle";
+    osc.frequency.value = frequency * mult;
+    gain.gain.value = index === 0 ? 1 : index === 1 ? 0.18 : 0.06;
+    osc.connect(gain).connect(low);
     osc.start(now);
-    osc.stop(now + duration + 0.05);
-  })();
+    osc.stop(now + duration + 0.04);
+  });
 }
 
 function playEqDemo(centerHz: number, gainDb: number) {
-  void (async () => {
-    const ctx = await getAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const length = Math.floor(ctx.sampleRate * 1.6);
-    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < length; i++) {
-      const fade = Math.min(1, i / (ctx.sampleRate * 0.05), (length - i) / (ctx.sampleRate * 0.08));
-      data[i] = (Math.random() * 2 - 1) * 0.28 * Math.max(0, fade);
-    }
-    const src = ctx.createBufferSource();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
-    src.buffer = buffer;
-    filter.type = "peaking";
-    filter.frequency.setValueAtTime(centerHz, now);
-    filter.Q.setValueAtTime(1.2, now);
-    filter.gain.setValueAtTime(gainDb, now);
-    gain.gain.value = 0.32;
-    src.connect(filter).connect(gain).connect(ctx.destination);
-    src.start(now); src.stop(now + 1.6);
-  })();
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime + 0.02;
+  const duration = 2.15;
+  const source = createImpulseLikeSource(ctx, duration, centerHz);
+  const body = ctx.createBiquadFilter();
+  const eq = ctx.createBiquadFilter();
+  const out = ctx.createGain();
+
+  body.type = "bandpass";
+  body.frequency.value = 900;
+  body.Q.value = 0.7;
+  eq.type = "peaking";
+  eq.frequency.value = Math.max(60, Math.min(18000, centerHz));
+  eq.Q.value = 1.15;
+  eq.gain.value = Math.max(-12, Math.min(12, gainDb));
+  out.gain.value = 0.42;
+
+  source.connect(body).connect(eq).connect(out).connect(ctx.destination);
+  source.start(now);
+  source.stop(now + duration + 0.03);
 }
 
 function playCompressorDemo(params: Record<string, number | string>) {
-  void (async () => {
-    const ctx = await getAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const env = ctx.createGain();
-    const comp = ctx.createDynamicsCompressor();
-    const out = ctx.createGain();
-    comp.attack.setValueAtTime(Math.max(0.001, Number(params.attack) || 0.005), now);
-    comp.release.setValueAtTime(Math.max(0.03, Number(params.release) || 0.18), now);
-    comp.ratio.setValueAtTime(Math.max(1, Number(params.ratio) || 4), now);
-    comp.threshold.setValueAtTime(Number(params.threshold) || -24, now);
-    osc.type = "sawtooth"; osc.frequency.value = 180;
-    out.gain.setValueAtTime(0.0001, now);
-    out.gain.exponentialRampToValueAtTime(0.16, now + 0.04);
-    out.gain.exponentialRampToValueAtTime(0.0001, now + 1.25);
-    osc.connect(env).connect(comp).connect(out).connect(ctx.destination);
-    osc.start(now); osc.stop(now + 1.3);
-  })();
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime + 0.02;
+  const duration = 1.8;
+  const comp = ctx.createDynamicsCompressor();
+  const out = ctx.createGain();
+  const source = createImpulseLikeSource(ctx, duration, Number(params.ratio) || 4);
+
+  comp.attack.value = Math.max(0.001, Math.min(1, Number(params.attack) || 0.005));
+  comp.release.value = Math.max(0.03, Math.min(1, Number(params.release) || 0.18));
+  comp.ratio.value = Math.max(1, Math.min(20, Number(params.ratio) || 4));
+  comp.threshold.value = Math.max(-100, Math.min(0, Number(params.threshold) || -24));
+  comp.knee.value = 8;
+  out.gain.value = 0.48;
+
+  // Add a musical transient underneath the noise burst so attack/release
+  // differences are audible instead of sounding like a test beep.
+  const osc = ctx.createOscillator();
+  const env = ctx.createGain();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(95, now);
+  osc.frequency.exponentialRampToValueAtTime(55, now + 0.55);
+  env.gain.setValueAtTime(0.0001, now);
+  env.gain.exponentialRampToValueAtTime(0.8, now + 0.008);
+  env.gain.exponentialRampToValueAtTime(0.0001, now + 1.25);
+
+  const mix = ctx.createGain();
+  mix.gain.value = 0.38;
+  source.connect(mix);
+  osc.connect(env).connect(mix);
+  mix.connect(comp).connect(out).connect(ctx.destination);
+
+  source.start(now);
+  source.stop(now + duration);
+  osc.start(now);
+  osc.stop(now + 1.3);
 }
 
 function playPhaseDemo(phase: string) {
-  void (async () => {
-    const ctx = await getAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime, length = Math.floor(ctx.sampleRate * 1.4);
-    const buffer = ctx.createBuffer(2, length, ctx.sampleRate);
-    const left = buffer.getChannelData(0), right = buffer.getChannelData(1);
-    const inverted = phase === "inverted";
-    for (let i = 0; i < length; i++) {
-      const t = i / ctx.sampleRate;
-      const s = Math.sin(2 * Math.PI * 120 * t) * 0.55 + Math.sin(2 * Math.PI * 240 * t) * 0.22;
-      const fade = Math.min(1, i / (ctx.sampleRate * 0.04), (length - i) / (ctx.sampleRate * 0.08));
-      left[i] = s * fade; right[i] = (inverted ? -s : s) * fade;
-    }
-    const src = ctx.createBufferSource(), gain = ctx.createGain();
-    gain.gain.value = 0.24; src.buffer = buffer; src.connect(gain).connect(ctx.destination);
-    src.start(now); src.stop(now + 1.4);
-  })();
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime + 0.02;
+  const duration = 1.8;
+  const length = Math.floor(ctx.sampleRate * duration);
+  const buffer = ctx.createBuffer(2, length, ctx.sampleRate);
+  const left = buffer.getChannelData(0);
+  const right = buffer.getChannelData(1);
+  const inverted = phase === "inverted";
+
+  for (let i = 0; i < length; i++) {
+    const t = i / ctx.sampleRate;
+    const env = Math.min(1, i / (ctx.sampleRate * 0.035), (length - i) / (ctx.sampleRate * 0.12));
+    const kick = Math.sin(2 * Math.PI * (72 * Math.exp(-t * 2.2) + 42) * t) * Math.exp(-t * 2.5);
+    const mid = Math.sin(2 * Math.PI * 220 * t) * 0.22;
+    const side = Math.sin(2 * Math.PI * 430 * t) * 0.10;
+    const mono = (kick * 0.65 + mid + side) * env;
+    const stereo = Math.sin(2 * Math.PI * 0.65 * t) * 0.35;
+    left[i] = mono * (0.78 + stereo);
+    right[i] = mono * (inverted ? -(0.78 - stereo) : 0.78 - stereo);
+  }
+
+  const source = ctx.createBufferSource();
+  const out = ctx.createGain();
+  source.buffer = buffer;
+  out.gain.value = 0.34;
+  source.connect(out).connect(ctx.destination);
+  source.start(now);
+  source.stop(now + duration);
 }
 
 export default function PracticeEngine() {
