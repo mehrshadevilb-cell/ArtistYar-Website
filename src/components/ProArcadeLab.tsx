@@ -339,6 +339,13 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
   const stageNumber = round + 1;
   const stageLocked = !checking && stageNumber > stageLimit;
 
+  const tier = tierFromXp(xp, round);
+  const question = useMemo(() => {
+    if (!skill) return null;
+    const skillSeed = SKILLS.findIndex((item) => item.id === skill) + 1;
+    return pickQuestion(skill, tierFromXp(xp, round), round * 97 + skillSeed * 131);
+  }, [skill, round, xp]);
+
   const choose = useCallback(
     async (opt: string) => {
       if (!question || picked) return;
