@@ -18,6 +18,9 @@ import {
   type SessionUser,
 } from "@/lib/auth";
 
+type TelegramWebApp = { initData: string; ready?: () => void; expand?: () => void };
+declare global { interface Window { Telegram?: { WebApp?: TelegramWebApp } } }
+
 type AuthContextValue = {
   user: SessionUser | null;
   ready: boolean;
@@ -42,7 +45,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
+
+    const authenticateTelegram = async () => {
+      if (typeof window === "undefined") return false;
+      const webApp = window.Telegram?.WebApp;
+      if (!webApp?.initData) return false;
+      webApp.ready?.();
+      webApp.expand?.();
+      try {
+        const response = await fetch("/api/auth/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ initData: webApp.initData }),
+          cache: "no-store",
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!cancelled && data?.authenticated && data.user) {
+          saveSession(data.user);
+          setUser(data.user);
+          return true;
+        }
+      } catch { /* Fall through to normal session/local auth. */ }
+      return false;
+    };
+
+    const load = async () => {
+      // Telegram injects the WebApp object only inside its Mini App WebView.
+      // Load the SDK first so direct Telegram launches are recognized reliably.
+      if (!window.Telegram?.WebApp) {
+        await new Promise<void>((resolve) => {
+          const existing = document.querySelector('script[data-telegram-webapp]');
+          if (existing) { existing.addEventListener("load", () => resolve(), { once: true }); return; }
+          const script = document.createElement("script");
+          script.src = "https://telegram.org/js/telegram-web-app.js";
+          script.async = true;
+          script.dataset.telegramWebapp = "1";
+          script.onload = () => resolve();
+          script.onerror = () => resolve();
+          document.head.appendChild(script);
+        });
+      }
+      if (await authenticateTelegram()) return;
+
+      fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
       .then(async (response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (cancelled) return;
@@ -71,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => {
         if (!cancelled) setReady(true);
       });
+    load();
     return () => {
       cancelled = true;
     };
