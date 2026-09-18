@@ -108,7 +108,7 @@ export async function runMultiAgent(task:string, context="", maxAgents=12) {
   const successful:AgentResult[]=[];
 
   for (let offset=0; offset<pool.length && successful.length < Math.max(2, Math.min(maxAgents, 4)); offset+=8) {
-    const wave=pool.slice(offset, offset+6).filter(c=>!failedProviders.has(c.provider.id));
+    const wave=pool.slice(offset, offset+8).filter(c=>!failedProviders.has(c.provider.id));
     if(!wave.length) continue;
     const waveResults=await Promise.all(wave.map(c=>ask(c.provider,c.model,task,context)));
     results.push(...waveResults);
