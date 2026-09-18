@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import type { LiveProduct } from "@/components/LiveProductCard";
 import { SectionHeading } from "@/components/SectionHeading";
 import { StatusChip } from "@/components/StatusChip";
+import { CommunityLinks } from "@/components/CommunityLinks";
+import { SafeLink } from "@/components/SafeLink";
 
 function slugify(title: string): string {
   return title
@@ -46,7 +47,7 @@ export default function CoursesPage() {
   }, []);
 
   return (
-    <section className="container-ay py-16 sm:py-20">
+    <section className="container-ay py-14 sm:py-16">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <SectionHeading
           eyebrow="محصولات آکادمی راه‌یار"
@@ -63,7 +64,10 @@ export default function CoursesPage() {
           const slug = slugify(item.title);
           const key = item.id > 0 ? String(item.id) : `fallback-${slug}`;
           return (
-            <article key={key} className="card-ay group flex h-full flex-col overflow-hidden transition hover:border-gold-500/25 hover:bg-white/[.035]">
+            <article
+              key={key}
+              className="card-ay group flex h-full flex-col overflow-hidden transition hover:border-gold-500/25 hover:bg-white/[.035]"
+            >
               <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[.06]">
                 {item.thumbnail ? (
                   <Image
@@ -77,7 +81,9 @@ export default function CoursesPage() {
                   />
                 ) : (
                   <div className={`flex h-full w-full items-end justify-between bg-gradient-to-br p-5 ${coverTone(item.title)}`}>
-                    <span className="text-4xl font-semibold tracking-tight text-sand-50/90">{item.title.replace(/\s+/g, "").slice(0, 1)}</span>
+                    <span className="text-4xl font-semibold tracking-tight text-sand-50/90">
+                      {item.title.replace(/\s+/g, "").slice(0, 1)}
+                    </span>
                     <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] text-ink-300 backdrop-blur-sm">
                       {item.delivery_type === "telegram" ? "تلگرام" : "دیجیتال"}
                     </span>
@@ -88,19 +94,27 @@ export default function CoursesPage() {
               <div className="flex flex-1 flex-col p-4 sm:p-6">
                 <div className="flex items-start justify-between gap-3">
                   <StatusChip tone="gold">{item.delivery_type === "telegram" ? "کانال تلگرام" : "دوره دیجیتال"}</StatusChip>
-                  <StatusChip tone={item.is_active === false ? "warn" : "ok"}>{item.is_active === false ? "غیرفعال" : "فعال"}</StatusChip>
+                  <StatusChip tone={item.is_active === false ? "warn" : "ok"}>
+                    {item.is_active === false ? "غیرفعال" : "فعال"}
+                  </StatusChip>
                 </div>
                 <h2 className="mt-4 text-lg font-semibold tracking-tight text-sand-50 sm:text-xl">{item.title}</h2>
                 <p className="mt-3 flex-1 text-sm leading-7 text-ink-400">
-                  {item.description || "برای دیدن توضیحات کامل، سرفصل‌ها و نحوه دریافت دسترسی وارد صفحه اختصاصی محصول شو."}
+                  {item.description ||
+                    "برای دیدن توضیحات کامل، سرفصل‌ها و نحوه دریافت دسترسی وارد صفحه اختصاصی محصول شو."}
                 </p>
                 <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/[.06] pt-4">
                   <span className="text-sm font-medium text-gold-400">
                     {item.price > 0 ? `${item.price.toLocaleString("fa-IR")} تومان` : "تماس بگیرید"}
                   </span>
-                  <Link href={`/courses/${slug}`} className="btn-ghost min-h-11 !px-4 !py-2.5 text-center text-xs" aria-label={`مشاهده صفحه ${item.title}`}>
+                  <SafeLink
+                    href={`/courses/${slug}`}
+                    hard
+                    className="btn-ghost min-h-11 !px-4 !py-2.5 text-center text-xs"
+                    ariaLabel={`مشاهده صفحه ${item.title}`}
+                  >
                     مشاهده مسیر
-                  </Link>
+                  </SafeLink>
                 </div>
               </div>
             </article>
@@ -108,7 +122,27 @@ export default function CoursesPage() {
         })}
       </div>
 
-      {!items.length && source === "در حال بارگذاری…" ? <div className="py-20 text-center text-sm text-ink-500">در حال دریافت محصولات…</div> : null}
+      {!items.length && source === "در حال بارگذاری…" ? (
+        <div className="py-20 text-center text-sm text-ink-500">در حال دریافت محصولات…</div>
+      ) : null}
+
+      {!items.length && source !== "در حال بارگذاری…" ? (
+        <div className="card-ay mx-auto mt-10 max-w-lg p-8 text-center">
+          <p className="text-sm text-ink-300">
+            فعلاً لیست مسیرها در دسترس نیست. از لینک‌های جامعه استفاده کن یا کمی بعد دوباره تلاش کن.
+          </p>
+          <div className="mt-6">
+            <CommunityLinks variant="pills" className="justify-center" />
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-16 border-t border-white/[0.06] pt-12">
+        <CommunityLinks
+          title="بعد از انتخاب مسیر"
+          subtitle="برای ابزار، سؤال عمومی و نمونه‌های کوتاه این لینک‌ها همیشه در دسترس‌اند."
+        />
+      </div>
     </section>
   );
 }
