@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   const start = new Date(`${dayKey()}T00:00:00.000Z`);
   const end = new Date(start.getTime() + 86400000);
-  const { data: rows, error } = await db.from("practice_records").select("id").eq("user_id", userId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
+  const { data: rows, error } = await db.from("practice_records").select("id").eq("user_id", userId).eq("game_id", gameId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
   const used = rows?.length || 0;
   if (used >= MEMBER_DAILY_STAGES) return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit: MEMBER_DAILY_STAGES, used, remaining: 0 }, { status: 429 });
