@@ -223,6 +223,51 @@ async function inspectAudio(
   return tags;
 }
 
+const OPTIONAL_METADATA_FIELDS = ["artist", "album", "genre", "year", "duration", "cover_url"] as const;
+
+function isMissingSchemaColumn(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /could not find the [^\n]* column|column .* does not exist|schema cache/i.test(message);
+}
+
+function withoutOptionalMetadata(payload: Record<string, unknown>): Record<string, unknown> {
+  const core = { ...payload };
+  for (const field of OPTIONAL_METADATA_FIELDS) delete core[field];
+  return core;
+}
+
+async function insertMediaAsset(payload: Record<string, unknown>) {
+  let result = await supabase!.from("media_assets").insert(payload).select().single();
+  if (result.error && isMissingSchemaColumn(result.error)) {
+    console.warn("media_assets schema is missing optional metadata columns; retrying with core columns");
+    result = await supabase!.from("media_assets").insert(withoutOptionalMetadata(payload)).select().single();
+  }
+  return result;
+}
+
+async function upsertMediaAsset(payload: Record<string, unknown>) {
+  let result = await supabase!.from("media_assets").upsert(payload, { onConflict: "storage_path" }).select().single();
+  if (result.error && isMissingSchemaColumn(result.error)) {
+    console.warn("media_assets schema is missing optional metadata columns; retrying with core columns");
+    result = await supabase!.from("media_assets").upsert(withoutOptionalMetadata(payload), { onConflict: "storage_path" }).select().single();
+  }
+  return result;
+}
+
+async function updateMediaAsset(publicId: string, payload: Record<string, unknown>) {
+  let result = await supabase!.from("media_assets").update(payload).eq("storage_path", publicId).select().single();
+  if (result.error && isMissingSchemaColumn(result.error)) {
+    console.warn("media_assets schema is missing optional metadata columns; retrying tag update with core columns");
+    result = await supabase!
+      .from("media_assets")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("storage_path", publicId)
+      .select()
+      .single();
+  }
+  return result;
+}
+
 function storageFolderForCategory(category: MediaCategory): string {
   if (category === "prodby-mehrshad") return "ProdBy Mehrshad";
   return category;
@@ -253,30 +298,26 @@ export async function uploadMedia(input: {
   const finalTitle =
     input.title.trim().length >= 3 ? input.title.trim().slice(0, 200) : audio.tag_title.slice(0, 200) || input.filename;
 
-  const inserted = await supabase
-    .from("media_assets")
-    .insert({
-      storage_path: path,
-      public_url: publicUrl,
-      title: finalTitle,
-      description: input.description.trim().slice(0, 1000),
-      category: input.category,
-      mime_type: input.mimeType,
-      file_ext: ext,
-      artist: audio.artist,
-      genre: audio.genre,
-      year: audio.year,
-      duration: audio.duration,
-      cover_url: audio.cover_url,
-      consent: input.consent,
-      status: "published",
-    })
-    .select()
-    .single();
+  const inserted = await insertMediaAsset({
+    storage_path: path,
+    public_url: publicUrl,
+    title: finalTitle,
+    description: input.description.trim().slice(0, 1000),
+    category: input.category,
+    mime_type: input.mimeType,
+    file_ext: ext,
+    artist: audio.artist,
+    genre: audio.genre,
+    year: audio.year,
+    duration: audio.duration,
+    cover_url: audio.cover_url,
+    consent: input.consent,
+    status: "published",
+  });
 
   if (inserted.error) {
     await supabase.storage.from(bucket).remove([path]);
-    throw new Error(inserted.error.message);
+    throw new SupabaseOperationError("media_register", inserted.error);
   }
   return toItem(inserted.data);
 }
@@ -342,29 +383,22 @@ export async function registerExistingMedia(input: {
   const finalTitle =
     input.title.trim().length >= 3 ? input.title.trim().slice(0, 200) : audio.tag_title.slice(0, 200) || input.publicId;
 
-  const result = await supabase
-    .from("media_assets")
-    .upsert(
-      {
-        storage_path: input.publicId,
-        public_url: publicUrl,
-        title: finalTitle,
-        description: input.description.trim().slice(0, 1000),
-        category: input.category,
-        mime_type: input.mimeType,
-        file_ext: ext,
-        artist: audio.artist,
-        genre: audio.genre,
-        year: audio.year,
-        duration: audio.duration,
-        cover_url: audio.cover_url,
-        consent: input.consent,
-        status: "published",
-      },
-      { onConflict: "storage_path" },
-    )
-    .select()
-    .single();
+  const result = await upsertMediaAsset({
+    storage_path: input.publicId,
+    public_url: publicUrl,
+    title: finalTitle,
+    description: input.description.trim().slice(0, 1000),
+    category: input.category,
+    mime_type: input.mimeType,
+    file_ext: ext,
+    artist: audio.artist,
+    genre: audio.genre,
+    year: audio.year,
+    duration: audio.duration,
+    cover_url: audio.cover_url,
+    consent: input.consent,
+    status: "published",
+  });
   if (result.error) throw new SupabaseOperationError("media_register", result.error);
   return toItem(result.data);
 }
@@ -386,19 +420,14 @@ export async function refreshMediaTags(publicId: string): Promise<MediaItem> {
   const buffer = Buffer.from(await downloaded.data.arrayBuffer());
   const audio = await inspectAudio(buffer, mimeType, folder);
 
-  const result = await supabase
-    .from("media_assets")
-    .update({
-      artist: audio.artist,
-      genre: audio.genre,
-      year: audio.year,
-      duration: audio.duration,
-      cover_url: audio.cover_url,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("storage_path", publicId)
-    .select()
-    .single();
+  const result = await updateMediaAsset(publicId, {
+    artist: audio.artist,
+    genre: audio.genre,
+    year: audio.year,
+    duration: audio.duration,
+    cover_url: audio.cover_url,
+    updated_at: new Date().toISOString(),
+  });
 
   if (result.error) throw new SupabaseOperationError("media_tag_update", result.error);
   return toItem(result.data);
