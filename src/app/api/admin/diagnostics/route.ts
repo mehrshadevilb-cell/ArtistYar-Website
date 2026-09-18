@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-auth";
 import { backendBase } from "@/lib/admin-proxy";
-import { hasSupabase } from "@/lib/supabase-media";
+import { hasSupabase, probeMediaConnection } from "@/lib/supabase-media";
+import { getSupabaseErrorDetails } from "@/lib/supabase-error";
 import { getConfiguredProviders } from "@/lib/ai-providers";
 
 export const runtime = "nodejs";
@@ -58,9 +59,29 @@ export async function GET() {
     label: "Supabase (آپلود محتوا)",
     ok: hasSupabase(),
     detail: hasSupabase()
-      ? "SUPABASE_URL + SECRET ست شده"
+      ? "SUPABASE_URL + کلید سروری ست شده؛ Upload Token لازم نیست"
       : "SUPABASE_URL / SUPABASE_SECRET_KEY ست نیست — آپلود محتوا کار نمی‌کند",
   });
+
+  if (hasSupabase()) {
+    try {
+      const media = await probeMediaConnection();
+      checks.push({
+        id: "supabase_storage",
+        label: "Supabase Storage و جدول رسانه",
+        ok: true,
+        detail: `${media.bucket} آماده است و عمومی: ${media.bucketPublic ? "بله" : "خیر"}`,
+      });
+    } catch (error) {
+      const details = getSupabaseErrorDetails(error);
+      checks.push({
+        id: "supabase_storage",
+        label: "Supabase Storage و جدول رسانه",
+        ok: false,
+        detail: `${details.code}: ${details.message}`,
+      });
+    }
+  }
 
   const providers = getConfiguredProviders();
   checks.push({

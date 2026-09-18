@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { parseBuffer } from "music-metadata";
+import { SupabaseOperationError } from "./supabase-error";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -53,6 +54,18 @@ const STORAGE_FOLDERS = ["", "student-work", "free-training", "ProdBy Mehrshad",
 
 export function hasSupabase(): boolean {
   return configured;
+}
+
+export async function probeMediaConnection(): Promise<{ bucket: string; bucketPublic: boolean }> {
+  if (!supabase) throw new Error("supabase_not_configured");
+
+  const bucketResult = await supabase.storage.getBucket(bucket);
+  if (bucketResult.error) throw new SupabaseOperationError("bucket_probe", bucketResult.error);
+
+  const tableResult = await supabase.from("media_assets").select("id").limit(1);
+  if (tableResult.error) throw new SupabaseOperationError("media_table_probe", tableResult.error);
+
+  return { bucket, bucketPublic: Boolean(bucketResult.data.public) };
 }
 
 export function normalizeCategory(value: unknown): MediaCategory | null {
@@ -225,7 +238,7 @@ export async function uploadMedia(input: {
     upsert: false,
     cacheControl: "31536000",
   });
-  if (upload.error) throw new Error(upload.error.message);
+  if (upload.error) throw new SupabaseOperationError("media_upload", upload.error);
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
 
   const audio = await inspectAudio(input.buffer, input.mimeType, folder);
@@ -268,7 +281,7 @@ export async function listPublishedMedia(): Promise<MediaItem[]> {
     .eq("status", "published")
     .order("created_at", { ascending: false })
     .limit(200);
-  if (result.error) throw new Error(result.error.message);
+  if (result.error) throw new SupabaseOperationError("media_list", result.error);
   return (result.data || []).map((row) => toItem(row));
 }
 
@@ -314,7 +327,7 @@ export async function registerExistingMedia(input: {
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(input.publicId).data.publicUrl;
   const ext = input.publicId.toLowerCase().split(".").pop() || "bin";
   const downloaded = await supabase.storage.from(bucket).download(input.publicId);
-  if (downloaded.error) throw new Error(downloaded.error.message);
+  if (downloaded.error) throw new SupabaseOperationError("media_download", downloaded.error);
   const buffer = Buffer.from(await downloaded.data.arrayBuffer());
   const folder = storageFolderForCategory(input.category);
   const audio = await inspectAudio(buffer, input.mimeType, folder);
@@ -344,7 +357,7 @@ export async function registerExistingMedia(input: {
     )
     .select()
     .single();
-  if (result.error) throw new Error(result.error.message);
+  if (result.error) throw new SupabaseOperationError("media_register", result.error);
   return toItem(result.data);
 }
 
@@ -353,7 +366,7 @@ export async function refreshMediaTags(publicId: string): Promise<MediaItem> {
   if (!supabase) throw new Error("supabase_not_configured");
 
   const existing = await supabase.from("media_assets").select("*").eq("storage_path", publicId).maybeSingle();
-  if (existing.error) throw new Error(existing.error.message);
+  if (existing.error) throw new SupabaseOperationError("media_lookup", existing.error);
   if (!existing.data) throw new Error("media_not_found");
 
   const mimeType = String(existing.data.mime_type || "audio/mpeg");
@@ -361,7 +374,7 @@ export async function refreshMediaTags(publicId: string): Promise<MediaItem> {
   const folder = storageFolderForCategory(category);
 
   const downloaded = await supabase.storage.from(bucket).download(publicId);
-  if (downloaded.error) throw new Error(downloaded.error.message);
+  if (downloaded.error) throw new SupabaseOperationError("media_download", downloaded.error);
   const buffer = Buffer.from(await downloaded.data.arrayBuffer());
   const audio = await inspectAudio(buffer, mimeType, folder);
 
@@ -379,7 +392,7 @@ export async function refreshMediaTags(publicId: string): Promise<MediaItem> {
     .select()
     .single();
 
-  if (result.error) throw new Error(result.error.message);
+  if (result.error) throw new SupabaseOperationError("media_tag_update", result.error);
   return toItem(result.data);
 }
 
@@ -395,14 +408,14 @@ export async function updateMedia(input: { publicId: string; title: string; desc
     .eq("storage_path", input.publicId)
     .select()
     .single();
-  if (result.error) throw new Error(result.error.message);
+  if (result.error) throw new SupabaseOperationError("media_update", result.error);
   return toItem(result.data);
 }
 
 export async function deleteMedia(publicId: string) {
   if (!supabase) throw new Error("supabase_not_configured");
   const removed = await supabase.storage.from(bucket).remove([publicId]);
-  if (removed.error) throw new Error(removed.error.message);
+  if (removed.error) throw new SupabaseOperationError("media_delete_file", removed.error);
   const result = await supabase.from("media_assets").delete().eq("storage_path", publicId);
-  if (result.error) throw new Error(result.error.message);
+  if (result.error) throw new SupabaseOperationError("media_delete_record", result.error);
 }

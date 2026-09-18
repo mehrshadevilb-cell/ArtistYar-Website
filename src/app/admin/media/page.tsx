@@ -14,6 +14,7 @@ type MediaItem = {
   artist?: string;
 };
 type StorageItem = { path: string; name: string; mimeType: string; size: number; createdAt: string; url: string };
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
 function categoryLabel(category: string) {
   if (category === "student-work") return "نمونه‌کار هنرجو";
@@ -35,8 +36,10 @@ async function readApiResponse(response: Response): Promise<Record<string, any>>
   } catch {
     throw new Error(
       response.status === 413
-        ? "حجم فایل از محدودیت سرور بیشتر است."
-        : `پاسخ نامعتبر از سرور دریافت شد (${response.status}).`,
+        ? "حجم فایل از محدودیت سرور بیشتر است؛ فایل کوچک‌تر از ۵۰ مگابایت انتخاب کن."
+        : response.status === 502
+          ? "سرور نتوانست به Supabase پاسخ معتبر بدهد. از بخش «سیستم» در diagnostics اتصال Storage و جدول media_assets را بررسی کن."
+          : `پاسخ نامعتبر از سرور دریافت شد (${response.status}).`,
     );
   }
 }
@@ -170,6 +173,12 @@ export default function AdminMediaPage() {
     const formEl = event.currentTarget;
     const form = new FormData(formEl);
     form.set("consent", form.get("consent") === "on" ? "true" : "false");
+    const selectedFile = form.get("file");
+    if (selectedFile instanceof File && selectedFile.size > MAX_FILE_SIZE_BYTES) {
+      setError("حجم فایل باید حداکثر ۵۰ مگابایت باشد.");
+      setBusy(false);
+      return;
+    }
     try {
       const response = await fetch("/api/media", {
         method: "POST",
@@ -256,7 +265,7 @@ export default function AdminMediaPage() {
         <p className="eyebrow">/ مدیریت محتوا</p>
         <h2 className="mt-3 text-2xl font-semibold text-sand-50">آپلود و مدیریت رسانه</h2>
         <p className="mt-2 max-w-2xl text-sm leading-7 text-ink-400">
-          آپلود با نشست ادمین انجام می‌شود. برای کار کردن باید روی Render این envها ست باشد:{" "}
+          آپلود بدون Upload Token و فقط با نشست ادمین انجام می‌شود. کلید Supabase فقط روی سرور خوانده می‌شود؛ روی Render این envها باید ست باشند:{" "}
           <code className="text-gold-400">SUPABASE_URL</code>,{" "}
           <code className="text-gold-400">SUPABASE_SECRET_KEY</code>, و در صورت نیاز{" "}
           <code className="text-gold-400">SUPABASE_BUCKET</code>.

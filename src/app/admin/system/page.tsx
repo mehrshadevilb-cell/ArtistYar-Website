@@ -103,7 +103,7 @@ export default function AdminSystemPage() {
             <code className="text-gold-400">WEB_ADMIN_API_KEY</code> — باید با کلید backend راه‌یار یکی باشد
           </li>
           <li>
-            <code className="text-gold-400">SUPABASE_URL</code> + <code className="text-gold-400">SUPABASE_SECRET_KEY</code> — آپلود محتوا
+            <code className="text-gold-400">SUPABASE_URL</code> + <code className="text-gold-400">SUPABASE_SECRET_KEY</code> — آپلود مستقیم سروری؛ Upload Token لازم نیست
           </li>
           <li>
             <code className="text-gold-400">RAHYAR_API_URL</code> — آدرس backend زنده

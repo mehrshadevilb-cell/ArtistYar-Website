@@ -52,6 +52,8 @@ ARTISTYAR_SESSION_SECRET=یک_کلید تصادفی طولانی برای امض
 
 جدول `media_assets` را طبق `supabase/media_assets.sql` بساز (دسته‌ها: `student-work`, `free-training`, `prodby-mehrshad`).
 
+آپلود از خود پنل و از مسیر سرور انجام می‌شود و **Upload Token جداگانه لازم ندارد**؛ `SUPABASE_SECRET_KEY` فقط در env سرور Render قرار می‌گیرد و هرگز به مرورگر ارسال نمی‌شود. bucket باید عمومی باشد تا لینک‌های گالری قابل مشاهده باشند. برای بررسی اتصال واقعی bucket و جدول، از `/admin/system` بخش diagnostics استفاده کن.
+
 اگر ویرایش عنوان/توضیح ذخیره نمی‌شود، اتصال Supabase، نام bucket، اجرای `supabase/media_assets.sql` و مقدار `ARTISTYAR_SESSION_SECRET` را بررسی کن؛ سپس deploy جدید سایت را تأیید کن.
 
 ## لایسنس‌های SpotPlayer

@@ -12,8 +12,8 @@ import {
   uploadMedia,
   type MediaCategory,
 } from "@/lib/supabase-media";
-import { ensureMediaBucket } from "@/lib/supabase-storage";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-auth";
+import { supabaseErrorHttpStatus, supabaseErrorPayload } from "@/lib/supabase-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,8 +26,9 @@ async function authorized(): Promise<boolean> {
   return Boolean(verifyAdminSession(session));
 }
 
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message.slice(0, 240) : fallback;
+function errorResponse(error: unknown, fallback: string, operation: string): NextResponse {
+  console.error(`supabase media ${operation} failed`, error);
+  return NextResponse.json(supabaseErrorPayload(error, fallback), { status: supabaseErrorHttpStatus(error) });
 }
 
 export async function GET(request: Request) {
@@ -44,11 +45,8 @@ export async function GET(request: Request) {
       { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } },
     );
   } catch (error) {
-    console.error("supabase media list failed", error);
-    return NextResponse.json(
-      { configured: true, items: [], error: `Supabase: ${errorMessage(error, "دریافت محتوای منتشرشده ناموفق بود.")}` },
-      { status: 502 },
-    );
+    const payload = supabaseErrorPayload(error, "دریافت محتوای منتشرشده ناموفق بود.");
+    return NextResponse.json({ configured: true, items: [], ...payload }, { status: supabaseErrorHttpStatus(error) });
   }
 }
 
@@ -56,7 +54,10 @@ export async function POST(request: Request) {
   if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
-    await ensureMediaBucket();
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > MAX_FILE_SIZE + 1024 * 1024) {
+      return NextResponse.json({ ok: false, error: "حجم درخواست از سقف ۵۰ مگابایت بیشتر است." }, { status: 413 });
+    }
     const form = await request.formData();
     const file = form.get("file");
     const title = String(form.get("title") || "").trim();
@@ -82,8 +83,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ ok: true, item, message: "محتوا با موفقیت در Supabase آپلود و منتشر شد. تگ‌های MP3 و کاور استخراج شدند." });
   } catch (error) {
-    console.error("supabase media upload failed", error);
-    return NextResponse.json({ ok: false, error: `Supabase: ${errorMessage(error, "آپلود ناموفق بود.")}` }, { status: 502 });
+    return errorResponse(error, "آپلود در Supabase ناموفق بود.", "upload");
   }
 }
 
@@ -91,7 +91,6 @@ export async function PUT(request: Request) {
   if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
-    await ensureMediaBucket();
     const body = await request.json();
     const publicId = String(body.publicId || "").trim();
     const title = String(body.title || "").trim();
@@ -123,7 +122,7 @@ export async function PUT(request: Request) {
     const item = await updateMedia({ publicId, title, description });
     return NextResponse.json({ ok: true, item, message: "اطلاعات محتوا به‌روزرسانی شد." });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: `Supabase: ${errorMessage(error, "ویرایش ناموفق بود.")}` }, { status: 502 });
+    return errorResponse(error, "عملیات رسانه در Supabase ناموفق بود.", "update");
   }
 }
 
@@ -131,13 +130,12 @@ export async function DELETE(request: Request) {
   if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
-    await ensureMediaBucket();
     const body = await request.json();
     const publicId = String(body.publicId || "").trim();
     if (!publicId) return NextResponse.json({ ok: false, error: "شناسه فایل لازم است." }, { status: 400 });
     await deleteMedia(publicId);
     return NextResponse.json({ ok: true, message: "فایل حذف شد." });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: `Supabase: ${errorMessage(error, "حذف ناموفق بود.")}` }, { status: 502 });
+    return errorResponse(error, "حذف رسانه از Supabase ناموفق بود.", "delete");
   }
 }

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { isMissingBucketError, SupabaseOperationError } from "./supabase-error";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -18,13 +19,16 @@ export async function ensureMediaBucket(): Promise<void> {
 
   const current = await supabase.storage.getBucket(bucket);
   if (current.error) {
+    if (!isMissingBucketError(current.error)) {
+      throw new SupabaseOperationError("bucket_lookup", current.error);
+    }
     const created = await supabase.storage.createBucket(bucket, {
       public: true,
       fileSizeLimit: "50MB",
     });
 
     if (created.error && !/already exists|duplicate|exists/i.test(created.error.message)) {
-      throw new Error(`media_bucket_create_failed: ${created.error.message}`);
+      throw new SupabaseOperationError("bucket_create", created.error);
     }
     return;
   }
@@ -34,8 +38,15 @@ export async function ensureMediaBucket(): Promise<void> {
       public: true,
       fileSizeLimit: "50MB",
     });
-    if (updated.error) throw new Error(`media_bucket_update_failed: ${updated.error.message}`);
+    if (updated.error) throw new SupabaseOperationError("bucket_update", updated.error);
   }
+}
+
+export async function probeMediaBucket(): Promise<{ name: string; public: boolean }> {
+  if (!supabase) throw new Error("supabase_not_configured");
+  const result = await supabase.storage.getBucket(bucket);
+  if (result.error) throw new SupabaseOperationError("bucket_probe", result.error);
+  return { name: result.data.name, public: Boolean(result.data.public) };
 }
 
 export function mediaBucketName(): string {
