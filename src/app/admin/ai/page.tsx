@@ -77,7 +77,7 @@ function copyText(text: string) {
 export default function AdminAiPage() {
   const [data, setData] = useState<AiStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);\n  const [task, setTask] = useState("");\n  const [agentCount, setAgentCount] = useState(12);\n  const [running, setRunning] = useState(false);\n  const [agentRun, setAgentRun] = useState<any>(null);\n  const [agentError, setAgentError] = useState<string | null>(null);\n\n  const runAgents = async () => {\n    if (!task.trim() || running) return;\n    setRunning(true); setAgentError(null); setAgentRun(null);\n    try {\n      const response = await fetch("/api/ai/agent", {\n        method: "POST", headers: { "Content-Type": "application/json" },\n        body: JSON.stringify({ task: task.trim(), maxAgents: agentCount }),\n      });\n      const json = await response.json();\n      if (!response.ok || !json.ok) throw new Error(json.error || "Agent execution failed");\n      setAgentRun(json);\n    } catch (error) {\n      setAgentError(error instanceof Error ? error.message : "اجرای Multi-Agent ناموفق بود");\n    } finally { setRunning(false); }\n  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -133,6 +133,59 @@ export default function AdminAiPage() {
           <p className="mt-1 text-sm font-medium text-sand-50">{loading ? "…" : data?.source ?? "—"}</p>
         </div>
       </div>
+
+      <section className="card-ay space-y-4 p-5 border border-gold-400/20">
+        <div>
+          <h3 className="text-base font-medium text-sand-50">Multi-Agent Workspace · تیم هوش مصنوعی سایت</h3>
+          <p className="mt-1 text-xs leading-6 text-ink-500">
+            یک Task را وارد کن؛ مدل‌های فعال هم‌زمان و مستقل آن را بررسی می‌کنند، سپس یک Lead Agent گزارش‌ها را تلفیق می‌کند.
+            تعداد Agentها قابل تنظیم است و فقط provider/modelهای دارای API فعال انتخاب می‌شوند.
+          </p>
+        </div>
+        <textarea
+          value={task}
+          onChange={(e) => setTask(e.target.value)}
+          placeholder="مثلاً: صفحه خرید دوره‌ها را بررسی کن و UX، performance، SEO و مشکلات احتمالی را پیدا و برای توسعه پیشنهاد بده."
+          className="min-h-32 w-full rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-7 text-sand-50 outline-none placeholder:text-ink-600"
+          dir="rtl"
+        />
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-ink-400">
+            تعداد Agent:
+            <select value={agentCount} onChange={(e) => setAgentCount(Number(e.target.value))} className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sand-50">
+              {[4, 8, 12, 16, 20, 24].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+          <button type="button" onClick={runAgents} disabled={!task.trim() || running} className="btn-ghost !py-2 text-xs">
+            {running ? "در حال اجرای هم‌زمان Agentها…" : "اجرای Multi-Agent"}
+          </button>
+        </div>
+        {agentError ? <p className="text-xs leading-6 text-red-400">{agentError}</p> : null}
+        {agentRun ? (
+          <div className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-3 text-xs">
+              <div className="rounded-xl border border-white/10 p-3 text-ink-400">Agentها: <b className="text-sand-50">{agentRun.totalAgents}</b></div>
+              <div className="rounded-xl border border-white/10 p-3 text-ink-400">پاسخ موفق: <b className="text-emerald-400">{agentRun.successfulAgents}</b></div>
+              <div className="rounded-xl border border-white/10 p-3 text-ink-400">Lead: <b className="text-gold-400">{agentRun.synthesis?.model}</b></div>
+            </div>
+            <div className="rounded-2xl border border-gold-400/20 bg-black/10 p-4">
+              <h4 className="text-sm font-medium text-sand-50">جمع‌بندی Lead Agent</h4>
+              <pre className="mt-3 whitespace-pre-wrap text-xs leading-7 text-ink-300">{agentRun.synthesis?.reply}</pre>
+            </div>
+            <details className="rounded-2xl border border-white/10 p-4">
+              <summary className="cursor-pointer text-xs text-sand-50">گزارش تک‌تک Agentها</summary>
+              <div className="mt-3 space-y-3">
+                {agentRun.results?.map((r: any) => (
+                  <div key={r.provider + r.model} className="rounded-xl border border-white/10 p-3">
+                    <p className="text-xs text-gold-400">{r.provider} / {r.model} · {r.ok ? "موفق" : "خطا"} · {r.durationMs}ms</p>
+                    <pre className="mt-2 whitespace-pre-wrap text-xs leading-6 text-ink-400">{r.reply || r.error}</pre>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
+        ) : null}
+      </section>
 
       <section className="card-ay space-y-4 p-5">
         <div>
