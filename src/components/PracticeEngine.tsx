@@ -25,9 +25,9 @@ export default function PracticeEngine() {
     <main className="container-ay relative py-12 sm:py-16">
       <div className="route-ambient route-ambient-one" aria-hidden="true" />
       <SectionHeading
-        eyebrow="موتور تمرین · سطح حرفه‌ای"
-        title="تمرین شنیداری حرفه‌ای تا Level ۵۰۰"
-        subtitle="تئوری، Pro Arcade، Voicing و تحلیل میکس و تنظیم — EQ، کمپرس، لیمیت و roadmap."
+        eyebrow="EAR TRAINING GYM · ADAPTIVE"
+        title="هر روز ۱۰ دقیقه؛ گوش قوی‌تر، تصمیم دقیق‌تر"
+        subtitle="تمرین‌های کوتاه و واقعی برای Frequency، EQ، Compression، Phase، Reverb، Saturation و Transient — با سختی متناسب با عملکرد تو."
       />
       <SkillEngineDashboard />
 
