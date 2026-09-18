@@ -77,7 +77,44 @@ function Hub({ onSelect }: { onSelect: (id: GameId) => void }) {
   </div>;
 }
 
-function PracticeResources({ active, toneRound, setToneRound, toneAnswer, setToneAnswer, eqRound, setEqRound, eqAnswer, setEqAnswer, phaseAnswer, setPhaseAnswer, onBack, onReset }: { active: Exclude<GameId, "hub" | "personal">; toneRound: number; setToneRound: (value: number) => void; toneAnswer: number | null; setToneAnswer: (value: number) => void; eqRound: number; setEqRound: (value: number) => void; eqAnswer: string | null; setEqAnswer: (value: string) => void; phaseAnswer: number | null; setPhaseAnswer: (value: number) => void; onBack: () => void; onReset: () => void }) {
+function PracticeResources() {
+  const resources = [
+    { name: "Monosounds Ear Training", badge: "رایگان", description: "تمرین مرورگری برای EQ، کمپرس، استریو، فاز و مهارت‌های شنیداری.", href: "https://monosounds.studio/", action: "باز کردن" },
+    { name: "MAET", badge: "رایگان · Local", description: "تمرین فرکانس، کمپرسور، phase و comb filtering با امکان استفاده از فایل‌های صوتی خودت؛ فایل‌ها محلی پردازش می‌شوند.", href: "https://michaelafanasyev.com/maet", action: "شروع تمرین" },
+    { name: "Lion Train", badge: "Community Pick", description: "گزینه‌ای که در معرفی‌های کاربری SoundGym دیده می‌شود؛ برای تمرین شنیداری به‌عنوان منبع مکمل.", href: "https://www.soundgym.co/", action: "مشاهده در SoundGym" },
+    { name: "Audiodrillz", badge: "رایگان", description: "تمرین‌های گیمی برای تشخیص فرکانس و تنظیمات رایج افکت‌ها، مخصوص تولیدکننده‌ها و مهندسان صدا.", href: "https://audiodrillz.app/", action: "باز کردن" },
+    { name: "EQ Academy", badge: "رایگان · Desktop", description: "تمرین EQ با ۱۰۰ سطح تعاملی، frequency، gain، Q و mid/side؛ امکان تمرین با reference track.", href: "https://www.masteringthemix.com/products/eq-academy", action: "دریافت رایگان" },
+    { name: "TrainYourEars EQ Edition", badge: "Desktop", description: "تمرین تخصصی EQ برای Mac و Windows با Guess و Correct Mode و امکان طراحی تمرین اختصاصی.", href: "https://www.trainyourears.com/", action: "مشاهده" },
+  ];
+
+  return (
+    <section className="space-y-5 pt-2" aria-labelledby="external-ear-training">
+      <div>
+        <p className="eyebrow">منابع منتخب / Ear Training</p>
+        <h2 id="external-ear-training" className="mt-2 text-xl font-semibold text-sand-50">ابزارهای مکمل برای ادامه‌ی تمرین</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-ink-400">این ابزارها مکمل تمرین‌خانه‌ی آرتیست‌یارند؛ بعضی مرورگری‌اند و بعضی نرم‌افزار دسکتاپ.</p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {resources.map((resource) => (
+          <a key={resource.name} href={resource.href} target="_blank" rel="noopener noreferrer" className="group card-ay flex h-full flex-col p-5 text-right transition duration-300 hover:-translate-y-1 hover:border-gold-400/30">
+            <div className="flex items-start justify-between gap-3">
+              <span className="rounded-full border border-gold-400/20 bg-gold-400/[.06] px-2.5 py-1 text-[10px] text-gold-300">{resource.badge}</span>
+              <Sparkles size={17} className="text-gold-400/70 transition group-hover:rotate-12 group-hover:text-gold-300" />
+            </div>
+            <h3 className="mt-5 text-base font-medium text-sand-50">{resource.name}</h3>
+            <p className="mt-2 flex-1 text-sm leading-7 text-ink-400">{resource.description}</p>
+            <span className="mt-5 inline-flex items-center gap-2 text-xs font-medium text-gold-300">{resource.action} <Play size={12} fill="currentColor" /></span>
+          </a>
+        ))}
+      </div>
+      <div className="rounded-2xl border border-white/[.07] bg-white/[.02] p-5 text-xs leading-7 text-ink-400">
+        <strong className="text-sand-100">نکته:</strong> MAET با فایل شخصی به‌صورت محلی کار می‌کند؛ تمرین شخصی آرتیست‌یار هم فایل را به سرور ارسال نمی‌کند.
+      </div>
+    </section>
+  );
+}
+
+function GameStage({ active, toneRound, setToneRound, toneAnswer, setToneAnswer, eqRound, setEqRound, eqAnswer, setEqAnswer, phaseAnswer, setPhaseAnswer, onBack, onReset }: { active: Exclude<GameId, "hub" | "personal">; toneRound: number; setToneRound: (value: number) => void; toneAnswer: number | null; setToneAnswer: (value: number) => void; eqRound: number; setEqRound: (value: number) => void; eqAnswer: string | null; setEqAnswer: (value: string) => void; phaseAnswer: number | null; setPhaseAnswer: (value: number) => void; onBack: () => void; onReset: () => void }) {
   const game = games.find((item) => item.id === active)!;
   const Icon = game.icon;
   const solved = active === "tone" ? toneAnswer !== null : active === "eq" ? eqAnswer !== null : phaseAnswer !== null;
