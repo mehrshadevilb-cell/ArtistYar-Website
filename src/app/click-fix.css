@@ -1,0 +1,27 @@
+/* Critical: ensure decorative layers never steal taps; elevate CTAs */
+.hero-section { isolation: isolate; overflow: visible !important; }
+.hero-copy, .hero-actions, [data-hero-actions] {
+  position: relative !important;
+  z-index: 40 !important;
+  pointer-events: auto !important;
+}
+.hero-actions a, [data-hero-actions] a {
+  position: relative !important;
+  z-index: 41 !important;
+  pointer-events: auto !important;
+  cursor: pointer;
+  min-height: 52px;
+}
+.hero-scroll-depth, .scroll-depth, .depth-scene, .depth-scene-grid,
+.depth-scene-content, .hero-art, .hero-orbit, .record-disc, .floating-note {
+  pointer-events: none !important;
+}
+@media (max-width: 1023px) {
+  .hero-section { display: flex !important; flex-direction: column; }
+  .hero-copy { order: 1; }
+  .hero-scroll-depth, .scroll-depth { order: 2; }
+}
+.telegram-mini-app .hero-actions a.btn-primary {
+  width: 100%;
+  min-height: 54px;
+}
