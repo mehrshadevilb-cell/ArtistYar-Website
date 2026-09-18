@@ -72,6 +72,7 @@ export default function PracticeSubscriptionsAdmin() {
   const [err, setErr] = useState("");
   const [setupSql, setSetupSql] = useState("");
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [directoryStudents, setDirectoryStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [selectedName, setSelectedName] = useState("");
   const [copied, setCopied] = useState(false);
@@ -81,12 +82,14 @@ export default function PracticeSubscriptionsAdmin() {
     setErr("");
     setSetupSql("");
     try {
-      const [r1, r2, analyticsResponse] = await Promise.all([
+      const [r1, r2, analyticsResponse, studentsResponse] = await Promise.all([
         fetch("/api/admin/practice/payment-requests", { cache: "no-store", credentials: "include" }),
         fetch("/api/admin/practice/subscription", { cache: "no-store", credentials: "include" }),
         fetch("/api/admin/practice/analytics", { cache: "no-store", credentials: "include" }),
+        fetch("/api/rahyar/admin/students?limit=1000", { cache: "no-store", credentials: "include" }),
       ]);
       const analyticsData = await analyticsResponse.json().catch(() => ({}));
+      const studentsData = await studentsResponse.json().catch(() => ({}));
       const d1 = await r1.json().catch(() => ({}));
       const d2 = await r2.json().catch(() => ({}));
       if (r1.ok) setRequests(d1.requests || []);
@@ -99,6 +102,27 @@ export default function PracticeSubscriptionsAdmin() {
         setErr(d2.error || "خطا در دریافت اشتراک‌ها");
       }
       if (analyticsResponse.ok && analyticsData.ok) setAnalytics(analyticsData);
+      if (studentsResponse.ok && Array.isArray(studentsData.items)) {
+        const practiceById = new Map<string, Student>(
+          (analyticsData?.students || []).map((s: Student) => [String(s.user_id), s]),
+        );
+        const directory = studentsData.items
+          .map((s: any): Student | null => {
+            const userId = String(s.telegram_id || s.user_id || s.id || "").trim();
+            if (!userId) return null;
+            const existing = practiceById.get(userId);
+            return {
+              user_id: userId,
+              full_name: String(s.full_name || s.name || existing?.full_name || "بدون نام"),
+              username: s.telegram_username || s.username || existing?.username || "",
+              sessions: existing?.sessions || 0,
+              voicing_sessions: existing?.voicing_sessions || 0,
+              average_accuracy: existing?.average_accuracy || 0,
+            };
+          })
+          .filter(Boolean) as Student[];
+        setDirectoryStudents(directory);
+      }
       if (!r1.ok && !r2.ok && !setupSql) setErr(d1.error || d2.error || "خطا در دریافت داده");
     } finally {
       setLoading(false);
@@ -109,7 +133,9 @@ export default function PracticeSubscriptionsAdmin() {
     void load();
   }, []);
 
-  const students = analytics?.students || [];
+  const students = directoryStudents.length
+    ? directoryStudents
+    : analytics?.students || [];
 
   const filteredStudents = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -311,7 +337,7 @@ export default function PracticeSubscriptionsAdmin() {
             </select>
             {!loading && students.length === 0 && (
               <p className="mt-2 text-xs text-ink-500">
-                هنوز هنرجویی در practice_records نیست. می‌توانی User ID یا Telegram ID را دستی وارد کنی.
+                لیست هنرجوها از پنل هنرجویان بارگذاری می‌شود؛ برای هنرجویی که هنوز تمرینی ثبت نکرده، آمار جلسات صفر نمایش داده می‌شود.
               </p>
             )}
           </div>
