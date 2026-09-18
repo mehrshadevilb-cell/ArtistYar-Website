@@ -18,11 +18,11 @@ async function isProUser(userId: string) {
   return Boolean(data?.length);
 }
 
-async function dailyUsage(userId: string, gameId: string) {
+async function dailyUsage(userId: string) {
   if (!db) return 0;
   const start = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
   const end = new Date(start.getTime() + 86400000);
-  const { data } = await db.from("practice_records").select("id").eq("user_id", userId).eq("game_id", gameId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
+  const { data } = await db.from("practice_records").select("id").eq("user_id", userId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
   return data?.length || 0;
 }
 
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     const gameId = String(body.gameId || "unknown").slice(0, 80);
     const pro = await isProUser(userId);
     const dailyLimit = pro ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES;
-    const usedToday = await dailyUsage(userId, gameId);
+    const usedToday = await dailyUsage(userId);
     if (usedToday >= dailyLimit) {
       return NextResponse.json({ ok: false, code: "daily_limit_reached", pro, dailyLimit, used: usedToday, remaining: 0 }, { status: 429 });
     }
