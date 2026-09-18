@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Award, CalendarDays, Crown, Flame, RefreshCw, Trophy } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -47,7 +48,7 @@ export function PracticeProgressPanel() {
     </div>
     <div className="card-ay p-5">
       <span className="eyebrow">YOUR PRACTICE PROFILE</span>
-      <h2 className="mt-2 text-xl font-semibold text-sand-50">رکورد و پیشرفت تو</h2>
+      <div className="flex items-end justify-between gap-3"><h2 className="mt-2 text-xl font-semibold text-sand-50">رکورد و پیشرفت تو</h2><Link href="/profile/practice" className="text-[11px] text-gold-300 hover:text-gold-200">پروفایل کامل</Link></div>
       <div className="mt-5 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-white/[.035] p-4"><Award size={17} className="text-gold-300"/><strong className="mt-2 block text-xl text-sand-50">{profile?.totalXp?.toLocaleString()||0}</strong><span className="text-[11px] text-ink-500">XP ثبت‌شده</span></div>
         <div className="rounded-2xl bg-white/[.035] p-4"><Flame size={17} className="text-orange-300"/><strong className="mt-2 block text-xl text-sand-50">{profile?.sessions||0}</strong><span className="text-[11px] text-ink-500">جلسه تمرین</span></div>
