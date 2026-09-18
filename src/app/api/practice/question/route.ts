@@ -70,8 +70,49 @@ function buildPrompt(gameId: GameId, level: number, recent: string[]) {
 }
 async function generate(gameId: GameId, level: number, recent: string[]) {
   const prompt = buildPrompt(gameId, level, recent);
-  for (const [keyName, baseName, modelName, defaultBase, defaultModel] of MODEL_CONFIGS) { const key = process.env[keyName]; if (!key) continue; try { const text = await ask(key, process.env[baseName] || defaultBase, process.env[modelName] || defaultModel, prompt); const q = normalize(parseJson(text), gameId, level); if (q) return q; } catch {} }
-  return fallback(gameId, level);
+  const active = MODEL_CONFIGS.filter(([keyName]) => Boolean(process.env[keyName]));
+  if (!active.length) return fallback(gameId, level);
+
+  // Ensemble depth is adaptive: cheap/simple stages use one model; advanced
+  // stages use multiple independent models so a single weak generation cannot
+  // dominate the student's training experience.
+  const ensembleSize = level >= 300 ? 3 : level >= 100 ? 2 : 1;
+  const selected = active.slice(0, ensembleSize);
+  const results = await Promise.allSettled(
+    selected.map(async ([keyName, baseName, modelName, defaultBase, defaultModel]) => {
+      const key = process.env[keyName]!;
+      const text = await ask(key, process.env[baseName] || defaultBase, process.env[modelName] || defaultModel, prompt);
+      const question = normalize(parseJson(text), gameId, level);
+      if (!question) throw new Error("invalid_question");
+      return { question, provider: keyName, model: process.env[modelName] || defaultModel };
+    }),
+  );
+  const candidates = results
+    .filter((r): r is PromiseFulfilledResult<{question: GeneratedQuestion; provider: string; model: string}> => r.status === "fulfilled")
+    .map(r => r.value);
+
+  if (!candidates.length) return fallback(gameId, level);
+  if (candidates.length === 1) return { ...candidates[0].question, source: `ai:${candidates[0].provider}` };
+
+  // Prefer consensus when independent models agree on the audibly-scored
+  // target; otherwise choose the richest valid candidate. This avoids
+  // averaging incompatible audio parameters.
+  const grouped = new Map<string, typeof candidates>();
+  for (const candidate of candidates) {
+    const key = JSON.stringify({ answer: candidate.question.answer, audio: candidate.question.audio });
+    const group = grouped.get(key) || [];
+    group.push(candidate);
+    grouped.set(key, group);
+  }
+  const consensus = [...grouped.values()].sort((a, b) => b.length - a.length)[0];
+  const winner = consensus.length > 1
+    ? consensus[0]
+    : [...candidates].sort((a, b) => {
+        const aScore = a.question.prompt.length + a.question.hint.length + a.question.options.length * 10;
+        const bScore = b.question.prompt.length + b.question.hint.length + b.question.options.length * 10;
+        return bScore - aScore;
+      })[0];
+  return { ...winner.question, source: `ensemble:${candidates.map(c => c.provider.replace("_API_KEY", "")).join("+")}` };
 }
 
 export async function POST(request: Request) {
