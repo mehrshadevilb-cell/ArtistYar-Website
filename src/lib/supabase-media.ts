@@ -496,6 +496,7 @@ export async function refreshMediaTags(publicId: string): Promise<MediaItem> {
 
   const result = await updateMediaAsset(publicId, {
     artist: audio.artist,
+    album: audio.album,
     genre: audio.genre,
     year: audio.year,
     duration: audio.duration,
