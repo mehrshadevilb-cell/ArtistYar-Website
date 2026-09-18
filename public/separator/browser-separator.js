@@ -1,1 +1,51 @@
-let session=null;let loading=null;const MODEL='https://huggingface.co/elicwhite/bs-roformer-sw-6stem-onnx/resolve/main/bs_roformer_sw_6stem_fp16.onnx';async function loadScript(src){if(window.ort)return;await new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('ONNX Runtime Web could not be loaded'));document.head.appendChild(s)})}async function getSession(progress){if(session)return session;if(loading)return loading;loading=(async()=>{await loadScript('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.0-dev.20251116-b39e144322/dist/ort.all.min.js');ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.0-dev.20251116-b39e144322/dist/';ort.env.wasm.numThreads=Math.max(1,Math.min(8,navigator.hardwareConcurrency||4));const{getModelBytes}=await import('/separator/model-cache.js');const bytes=await getModelBytes({url:MODEL,key:'bs_roformer_sw_6stem_fp16.onnx',onProgress:x=>progress?.({phase:'model',...x})});const eps=navigator.gpu?['webgpu','wasm']:['wasm'];session=await ort.InferenceSession.create(bytes,{executionProviders:eps,graphOptimizationLevel:'disabled'});return session})();try{return await loading}finally{loading=null}}window.artistYarBrowserSeparate=async(file,onProgress)=>{const{decodeAudio,encodeWAV16}=await import('/separator/audio-io.js');const{separate}=await import('/separator/pipeline.js');const audio=await decodeAudio(file);const s=await getSession(onProgress);const stems=await separate({audio,session:s,onProgress});const JSZip=window.JSZip;if(!JSZip)throw new Error('ZIP runtime is unavailable.');const zip=new JSZip();zip.file('vocals.wav',encodeWAV16(stems.vocals,44100));const instrumental=new Float32Array(stems.vocals.length);for(let i=0;i<audio.left.length;i++){instrumental[i]=audio.left[i]-stems.vocals[i];instrumental[audio.left.length+i]=audio.right[i]-stems.vocals[audio.left.length+i]}zip.file('instrumental.wav',encodeWAV16(instrumental,44100));for(const name of ['bass','drums','other','guitar','piano'])zip.file(name+'.wav',encodeWAV16(stems[name],44100));return await zip.generateAsync({type:'blob'})};
+let session=null;let loading=null;
+const MODEL='https://huggingface.co/StemSplitio/htdemucs-onnx/resolve/main/htdemucs_fp16weights.onnx';
+const SR=44100,CHUNK=343980,OVERLAP=0.25,STEP=Math.floor(CHUNK*(1-OVERLAP));
+async function loadOrt(){
+  if(window.ort)return window.ort;
+  await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js';s.async=true;s.onload=resolve;s.onerror=()=>reject(new Error('ONNX Runtime Web could not be loaded.'));document.head.appendChild(s)});
+  return window.ort;
+}
+async function getSession(progress){
+  if(session)return session;
+  if(loading)return loading;
+  loading=(async()=>{
+    const ort=await loadOrt();
+    ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
+    ort.env.wasm.numThreads=Math.max(1,Math.min(8,navigator.hardwareConcurrency||4));
+    progress?.({phase:'model',loaded:0,total:1});
+    const res=await fetch(MODEL); if(!res.ok)throw new Error('Demucs browser model download failed: '+res.status);
+    const reader=res.body?.getReader(); const chunks=[]; let loaded=0; const total=Number(res.headers.get('content-length')||0);
+    if(reader){for(;;){const x=await reader.read();if(x.done)break;chunks.push(x.value);loaded+=x.value.byteLength;progress?.({phase:'model',loaded,total})}}
+    const bytes=reader?(()=>{const b=new Uint8Array(loaded);let p=0;for(const x of chunks){b.set(x,p);p+=x.byteLength}return b})():new Uint8Array(await res.arrayBuffer());
+    const eps=navigator.gpu?['webgpu','wasm']:['wasm'];
+    return await ort.InferenceSession.create(bytes,{executionProviders:eps,graphOptimizationLevel:'all'});
+  })();
+  try{return await loading}finally{loading=null}
+}
+function stereoPlanar(audio,N,start){const x=new Float32Array(2*N);const len=Math.min(N,audio.left.length-start);if(len>0){x.set(audio.left.subarray(start,start+len),0);x.set(audio.right.subarray(start,start+len),N)}return x}
+function wav(planar,sr=SR){const N=planar.length/2,b=new ArrayBuffer(44+N*4),d=new DataView(b);let p=0;const s=x=>{for(let i=0;i<x.length;i++)d.setUint8(p++,x.charCodeAt(i))},u16=x=>{d.setUint16(p,x,true);p+=2},u32=x=>{d.setUint32(p,x,true);p+=4};s('RIFF');u32(36+N*4);s('WAVE');s('fmt ');u32(16);u16(1);u16(2);u32(sr);u32(sr*4);u16(4);u16(16);s('data');u32(N*4);for(let i=0;i<N;i++){d.setInt16(p,Math.max(-1,Math.min(1,planar[i]))*32767,true);p+=2;d.setInt16(p,Math.max(-1,Math.min(1,planar[N+i]))*32767,true);p+=2}return new Blob([b],{type:'audio/wav'})}
+async function decode(file){const ac=new OfflineAudioContext(2,44100,44100);const raw=await file.arrayBuffer();let x=await ac.decodeAudioData(raw.slice(0));if(x.sampleRate!==44100){const r=new OfflineAudioContext(2,Math.ceil(x.duration*44100),44100),src=r.createBufferSource();src.buffer=x;src.connect(r.destination);src.start();x=await r.startRendering()}return{left:x.getChannelData(0).slice(),right:x.numberOfChannels>1?x.getChannelData(1).slice():x.getChannelData(0).slice()}}
+window.artistYarBrowserSeparate=async(file,onProgress)=>{
+  const audio=await decode(file),N=audio.left.length,stems=Array.from({length:4},()=>new Float32Array(2*N)),norm=new Float32Array(N),s=await getSession(onProgress);
+  const ort=window.ort,total=Math.max(1,Math.ceil(Math.max(1,N-CHUNK)/STEP)+1);
+  for(let seg=0;seg<total;seg++){
+    const start=seg*STEP,chunk=stereoPlanar(audio,CHUNK,start);
+    const input=new ort.Tensor('float32',chunk,[1,2,CHUNK]);
+    const t=await s.run({mix:input}); input.dispose();
+    const out=t.sources.data;
+    const shape=t.sources.dims; const samples=shape[3],sources=shape[1];
+    const fade=new Float32Array(samples); for(let i=0;i<samples;i++){let w=1;if(seg>0&&i<CHUNK*OVERLAP)w=i/(CHUNK*OVERLAP);if(seg<total-1&&i>CHUNK-CHUNK*OVERLAP)w=Math.min(w,(CHUNK-i)/(CHUNK*OVERLAP));fade[i]=w;norm[Math.min(N-1,start+i)]+=w}
+    for(let stem=0;stem<Math.min(4,sources);stem++){const base=stem*2*samples;for(let i=0;i<samples&&start+i<N;i++){const w=fade[i];stems[stem][start+i]+=out[base+i]*w;stems[stem][N+start+i]+=out[base+samples+i]*w}}
+    for(const k of Object.keys(t))t[k]?.dispose?.();
+    onProgress?.({segment:seg+1,totalSegments:total});
+  }
+  for(let i=0;i<N;i++){const w=norm[i]||1;for(const a of stems){a[i]/=w;a[N+i]/=w}}
+  const vocals=stems[3], instrumental=new Float32Array(2*N);
+  for(let i=0;i<2*N;i++)instrumental[i]=audio.left[i%N*0+Math.floor(i/N)]||0;
+  for(let i=0;i<N;i++){instrumental[i]=audio.left[i]-vocals[i];instrumental[N+i]=audio.right[i]-vocals[N+i]}
+  const zip=window.JSZip;if(!zip)throw new Error('ZIP runtime is unavailable.');
+  const z=new zip();z.file('vocals_demucs.wav',wav(vocals));z.file('instrumental_demucs.wav',wav(instrumental));
+  ['drums','bass','other','vocals'].forEach((n,i)=>z.file(n+'.wav',wav(stems[i])));
+  return await z.generateAsync({type:'blob'});
+};
