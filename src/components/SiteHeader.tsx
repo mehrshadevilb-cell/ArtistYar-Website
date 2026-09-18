@@ -14,7 +14,7 @@ const primaryLinks = [
   { href: "/online", label: "کلاس آنلاین" },
   { href: "/assistant", label: "راه‌یار AI" },
   { href: "/free-player", label: "آموزش رایگان" },
-  { href: "/practice", label: "تمرین‌خانه" },
+  { href: "/practice", label: "Practice Engine" },
   { href: "/gallery", label: "گالری خروجی‌ها" },
 ];
 
