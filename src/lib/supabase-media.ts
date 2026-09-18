@@ -5,7 +5,7 @@ import { SupabaseOperationError } from "./supabase-error";
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const bucket = process.env.SUPABASE_BUCKET || "artistyar-media";
-const STORAGE_FILE_LIMIT = "1GB";
+const STORAGE_FILE_LIMIT = process.env.SUPABASE_STORAGE_FILE_LIMIT || "50MB";
 const configured = Boolean(url && secret);
 const supabase = configured
   ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } })
@@ -75,11 +75,10 @@ async function ensureStorageBucket(): Promise<void> {
     return;
   }
 
-  if (!current.data?.public || String(current.data?.file_size_limit || "") !== STORAGE_FILE_LIMIT) {
-    const updated = await supabase.storage.updateBucket(bucket, {
-      public: true,
-      fileSizeLimit: STORAGE_FILE_LIMIT,
-    });
+  // Never force a bucket size above the project's global Storage limit.
+  // Supabase applies the global limit before the bucket-level limit.
+  if (!current.data?.public) {
+    const updated = await supabase.storage.updateBucket(bucket, { public: true });
     if (updated.error) throw new SupabaseOperationError("bucket_update", updated.error);
   }
 }
