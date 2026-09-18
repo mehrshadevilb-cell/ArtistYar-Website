@@ -461,7 +461,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       });
       const data = await readJsonResponse<{
         agent_status?: string;
-      } | null;
+      }>();
       if (!response.ok) return [];
       return data?.agent_status
         ? [{ id: "centralized-router", provider: provider.id, task: "chat", rank: 70 }]
@@ -482,7 +482,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       if (!response.ok) return fallback(provider.defaultModels || GEMINI_FALLBACK);
       const data = (await response.json().catch(() => null)) as {
         models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
-      } | null;
+      }>();
       const models =
         data?.models
           ?.filter((m) =>
@@ -520,7 +520,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       data?: Array<{ id?: string; access_tier?: string }>;
       result?: Array<{ id?: string; name?: string; access_tier?: string }>;
       models?: Array<{ name?: string; model?: string; access_tier?: string }>;
-    } | null;
+    }>();
 
     const rawEntries = [
       ...(data?.data || []).map((i) => ({ id: i.id || "", tier: i.access_tier })),
@@ -609,7 +609,7 @@ async function chatOpenAICompatible(
   const data = (await response.json().catch(() => null)) as {
     choices?: Array<{ message?: { content?: string } }>;
     error?: { message?: string };
-  } | null;
+  }>();
 
   if (!response.ok) {
     throw new Error(
@@ -655,7 +655,7 @@ async function chatAnthropic(
   const data = (await response.json().catch(() => null)) as {
     content?: Array<{ type?: string; text?: string }>;
     error?: { message?: string };
-  } | null;
+  }>();
 
   if (!response.ok) {
     throw new Error(data?.error?.message || `Anthropic HTTP ${response.status}`);
@@ -706,7 +706,7 @@ async function chatGoogle(
   const data = (await response.json().catch(() => null)) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     error?: { message?: string };
-  } | null;
+  }>();
 
   if (!response.ok) {
     throw new Error(data?.error?.message || `Gemini HTTP ${response.status}`);
@@ -744,7 +744,7 @@ async function chatRahYarGateway(
   const data = (await response.json().catch(() => null)) as {
     reply?: unknown;
     detail?: unknown;
-  } | null;
+  }>();
 
   if (!response.ok) {
     const detail =
