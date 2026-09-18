@@ -5,6 +5,10 @@ const backend = (process.env.RAHYAR_API_URL || "https://rahyar-academy-managemen
 import {
   ADMIN_SESSION_COOKIE,
   verifyAdminSession,
+  USER_SESSION_COOKIE,
+  verifyUserSession,
+  createUserSession,
+  userSessionCookieOptions,
 } from "@/lib/server-admin-auth";
 
 export const runtime = "nodejs";
@@ -14,24 +18,28 @@ export async function GET() {
   const cookieStore = await cookies();
   const session = verifyAdminSession(cookieStore.get(ADMIN_SESSION_COOKIE)?.value);
 
-  if (!session) {
-    return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
-  }
-
-  return NextResponse.json(
-    {
-      authenticated: true,
-      user: {
-        id: "admin",
+  if (session) {
+    return NextResponse.json(
+      {
+        authenticated: true,
+        user: {
+          id: "admin",
         username: session.username,
         fullName: "مدیر آکادمی",
         role: "admin" as const,
         telegramLinked: true,
-        telegramId: "owner",
+          telegramId: "owner",
+        },
       },
-    },
-    { headers: { "Cache-Control": "private, no-store" } },
-  );
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+
+  const userSession = verifyUserSession(cookieStore.get(USER_SESSION_COOKIE)?.value);
+  if (userSession) {
+    return NextResponse.json({ authenticated: true, user: userSession }, { headers: { "Cache-Control": "private, no-store" } });
+  }
+  return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
 }
 
 export async function POST(request: Request) {
@@ -53,7 +61,17 @@ export async function POST(request: Request) {
     if (!response.ok || !data.ok || !data.user) {
       return NextResponse.json({ authenticated: false, user: null, error: data.error || "telegram_auth_failed" }, { status: response.status || 401 });
     }
-    return NextResponse.json({ authenticated: true, user: data.user }, { headers: { "Cache-Control": "private, no-store" } });
+    const u = data.user as Record<string, unknown>;
+    const normalized = {
+      id: String(u.id ?? u.user_id ?? u.telegram_id ?? "telegram-user"),
+      username: String(u.username ?? u.phone ?? u.telegram_id ?? "telegram-user"),
+      fullName: String(u.fullName ?? u.full_name ?? u.name ?? "هنرجو"),
+      role: "student" as const,
+      telegramId: u.telegramId != null ? String(u.telegramId) : u.telegram_id != null ? String(u.telegram_id) : undefined,
+    };
+    const responseOut = NextResponse.json({ authenticated: true, user: { ...data.user, ...normalized } }, { headers: { "Cache-Control": "private, no-store" } });
+    responseOut.cookies.set(USER_SESSION_COOKIE, createUserSession(normalized), userSessionCookieOptions);
+    return responseOut;
   } catch {
     return NextResponse.json({ authenticated: false, user: null, error: "telegram_auth_backend_unavailable" }, { status: 503 });
   }
