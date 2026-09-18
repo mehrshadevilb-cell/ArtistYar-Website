@@ -80,8 +80,9 @@ export async function POST(request: Request) {
     const telegramId = body.telegramId ? String(body.telegramId).slice(0, 50) : "";
     const gameId = String(body.gameId || "unknown").slice(0, 80);
     const pro = await isProUser(userId, telegramId);
+    let usedToday = 0;
     if (!pro) {
-      const usedToday = await dailyUsage(userId);
+      usedToday = await dailyUsage(userId);
       if (usedToday >= 5) {
         return NextResponse.json(
           { ok: false, code: "daily_limit_reached", pro: false, dailyLimit: 5, used: usedToday, remaining: 0 },
@@ -116,7 +117,7 @@ export async function POST(request: Request) {
     } catch {
       // Skill analytics are additive; a migration/provider issue must not block practice.
     }
-    return NextResponse.json({ ok: true, row, pro, unlimited: pro, remaining: pro ? null : 4 });
+    return NextResponse.json({ ok: true, row, pro, unlimited: pro, remaining: pro ? null : Math.max(0, 5 - usedToday - 1) });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "ذخیره ناموفق بود." }, { status: 503 });
   }
