@@ -497,19 +497,50 @@ export async function refreshMediaTags(publicId: string): Promise<MediaItem> {
   return toItem(result.data);
 }
 
-export async function updateMedia(input: { publicId: string; title: string; description: string }) {
+export async function updateMedia(input: { publicId: string; title: string; description: string; category?: MediaCategory; isActive?: boolean }) {
   if (!supabase) throw new Error("supabase_not_configured");
+  const patch: Record<string, unknown> = {
+    title: input.title.trim().slice(0, 200),
+    description: input.description.trim().slice(0, 1000),
+    updated_at: new Date().toISOString(),
+  };
+  if (input.category) patch.category = input.category;
+  if (typeof input.isActive === "boolean") {
+    patch.is_active = input.isActive;
+    patch.status = input.isActive ? "published" : "draft";
+  }
   const result = await supabase
     .from("media_assets")
-    .update({
-      title: input.title.trim().slice(0, 200),
-      description: input.description.trim().slice(0, 1000),
-      updated_at: new Date().toISOString(),
-    })
+    .update(patch)
     .eq("storage_path", input.publicId)
     .select()
     .single();
   if (result.error) throw new SupabaseOperationError("media_update", result.error);
+  return toItem(result.data);
+}
+
+export async function replaceMediaFile(input: { publicId: string; buffer: Buffer; filename: string; mimeType: string }) {
+  if (!supabase) throw new Error("supabase_not_configured");
+  const existing = await supabase.from("media_assets").select("*").eq("storage_path", input.publicId).maybeSingle();
+  if (existing.error) throw new SupabaseOperationError("media_lookup", existing.error);
+  if (!existing.data) throw new Error("media_not_found");
+
+  const uploaded = await supabase.storage.from(bucket).upload(input.publicId, input.buffer, {
+    contentType: input.mimeType,
+    upsert: true,
+    cacheControl: "3600",
+  });
+  if (uploaded.error) throw new SupabaseOperationError("media_replace_file", uploaded.error);
+
+  const publicUrl = supabase.storage.from(bucket).getPublicUrl(input.publicId).data.publicUrl;
+  const ext = input.filename.toLowerCase().split(".").pop() || String(existing.data.file_ext || "bin");
+  const result = await supabase.from("media_assets").update({
+    public_url: publicUrl,
+    mime_type: input.mimeType,
+    file_ext: ext,
+    updated_at: new Date().toISOString(),
+  }).eq("storage_path", input.publicId).select().single();
+  if (result.error) throw new SupabaseOperationError("media_replace_record", result.error);
   return toItem(result.data);
 }
 
