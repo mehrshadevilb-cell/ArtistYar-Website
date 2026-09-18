@@ -175,63 +175,10 @@ export default function AdminAiPage() {
         </div>
       </div>
 
-      <section className="card-ay space-y-4 p-5 border border-gold-400/20">
-        <div>
-          <h3 className="text-base font-medium text-sand-50">Multi-Agent Workspace · تیم هوش مصنوعی سایت</h3>
-          <p className="mt-1 text-xs leading-6 text-ink-500">
-            یک Task را وارد کن؛ مدل‌های فعال هم‌زمان و مستقل آن را بررسی می‌کنند، سپس یک Lead Agent گزارش‌ها را تلفیق می‌کند.
-            تعداد Agentها قابل تنظیم است و فقط provider/modelهای دارای API فعال انتخاب می‌شوند.
-          </p>
-        </div>
-        <textarea
-          value={task}
-          onChange={(e) => setTask(e.target.value)}
-          placeholder="مثلاً: صفحه خرید دوره‌ها را بررسی کن و UX، performance، SEO و مشکلات احتمالی را پیدا و برای توسعه پیشنهاد بده."
-          className="min-h-32 w-full rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-7 text-sand-50 outline-none placeholder:text-ink-600"
-          dir="rtl"
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-xs text-ink-400">
-            تعداد Agent:
-            <select value={agentCount} onChange={(e) => setAgentCount(Number(e.target.value))} className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sand-50">
-              {[4, 8, 12, 16, 20, 24].map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </label>
-          <button type="button" onClick={runAgents} disabled={!task.trim() || running} className="btn-ghost !py-2 text-xs">
-            {running ? "در حال اجرای هم‌زمان Agentها…" : "اجرای Multi-Agent"}
-          </button>
-        </div>
-        {agentError ? <p className="text-xs leading-6 text-red-400">{agentError}</p> : null}
-        {agentRun ? (
-          <div className="space-y-3">
-            <div className="grid gap-2 sm:grid-cols-3 text-xs">
-              <div className="rounded-xl border border-white/10 p-3 text-ink-400">Agentها: <b className="text-sand-50">{agentRun.totalAgents}</b></div>
-              <div className="rounded-xl border border-white/10 p-3 text-ink-400">پاسخ موفق: <b className="text-emerald-400">{agentRun.successfulAgents}</b></div>
-              <div className="rounded-xl border border-white/10 p-3 text-ink-400">Lead: <b className="text-gold-400">{agentRun.synthesis?.model}</b></div>
-            </div>
-            <div className="rounded-2xl border border-gold-400/20 bg-black/10 p-4">
-              <h4 className="text-sm font-medium text-sand-50">جمع‌بندی Lead Agent</h4>
-              <pre className="mt-3 whitespace-pre-wrap text-xs leading-7 text-ink-300">{agentRun.synthesis?.reply}</pre>
-            </div>
-            <details className="rounded-2xl border border-white/10 p-4">
-              <summary className="cursor-pointer text-xs text-sand-50">گزارش تک‌تک Agentها</summary>
-              <div className="mt-3 space-y-3">
-                {agentRun.results?.map((r: any) => (
-                  <div key={r.provider + r.model} className="rounded-xl border border-white/10 p-3">
-                    <p className="text-xs text-gold-400">{r.provider} / {r.model} · {r.ok ? "موفق" : "خطا"} · {r.durationMs}ms</p>
-                    <pre className="mt-2 whitespace-pre-wrap text-xs leading-6 text-ink-400">{r.reply || r.error}</pre>
-                  </div>
-                ))}
-              </div>
-            </details>
-          </div>
-        ) : null}
-      </section>
-
       <section id="development-agent" className="card-ay space-y-5 p-5 border border-emerald-400/20 scroll-mt-24">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-medium text-sand-50">🚀 Development Agent · بگو چه بسازم</h3>
+            <h3 className="text-base font-medium text-sand-50">🤖 AI Development Center · Multi-Agent + Coding</h3>
             <span className="rounded-full border border-emerald-400/20 px-2 py-1 text-[10px] text-emerald-400">CODE → APPLY → PR</span>
           </div>
           <p className="mt-2 text-xs leading-6 text-ink-500">
@@ -287,6 +234,14 @@ export default function AdminAiPage() {
           >
             {devRunning ? "⏳ تیم AI در حال کدنویسی و اعمال تغییرات…" : "▶ شروع کدنویسی و اعمال تغییرات"}
           </button>
+          <button
+            type="button"
+            onClick={runAgents}
+            disabled={!task.trim() || running}
+            className="btn-ghost !py-2.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {running ? "⏳ در حال اجرای Multi-Agent…" : "🧠 تحلیل Multi-Agent"}
+          </button>
 
           <button
             type="button"
@@ -306,6 +261,17 @@ export default function AdminAiPage() {
         </div>
 
         {devError ? <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs leading-6 text-red-400">{devError}</div> : null}
+        {agentError ? <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs leading-6 text-red-400">{agentError}</div> : null}
+        {agentRun ? (
+          <div className="rounded-2xl border border-gold-400/20 bg-black/10 p-4">
+            <div className="grid gap-2 sm:grid-cols-3 text-xs">
+              <div className="rounded-xl border border-white/10 p-3 text-ink-400">Agentها: <b className="text-sand-50">{agentRun.totalAgents}</b></div>
+              <div className="rounded-xl border border-white/10 p-3 text-ink-400">پاسخ موفق: <b className="text-emerald-400">{agentRun.successfulAgents}</b></div>
+              <div className="rounded-xl border border-white/10 p-3 text-ink-400">Lead: <b className="text-gold-400">{agentRun.synthesis?.model || "—"}</b></div>
+            </div>
+            <pre className="mt-3 whitespace-pre-wrap text-xs leading-7 text-ink-300">{agentRun.synthesis?.reply || "—"}</pre>
+          </div>
+        ) : null}
 
         {devRun ? (
           <div className="space-y-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
