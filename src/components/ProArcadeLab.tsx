@@ -407,7 +407,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
           <p className="eyebrow text-gold-300">PRACTICE STAGE LIMIT</p>
           <h1 className="mt-3 text-2xl font-semibold text-sand-50">سقف مراحل این تمرین رسید</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-8 text-ink-400">
-            بدون اشتراک ۵ مرحله در دسترس است. با اشتراک، تعداد مراحل این تمرین برابر با مدت اشتراک است{proExpiresAt ? " و اشتراک تا " + new Date(proExpiresAt).toLocaleDateString("fa-IR") + " فعال است." : "."}
+            بدون اشتراک ۵ مرحله در دسترس است. با Pro تا ۴۰ مرحله در روز{proExpiresAt ? " و اشتراک تا " + new Date(proExpiresAt).toLocaleDateString("fa-IR") + " فعال است." : "."}
           </p>
           <p className="mt-4 text-sm text-gold-200">{pro ? `اشتراک فعال · ${subscriptionDays} مرحله` : "برای ادامه، اشتراک فعال کن."}</p>
         </div>
