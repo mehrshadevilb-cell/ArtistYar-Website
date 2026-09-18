@@ -339,6 +339,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
   const [adaptiveRating, setAdaptiveRating] = useState<number | null>(null);
   const [adaptiveDifficulty, setAdaptiveDifficulty] = useState<number | null>(null);
   const [adaptiveLoading, setAdaptiveLoading] = useState(false);
+  const [adaptiveSkill, setAdaptiveSkill] = useState<SkillId | null>(null);
 
   // Pro is subscription-based, not stage-based. Free keeps the small daily cap.
   const stageNumber = round + 1;
@@ -351,8 +352,15 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
       .then(r => r.json()).then(d => {
         if (d?.ok) {
           setAdaptiveRating(Number(d.overallRating) || null);
-          const next = d.exercises?.find((x: { gameId?: string }) => x.gameId === "eq" || x.gameId === "compressor" || x.gameId === "tone" || x.gameId === "phase");
+          const first = d.exercises?.[0];
+          const next = d.exercises?.find((x: { gameId?: string }) => x.gameId === "eq" || x.gameId === "compressor" || x.gameId === "tone" || x.gameId === "phase") || first;
           setAdaptiveDifficulty(Number(next?.difficulty) || null);
+          const map: Record<string, SkillId> = { eq: "masking", compressor: "transient", tone: "masking", phase: "transient" };
+          if (first?.skill === "mixing") setAdaptiveSkill("masking");
+          else if (first?.skill === "dynamics") setAdaptiveSkill("transient");
+          else if (first?.skill === "critical_listening") setAdaptiveSkill("masking");
+          else if (first?.skill === "ear_training") setAdaptiveSkill("masking");
+          else if (map[String(first?.gameId)]) setAdaptiveSkill(map[String(first.gameId)]);
         }
       }).catch(() => {}).finally(() => setAdaptiveLoading(false));
   }, [user?.id, round]);
@@ -458,6 +466,25 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
           <p className="mt-2 text-xs text-gold-200/80">
             XP فعلی: {xp} · سطح فعلی: {TIER_LABELS[tierFromXp(xp, 0)]}
           </p>
+          <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/[.05] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="eyebrow text-cyan-200">۱۰ MIN ADAPTIVE WORKOUT</p>
+                <p className="mt-1 text-sm text-sand-50">اول از ضعیف‌ترین مهارتت شروع کن؛ سختی خودکار تنظیم می‌شود.</p>
+              </div>
+              <button type="button" disabled={adaptiveLoading || !adaptiveSkill} className="btn-primary !px-5 !py-2.5 text-xs" onClick={() => {
+                if (!adaptiveSkill) return;
+                setSkill(adaptiveSkill);
+                setRound(0);
+                setPicked(null);
+                setPlayed(false);
+                setStartedAt(Date.now());
+              }}>
+                {adaptiveLoading ? "در حال تحلیل…" : "شروع تمرین تطبیقی"}
+              </button>
+            </div>
+          </div>
+
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {SKILLS.map((s) => {
               const Icon = s.icon;
