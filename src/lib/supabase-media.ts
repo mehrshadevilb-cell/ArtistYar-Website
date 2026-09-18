@@ -376,6 +376,24 @@ export async function uploadMedia(input: {
   return toItem(inserted.data);
 }
 
+export async function createStandaloneUploadTicket(input: { filename: string; mimeType: string; kind: "video" | "thumbnail" }) {
+  if (!supabase) throw new Error("supabase_not_configured");
+  await ensureStorageBucket();
+
+  const safeName = input.filename.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-180) || (input.kind === "video" ? "lesson.mp4" : "thumbnail.jpg");
+  const ext = safeName.toLowerCase().split(".").pop() || (input.kind === "video" ? "mp4" : "jpg");
+  const path = `free-training-assets/${input.kind}/${crypto.randomUUID()}.${ext}`;
+
+  const signed = await supabase.storage.from(bucket).createSignedUploadUrl(path, { upsert: false });
+  if (signed.error) throw new SupabaseOperationError("signed_upload_url", signed.error);
+
+  return {
+    path,
+    signedUrl: signed.data.signedUrl,
+    mimeType: input.mimeType || (input.kind === "video" ? "video/mp4" : "image/jpeg"),
+  };
+}
+
 export async function uploadStandaloneAsset(input: { buffer: Buffer; filename: string; mimeType: string; kind: "video" | "thumbnail" }) {
   if (!supabase) throw new Error("supabase_not_configured");
   await ensureStorageBucket();
