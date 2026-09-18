@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import {
-  Ear,
   FileAudio,
   Gamepad2,
   Sparkles,
-  Target,
 } from "lucide-react";
 import { SectionHeading } from "@/components/SectionHeading";
 import { PracticeProgressPanel } from "@/components/PracticeProgressPanel";
@@ -38,10 +36,16 @@ export default function PracticeEngine() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <a href="/music-analyzer" className="card-ay flex items-center gap-4 border-cyan-400/25 p-5 text-right">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-300"><AudioWaveform size={22} /></span>
-              <span className="flex-1"><span className="eyebrow">AI AUDIO</span><strong className="mt-1 block text-sand-50">Music Analyzer</strong><span className="text-xs text-ink-500">Upload · AI Mix Analysis · 1 Free/Day</span></span>
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-300">
+                <AudioWaveform size={22} />
+              </span>
+              <span className="flex-1">
+                <span className="eyebrow">AI AUDIO · REFERENCE-STYLE</span>
+                <strong className="mt-1 block text-sand-50">Music Analyzer</strong>
+                <span className="text-xs text-ink-500">آپلود فایل · Peak/RMS/Stereo · AI EQ/Compress/Roadmap</span>
+              </span>
             </a>
-            
+
             <button
               type="button"
               className="card-ay flex items-center gap-4 border-gold-400/20 p-5 text-right"
@@ -78,16 +82,6 @@ export default function PracticeEngine() {
                 <strong className="mt-1 block text-sand-50">Voicing روزانه</strong>
               </span>
             </button>
-            <a href="/practice/analyze" className="card-ay flex items-center gap-4 p-5 text-right">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
-                <Ear size={22} />
-              </span>
-              <span className="flex-1">
-                <span className="eyebrow">DIRECT</span>
-                <strong className="mt-1 block text-sand-50">صفحه مستقیم تحلیل</strong>
-                <span className="text-xs text-ink-500">/practice/analyze</span>
-              </span>
-            </a>
             <button type="button" className="card-ay flex items-center gap-4 p-5 text-right" onClick={() => setActive("personal")}>
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
                 <FileAudio size={22} />
