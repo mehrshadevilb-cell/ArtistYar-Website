@@ -34,25 +34,29 @@ function midi(note: string) {
   return (Number(match[3]) + 1) * 12 + (semitones[match[1] + match[2]] ?? 0);
 }
 
-function playVoicing(notes: string[]) {
+let voicingAudioContext: AudioContext | null = null;
+
+async function playVoicing(notes: string[]) {
   if (typeof window === "undefined") return;
-  const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext });
   if (!AudioContextClass) return;
-  const context = new AudioContextClass();
+  voicingAudioContext ||= new AudioContextClass();
+  if (voicingAudioContext.state === "suspended") await voicingAudioContext.resume();
+  const now = voicingAudioContext.currentTime;
+  const master = voicingAudioContext.createGain();
+  const compressor = voicingAudioContext.createDynamicsCompressor();
+  master.gain.value = 0.42; compressor.threshold.value = -18; compressor.ratio.value = 3;
+  master.connect(compressor).connect(voicingAudioContext.destination);
   notes.forEach((note, index) => {
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "triangle";
-    oscillator.frequency.value = 440 * Math.pow(2, (midi(note) - 69) / 12);
-    const start = context.currentTime + index * 0.08;
+    const osc = voicingAudioContext!.createOscillator(), gain = voicingAudioContext!.createGain();
+    const start = now + index * 0.09;
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(440 * Math.pow(2, (midi(note) - 69) / 12), start);
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.11 / Math.sqrt(notes.length), start + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 2.8);
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start(start);
-    oscillator.stop(start + 3);
+    gain.gain.exponentialRampToValueAtTime(0.20 / Math.sqrt(notes.length), start + 0.035);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 2.6);
+    osc.connect(gain).connect(master); osc.start(start); osc.stop(start + 2.8);
   });
-  window.setTimeout(() => void context.close(), 3800);
 }
 
 export function DailyVoicingLab({ onBack }: { onBack: () => void }) {
@@ -129,9 +133,9 @@ export function DailyVoicingLab({ onBack }: { onBack: () => void }) {
         </div>
         <div className="mt-7 grid gap-4 lg:grid-cols-[1fr_.9fr]">
           <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
-            <p className="text-xs text-ink-500">آکورد و نت‌ها</p><strong className="mt-2 block text-3xl text-sand-50" dir="ltr">{voicing.quality}</strong>
-            <p className="mt-3 text-sm text-ink-300" dir="ltr">{voicing.notes.join(" · ")}</p><p className="mt-2 text-xs text-gold-300" dir="ltr">{voicing.degrees}</p>
-            <button type="button" className="btn-primary mt-5" onClick={() => { playVoicing(voicing.notes); setPlayed(true); }}><Play size={15} fill="currentColor" /> {played ? "پخش دوباره" : "شنیدن voicing"}</button>
+            <p className="text-xs text-ink-500">آکورد و نت‌ها</p><strong className="mt-2 block text-2xl text-sand-50" dir="ltr">{showAnswer ? voicing.quality : "؟ · آکورد را حدس بزن"}</strong>
+            <p className="mt-3 text-sm text-ink-300" dir="ltr">{showAnswer ? voicing.notes.join(" · ") : "نت‌ها بعد از پاسخ نمایش داده می‌شوند."}</p><p className="mt-2 text-xs text-gold-300" dir="ltr">{showAnswer ? voicing.degrees : "اول گوش کن، بعد انتخاب کن."}</p>
+            <button type="button" className="btn-primary mt-5" onClick={() => { void playVoicing(voicing.notes); setPlayed(true); }}><Play size={15} fill="currentColor" /> {played ? "پخش دوباره" : "شنیدن voicing"}</button>
             <p className="mt-4 flex items-start gap-2 text-xs leading-6 text-ink-400"><Headphones size={15} className="mt-0.5 shrink-0 text-cyan-300" /> با هدفون گوش بده و ابتدا باس، بعد ۳ و ۷ و در آخر نت رنگی را جدا کن.</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-black/20 p-5"><p className="text-xs text-ink-500">کاربرد حرفه‌ای</p><p className="mt-3 text-sm leading-8 text-sand-100">{voicing.tip}</p><div className="mt-4 rounded-xl border border-gold-400/15 bg-gold-400/[.06] p-4"><span className="text-[11px] text-gold-300">در تنظیم استفاده کن</span><p className="mt-1 text-sm text-ink-200">{voicing.use}</p></div></div>
