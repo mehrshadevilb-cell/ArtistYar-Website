@@ -516,11 +516,11 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       return provider.defaultModels ? fallback(provider.defaultModels) : [];
     }
 
-    const data = (await response.json().catch(() => null)) as {
+    const data = await readJsonResponse<{
       data?: Array<{ id?: string; access_tier?: string }>;
       result?: Array<{ id?: string; name?: string; access_tier?: string }>;
       models?: Array<{ name?: string; model?: string; access_tier?: string }>;
-    }>();
+    }>(response);
 
     const rawEntries = [
       ...(data?.data || []).map((i) => ({ id: i.id || "", tier: i.access_tier })),
