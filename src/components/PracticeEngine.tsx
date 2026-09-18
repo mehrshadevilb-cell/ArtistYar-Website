@@ -57,7 +57,7 @@ export default function PracticeEngine() {
               <span className="flex-1">
                 <span className="eyebrow">PRACTICE</span>
                 <strong className="mt-1 block text-sand-50">Professional Audio Skills</strong>
-                <span className="text-xs text-ink-500">۵ مرحله رایگان · Pro: ۴۰ مرحله تا پایان اشتراک فعال</span>
+                <span className="text-xs text-ink-500">۵ مرحله رایگان · Pro: بدون محدودیت مرحله تا پایان اشتراک فعال</span>
               </span>
             </button>
             <button type="button" className="card-ay flex items-center gap-4 p-5 text-right" onClick={() => setActive("theory")}>
