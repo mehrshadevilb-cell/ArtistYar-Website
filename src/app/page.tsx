@@ -7,6 +7,8 @@ import { Reveal } from "@/components/Reveal";
 import { DepthScene } from "@/components/DepthScene";
 import { ScrollDepth } from "@/components/ScrollDepth";
 import { HighlightStories } from "@/components/HighlightStories";
+import { HeroActions } from "@/components/HeroActions";
+import { SafeLink } from "@/components/SafeLink";
 import { instagramGallery } from "@/data/instagram-gallery";
 
 export const metadata: Metadata = {
@@ -148,17 +150,14 @@ export default function HomePage() {
             دوره‌های دیجیتال، کلاس‌های آنلاین و همراهی راه‌یار برای اینکه تنظیم، میکس و مسترینگ را درست و اصولی یاد
             بگیری؛ با تمرین واقعی و پیگیری تا رسیدن به نتیجه.
           </p>
-          <div className="hero-actions">
-            <Link href="/courses" className="btn-primary gap-2">
-              دیدن مسیرهای آموزشی <ArrowLeft size={16} />
-            </Link>
-            <Link href="/assistant" className="btn-ghost gap-2">
-              سؤال از راه‌یار AI <Bot size={16} />
-            </Link>
-          </div>
-          <Link href="/amoozesh-mix-mastering" className="mt-5 inline-flex text-sm text-ink-400 underline decoration-white/20 underline-offset-8 transition hover:text-gold-300 hover:decoration-gold-400/60">
+          <HeroActions />
+          <SafeLink
+            href="/amoozesh-mix-mastering"
+            hard
+            className="mt-5 inline-flex text-sm text-ink-400 underline decoration-white/20 underline-offset-8 transition hover:text-gold-300 hover:decoration-gold-400/60"
+          >
             راهنمای آموزش تنظیم، میکس و مسترینگ از پایه تا پروژه ←
-          </Link>
+          </SafeLink>
           <div className="hero-trust">
             <span className="trust-line" />
             <span>
@@ -235,7 +234,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div id="courses">
+      <div id="courses" className="scroll-mt-24">
+        <div className="container-ay pt-6 pb-2 sm:hidden">
+          <SafeLink href="/courses" hard className="btn-primary w-full justify-center gap-2">
+            دیدن همه مسیرهای آموزشی <ArrowLeft size={16} aria-hidden />
+          </SafeLink>
+        </div>
         <HomeLiveCourses />
       </div>
 
@@ -389,18 +393,14 @@ export default function HomePage() {
             </div>
           </div>
         </Reveal>
-        <div className="feedback-grid">
-          {studentFeedback.map((feedback, i) => (
-            <Reveal key={feedback.name} delay={i * 90}>
-              <article className="feedback-card">
-                <div className="feedback-quote">“</div>
-                <p className="feedback-text">{feedback.quote}</p>
-                <div className="feedback-author">
-                  <span className="feedback-avatar">۰{i + 1}</span>
-                  <span>
-                    <strong>{feedback.name}</strong>
-                    <small>{feedback.detail}</small>
-                  </span>
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          {studentFeedback.map((item, i) => (
+            <Reveal key={item.name} delay={i * 80}>
+              <article className="benefit-card">
+                <p className="text-sm leading-7 text-ink-300">«{item.quote}»</p>
+                <div className="mt-6">
+                  <strong className="block text-sm text-sand-50">{item.name}</strong>
+                  <span className="mt-1 block text-xs text-ink-500">{item.detail}</span>
                 </div>
               </article>
             </Reveal>
@@ -408,29 +408,25 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="faq" className="faq-section container-ay section-space border-t border-white/[.06]">
+      <section id="faq" className="container-ay section-space border-t border-white/[.06]">
         <Reveal>
-          <div className="projects-heading">
-            <div>
-              <p className="eyebrow">/ پرسش‌های متداول</p>
-              <h2 className="section-title mt-4">
-                قبل از شروع،
-                <br />
-                <span className="text-gold-400">جوابت را پیدا کن.</span>
-              </h2>
-            </div>
+          <div className="section-intro">
+            <p className="eyebrow">/ سؤالات متداول</p>
+            <h2 className="section-title">
+              قبل از شروع،
+              <br />
+              <span className="text-gold-400">جواب‌ها روشن باشد.</span>
+            </h2>
           </div>
         </Reveal>
-        <div className="faq-list">
+        <div className="mt-10 grid gap-3">
           {faqs.map((faq, i) => (
             <Reveal key={faq.question} delay={i * 50}>
-              <details className="faq-item">
-                <summary>
-                  <span className="faq-index">۰{i + 1}</span>
-                  <span>{faq.question}</span>
-                  <span className="faq-plus" aria-hidden="true" />
+              <details className="card-ay group p-5 open:border-gold-500/25">
+                <summary className="cursor-pointer list-none text-base font-medium text-sand-50">
+                  {faq.question}
                 </summary>
-                <p>{faq.answer}</p>
+                <p className="mt-3 text-sm leading-7 text-ink-400">{faq.answer}</p>
               </details>
             </Reveal>
           ))}
@@ -440,28 +436,27 @@ export default function HomePage() {
       <section id="contact" className="container-ay section-space">
         <Reveal>
           <div className="contact-card">
-            <div className="contact-glow" />
-            <div className="relative">
-              <p className="eyebrow">/ هنوز مطمئن نیستی؟</p>
+            <div className="contact-glow" aria-hidden="true" />
+            <div className="relative z-10 max-w-xl">
+              <p className="eyebrow">/ ارتباط</p>
               <h2 className="section-title mt-4">
-                سؤالت را از
+                آماده‌ای مسیرت را
                 <br />
-                <span className="text-gold-400">راه‌یار بپرس.</span>
+                <span className="text-gold-400">شروع کنی؟</span>
               </h2>
-              <p className="section-sub max-w-lg">
-                برای انتخاب دوره، تنظیم، میکس، مسترینگ یا تئوری موسیقی، دستیار راه‌یار راهنمایی‌ات می‌کند.
+              <p className="section-sub">
+                اگر مطمئن نیستی از کجا شروع کنی، فرم مشاوره رایگان را پر کن تا بر اساس هدف و سطح فعلی‌ات راهنمایی شوی.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link href="/assistant" className="btn-primary gap-2">
-                  رفتن به دستیار <Bot size={16} />
-                </Link>
-                <Link href="/contact" className="btn-ghost">
-                  ارتباط با پشتیبانی
-                </Link>
+                <SafeLink href="/courses" hard className="btn-primary gap-2">
+                  مشاهده مسیرها <ArrowLeft size={16} />
+                </SafeLink>
+                <SafeLink href="/assistant" hard className="btn-ghost gap-2">
+                  گفتگو با راه‌یار <Bot size={16} />
+                </SafeLink>
               </div>
             </div>
-            <div className="contact-mark">
-              <Waves size={52} strokeWidth={1} />
+            <div className="contact-mark" aria-hidden="true">
               <span>
                 RAHYAR
                 <br />
