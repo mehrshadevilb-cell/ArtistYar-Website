@@ -6,14 +6,16 @@ import { Award, CalendarDays, Crown, Flame, RefreshCw, Trophy } from "lucide-rea
 import { useAuth } from "@/components/AuthProvider";
 
 type Row = { rank:number; user_id:string; username:string; full_name:string; total_score:number; best_score:number; games_played:number; accuracy:number; streak:number };
-type Profile = { totalXp:number; sessions:number; bestByGame:Array<{game_id:string;best_score:number}> };\ntype Reward = { eligible:boolean; discountPercent:number; activeDays:number; monthXp:number; requirement:{activeDays:number;monthXp:number}; message:string };
+type Profile = { totalXp:number; sessions:number; bestByGame:Array<{game_id:string;best_score:number}> };
+type Reward = { eligible:boolean; discountPercent:number; activeDays:number; monthXp:number; requirement:{activeDays:number;monthXp:number}; message:string };
 
 export function PracticeProgressPanel() {
   const { user } = useAuth();
   const [board,setBoard]=useState<Row[]>([]);
   const [profile,setProfile]=useState<Profile|null>(null);
   const [loading,setLoading]=useState(true);
-  const [error,setError]=useState("");\n  const [reward,setReward]=useState<Reward|null>(null);
+  const [error,setError]=useState("");
+  const [reward,setReward]=useState<Reward|null>(null);
   const today=useMemo(()=>new Date().toISOString().slice(0,10),[]);
   const dailyIndex=new Date().getDate()%4;
   const dailyNames=["فرکانس‌یاب","کارآگاه EQ","حس کمپرسور","شکارچی فاز"];
