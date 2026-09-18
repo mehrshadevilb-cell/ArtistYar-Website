@@ -87,9 +87,7 @@ async function generate(gameId: GameId, level: number, recent: string[]) {
       return { question, provider: keyName, model: process.env[modelName] || defaultModel };
     }),
   );
-  const candidates = results
-    .filter(r => r.status === "fulfilled")
-    .map(r => r.value);
+  const candidates = results.flatMap(r => r.status === "fulfilled" ? [r.value] : []);
 
   if (!candidates.length) return fallback(gameId, level);
   if (candidates.length === 1) return { ...candidates[0].question, source: `ai:${candidates[0].provider}` };
