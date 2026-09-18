@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { AudioLines, CheckCircle2, Download, FileAudio, Loader2, ShieldCheck, Sparkles, Upload, Waves } from "lucide-react";
 
 const presets = [
-  { id: "vocal_balanced", title: "Vocal + Instrumental", body: "Browser-based BS-Roformer separation using your device GPU when WebGPU is available.", tag: "WebGPU" },
+  { id: "demucs_mdx_hq5", title: "HQ Hybrid — Demucs + MDX Inst HQ 5", body: "Hybrid vocal/instrumental workflow: Demucs FT for vocals and UVR-MDX-NET Inst HQ 5 for instrumental.", tag: "HQ Hybrid" },
 ] as const;
 
 export default function SeparatePage() {
@@ -66,7 +66,7 @@ export default function SeparatePage() {
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-      setStatus("Done — browser separation complete. Your stems were processed on this device.");
+      setStatus("Done — on-device separation complete. Your stems were processed locally.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Browser separation failed.");
       setStatus("");
