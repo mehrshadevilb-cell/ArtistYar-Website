@@ -345,6 +345,12 @@ function normalizeAi(raw: Partial<MixAnalysis>, body: AnalyzeBody): MixAnalysis 
   };
 }
 
+export async function GET(request: Request) {
+  const userId = new URL(request.url).searchParams.get("userId")?.trim() || "";
+  const quota = await mixQuota(userId);
+  return NextResponse.json({ ok: true, dailyLimit: quota.limit, used: quota.used, remaining: Math.max(0, quota.limit - quota.used), pro: quota.pro });
+}
+
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as AnalyzeBody;
   const genre = String(body.genre || "Pop").slice(0, 80);
