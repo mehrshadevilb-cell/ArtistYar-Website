@@ -390,6 +390,7 @@ export async function createStandaloneUploadTicket(input: { filename: string; mi
   return {
     path,
     signedUrl: signed.data.signedUrl,
+    publicUrl: supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl,
     mimeType: input.mimeType || (input.kind === "video" ? "video/mp4" : "image/jpeg"),
   };
 }
