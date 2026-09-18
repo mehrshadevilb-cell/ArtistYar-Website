@@ -37,9 +37,31 @@ export async function POST(request: Request) {
     if(error)return NextResponse.json({ok:false,error:error.message},{status:503});
     return NextResponse.json({ok:true,status:"rejected"});
   }
-  const expires=new Date(now);expires.setMonth(expires.getMonth()+1);
-  const {error:subError}=await db.from("practice_subscriptions").insert({user_id:req.user_id,status:"active",price_toman:40000,started_at:now.toISOString(),expires_at:expires.toISOString()});
-  if(subError)return NextResponse.json({ok:false,error:subError.message},{status:503});
+  const nowIso = now.toISOString();
+  const { data: existing, error: existingError } = await db
+    .from("practice_subscriptions")
+    .select("id,expires_at,price_toman")
+    .eq("user_id", req.user_id)
+    .eq("status", "active")
+    .gt("expires_at", nowIso)
+    .order("expires_at", { ascending: false })
+    .limit(1);
+  if (existingError) return NextResponse.json({ok:false,error:existingError.message},{status:503});
+
+  const base = existing?.[0]?.expires_at ? new Date(existing[0].expires_at) : now;
+  const expires = new Date(base);
+  expires.setMonth(expires.getMonth() + 1);
+
+  if (existing?.[0]?.id) {
+    const { error: subError } = await db
+      .from("practice_subscriptions")
+      .update({ expires_at: expires.toISOString(), price_toman: Number(existing[0].price_toman || 0) + 40000 })
+      .eq("id", existing[0].id);
+    if (subError) return NextResponse.json({ok:false,error:subError.message},{status:503});
+  } else {
+    const {error:subError}=await db.from("practice_subscriptions").insert({user_id:req.user_id,status:"active",price_toman:40000,started_at:nowIso,expires_at:expires.toISOString()});
+    if(subError)return NextResponse.json({ok:false,error:subError.message},{status:503});
+  }
   const {error:updateError}=await db.from("practice_payment_requests").update({status:"approved",reviewed_at:now.toISOString(),reviewed_by:session.username}).eq("id",requestId);
   if(updateError)return NextResponse.json({ok:false,error:updateError.message},{status:503});
   return NextResponse.json({ok:true,status:"approved"});
