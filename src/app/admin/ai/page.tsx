@@ -228,7 +228,7 @@ export default function AdminAiPage() {
         ) : null}
       </section>
 
-      <section className="card-ay space-y-5 p-5 border border-emerald-400/20">
+      <section id="development-agent" className="card-ay space-y-5 p-5 border border-emerald-400/20 scroll-mt-24">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-medium text-sand-50">🚀 Development Agent · بگو چه بسازم</h3>
