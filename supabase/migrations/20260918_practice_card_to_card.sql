@@ -1,0 +1,15 @@
+create table if not exists public.practice_payment_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  reference text not null,
+  amount_toman integer not null default 40000,
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  created_at timestamptz not null default now(),
+  reviewed_at timestamptz,
+  reviewed_by text
+);
+
+create index if not exists practice_payment_requests_status_idx on public.practice_payment_requests(status, created_at desc);
+create index if not exists practice_payment_requests_user_idx on public.practice_payment_requests(user_id, created_at desc);
+
+alter table public.practice_payment_requests enable row level security;
