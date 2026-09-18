@@ -344,7 +344,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
     if (!skill) return null;
     const skillSeed = SKILLS.findIndex((item) => item.id === skill) + 1;
     return pickQuestion(skill, tierFromXp(xp, round), round * 97 + skillSeed * 131);
-  }, [skill, round, xp]);
+  }, [skill, round]);
 
   const choose = useCallback(
     async (opt: string) => {
