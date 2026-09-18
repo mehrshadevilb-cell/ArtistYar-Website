@@ -664,7 +664,23 @@ export async function registerFreeLessonFromStorage(input: {
   const info = await supabase.storage.from(bucket).list(input.publicId.includes("/") ? input.publicId.split("/").slice(0, -1).join("/") : "", { limit: 1 });
   const fileName = input.publicId.split("/").pop() || input.publicId;
   const file = (info.data || []).find((item) => item.name === fileName);
-  const mimeType = String(file?.metadata?.mimetype || "video/mp4");
+  const detectedMime = String(file?.metadata?.mimetype || "").toLowerCase();
+  const fileExt = (fileName.split(".").pop() || "mp4").toLowerCase();
+  const mimeByExtension: Record<string, string> = {
+    mp4: "video/mp4",
+    webm: "video/webm",
+    mov: "video/quicktime",
+    m4v: "video/x-m4v",
+    mkv: "video/x-matroska",
+    avi: "video/x-msvideo",
+    mpeg: "video/mpeg",
+    mpg: "video/mpeg",
+    ogv: "video/ogg",
+    "3gp": "video/3gpp",
+    ts: "video/mp2t",
+    m2ts: "video/mp2t",
+  };
+  const mimeType = detectedMime.startsWith("video/") ? detectedMime : (mimeByExtension[fileExt] || "video/mp4");
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(input.publicId).data.publicUrl;
   const result = await supabase.from("media_assets").insert({
     storage_path: input.publicId,
