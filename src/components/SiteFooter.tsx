@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { BrandMark } from "./BrandMark";
+import { CommunityLinks } from "./CommunityLinks";
+import { communityLinks } from "@/data/community";
 
 export function SiteFooter() {
   return (
@@ -17,20 +19,16 @@ export function SiteFooter() {
             >
               سؤال از راه‌یار AI
             </Link>
-            <a
-              href="https://rahyar-academy-management-system-v14.onrender.com"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex text-sm text-ink-400 transition hover:text-gold-300"
-            >
-              سامانه آکادمی راه‌یار ←
-            </a>
+          </div>
+          <div className="mt-6">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-ink-500">جامعه</p>
+            <div className="mt-3">
+              <CommunityLinks variant="pills" />
+            </div>
           </div>
         </div>
         <div>
-          <h3 className="text-xs font-medium uppercase tracking-[0.18em] text-ink-500">
-            مسیرها
-          </h3>
+          <h3 className="text-xs font-medium uppercase tracking-[0.18em] text-ink-500">مسیرها</h3>
           <ul className="mt-4 space-y-2 text-sm text-ink-300">
             <li>
               <Link href="/courses" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
@@ -38,7 +36,7 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link href="/free-player" className="rounded-sm transition-colors text-gold-400 hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+              <Link href="/free-player" className="rounded-sm text-gold-400 transition-colors hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 آموزش‌های رایگان
               </Link>
             </li>
@@ -65,9 +63,7 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h3 className="text-xs font-medium uppercase tracking-[0.18em] text-ink-500">
-            ارتباط
-          </h3>
+          <h3 className="text-xs font-medium uppercase tracking-[0.18em] text-ink-500">ارتباط</h3>
           <ul className="mt-4 space-y-2 text-sm text-ink-300">
             <li>
               <Link href="/about" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
@@ -80,11 +76,35 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <a href="https://www.instagram.com/prodbymehrshad/" target="_blank" rel="noreferrer" className="rounded-sm text-gold-400 transition-colors hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
-                آموزش‌های اینستاگرام
+              <a
+                href={communityLinks.instagram.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-sm text-gold-400 transition-colors hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+              >
+                اینستاگرام @prodbymehrshad
               </a>
             </li>
-            <li className="text-ink-500">همراه با راه‌یار</li>
+            <li>
+              <a
+                href={communityLinks.telegramPlugins.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-sm text-gold-400 transition-colors hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+              >
+                کانال VST و پلاگین
+              </a>
+            </li>
+            <li>
+              <a
+                href={communityLinks.telegramGroup.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-sm text-gold-400 transition-colors hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+              >
+                گروه پرسش و پاسخ
+              </a>
+            </li>
           </ul>
         </div>
       </div>
