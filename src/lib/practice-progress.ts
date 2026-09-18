@@ -51,13 +51,20 @@ export async function getLeaderboard(limit = 50) {
   if (!supabase) throw new Error("practice_store_not_configured");
   const result = await supabase.from("practice_records").select("user_id,username,full_name,score,best_score,accuracy,streak,played_at").order("score", { ascending: false }).limit(1000);
   if (result.error) throw new Error(result.error.message);
-  const totals = new Map<string, any>();
+  const byUserGame = new Map<string, any>();
   for (const row of result.data || []) {
+    const key = String(row.user_id) + "::" + String(row.game_id || "unknown");
+    const existing = byUserGame.get(key);
+    if (!existing || Number(row.best_score || row.score || 0) > Number(existing.best_score || existing.score || 0)) byUserGame.set(key, row);
+  }
+  const totals = new Map<string, any>();
+  for (const row of byUserGame.values()) {
     const existing = totals.get(row.user_id);
-    if (!existing) totals.set(row.user_id, { ...row, total_score: Number(row.score || 0), best_score: Number(row.best_score || 0), games_played: 1 });
+    const best = Number(row.best_score || row.score || 0);
+    if (!existing) totals.set(row.user_id, { ...row, total_score: best, best_score: best, games_played: 1 });
     else {
-      existing.total_score += Number(row.score || 0);
-      existing.best_score = Math.max(existing.best_score, Number(row.best_score || 0));
+      existing.total_score += best;
+      existing.best_score = Math.max(existing.best_score, best);
       existing.games_played += 1;
       existing.accuracy = Math.max(Number(existing.accuracy || 0), Number(row.accuracy || 0));
       existing.streak = Math.max(Number(existing.streak || 0), Number(row.streak || 0));
