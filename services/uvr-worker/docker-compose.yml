@@ -1,0 +1,17 @@
+services:
+  uvr-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      MODEL_DIR: /models
+      MAX_UPLOAD_MB: "250"
+    volumes:
+      - uvr_models:/models
+    restart: unless-stopped
+    gpus: all
+
+volumes:
+  uvr_models:
