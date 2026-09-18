@@ -335,22 +335,41 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [played, setPlayed] = useState(false);
   const [xp, setXp] = useState(0);
+  const [startedAt, setStartedAt] = useState<number>(0);
+  const [adaptiveRating, setAdaptiveRating] = useState<number | null>(null);
+  const [adaptiveDifficulty, setAdaptiveDifficulty] = useState<number | null>(null);
+  const [adaptiveLoading, setAdaptiveLoading] = useState(false);
 
+  // Pro is subscription-based, not stage-based. Free keeps the small daily cap.
   const stageNumber = round + 1;
   const stageLocked = !checking && !pro && stageNumber > stageLimit;
 
-  const tier = tierFromXp(xp, round);
+  useEffect(() => {
+    if (!user?.id) return;
+    setAdaptiveLoading(true);
+    fetch("/api/practice/adaptive?userId=" + encodeURIComponent(user.id), { cache: "no-store", credentials: "include" })
+      .then(r => r.json()).then(d => {
+        if (d?.ok) {
+          setAdaptiveRating(Number(d.overallRating) || null);
+          const next = d.exercises?.find((x: { gameId?: string }) => x.gameId === "eq" || x.gameId === "compressor" || x.gameId === "tone" || x.gameId === "phase");
+          setAdaptiveDifficulty(Number(next?.difficulty) || null);
+        }
+      }).catch(() => {}).finally(() => setAdaptiveLoading(false));
+  }, [user?.id, round]);
+
+  const tier = adaptiveDifficulty != null ? Math.max(0, Math.min(3, Math.floor(adaptiveDifficulty / 125))) : tierFromXp(xp, round);
   const question = useMemo(() => {
     if (!skill) return null;
     const skillSeed = SKILLS.findIndex((item) => item.id === skill) + 1;
-    return pickQuestion(skill, tierFromXp(xp, round), round * 97 + skillSeed * 131);
-  }, [skill, round]);
+    return pickQuestion(skill, tier, round * 97 + skillSeed * 131);
+  }, [skill, round, tier]);
 
   const choose = useCallback(
     async (opt: string) => {
       if (!question || picked) return;
       setPicked(opt);
       const ok = opt === question.answer;
+      const responseTimeMs = startedAt ? Math.max(1, Date.now() - startedAt) : 0;
       const delta = ok ? 20 : -8;
       try {
         const saved = JSON.parse(localStorage.getItem("artistyar_arcade_score") || "{}");
@@ -381,6 +400,8 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
                 skill: question.skill,
                 answer: question.answer,
                 tier,
+                difficulty: adaptiveDifficulty ?? tier * 125,
+                responseTimeMs,
                 progressive: true,
                 randomized: true,
                 wrongPenalty: !ok,
@@ -392,7 +413,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
         }
       }
     },
-    [question, picked, user, tier],
+    [question, picked, user, tier, startedAt, adaptiveDifficulty],
   );
 
   if (checking) {
@@ -406,7 +427,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
     );
   }
 
-  if (stageLocked) {
+  if (stageLocked && !pro) {
     return (
       <section className="mt-10">
         <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button>
@@ -432,7 +453,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
           <p className="eyebrow text-gold-300">PRO ARCADE · ADAPTIVE · RANDOMIZED</p>
           <h1 className="mt-3 text-2xl font-semibold text-sand-50">Professional Audio Skills</h1>
           <p className="mt-2 max-w-2xl text-sm leading-7 text-ink-300">
-            چهار مسیر شنیداری میکس. سوال‌ها بر اساس XP از آسان به expert پیش می‌روند، ترتیب گزینه‌ها تصادفی است، و پاسخ غلط = −۸ XP.
+            چهار مسیر شنیداری میکس. دشواری با عملکرد واقعی تو تنظیم می‌شود؛ دقت، ثبات و سرعت واکنش روی تمرین بعدی اثر می‌گذارند. XP فقط برای بازی‌سازی است.
           </p>
           <p className="mt-2 text-xs text-gold-200/80">
             XP فعلی: {xp} · سطح فعلی: {TIER_LABELS[tierFromXp(xp, 0)]}
@@ -450,6 +471,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
                     setRound(0);
                     setPicked(null);
                     setPlayed(false);
+                    setStartedAt(Date.now());
                   }}
                 >
                   <span className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-white/[.04] ${s.color}`}>
@@ -497,7 +519,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
             </p>
             <h1 className="mt-2 text-2xl font-semibold text-sand-50">{question.prompt}</h1>
             <p className="mt-2 text-sm text-ink-400">{question.hint}</p>
-            <p className="mt-1 text-xs text-ink-500">XP {xp} · گزینه‌ها تصادفی · غلط = −۸ XP</p>
+            <p className="mt-1 text-xs text-ink-500">XP {xp} · Rating {adaptiveRating ?? "—"} · دشواری {adaptiveDifficulty ?? tier * 125}/500 · گزینه‌ها تصادفی</p>
           </div>
           <span className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[.04] ${meta.color}`}>
             <Icon size={22} />
@@ -552,6 +574,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
                 setRound((r) => r + 1);
                 setPicked(null);
                 setPlayed(false);
+                setStartedAt(Date.now());
               }}
             >
               <Sparkles size={13} /> سوال تصادفی بعدی
