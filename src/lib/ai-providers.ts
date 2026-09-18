@@ -99,12 +99,17 @@ function pushOpenAICompat(
   defaultModels?: string[],
 ) {
   if (!baseUrl) return;
+  // Normalize accidental full-endpoint values so chatPath is never duplicated.
+  const normalizedBase = baseUrl
+    .replace(/\/+$/, "")
+    .replace(/\/chat\/completions$/i, "")
+    .replace(/\/messages$/i, "");
   const key = apiKey || (id === "ollama" ? "ollama" : "");
   if (!key && id !== "ollama") return;
   list.push({
     id,
     name,
-    baseUrl: baseUrl.replace(/\/$/, ""),
+    baseUrl: normalizedBase,
     modelsUrl: "/models",
     chatPath: "/chat/completions",
     apiKey: key,
@@ -186,10 +191,10 @@ export function getConfiguredProviders(): AIProvider[] {
       env("AGENT_ROUTER_BASE_URL") ||
       "https://agentrouter.org/v1",
     [
-      env("AGENTROUTER_MODEL") || "gpt-5.6-sol",
-      "claude-opus-5",
-      "glm-5.1",
-      "deepseek-v4-flash",
+      env("AGENTROUTER_MODEL") || "gpt-5.5",
+      "kimi-k2.6",
+      "glm-5.2",
+      "step3p5-code-alpha",
     ],
   );
 
@@ -419,10 +424,10 @@ const ANTHROPIC_FALLBACK = [
   "claude-3-5-haiku-20241022",
 ];
 const GEMINI_FALLBACK = [
+  "gemini-3.1-pro-preview",
+  "gemini-3.1-flash-lite",
+  "gemini-3-flash-preview",
   "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
 ];
 
 export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
@@ -660,7 +665,10 @@ async function chatGoogle(
   const url = `${provider.baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(provider.apiKey || "")}`;
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": provider.apiKey || "",
+    },
     body: JSON.stringify({
       systemInstruction: system ? { parts: [{ text: system }] } : undefined,
       contents,
@@ -748,7 +756,7 @@ export async function chatWithProvider(
 }
 
 function isProviderFatalError(message: string): boolean {
-  return /no credits|insufficient.?quota|billing|credit|payment|invalid.?api.?key|incorrect.?api.?key|authentication|unauthorized|401|403|permission.?denied|api key not valid|account.?deactivated|exceeded.?your.?current.?quota/i.test(
+  return /no credits|insufficient.?quota|billing|credit|payment|invalid.?api.?key|incorrect.?api.?key|authentication|unauthorized|401|403|permission.?denied|api key not valid|account.?deactivated|exceeded.?your.?current.?quota|cannot post .*chat\/completions|http 405|http 404/i.test(
     message,
   );
 }
@@ -830,7 +838,7 @@ export async function autoChat(
 
   const errors: string[] = [];
   const skippedProviders = new Set<string>();
-  const maxAttempts = Math.min(ordered.length, 12);
+  const maxAttempts = Math.min(ordered.length, 30);
 
   for (let i = 0; i < maxAttempts; i++) {
     const { provider, model } = ordered[i];
