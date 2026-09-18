@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Metadata } from "next";
 import { ArrowLeft, Bot, Check, CirclePlay, MessageCircle, Sparkles, Waves } from "lucide-react";
 import { HomeLiveCourses } from "@/components/HomeLiveCourses";
@@ -215,6 +216,16 @@ export default function HomePage() {
         </div>
         <ScrollDepth className="hero-scroll-depth" intensity={0.55}>
           <DepthScene className="hero-art">
+            <div className="hero-photo-stage">
+              <Image
+                src="/artistyar-studio-hero.png"
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 767px) 100vw, (max-width: 1024px) 60vw, 42vw"
+                className="hero-photo"
+              />
+            </div>
             <div className="hero-orbit orbit-a" />
             <div className="hero-orbit orbit-b" />
             <div className="record-disc">
@@ -235,6 +246,22 @@ export default function HomePage() {
                 <span className="mini-label">RAHYAR</span>
                 <strong>مسیرت را ادامه بده</strong>
               </div>
+            </div>
+            <div className="studio-session">
+              <span>جلسهٔ تمرین / ۰۱</span>
+              <strong>از شنیدن تا ساختن</strong>
+            </div>
+            <div className="studio-meter" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
             </div>
             <div className="art-caption">
               <Sparkles size={14} /> آموزش · تمرین · پیگیری

@@ -18,7 +18,15 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <section className="container-ay py-14 sm:py-16">
+    <section className="about-stage container-ay py-14 sm:py-16">
+      <div className="about-sound-lines" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+      </div>
       <SectionHeading
         eyebrow="درباره آکادمی راه‌یار"
         title="یک مسیر کامل برای هنرجو"
@@ -42,7 +50,7 @@ export default function AboutPage() {
             href={communityLinks.instagram.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-7 inline-flex text-sm font-medium text-gold-400 transition hover:text-gold-300"
+            className="mt-7 inline-flex min-h-11 items-center text-sm font-medium text-gold-400 transition hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-4 focus-visible:ring-offset-ink-950"
           >
             مشاهده آموزش‌ها در اینستاگرام ←
           </a>
@@ -54,9 +62,9 @@ export default function AboutPage() {
             در محتوای راه‌یار، مسیر رشد هنرجوها، رضایت‌ها و نمونه‌کارهای آموزشی به‌صورت مرحله‌به‌مرحله دنبال می‌شود؛ نه فقط تماشای ویدیو، بلکه تمرین، بازخورد و ساختن پروژه.
           </p>
           <ul className="mt-6 space-y-3 text-sm leading-7 text-ink-300">
-            <li>• تمرین روی پروژه‌ی خود هنرجو</li>
-            <li>• بازخورد و پشتیبانی در مسیر یادگیری</li>
-            <li>• تمرکز بر تنظیم، میکس و مسترینگ اصولی</li>
+            <li className="flex gap-2"><span className="mt-3 h-1.5 w-1.5 shrink-0 rounded-full bg-gold-400" aria-hidden="true" />تمرین روی پروژه‌ی خود هنرجو</li>
+            <li className="flex gap-2"><span className="mt-3 h-1.5 w-1.5 shrink-0 rounded-full bg-gold-400" aria-hidden="true" />بازخورد و پشتیبانی در مسیر یادگیری</li>
+            <li className="flex gap-2"><span className="mt-3 h-1.5 w-1.5 shrink-0 rounded-full bg-gold-400" aria-hidden="true" />تمرکز بر تنظیم، میکس و مسترینگ اصولی</li>
           </ul>
           <p className="mt-6 text-xs leading-6 text-ink-500">
             معرفی نام و آثار هر هنرجو فقط با رضایت خود او در سایت منتشر می‌شود.
@@ -86,7 +94,7 @@ export default function AboutPage() {
             href={communityLinks.telegramGroup.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 inline-flex text-xs font-medium text-gold-400 hover:text-gold-300"
+            className="mt-4 inline-flex min-h-11 items-center text-xs font-medium text-gold-400 hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-4 focus-visible:ring-offset-ink-950"
           >
             ورود به گروه پرسش و پاسخ ←
           </a>
@@ -101,7 +109,7 @@ export default function AboutPage() {
             href={communityLinks.telegramPlugins.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 inline-flex text-xs font-medium text-gold-400 hover:text-gold-300"
+            className="mt-4 inline-flex min-h-11 items-center text-xs font-medium text-gold-400 hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-4 focus-visible:ring-offset-ink-950"
           >
             کانال ProAudios ←
           </a>

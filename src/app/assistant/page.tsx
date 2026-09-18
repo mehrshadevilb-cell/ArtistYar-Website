@@ -8,6 +8,7 @@ import {
   Clipboard,
   Lightbulb,
   MessageCircle,
+  Music2,
   Plus,
   RotateCcw,
   Send,
@@ -192,12 +193,19 @@ export default function AssistantPage() {
         : "آماده‌سازی اتصال";
 
   return (
-    <section className="container-ay relative py-10 sm:py-16">
+    <section className="assistant-stage container-ay relative py-10 sm:py-16">
+      <div className="assistant-stage-lines" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+      </div>
       <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex flex-col gap-6 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
+        <div className="assistant-intro mb-8 flex flex-col gap-6 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold-500/20 bg-gold-500/[0.08] px-3 py-1.5 text-xs text-gold-300">
-              <Sparkles size={14} aria-hidden="true" />
+              <Music2 size={14} aria-hidden="true" />
               <span>دستیار آموزشی آرتیست‌یار</span>
             </div>
             <h1 className="text-3xl font-semibold leading-[1.45] tracking-tight text-sand-50 sm:text-5xl">
@@ -215,8 +223,8 @@ export default function AssistantPage() {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-          <div className="overflow-hidden rounded-[1.75rem] border border-white/[0.09] bg-[#11110f]/90 shadow-[0_30px_80px_-45px_rgba(0,0,0,.9)] backdrop-blur-xl">
-            <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-4 sm:px-6">
+          <div className="assistant-console overflow-hidden rounded-[1.75rem] border border-white/[0.09] bg-[#11110f]/90 shadow-[0_30px_80px_-45px_rgba(0,0,0,.9)] backdrop-blur-xl">
+            <div className="assistant-console-header flex items-center justify-between border-b border-white/[0.07] px-4 py-4 sm:px-6">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-500 text-ink-950 shadow-[0_10px_25px_-12px_rgba(201,162,39,.9)]">
                   <Bot size={22} aria-hidden="true" />
@@ -233,6 +241,15 @@ export default function AssistantPage() {
                   </p>
                 </div>
               </div>
+              <div className="assistant-audio-meter hidden items-end gap-0.5 sm:flex" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+              </div>
               <button
                 type="button"
                 onClick={resetChat}
@@ -245,7 +262,7 @@ export default function AssistantPage() {
               </button>
             </div>
 
-            <div className="assistant-chat-scroll min-h-[22rem] max-h-[38rem] space-y-6 overflow-y-auto px-4 py-6 sm:px-6" aria-live="polite" aria-busy={busy}>
+            <div className="assistant-chat-scroll assistant-console-scroll min-h-[22rem] max-h-[38rem] space-y-6 overflow-y-auto px-4 py-6 sm:px-6" aria-live="polite" aria-busy={busy}>
               {messages.map((message) => (
                 <div key={message.id} className={`group flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}>
                   <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${message.role === "user" ? "bg-white/[0.08] text-ink-300" : message.error ? "bg-red-400/10 text-red-300" : "bg-gold-500/15 text-gold-400"}`}>

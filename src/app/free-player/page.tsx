@@ -101,6 +101,7 @@ export default function FreePlayerPage() {
         eyebrow="رایگان / Free Player"
         title="یاد بگیر، تمرین کن، جلو برو."
         subtitle="آموزش‌های کوتاه و کاربردی برای شروع بهتر؛ هر درس را با سرعت خودت ببین و پیشرفتت را همین‌جا نگه دار."
+        as="h1"
       />
       {loading ? (
         <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_330px]">
@@ -162,7 +163,7 @@ export default function FreePlayerPage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
                   <StatusChip tone="gold">آموزش رایگان</StatusChip>
-                  <h1 className="mt-4 text-xl font-semibold text-sand-50 sm:text-2xl">{activeLesson.title}</h1>
+                  <h2 className="mt-4 text-xl font-semibold text-sand-50 sm:text-2xl">{activeLesson.title}</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-7 text-ink-400">{activeLesson.description}</p>
                 </div>
                 <label className="flex shrink-0 items-center gap-2 text-xs text-ink-400">
@@ -182,7 +183,14 @@ export default function FreePlayerPage() {
                 </label>
               </div>
               <div className="mt-5 flex items-center gap-3 border-t border-white/[.07] pt-4">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[.08]">
+                <div
+                  className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[.08]"
+                  role="progressbar"
+                  aria-label={`پیشرفت در درس ${activeLesson.title}`}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={activeProgress}
+                >
                   <div className="h-full rounded-full bg-gold-400 transition-[width] duration-300" style={{ width: `${activeProgress}%` }} />
                 </div>
                 <span className="text-xs tabular-nums text-ink-400">{activeProgress}٪</span>
@@ -222,7 +230,7 @@ export default function FreePlayerPage() {
               </div>
             </div>
           </div>
-          <aside className="card-ay h-fit p-4 lg:sticky lg:top-24">
+          <aside className="order-first h-fit p-4 card-ay lg:order-last lg:sticky lg:top-24">
             <div className="flex items-center justify-between gap-3 px-2 pb-3">
               <div>
                 <p className="eyebrow">کتابخانه رایگان</p>
@@ -239,6 +247,7 @@ export default function FreePlayerPage() {
                     key={lesson.id}
                     type="button"
                     onClick={() => selectLesson(lesson.id)}
+                    aria-current={isActive ? "true" : undefined}
                     className={`w-full rounded-xl border p-3 text-right transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 ${
                       isActive
                         ? "border-gold-400/35 bg-gold-500/[.09]"
@@ -266,7 +275,14 @@ export default function FreePlayerPage() {
                         aria-hidden="true"
                       />
                     </div>
-                    <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[.07]">
+                    <div
+                      className="mt-3 h-1 overflow-hidden rounded-full bg-white/[.07]"
+                      role="progressbar"
+                      aria-label={`پیشرفت در ${lesson.title}`}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={lessonProgress}
+                    >
                       <div className="h-full rounded-full bg-gold-400/80" style={{ width: `${lessonProgress}%` }} />
                     </div>
                   </button>

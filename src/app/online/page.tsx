@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { SectionHeading } from "@/components/SectionHeading";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { communityLinks } from "@/data/community";
@@ -17,6 +17,8 @@ export default function OnlinePage() {
   const [selected, setSelected] = useState<ClassItem | null>(null);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const formHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const selectedTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     fetch("/api/rahyar/classes")
@@ -27,6 +29,15 @@ export default function OnlinePage() {
       })
       .catch(() => setSource("خطا در دریافت کلاس‌ها"));
   }, []);
+
+  useEffect(() => {
+    if (!selected) return;
+    const frame = window.requestAnimationFrame(() => {
+      formHeadingRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      formHeadingRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selected]);
 
   async function onInquiry(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -73,6 +84,13 @@ export default function OnlinePage() {
           : null}
         {items.map((c) => (
           <article key={c.id} className="card-ay p-6">
+            <div className="online-card-wave" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+            </div>
             <h3 className="text-lg font-medium text-sand-50">{c.name}</h3>
             <p className="mt-3 text-sm leading-7 text-ink-400">
               {c.description || "جلسه‌ای کاربردی برای جلو بردن پروژه موسیقی خودت."}
@@ -80,7 +98,8 @@ export default function OnlinePage() {
             <button
               type="button"
               className="btn-primary mt-5 min-h-11 !py-2 text-xs"
-              onClick={() => {
+              onClick={(event) => {
+                selectedTriggerRef.current = event.currentTarget;
                 setSelected(c);
                 setMsg("");
               }}
@@ -89,11 +108,19 @@ export default function OnlinePage() {
             </button>
           </article>
         ))}
+        {!items.length && source !== "در حال بارگذاری…" ? (
+          <div className="card-ay md:col-span-2 lg:col-span-3 p-8 text-center text-sm leading-7 text-ink-400">
+            فعلاً کلاسی برای نمایش آماده نیست. برای پرسش عمومی، از گروه راه‌یار استفاده کن یا کمی بعد دوباره سر بزن.
+          </div>
+        ) : null}
       </div>
 
       {selected ? (
         <div className="card-ay mx-auto mt-12 max-w-lg p-7">
-          <h3 className="text-lg font-medium text-sand-50">مشاوره برای: {selected.name}</h3>
+          <h3 ref={formHeadingRef} tabIndex={-1} className="text-lg font-medium text-sand-50 focus-visible:outline-none">
+            مشاوره برای: {selected.name}
+          </h3>
+          <p className="mt-2 text-xs leading-6 text-ink-500">اطلاعات پروژه‌ات را بفرست تا مسیر مناسب برای ادامه مشخص شود.</p>
           <form className="mt-5 space-y-3" onSubmit={onInquiry}>
             <label className="sr-only" htmlFor="online-full-name">
               نام کامل
@@ -132,7 +159,14 @@ export default function OnlinePage() {
               <button type="submit" className="btn-primary min-h-11 flex-1" disabled={busy}>
                 {busy ? "در حال ارسال…" : "ارسال برای بررسی"}
               </button>
-              <button type="button" className="btn-ghost min-h-11" onClick={() => setSelected(null)}>
+              <button
+                type="button"
+                className="btn-ghost min-h-11"
+                onClick={() => {
+                  setSelected(null);
+                  window.requestAnimationFrame(() => selectedTriggerRef.current?.focus());
+                }}
+              >
                 بستن
               </button>
             </div>

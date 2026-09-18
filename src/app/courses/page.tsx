@@ -54,9 +54,11 @@ export default function CoursesPage() {
           title="برای هر مسیر، یک صفحه اختصاصی"
           subtitle="هر پکیج را جداگانه ببین؛ توضیحات کامل، سرفصل‌ها، نتیجه مسیر و روش دریافت دسترسی در صفحه اختصاصی همان محصول قرار گرفته است."
         />
-        <StatusChip tone={source === "rahyar" ? "ok" : "warn"}>
-          {source === "rahyar" ? "کاتالوگ زنده" : source}
-        </StatusChip>
+        <div className="self-start sm:self-auto">
+          <StatusChip tone={source === "rahyar" ? "ok" : "warn"}>
+            {source === "rahyar" ? "کاتالوگ زنده" : source}
+          </StatusChip>
+        </div>
       </div>
 
       <div className="product-grid mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -70,15 +72,18 @@ export default function CoursesPage() {
             >
               <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[.06]">
                 {item.thumbnail ? (
-                  <Image
-                    src={item.thumbnail}
-                    alt={item.title}
-                    fill
-                    sizes="(max-width: 640px) calc(100vw - 2rem), (max-width: 1100px) 50vw, 25vw"
-                    quality={78}
-                    className={`h-full w-full object-cover transition duration-500 group-hover:scale-[1.03] ${coverClass(item.title)}`}
-                    loading="lazy"
-                  />
+                  <>
+                    <Image
+                      src={item.thumbnail}
+                      alt={item.title}
+                      fill
+                      sizes="(max-width: 640px) calc(100vw - 2rem), (max-width: 1100px) 50vw, 25vw"
+                      quality={78}
+                      className={`h-full w-full object-cover transition duration-500 group-hover:scale-[1.03] ${coverClass(item.title)}`}
+                      loading="lazy"
+                    />
+                    <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950/45 via-transparent to-transparent" aria-hidden="true" />
+                  </>
                 ) : (
                   <div className={`flex h-full w-full items-end justify-between bg-gradient-to-br p-5 ${coverTone(item.title)}`}>
                     <span className="text-4xl font-semibold tracking-tight text-sand-50/90">
@@ -110,7 +115,7 @@ export default function CoursesPage() {
                   <SafeLink
                     href={`/courses/${slug}`}
                     hard
-                    className="btn-ghost min-h-11 !px-4 !py-2.5 text-center text-xs"
+                    className="btn-ghost min-h-11 !px-4 !py-2.5 text-center text-xs focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950"
                     ariaLabel={`مشاهده صفحه ${item.title}`}
                   >
                     مشاهده مسیر

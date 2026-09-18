@@ -49,14 +49,14 @@ function InstagramCard({ item }: { item: (typeof instagramGallery)[number] }) {
           href={item.href}
           target="_blank"
           rel="noreferrer"
-          aria-label={`مشاهدهٔ ${item.title} در Instagram`}
-          className="group mt-5 flex justify-center overflow-hidden rounded-2xl border border-white/[.08] bg-black/30"
+          aria-label={`مشاهدهٔ ${item.title} در Instagram؛ در تب جدید باز می‌شود`}
+          className="group mt-5 flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl border border-white/[.08] bg-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={item.coverUrl}
             alt={`کاور ${item.title} در Instagram`}
-            className="block max-h-[520px] w-full object-contain transition duration-500 group-hover:scale-[1.02]"
+            className="block h-full w-full object-contain transition duration-500 group-hover:scale-[1.02]"
             loading="lazy"
           />
         </a>
@@ -74,7 +74,8 @@ function InstagramCard({ item }: { item: (typeof instagramGallery)[number] }) {
         href={item.href}
         target="_blank"
         rel="noreferrer"
-        className="mt-6 inline-flex items-center gap-2 text-sm text-gold-400 hover:text-gold-300"
+        className="mt-6 inline-flex items-center gap-2 text-sm text-gold-400 hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-4 focus-visible:ring-offset-ink-950"
+        aria-label={`مشاهده پست اصلی ${item.title} در Instagram؛ در تب جدید باز می‌شود`}
       >
         مشاهده پست اصلی <ArrowUpLeft size={15} />
       </a>
@@ -101,22 +102,22 @@ export default async function GalleryPage() {
         subtitle="خروجی هنرجوها، آثار مهرشاد، آموزش‌ها و آرشیو منابع Instagram را جدا و شفاف ببین."
       />
       <div className="gallery-index-grid mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <a href="#student-projects" className="card-ay p-5 transition hover:-translate-y-1">
+        <a href="#student-projects" className="card-ay p-5 transition hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950">
           <GraduationCap className="text-gold-400" size={22} />
           <strong className="mt-4 block text-sand-50">پروژه‌های هنرجوها</strong>
           <span className="mt-2 block text-xs text-ink-500">تمرین‌ها و خروجی‌های منتشرشده</span>
         </a>
-        <a href="#mehrshad-portfolio" className="card-ay p-5 transition hover:-translate-y-1">
+        <a href="#mehrshad-portfolio" className="card-ay p-5 transition hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950">
           <Mic2 className="text-gold-400" size={22} />
           <strong className="mt-4 block text-sand-50">آثار مهرشاد</strong>
           <span className="mt-2 block text-xs text-ink-500">ProdBy Mehrshad · تنظیم و میکس</span>
         </a>
-        <a href="#education" className="card-ay p-5 transition hover:-translate-y-1">
+        <a href="#education" className="card-ay p-5 transition hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950">
           <FolderOpen className="text-gold-400" size={22} />
           <strong className="mt-4 block text-sand-50">آموزش‌ها</strong>
           <span className="mt-2 block text-xs text-ink-500">فایل‌ها و آموزش‌های رایگان</span>
         </a>
-        <a href="#instagram-files" className="card-ay p-5 transition hover:-translate-y-1">
+        <a href="#instagram-files" className="card-ay p-5 transition hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950">
           <ExternalLink className="text-gold-400" size={22} />
           <strong className="mt-4 block text-sand-50">آرشیو Instagram</strong>
           <span className="mt-2 block text-xs text-ink-500">لینک همه منابع صفحه اصلی</span>
@@ -193,7 +194,8 @@ export default async function GalleryPage() {
               href={item.href}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-between gap-4 rounded-2xl border border-white/[.08] bg-white/[.02] p-5 transition hover:border-gold-400/40 hover:bg-white/[.04]"
+              className="flex items-center justify-between gap-4 rounded-2xl border border-white/[.08] bg-white/[.02] p-5 transition hover:border-gold-400/40 hover:bg-white/[.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950"
+              aria-label={`مشاهدهٔ ${item.title} در Instagram؛ در تب جدید باز می‌شود`}
             >
               {item.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -204,11 +206,11 @@ export default async function GalleryPage() {
                   loading="lazy"
                 />
               ) : null}
-              <span>
-                <strong className="block text-sm text-sand-50">{item.title}</strong>
+              <span className="min-w-0 flex-1">
+                <strong className="block truncate text-sm text-sand-50">{item.title}</strong>
                 <span className="mt-1 block text-xs text-ink-500">{item.tags.join(" · ")}</span>
               </span>
-              <ArrowUpLeft className="shrink-0 text-gold-400" size={17} />
+              <ArrowUpLeft className="shrink-0 text-gold-400" size={17} aria-hidden="true" />
             </a>
           ))}
         </div>
@@ -271,7 +273,13 @@ function MediaCard({ item }: { item: Awaited<ReturnType<typeof listPublishedMedi
       </p>
 
       {item.kind === "video" ? null : (
-        <a href={item.url} target="_blank" rel="noreferrer" className="mt-5 text-sm text-gold-400 hover:text-gold-300">
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-5 text-sm text-gold-400 hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-4 focus-visible:ring-offset-ink-950"
+          aria-label={`باز کردن فایل ${item.title} در تب جدید`}
+        >
           بازکردن فایل ↗
         </a>
       )}

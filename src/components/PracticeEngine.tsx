@@ -45,6 +45,13 @@ const drills: Array<{ id: DrillId; title: string; desc: string; icon: typeof Ear
   { id: "phase", title: "شکارچی فاز", desc: "Polarity و تصویر استریو پایدار", icon: Volume2, color: "text-emerald-300", tag: "استریو" },
 ];
 
+const starterQuestions: Record<DrillId, AIQuestion> = {
+  tone: { gameId: "tone", prompt: "نمونه را گوش کن و نزدیک‌ترین فرکانس را انتخاب کن.", hint: "اول محدوده را پیدا کن، بعد فاصلهٔ نسبی را بسنج.", answer: 440, options: [220, 330, 440, 660], audio: { frequency: 440 }, difficulty: 1, source: "starter" },
+  eq: { gameId: "eq", prompt: "نمونهٔ EQ را بشنو و ناحیهٔ اصلی تقویت‌شده را انتخاب کن.", hint: "به محل انرژی تغییر توجه کن، نه بلندی کلی.", answer: "حدود ۱kHz", options: ["زیر ۱۰۰Hz", "حدود ۲۵۰Hz", "حدود ۱kHz", "حدود ۸kHz"], audio: { frequency: 1000, gain: 6 }, difficulty: 1, source: "starter" },
+  compressor: { gameId: "compressor", prompt: "رفتار کمپرسور را از روی نمونهٔ صوتی تشخیص بده.", hint: "به transient و سرعت بازگشت توجه کن.", answer: "Attack سریع", options: ["Attack سریع", "Attack آهسته", "Release سریع", "Ratio پایین"], audio: { attack: 0.003, release: 0.18, ratio: 8, threshold: -30 }, difficulty: 1, source: "starter" },
+  phase: { gameId: "phase", prompt: "به نمونه گوش کن و polarity را تشخیص بده.", hint: "روی مرکز تصویر و استحکام low-end تمرکز کن.", answer: "normal", options: ["normal", "inverted"], audio: { frequency: 120, phase: "normal" }, difficulty: 1, source: "starter" },
+};
+
 function practiceLevel(xp: number) {
   return Math.min(500, Math.max(1, Math.floor(Math.max(0, xp) / 100) + 1));
 }
@@ -322,7 +329,7 @@ function DrillStage({
   const loadQuestion = useCallback(async () => {
     setLoading(true);
     setPicked(null);
-    setQ(null);
+    setQ(starterQuestions[gameId]);
     const recentKey = `artistyar_practice_ai_recent_${gameId}`;
     let recent: string[] = [];
     try {
@@ -353,7 +360,8 @@ function DrillStage({
         if (fp) localStorage.setItem(recentKey, JSON.stringify([...recent, fp].slice(-32)));
       }
     } catch {
-      setQ(null);
+      setQ(starterQuestions[gameId]);
+      setSourceLabel("starter");
     } finally {
       setLoading(false);
     }
