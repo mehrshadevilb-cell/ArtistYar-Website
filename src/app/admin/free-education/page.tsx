@@ -22,6 +22,31 @@ async function api(path: string, init?: RequestInit) {
   return data;
 }
 
+async function uploadDirect(file: File, kind: "video" | "thumbnail", onProgress?: (value: number) => void) {
+  const ticket = await api("/api/admin/free-education/upload-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: file.name, mimeType: file.type, kind }),
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", ticket.signedUrl);
+    xhr.setRequestHeader("Content-Type", file.type || ticket.mimeType);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error("آپلود مستقیم به Storage ناموفق بود."));
+    };
+    xhr.onerror = () => reject(new Error("ارتباط مستقیم با Supabase Storage قطع شد."));
+    xhr.send(file);
+  });
+
+  return { path: ticket.path as string, url: ticket.publicUrl as string };
+}
+
 function timeLabel(seconds: number | null) {
   if (!seconds || seconds < 0) return "—";
   return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
@@ -63,6 +88,29 @@ export default function FreeEducationAdminPage() {
     try {
       const form = new FormData(event.currentTarget);
       form.set("mode", mode);
+
+      if (mode === "upload") {
+        const video = form.get("video");
+        if (!(video instanceof File) || video.size <= 0) throw new Error("فایل ویدیو را انتخاب کنید.");
+
+        setMessage("در حال آپلود مستقیم ویدیو به Storage…");
+        const uploadedVideo = await uploadDirect(video, "video", (progress) => {
+          setMessage(`در حال آپلود ویدیو… ${progress}%`);
+        });
+        form.delete("video");
+        form.set("videoPath", uploadedVideo.path);
+
+        const thumbnail = form.get("thumbnail");
+        if (thumbnail instanceof File && thumbnail.size > 0) {
+          setMessage("در حال آپلود مستقیم کاور…");
+          const uploadedThumbnail = await uploadDirect(thumbnail, "thumbnail");
+          form.delete("thumbnail");
+          form.set("thumbnailUrl", uploadedThumbnail.url);
+        } else {
+          form.delete("thumbnail");
+        }
+      }
+
       const data = await api("/api/admin/free-education", { method: "POST", body: form });
       setMessage(data.message || "آموزش ثبت شد.");
       event.currentTarget.reset();
