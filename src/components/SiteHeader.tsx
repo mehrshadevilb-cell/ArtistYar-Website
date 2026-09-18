@@ -14,9 +14,9 @@ const primaryLinks = [
   { href: "/online", label: "کلاس آنلاین" },
   { href: "/assistant", label: "راه‌یار AI" },
   { href: "/free-player", label: "آموزش رایگان" },
-  { href: "/practice", label: "Practice Engine" },
-  { href: "/music-analyzer", label: "Music Analyzer" },
-  { href: "/separate", label: "Vocal Separator" },
+  { href: "/practice", label: "موتور تمرین" },
+  { href: "/music-analyzer", label: "تحلیلگر موسیقی" },
+  { href: "/separate", label: "جداسازی وکال" },
   { href: "/gallery", label: "گالری خروجی‌ها" },
 ];
 
