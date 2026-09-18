@@ -520,3 +520,173 @@ export async function deleteMedia(publicId: string) {
   const result = await supabase.from("media_assets").delete().eq("storage_path", publicId);
   if (result.error) throw new SupabaseOperationError("media_delete_record", result.error);
 }
+
+
+export type FreeLessonChapter = { title: string; time: number };
+
+export type FreeLessonAdminItem = {
+  id: string;
+  publicId: string;
+  title: string;
+  description: string;
+  videoUrl: string;
+  thumbnailUrl: string | null;
+  duration: number | null;
+  chapters: FreeLessonChapter[];
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function freeLessonFromRow(row: Record<string, unknown>): FreeLessonAdminItem {
+  const chapters = Array.isArray(row.chapters)
+    ? row.chapters
+        .filter((item) => item && typeof item === "object")
+        .map((item) => ({
+          title: clean((item as Record<string, unknown>).title),
+          time: Math.max(0, Number((item as Record<string, unknown>).time) || 0),
+        }))
+        .filter((item) => item.title)
+    : [];
+  return {
+    id: String(row.id),
+    publicId: String(row.storage_path),
+    title: clean(row.title),
+    description: clean(row.description),
+    videoUrl: String(row.public_url || ""),
+    thumbnailUrl: row.cover_url ? String(row.cover_url) : null,
+    duration: row.duration ? Number(row.duration) : null,
+    chapters,
+    sortOrder: Number(row.sort_order) || 0,
+    isActive: row.status === "published" && row.is_active !== false,
+    createdAt: String(row.created_at || ""),
+    updatedAt: String(row.updated_at || row.created_at || ""),
+  };
+}
+
+export async function listFreeLessonsAdmin(): Promise<FreeLessonAdminItem[]> {
+  if (!supabase) throw new Error("supabase_not_configured");
+  const result = await supabase
+    .from("media_assets")
+    .select("*")
+    .eq("category", "free-training")
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (result.error) throw new SupabaseOperationError("free_lessons_list", result.error);
+  return (result.data || []).map((row) => freeLessonFromRow(row));
+}
+
+export async function registerFreeLessonFromStorage(input: {
+  publicId: string;
+  title: string;
+  description: string;
+  thumbnailUrl?: string | null;
+  sortOrder?: number;
+}) {
+  if (!supabase) throw new Error("supabase_not_configured");
+  const existing = await supabase.from("media_assets").select("id").eq("storage_path", input.publicId).maybeSingle();
+  if (existing.error) throw new SupabaseOperationError("free_lesson_lookup", existing.error);
+  if (existing.data) {
+    const updated = await supabase.from("media_assets").update({
+      category: "free-training",
+      title: input.title.trim().slice(0, 200),
+      description: input.description.trim().slice(0, 1000),
+      cover_url: input.thumbnailUrl || null,
+      sort_order: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0,
+      is_active: true,
+      status: "published",
+      updated_at: new Date().toISOString(),
+    }).eq("storage_path", input.publicId).select().single();
+    if (updated.error) throw new SupabaseOperationError("free_lesson_register", updated.error);
+    return freeLessonFromRow(updated.data);
+  }
+
+  const info = await supabase.storage.from(bucket).list(input.publicId.includes("/") ? input.publicId.split("/").slice(0, -1).join("/") : "", { limit: 1 });
+  const fileName = input.publicId.split("/").pop() || input.publicId;
+  const file = (info.data || []).find((item) => item.name === fileName);
+  const mimeType = String(file?.metadata?.mimetype || "video/mp4");
+  const publicUrl = supabase.storage.from(bucket).getPublicUrl(input.publicId).data.publicUrl;
+  const result = await supabase.from("media_assets").insert({
+    storage_path: input.publicId,
+    public_url: publicUrl,
+    title: input.title.trim().slice(0, 200),
+    description: input.description.trim().slice(0, 1000),
+    category: "free-training",
+    mime_type: mimeType,
+    file_ext: (fileName.split(".").pop() || "mp4").toLowerCase(),
+    cover_url: input.thumbnailUrl || null,
+    consent: true,
+    status: "published",
+    sort_order: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0,
+    is_active: true,
+    chapters: [],
+  }).select().single();
+  if (result.error) throw new SupabaseOperationError("free_lesson_register", result.error);
+  return freeLessonFromRow(result.data);
+}
+
+export async function updateFreeLesson(input: {
+  publicId: string;
+  title: string;
+  description: string;
+  thumbnailUrl?: string | null;
+  chapters?: FreeLessonChapter[];
+  sortOrder?: number;
+  isActive?: boolean;
+}) {
+  if (!supabase) throw new Error("supabase_not_configured");
+  const result = await supabase.from("media_assets").update({
+    title: input.title.trim().slice(0, 200),
+    description: input.description.trim().slice(0, 1000),
+    cover_url: input.thumbnailUrl || null,
+    chapters: Array.isArray(input.chapters) ? input.chapters.slice(0, 100) : [],
+    sort_order: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0,
+    is_active: input.isActive !== false,
+    status: input.isActive === false ? "draft" : "published",
+    updated_at: new Date().toISOString(),
+  }).eq("storage_path", input.publicId).eq("category", "free-training").select().single();
+  if (result.error) throw new SupabaseOperationError("free_lesson_update", result.error);
+  return freeLessonFromRow(result.data);
+}
+
+export async function deleteFreeLesson(publicId: string, removeFile = false) {
+  if (!supabase) throw new Error("supabase_not_configured");
+  const result = await supabase.from("media_assets").delete().eq("storage_path", publicId).eq("category", "free-training");
+  if (result.error) throw new SupabaseOperationError("free_lesson_delete", result.error);
+  if (removeFile) {
+    const removed = await supabase.storage.from(bucket).remove([publicId]);
+    if (removed.error) throw new SupabaseOperationError("free_lesson_delete_file", removed.error);
+  }
+}
+
+export async function listFreeTrainingStorageFiles(): Promise<StorageItem[]> {
+  if (!supabase) return [];
+  const folders = ["free-training", "free-training-assets/video", ""];
+  const results = await Promise.all(folders.map((folder) =>
+    supabase!.storage.from(bucket).list(folder, { limit: 500, sortBy: { column: "created_at", order: "desc" } })
+  ));
+  const seen = new Set<string>();
+  return results.flatMap((result, index) => {
+    if (result.error) return [];
+    const folder = folders[index];
+    return (result.data || [])
+      .filter((file) => file.name !== ".emptyFolderPlaceholder" && !file.name.endsWith("/"))
+      .filter((file) => String(file.metadata?.mimetype || "").startsWith("video/"))
+      .map((file) => {
+        const path = folder ? `${folder}/${file.name}` : file.name;
+        if (seen.has(path)) return null;
+        seen.add(path);
+        return {
+          path,
+          name: file.name,
+          mimeType: String(file.metadata?.mimetype || "video/mp4"),
+          size: Number(file.metadata?.size || 0),
+          createdAt: String(file.created_at || ""),
+          url: supabase!.storage.from(bucket).getPublicUrl(path).data.publicUrl,
+        };
+      })
+      .filter(Boolean) as StorageItem[];
+  });
+}
