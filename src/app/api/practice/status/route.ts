@@ -65,7 +65,7 @@ export async function GET(request: Request) {
 
   if (!db) {
     return NextResponse.json({
-      ok: true, registered: true, dailyLimit: MEMBER_DAILY_STAGES, used: 0,
+      ok: true, registered: true, dailyLimit: FREE_STAGE_LIMIT, used: 0,
       remaining: FREE_STAGE_LIMIT, stageLimit: FREE_STAGE_LIMIT, remainingStages: FREE_STAGE_LIMIT, subscriptionDays: 0, pro: false, proPriceToman: PRO_PRICE_TOMAN,
     });
   }
