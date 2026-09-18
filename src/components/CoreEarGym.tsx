@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Headphones, Play, RotateCcw, Zap } from "lucide-react";
+import { ArrowRight, Headphones, Play, RotateCcw } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
 type GameId = "tone" | "eq" | "compressor" | "phase";
@@ -79,7 +79,7 @@ export function CoreEarGym({ onBack }:{onBack?:()=>void}){
   };
 
   return <section className="mt-10 card-ay overflow-hidden">
-    <div className="border-b border-white/[.07] p-5 sm:p-6">
+    <div className="border-b border-white/[.07] p-5 sm:p-6"><button type="button" className="btn-ghost !px-3 !py-2 text-xs" onClick={onBack}><ArrowRight size={13}/> بازگشت</button>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div><p className="eyebrow text-cyan-200">CORE EAR GYM · ADAPTIVE</p><h2 className="mt-2 text-xl font-semibold text-sand-50">تمرین واقعی گوش</h2><p className="mt-1 text-xs leading-6 text-ink-500">Frequency · EQ · Compression · Phase — سختی از عملکرد قبلی تو می‌آید.</p></div>
         {rating?<span className="rounded-full border border-gold-400/20 bg-gold-400/[.06] px-3 py-1.5 text-[11px] text-gold-200">Ear Rating {rating}</span>:null}
