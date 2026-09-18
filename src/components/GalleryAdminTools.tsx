@@ -13,11 +13,7 @@ type Item = {
   isActive?: boolean;
 };
 
-const categories = [
-  ["student-work", "نمونه‌کار هنرجو"],
-  ["prodby-mehrshad", "ProdBy Mehrshad"],
-  ["free-training", "آموزش رایگان"],
-] as const;
+const categories = [["student-work", "نمونه‌کار هنرجو"]] as const;
 
 export function GalleryAdminTools({ item }: { item?: Item }) {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -207,15 +203,15 @@ export function GalleryAdminTools({ item }: { item?: Item }) {
           >
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-sand-50">{item ? "جایگزینی فایل" : "افزودن مستقیم به گالری"}</h2>
-                <p className="mt-1 text-xs text-ink-500">{item ? "فایل جدید جای فایل فعلی را می‌گیرد." : "فایل جدید مستقیماً منتشر می‌شود."}</p>
+                <h2 className="text-lg font-semibold text-sand-50">{item ? "جایگزینی فایل" : "افزودن نمونه‌کار هنرجو"}</h2>
+                <p className="mt-1 text-xs text-ink-500">{item ? "فایل جدید جای فایل فعلی را می‌گیرد." : "فایل جدید به بخش نمونه‌کار هنرجوها اضافه و منتشر می‌شود."}</p>
               </div>
               <button type="button" onClick={() => setOpen(false)}><X size={18} /></button>
             </div>
 
             {!item ? (
               <>
-                <select className="input-ay" name="category" defaultValue="prodby-mehrshad">
+                <select className="input-ay" name="category" defaultValue="student-work">
                   {categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
                 <input className="input-ay" name="title" placeholder="عنوان" required minLength={3} />
