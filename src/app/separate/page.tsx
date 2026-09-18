@@ -96,8 +96,7 @@ export default function SeparatePage() {
     setBusy(true);
     setError("");
     setStatus(
-      navigator.gpu
-        ? "Preparing your device GPU and loading the browser separator…"
+      ("gpu" in navigator) ? "Preparing your device GPU and loading the browser separator…"
         : "WebGPU is unavailable; trying CPU fallback…",
     );
 
@@ -124,7 +123,7 @@ export default function SeparatePage() {
         } else if (p.segment) {
           setStatus(
             "Separating on your " +
-              (navigator.gpu ? "GPU" : "CPU") +
+              (("gpu" in navigator) ? "GPU" : "CPU") +
               ": segment " +
               p.segment +
               " / " +
