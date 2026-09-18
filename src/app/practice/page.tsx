@@ -37,18 +37,21 @@ const phaseOptions = ["مرکز و محکم", "پهن اما ناپایدار", 
 
 function formatFrequency(value: number) { return value >= 1000 ? `${value / 1000}kHz` : `${value}Hz`; }
 
-function playTone(frequency: number, duration = 1.3) {
+function playTone(frequency: number, duration = 1.3, pan = 0) {
   if (typeof window === "undefined") return;
   const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextClass) return;
   const context = new AudioContextClass();
   const oscillator = context.createOscillator();
   const gain = context.createGain();
+  const panner = context.createStereoPanner ? context.createStereoPanner() : null;
   oscillator.type = "sine"; oscillator.frequency.value = frequency;
   gain.gain.setValueAtTime(0.0001, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.22, context.currentTime + 0.04);
+  gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.04);
   gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + duration);
-  oscillator.connect(gain).connect(context.destination); oscillator.start(); oscillator.stop(context.currentTime + duration + 0.05);
+  if (panner) { panner.pan.value = Math.max(-1, Math.min(1, pan)); oscillator.connect(gain).connect(panner).connect(context.destination); }
+  else oscillator.connect(gain).connect(context.destination);
+  oscillator.start(); oscillator.stop(context.currentTime + duration + 0.05);
   window.setTimeout(() => void context.close(), (duration + 0.2) * 1000);
 }
 
@@ -181,7 +184,7 @@ function ProArcade({ onBack }: { onBack: () => void }) {
   }
 
   function startStereo() {
-    stopTimer(); setRunning(true); setScore(0); setStereo(Math.random() > .5 ? "L" : "R"); setMessage("فقط به جهت صدا گوش کن.");
+    stopTimer(); const side = Math.random() > .5 ? "L" : "R"; setRunning(true); setScore(0); setStereo(side); setMessage("فقط به جهت صدا گوش کن."); playTone(330, 1.15, side === "L" ? -0.9 : 0.9);
     timer.current = window.setTimeout(() => { setRunning(false); setStereo(null); setMessage("زمان تمام شد."); }, 2200);
   }
 
@@ -210,9 +213,9 @@ function ProArcade({ onBack }: { onBack: () => void }) {
 
   function startMemory() {
     const next = [...Array(round + 2)].map(() => Math.floor(Math.random()*4));
-    setMemorySequence(next); setMemoryInput([]); setRunning(true); setMessage("ترتیب خانه‌ها را به خاطر بسپار.");
+    setMemorySequence(next); setMemoryInput([]); setRunning(true); setMessage("ترتیب صداها را به خاطر بسپار.");
     let i=0;
-    const show=()=>{ if(i<next.length){ setBeat(next[i]); i++; timer.current=window.setTimeout(show,520); } else { setBeat(-1); setMessage("حالا همان ترتیب را تکرار کن."); } };
+    const show=()=>{ if(i<next.length){ const tone = [220,330,440,660][next[i]]; setBeat(next[i]); playTone(tone, .32); i++; timer.current=window.setTimeout(show,520); } else { setBeat(-1); setMessage("حالا همان ترتیب را با دکمه‌ها تکرار کن."); } };
     show();
   }
 
@@ -225,8 +228,7 @@ function ProArcade({ onBack }: { onBack: () => void }) {
   }
 
   function startPan() {
-    setRunning(true); setPan(Math.random()>.5?"L":"R"); setMessage("به موقعیت صدا گوش کن و سمت را انتخاب کن.");
-    if (pan) playTone(260, .9);
+    const side = Math.random() > .5 ? "L" : "R"; setRunning(true); setPan(side); setMessage("به موقعیت صدا گوش کن و سمت را انتخاب کن."); playTone(260, .9, side === "L" ? -0.85 : 0.85);
   }
 
   function choosePan(side:"L"|"R") {
