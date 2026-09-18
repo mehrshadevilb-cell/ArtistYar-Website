@@ -11,8 +11,8 @@ import {
   Waves,
   Zap,
 } from "lucide-react";
-import { ProGate } from "@/components/PracticeProGate";
 import { useAuth } from "@/components/AuthProvider";
+import { usePracticeAccess } from "@/components/usePracticeAccess";
 
 type SkillId = "reverb" | "saturation" | "masking" | "transient";
 
@@ -329,60 +329,15 @@ async function playPro(q: ProQuestion) {
 
 export function ProArcadeLab({ onBack }: { onBack: () => void }) {
   const { user } = useAuth();
-  const [pro, setPro] = useState(user?.role === "admin");
-  const [checking, setChecking] = useState(user?.role !== "admin");
+  const { loading: checking, stageLimit, pro, subscriptionDays, proExpiresAt } = usePracticeAccess();
   const [skill, setSkill] = useState<SkillId | null>(null);
   const [round, setRound] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [played, setPlayed] = useState(false);
   const [xp, setXp] = useState(0);
 
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("artistyar_arcade_score") || "{}");
-      setXp(Number(saved.score) || 0);
-    } catch {
-      /* */
-    }
-  }, []);
-
-  const tier = tierFromXp(xp, round);
-
-  const question = useMemo(() => {
-    if (!skill) return null;
-    const seed = Math.floor(Date.now() / 60000) + round * 7919 + skill.length * 31 + tier * 97;
-    return pickQuestion(skill, tier, seed);
-  }, [skill, round, tier]);
-
-  useEffect(() => {
-    if (user?.role === "admin") {
-      setPro(true);
-      setChecking(false);
-      return;
-    }
-    if (!user?.id) {
-      setPro(false);
-      setChecking(false);
-      return;
-    }
-    let cancelled = false;
-    const q = new URLSearchParams({ userId: user.id });
-    if (user.telegramId) q.set("telegramId", String(user.telegramId));
-    fetch("/api/practice/status?" + q.toString(), { cache: "no-store", credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => {
-        if (!cancelled) setPro(Boolean(d?.pro));
-      })
-      .catch(() => {
-        if (!cancelled) setPro(false);
-      })
-      .finally(() => {
-        if (!cancelled) setChecking(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, user?.role, user?.telegramId]);
+  const stageNumber = round + 1;
+  const stageLocked = !checking && stageNumber > stageLimit;
 
   const choose = useCallback(
     async (opt: string) => {
@@ -444,13 +399,19 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
     );
   }
 
-  if (!pro) {
+  if (stageLocked) {
     return (
-      <ProGate
-        onBack={onBack}
-        title="Professional Audio Skills"
-        body="Reverb، Saturation، Masking و Transient — تمرین شنیداری حرفه‌ای میکس با مراحل progressive و XP منفی برای پاسخ غلط."
-      />
+      <section className="mt-10">
+        <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button>
+        <div className="card-ay mt-5 p-8 text-center">
+          <p className="eyebrow text-gold-300">PRACTICE STAGE LIMIT</p>
+          <h1 className="mt-3 text-2xl font-semibold text-sand-50">سقف مراحل این تمرین رسید</h1>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-8 text-ink-400">
+            بدون اشتراک ۵ مرحله در دسترس است. با اشتراک، تعداد مراحل این تمرین برابر با مدت اشتراک است{proExpiresAt ? " و اشتراک تا " + new Date(proExpiresAt).toLocaleDateString("fa-IR") + " فعال است." : "."}
+          </p>
+          <p className="mt-4 text-sm text-gold-200">{pro ? `اشتراک فعال · ${subscriptionDays} مرحله` : "برای ادامه، اشتراک فعال کن."}</p>
+        </div>
+      </section>
     );
   }
 
@@ -517,7 +478,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
             setPlayed(false);
           }}
         >
-          چهار مهارت Pro
+          چهار مهارت
         </button>
       </div>
 
