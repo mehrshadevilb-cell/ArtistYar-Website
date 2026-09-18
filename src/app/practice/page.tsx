@@ -123,7 +123,7 @@ function GameStage({ active, toneRound, setToneRound, toneAnswer, setToneAnswer,
   const [locked,setLocked]=useState(false);
   const [recent,setRecent]=useState<number[]>([]);
   const [played,setPlayed]=useState(false);
-  const [level,setLevel]=useState(1);
+  const [level,setLevel]=useState(1);\n  const [phaseTarget,setPhaseTarget]=useState<"normal"|"inverted">("normal");
 
   useEffect(() => {
     let cancelled=false;
@@ -148,16 +148,10 @@ function GameStage({ active, toneRound, setToneRound, toneAnswer, setToneAnswer,
     return chosen;
   };
 
-  const markStage=async (gameId:string)=>{
+  const markStage=()=>{
     if(locked) return;
     const next=stage+1; setStage(next);
     if(next>=limit) setLocked(true);
-    if(user?.id) {
-      const res=await fetch("/api/practice/progress",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({
-        userId:user.id,username:user.username,fullName:user.fullName,gameId,score:0,accuracy:0,streak:0,bestScore:0,metadata:{stage:next,dailyLimit:limit,level}
-      })});
-      if(res.status===429) setLocked(true);
-    }
   };
 
   const playEq=()=>{
@@ -174,10 +168,10 @@ function GameStage({ active, toneRound, setToneRound, toneAnswer, setToneAnswer,
     osc.type="sawtooth";osc.frequency.value=110+level*0.5;comp.threshold.value=-18-difficulty*22;comp.ratio.value=2+difficulty*10;comp.attack.value=0.003+(1-difficulty)*0.15;comp.release.value=.06+difficulty*.5;gain.gain.value=.09;
     osc.connect(comp).connect(gain).connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+1.2);setPlayed(true);window.setTimeout(()=>void ctx.close(),1500);
   };
-  const playPhase=()=>{
+  const playPhase=()=>{\n    const target=Math.random()>.5?"inverted":"normal" as "normal"|"inverted"; setPhaseTarget(target);
     const A=window.AudioContext||(window as typeof window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;if(!A)return;
     const ctx=new A();void ctx.resume();const merger=ctx.createChannelMerger(2),a=ctx.createOscillator(),b=ctx.createOscillator(),ga=ctx.createGain(),gb=ctx.createGain();
-    a.frequency.value=220;b.frequency.value=220;ga.gain.value=.07;gb.gain.value=phaseAnswer===1?-.07:.07;a.connect(ga).connect(merger,0,0);b.connect(gb).connect(merger,0,1);merger.connect(ctx.destination);a.start();b.start();a.stop(ctx.currentTime+1);b.stop(ctx.currentTime+1);setPlayed(true);window.setTimeout(()=>void ctx.close(),1300);
+    a.frequency.value=220;b.frequency.value=220;ga.gain.value=.07;gb.gain.value=target==="inverted"?-.07:.07;a.connect(ga).connect(merger,0,0);b.connect(gb).connect(merger,0,1);merger.connect(ctx.destination);a.start();b.start();a.stop(ctx.currentTime+1);b.stop(ctx.currentTime+1);setPlayed(true);window.setTimeout(()=>void ctx.close(),1300);
   };
 
   const answer=(correct:boolean,gameId:string,advance:()=>void)=>{
@@ -201,7 +195,7 @@ function GameStage({ active, toneRound, setToneRound, toneAnswer, setToneAnswer,
       {active==="tone"&&<><button className="btn-primary mt-5" onClick={()=>{playTone(tone.frequency,1.3);setPlayed(true)}}><Volume2 size={16}/> پخش دوباره</button><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{toneChoices.map(f=><button key={f} className="rounded-xl border border-white/10 p-4 hover:border-gold-400/40" onClick={()=>{const ok=f===tone.frequency;setToneAnswer(f);answer(ok,"tone",()=>{setToneRound(pickIndex(toneRounds.length));});}}>{formatFrequency(f)}</button>)}</div></>}
       {active==="eq"&&<><button className="btn-primary mt-5" onClick={playEq}><Volume2 size={16}/> {played?"پخش دوباره نمونه":"پخش نمونه‌ی صوتی"}</button><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">{eqChoices.map(v=><button key={v} className="rounded-xl border border-white/10 p-4 text-sm hover:border-gold-400/40" onClick={()=>{const ok=v===eq.answer;setEqAnswer(v);answer(ok,"eq",()=>setEqRound(pickIndex(eqRounds.length)));}}>{v}</button>)}</div></>}
       {active==="compressor"&&<><button className="btn-primary mt-5" onClick={playComp}><Volume2 size={16}/> {played?"پخش دوباره نمونه":"پخش نمونه‌ی کمپرسور"}</button><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{compChoices.map(v=><button key={v} className="rounded-xl border border-white/10 p-4 text-sm hover:border-gold-400/40" onClick={()=>{const ok=v===comp.answer;setCompressorAnswer(v);answer(ok,"compressor",()=>setCompressorRound(pickIndex(compressorRounds.length)));}}>{v}</button>)}</div></>}
-      {active==="phase"&&<><button className="btn-primary mt-5" onClick={playPhase}><Volume2 size={16}/> {played?"پخش دوباره":"پخش نمونه‌ی استریو"}</button><div className="mt-5 grid grid-cols-2 gap-3"><button className="rounded-xl border border-white/10 p-4" onClick={()=>{setPhaseAnswer(0);answer(true,"phase",()=>{});}}>Normal</button><button className="rounded-xl border border-white/10 p-4" onClick={()=>{setPhaseAnswer(1);answer(false,"phase",()=>{});}}>Inverted</button></div></>}
+      {active==="phase"&&<><button className="btn-primary mt-5" onClick={playPhase}><Volume2 size={16}/> {played?"پخش دوباره":"پخش نمونه‌ی استریو"}</button><div className="mt-5 grid grid-cols-2 gap-3"><button className="rounded-xl border border-white/10 p-4" onClick={()=>{const ok=phaseTarget==="normal";setPhaseAnswer(0);answer(ok,"phase",()=>{});}}>Normal</button><button className="rounded-xl border border-white/10 p-4" onClick={()=>{const ok=phaseTarget==="inverted";setPhaseAnswer(1);answer(ok,"phase",()=>{});}}>Inverted</button></div></>}
     </div></div></section>;
 }
 
