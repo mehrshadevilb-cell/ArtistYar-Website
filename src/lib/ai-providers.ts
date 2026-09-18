@@ -703,10 +703,10 @@ async function chatGoogle(
     signal: AbortSignal.timeout(45_000),
   });
 
-  const data = (await response.json().catch(() => null)) as {
+  const data = await readJsonResponse<{
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     error?: { message?: string };
-  }>();
+  }>(response);
 
   if (!response.ok) {
     throw new Error(data?.error?.message || `Gemini HTTP ${response.status}`);
