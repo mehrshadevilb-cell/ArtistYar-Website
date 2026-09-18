@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { USER_SESSION_COOKIE, verifyUserSession } from "@/lib/server-admin-auth";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -10,6 +12,8 @@ const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken:
 
 export async function GET(request: Request) {
   const userId = new URL(request.url).searchParams.get("userId")?.trim();
+  const session = verifyUserSession((await cookies()).get(USER_SESSION_COOKIE)?.value);
+  if (!session || session.id !== userId) return NextResponse.json({ ok:false, eligible:false, discountPercent:0, reason:"unauthorized" }, { status:401 });
   if (!userId || !db) return NextResponse.json({ ok: true, eligible: false, discountPercent: 0, reason: "not_available" });
 
   const now = new Date();
