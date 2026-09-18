@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, AudioWaveform, CheckCircle2, Gauge, Loader2, LockKeyhole, Sparkles, Upload, Waves } from "lucide-react";
+import { ArrowLeft, AudioWaveform, BarChart3, CheckCircle2, Gauge, Loader2, Sparkles, Upload, Waves } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -43,7 +43,6 @@ async function measureAudio(file: File): Promise<Metrics> {
       if (buffer.numberOfChannels > 1) { sumL += l * l; sumR += r * r; sumLR += l * r; }
       count++;
     }
-
     const N = 1024;
     const frames = Math.min(8, Math.max(1, Math.floor(buffer.length / (N * 8))));
     let low = 0, mid = 0, high = 0, weighted = 0, energy = 0;
@@ -79,8 +78,19 @@ async function measureAudio(file: File): Promise<Metrics> {
   }
 }
 
+function EnergyBar({ label, value, color }: { label: string; value: number | null; color: string }) {
+  const v = Math.max(0, Math.min(100, value ?? 0));
+  return (
+    <div>
+      <div className="mb-1 flex justify-between text-[11px] text-ink-400"><span>{label}</span><span>{value == null ? "—" : `${v.toFixed(0)}%`}</span></div>
+      <div className="h-2 overflow-hidden rounded-full bg-white/[.06]"><div className={`h-full rounded-full ${color}`} style={{ width: `${v}%` }} /></div>
+    </div>
+  );
+}
+
 export default function MusicAnalyzerLab() {
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [genre, setGenre] = useState(GENRES[0]);
@@ -88,7 +98,7 @@ export default function MusicAnalyzerLab() {
   const [notes, setNotes] = useState("");
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
-  const [quota, setQuota] = useState({ limit: 1, used: 0, remaining: 1, pro: false });
+  const [quota, setQuota] = useState({ limit: 1, used: 0, remaining: 1, pro: false, admin: false });
   const [loading, setLoading] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [error, setError] = useState("");
@@ -96,15 +106,16 @@ export default function MusicAnalyzerLab() {
   const quotaUrl = useMemo(() => {
     const p = new URLSearchParams();
     if (user?.id) p.set("userId", user.id);
-    if (user?.telegramId) p.set("telegramId", user.telegramId);
+    if (user?.telegramId) p.set("telegramId", String(user.telegramId));
+    if (isAdmin) p.set("role", "admin");
     return "/api/practice/music-analyzer" + (p.toString() ? "?" + p.toString() : "");
-  }, [user]);
+  }, [user, isAdmin]);
 
   const refreshQuota = useCallback(async () => {
     try {
       const res = await fetch(quotaUrl, { credentials: "include", cache: "no-store" });
       const data = await res.json();
-      if (data?.ok) setQuota({ limit: data.limit, used: data.used, remaining: data.remaining, pro: Boolean(data.pro) });
+      if (data?.ok) setQuota({ limit: data.limit, used: data.used, remaining: data.remaining, pro: Boolean(data.pro), admin: Boolean(data.admin) });
     } catch {}
   }, [quotaUrl]);
 
@@ -121,13 +132,14 @@ export default function MusicAnalyzerLab() {
 
   const analyze = async () => {
     if (!file || !metrics) return;
-    if (!user) { setError("برای استفاده از Music Analyzer ابتدا وارد حساب کاربری شو."); return; }
-    if (quota.remaining <= 0) { setError("سهمیه تحلیل امروز تمام شده است."); return; }
+    if (!user) { setError("برای استفاده از MUSIC ANALYZER ابتدا وارد حساب کاربری شو."); return; }
+    if (!isAdmin && quota.remaining <= 0) { setError("سهمیه تحلیل امروز تمام شده است."); return; }
     setLoading(true); setError("");
     try {
       const form = new FormData();
       form.set("file", file); form.set("metrics", JSON.stringify(metrics)); form.set("userId", user.id);
-      if (user.telegramId) form.set("telegramId", user.telegramId);
+      if (user.telegramId) form.set("telegramId", String(user.telegramId));
+      if (isAdmin) form.set("role", "admin");
       form.set("genre", genre); form.set("focus", focus); form.set("notes", notes);
       const res = await fetch("/api/practice/music-analyzer", { method: "POST", body: form, credentials: "include" });
       const data = await res.json().catch(() => ({}));
@@ -135,81 +147,167 @@ export default function MusicAnalyzerLab() {
         if (data.code === "daily_limit_reached") await refreshQuota();
         throw new Error(data.code === "daily_limit_reached" ? "تحلیل امروز استفاده شده است. برای تحلیل بیشتر Pro لازم است." : data.error || "تحلیل انجام نشد.");
       }
-      setMetrics(data.metrics || metrics); setAnalysis(data.analysis); setQuota(data.quota);
+      setMetrics(data.metrics || metrics);
+      setAnalysis(data.analysis);
+      if (data.quota) setQuota({ ...data.quota, admin: Boolean(data.quota.admin) });
+      else await refreshQuota();
     } catch (e) { setError(e instanceof Error ? e.message : "خطا در تحلیل"); }
     finally { setLoading(false); }
   };
 
+  const canAnalyze = Boolean(file && metrics && !measuring && !loading && (isAdmin || quota.remaining > 0));
+
   return (
     <section className="mt-2">
       <Link href="/practice" className="btn-ghost !px-4 !py-2 text-xs"><ArrowLeft size={14} /> بازگشت به Practice</Link>
-      <div className="mt-5 overflow-hidden rounded-3xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/[.08] via-white/[.03] to-violet-400/[.06] p-6 sm:p-10">
+      <div className="mt-5 overflow-hidden rounded-3xl border border-cyan-400/25 bg-gradient-to-br from-cyan-400/[.1] via-white/[.03] to-violet-400/[.08] p-6 sm:p-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="eyebrow text-cyan-300">AI AUDIO INTELLIGENCE</p>
-            <h1 className="mt-3 text-3xl font-semibold text-sand-50">MUSIC ANALYZER</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-ink-300">فایل آهنگت را آپلود کن؛ متریک‌های واقعی فایل استخراج می‌شود و AI بر اساس آن‌ها گزارش میکس و مسیر اصلاح می‌سازد.</p>
+            <p className="eyebrow text-cyan-300">AI AUDIO INTELLIGENCE · REFERENCE-CLASS</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-sand-50">MUSIC ANALYZER</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-ink-300">فایل را آپلود کن؛ Peak، RMS، Crest، Stereo Correlation و پروفایل Low/Mid/High استخراج می‌شود و AI مثل Reference 3 مسیر EQ، کمپرس، لیمیت و roadmap می‌دهد.</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-right">
+          <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-right">
             <div className="text-[10px] uppercase tracking-[.2em] text-ink-500">Daily Analysis</div>
-            <div className="mt-1 text-lg font-semibold text-cyan-100">{quota.remaining} / {quota.limit}</div>
-            <div className="text-[11px] text-ink-500">{quota.pro ? "Pro" : "Free"} · reset daily</div>
+            <div className="mt-1 text-lg font-semibold text-cyan-100">{isAdmin || quota.admin ? "∞" : `${quota.remaining} / ${quota.limit}`}</div>
+            <div className="text-[11px] text-ink-500">{isAdmin || quota.admin ? "Admin · Unlimited" : quota.pro ? "Pro" : "Free"} · reset daily</div>
           </div>
         </div>
 
-        <div className="mt-8 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
+        <div className="mt-8 grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
           <div>
-            <button type="button" onClick={() => inputRef.current?.click()} className="group flex min-h-52 w-full flex-col items-center justify-center rounded-2xl border border-dashed border-cyan-300/30 bg-black/15 p-6 text-center transition hover:border-cyan-200/60 hover:bg-cyan-400/[.05]">
+            <button type="button" onClick={() => inputRef.current?.click()} className="group flex min-h-56 w-full flex-col items-center justify-center rounded-2xl border border-dashed border-cyan-300/35 bg-black/20 p-6 text-center transition hover:border-cyan-200/70 hover:bg-cyan-400/[.06]">
               <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-200"><Upload size={25} /></span>
               <strong className="mt-4 text-base text-sand-50">{file ? file.name : "آپلود فایل موسیقی"}</strong>
               <span className="mt-2 text-xs text-ink-500">MP3 · WAV · M4A · FLAC · OGG · حداکثر 50MB</span>
-              {measuring ? <span className="mt-4 flex items-center gap-2 text-xs text-cyan-200"><Loader2 size={14} className="animate-spin" /> در حال استخراج متریک‌های صوتی…</span> : file && metrics ? <span className="mt-4 flex items-center gap-2 text-xs text-emerald-200"><CheckCircle2 size={14} /> فایل آماده تحلیل است</span> : null}
+              {measuring ? <span className="mt-4 flex items-center gap-2 text-xs text-cyan-200"><Loader2 size={14} className="animate-spin" /> استخراج متریک‌های صوتی…</span> : file && metrics ? <span className="mt-4 flex items-center gap-2 text-xs text-emerald-200"><CheckCircle2 size={14} /> آماده تحلیل · {metrics.durationSec.toFixed(1)}s · {metrics.sampleRate}Hz</span> : null}
             </button>
             <input ref={inputRef} className="hidden" type="file" accept="audio/*,.flac,.m4a" onChange={(e) => void chooseFile(e.target.files?.[0] || null)} />
           </div>
-
           <div className="space-y-4">
             <label className="block text-xs text-ink-400">ژانر<select value={genre} onChange={(e) => setGenre(e.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-ink-950 px-3 py-2.5 text-sm text-sand-50">{GENRES.map(x => <option key={x}>{x}</option>)}</select></label>
             <label className="block text-xs text-ink-400">تمرکز<select value={focus} onChange={(e) => setFocus(e.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-ink-950 px-3 py-2.5 text-sm text-sand-50">{FOCUSES.map(x => <option key={x}>{x}</option>)}</select></label>
-            <label className="block text-xs text-ink-400">توضیح اختیاری<textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5 min-h-24 w-full rounded-xl border border-white/10 bg-ink-950 px-3 py-2.5 text-sm text-sand-50" placeholder="مثلاً: وکال عقب است، low-end زیاد است..." /></label>
+            <label className="block text-xs text-ink-400">توضیح / مشکل فعلی<textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5 min-h-24 w-full rounded-xl border border-white/10 bg-ink-950 px-3 py-2.5 text-sm text-sand-50" placeholder="مثلاً: وکال عقب است، low-end زیاد، میکس کدر..." /></label>
           </div>
         </div>
 
         {metrics ? <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            ["Peak", metrics.peakDbfs.toFixed(1) + " dBFS", Gauge],
-            ["RMS", metrics.rmsDbfs.toFixed(1) + " dBFS", AudioWaveform],
-            ["Crest", metrics.crestFactorDb.toFixed(1) + " dB", Waves],
-            ["Stereo Corr.", metrics.stereoCorrelation == null ? "N/A" : metrics.stereoCorrelation.toFixed(2), Sparkles]
-          ].map(([label, value, Icon]) => { const MetricIcon = Icon as React.ElementType; return <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[.03] p-4"><div className="flex items-center gap-2 text-xs text-ink-500"><MetricIcon size={14} className="text-cyan-300" />{String(label)}</div><p className="mt-2 text-sm font-medium text-sand-50">{String(value)}</p></div>; })}
-        </div> : null}
-
-        <button type="button" disabled={!file || !metrics || measuring || loading || quota.remaining <= 0} onClick={() => void analyze()} className="btn-primary mt-6">
-          {loading ? <><Loader2 size={16} className="animate-spin" /> AI در حال تحلیل…</> : quota.remaining <= 0 ? <><LockKeyhole size={16} /> سهمیه امروز تمام شده</> : <><Sparkles size={16} /> Analyze Music</>}
-        </button>
-        {!quota.pro && quota.remaining === 0 ? <p className="mt-3 text-xs text-amber-200">کاربر Free روزانه ۱ تحلیل Music Analyzer دارد. برای تحلیل بیشتر، Pro را فعال کن.</p> : null}
-        {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
-      </div>
-
-      {analysis ? <div className="mt-6 space-y-4">
-        {analysis.descriptors ? <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[["Tonal", analysis.descriptors.tonal], ["Stereo", analysis.descriptors.stereo], ["Dynamics", analysis.descriptors.dynamics], ["Loudness", analysis.descriptors.loudness]].map(([label, value]) => (
-            <div key={label} className="card-ay p-4"><p className="text-xs text-ink-500">{label}</p><p className="mt-2 text-sm text-sand-50">{value}</p></div>
+          {([["Peak", `${metrics.peakDbfs.toFixed(1)} dBFS`, Gauge], ["RMS", `${metrics.rmsDbfs.toFixed(1)} dBFS`, AudioWaveform], ["Crest", `${metrics.crestFactorDb.toFixed(1)} dB`, Waves], ["Stereo Corr.", metrics.stereoCorrelation == null ? "N/A" : metrics.stereoCorrelation.toFixed(2), Sparkles]] as const).map(([label, value, Icon]) => (
+            <div key={label} className="rounded-xl border border-white/10 bg-white/[.03] p-4"><div className="flex items-center gap-2 text-xs text-ink-500"><Icon size={14} className="text-cyan-300" />{label}</div><p className="mt-2 text-sm font-medium text-sand-50">{value}</p></div>
           ))}
         </div> : null}
-        <div className="card-ay p-6 sm:p-8"><p className="eyebrow">AI REPORT</p><h2 className="mt-2 text-xl text-sand-50">نتیجه تحلیل فایل</h2><p className="mt-3 text-sm leading-7 text-ink-300">{analysis.fileSummary}</p></div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="card-ay p-6"><h3 className="text-base text-sand-50">Loudness / Dynamics</h3><p className="mt-3 text-xs text-ink-400">Peak: <b className="text-sand-50">{analysis.loudness.peak}</b></p><p className="mt-2 text-xs text-ink-400">RMS: <b className="text-sand-50">{analysis.loudness.rms}</b></p><p className="mt-2 text-xs text-ink-400">Crest: <b className="text-sand-50">{analysis.loudness.crest}</b></p><p className="mt-4 text-sm leading-7 text-ink-300">{analysis.dynamics}</p></div>
-          <div className="card-ay p-6"><h3 className="text-base text-sand-50">Tonal Profile</h3><p className="mt-2 text-sm leading-7 text-ink-300">{analysis.tonal.summary}</p><div className="mt-4 space-y-2 text-xs text-ink-400"><p>Low: {analysis.tonal.low?.toFixed(1) ?? "—"}%</p><p>Mid: {analysis.tonal.mid?.toFixed(1) ?? "—"}%</p><p>High: {analysis.tonal.high?.toFixed(1) ?? "—"}%</p><p>Centroid: {analysis.tonal.centroid?.toFixed(0) ?? "—"} Hz</p></div></div>
-          <div className="card-ay p-6"><h3 className="text-base text-sand-50">Stereo</h3><p className="mt-2 text-2xl text-cyan-100">{analysis.stereo.correlation?.toFixed(2) ?? "N/A"}</p><p className="mt-3 text-sm leading-7 text-ink-300">{analysis.stereo.advice}</p><p className="mt-4 text-sm leading-7 text-ink-300">{analysis.clipping}</p></div>
-        </div>
-        {analysis.compression ? <div className="grid gap-4 lg:grid-cols-2">
-          <div className="card-ay p-6"><h3 className="text-base text-sand-50">Compression</h3><p className="mt-2 text-sm leading-7 text-ink-300">{analysis.compression.summary}</p><p className="mt-3 text-xs text-ink-400">Attack: {analysis.compression.attack} · Release: {analysis.compression.release} · Ratio: {analysis.compression.ratio}</p><p className="mt-2 text-xs text-ink-400">Threshold: {analysis.compression.thresholdHint}</p></div>
-          <div className="card-ay p-6"><h3 className="text-base text-sand-50">Master / Loudness Target</h3><p className="mt-2 text-sm text-cyan-100">{analysis.loudness.targetLufs || "Reference target from analysis"}</p><p className="mt-2 text-xs text-ink-400">True Peak: {analysis.loudness.truePeak || "—"}</p></div>
+
+        {metrics ? <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-black/15 p-4 sm:grid-cols-3">
+          <EnergyBar label="Low energy" value={metrics.lowEnergyPct} color="bg-amber-400/80" />
+          <EnergyBar label="Mid energy" value={metrics.midEnergyPct} color="bg-cyan-400/80" />
+          <EnergyBar label="High energy" value={metrics.highEnergyPct} color="bg-violet-400/80" />
         </div> : null}
-                <div className="card-ay p-6 sm:p-8"><h3 className="text-base text-sand-50">EQ / Mix Notes</h3><ul className="mt-4 grid gap-2 sm:grid-cols-2">{analysis.eq.map((x,i)=><li key={i} className="rounded-lg border border-white/10 bg-white/[.02] px-4 py-3 text-sm leading-6 text-ink-300">{x}</li>)}</ul></div>
-        <div className="card-ay p-6 sm:p-8"><h3 className="flex items-center gap-2 text-base text-sand-50"><CheckCircle2 size={18} className="text-emerald-300" /> Roadmap</h3><ol className="mt-4 space-y-3">{analysis.roadmap.map((x,i)=><li key={i} className="flex gap-3 text-sm leading-7 text-ink-300"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-400/15 text-xs text-emerald-200">{i+1}</span>{x}</li>)}</ol></div>
-      </div> : null}
+
+        <button type="button" disabled={!canAnalyze} onClick={() => void analyze()} className="btn-primary mt-6">
+          {loading ? <><Loader2 size={16} className="animate-spin" /> AI در حال تحلیل…</> : <><Sparkles size={16} /> Analyze Music</>}
+        </button>
+        {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
+      </div>
+
+      {analysis ? (
+        <div className="mt-8 space-y-5">
+          <div className="card-ay p-6 sm:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg text-sand-50">گزارش تحلیل</h2>
+              {typeof analysis.matchScore === "number" ? <div className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-1.5 text-sm text-cyan-100">Match Score · {analysis.matchScore}%</div> : null}
+            </div>
+            <p className="mt-3 text-sm leading-7 text-ink-300">{analysis.fileSummary}</p>
+            {analysis.descriptors ? <div className="mt-4 flex flex-wrap gap-2">{Object.entries(analysis.descriptors).map(([k, v]) => <span key={k} className="rounded-full border border-white/10 bg-white/[.04] px-3 py-1 text-xs text-ink-300">{k}: {v}</span>)}</div> : null}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="card-ay p-5">
+              <h3 className="flex items-center gap-2 text-sm text-sand-50"><Gauge size={16} className="text-cyan-300" /> Loudness</h3>
+              <ul className="mt-3 space-y-1.5 text-xs text-ink-300">
+                <li>Peak: {analysis.loudness.peak}</li>
+                <li>RMS: {analysis.loudness.rms}</li>
+                <li>Crest: {analysis.loudness.crest}</li>
+                {analysis.loudness.targetLufs ? <li>Target LUFS: {analysis.loudness.targetLufs}</li> : null}
+                {analysis.loudness.truePeak ? <li>True Peak: {analysis.loudness.truePeak}</li> : null}
+              </ul>
+            </div>
+            <div className="card-ay p-5">
+              <h3 className="flex items-center gap-2 text-sm text-sand-50"><AudioWaveform size={16} className="text-violet-300" /> Tonal Balance</h3>
+              <p className="mt-3 text-xs leading-6 text-ink-300">{analysis.tonal.summary}</p>
+              <div className="mt-3 space-y-2">
+                <EnergyBar label="Low" value={analysis.tonal.low} color="bg-amber-400/80" />
+                <EnergyBar label="Mid" value={analysis.tonal.mid} color="bg-cyan-400/80" />
+                <EnergyBar label="High" value={analysis.tonal.high} color="bg-violet-400/80" />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="card-ay p-5">
+              <h3 className="text-sm text-sand-50">Stereo & Phase</h3>
+              <p className="mt-2 text-xs leading-6 text-ink-300">{analysis.stereo.advice}</p>
+              {analysis.stereo.correlation != null ? <p className="mt-2 text-[11px] text-ink-500">Correlation: {analysis.stereo.correlation.toFixed(2)}</p> : null}
+            </div>
+            <div className="card-ay p-5">
+              <h3 className="text-sm text-sand-50">Dynamics & Clipping</h3>
+              <p className="mt-2 text-xs leading-6 text-ink-300">{analysis.dynamics}</p>
+              <p className="mt-2 text-xs leading-6 text-ink-400">{analysis.clipping}</p>
+            </div>
+          </div>
+
+          {analysis.compression ? (
+            <div className="card-ay p-5">
+              <h3 className="text-sm text-sand-50">Compression Advice</h3>
+              <p className="mt-2 text-xs leading-6 text-ink-300">{analysis.compression.summary}</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 text-[11px] text-ink-400">
+                <div>Attack: {analysis.compression.attack}</div>
+                <div>Release: {analysis.compression.release}</div>
+                <div>Ratio: {analysis.compression.ratio}</div>
+                <div>Threshold: {analysis.compression.thresholdHint}</div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="card-ay p-5">
+            <h3 className="flex items-center gap-2 text-sm text-sand-50"><BarChart3 size={16} className="text-amber-300" /> EQ Curve Advice</h3>
+            <ul className="mt-3 space-y-2">{analysis.eq.map((e, i) => <li key={i} className="rounded-lg border border-white/10 bg-white/[.02] px-3 py-2 text-xs leading-6 text-ink-300">{e}</li>)}</ul>
+          </div>
+
+          {analysis.mixBalance?.length ? (
+            <div className="card-ay p-5">
+              <h3 className="text-sm text-sand-50">Mix Balance</h3>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {analysis.mixBalance.map((m) => (
+                  <div key={m.element} className="rounded-xl border border-white/10 bg-white/[.02] p-4">
+                    <p className="text-sm font-medium text-gold-200">{m.element}</p>
+                    <p className="mt-1 text-xs leading-6 text-ink-400">{m.advice}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="card-ay p-6 sm:p-8">
+            <h3 className="flex items-center gap-2 text-base text-sand-50"><CheckCircle2 size={18} className="text-emerald-300" /> Roadmap</h3>
+            <ol className="mt-4 space-y-3">
+              {analysis.roadmap.map((x, i) => (
+                <li key={i} className="flex gap-3 text-sm leading-7 text-ink-300">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-400/15 text-xs text-emerald-200">{i + 1}</span>
+                  {x}
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {(analysis.quickFixes?.length || analysis.referenceTips) ? (
+            <div className="card-ay p-6">
+              {analysis.quickFixes?.length ? <><h3 className="text-base text-sand-50">Quick Fixes</h3><ul className="mt-3 grid gap-2 sm:grid-cols-2">{analysis.quickFixes.map((q) => <li key={q} className="rounded-lg border border-white/10 bg-white/[.02] px-3 py-2 text-xs text-ink-300">{q}</li>)}</ul></> : null}
+              {analysis.referenceTips ? <p className="mt-4 text-xs leading-6 text-ink-500">{analysis.referenceTips}</p> : null}
+              {analysis.source ? <p className="mt-2 text-[10px] text-ink-600">source: {analysis.source}</p> : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
