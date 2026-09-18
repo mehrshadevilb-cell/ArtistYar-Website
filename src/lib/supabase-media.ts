@@ -48,6 +48,8 @@ type ExtractedAudioTags = {
   duration: number | null;
   cover_url: string | null;
   tag_title: string;
+  cover_data: Buffer | null;
+  cover_format: string;
 };
 
 const STORAGE_FOLDERS = ["", "student-work", "free-training", "ProdBy Mehrshad", "prodby-mehrshad"];
@@ -123,6 +125,8 @@ export async function extractAudioTags(
     duration: null,
     cover_url: null,
     tag_title: "",
+    cover_data: null,
+    cover_format: "image/jpeg",
   };
 
   const isAudio =
@@ -162,6 +166,8 @@ export async function extractAudioTags(
       duration: parsed.format.duration ? Math.round(parsed.format.duration) : null,
       cover_url,
       tag_title: clean(parsed.common.title || ""),
+      cover_data: picture?.data?.length && picture.data.length < 300_000 ? Buffer.from(picture.data) : null,
+      cover_format: picture?.format || "image/jpeg",
     };
   } catch (error) {
     console.warn("extractAudioTags failed", error);
@@ -194,24 +200,26 @@ async function inspectAudio(
   buffer: Buffer,
   mimeType: string,
   category: string,
-): Promise<Omit<ExtractedAudioTags, "tag_title"> & { tag_title: string }> {
-  const tags = await extractAudioTags(buffer, mimeType);
-
-  try {
-    const parsed = await parseBuffer(buffer, { mimeType: mimeType || "audio/mpeg" }, { duration: false });
-    const picture = parsed.common.picture?.[0];
-    if (picture?.data?.length) {
-      const uploaded = await uploadCoverFromPicture(
-        Buffer.from(picture.data),
-        picture.format || "image/jpeg",
-        category,
-      );
-      if (uploaded) tags.cover_url = uploaded;
-    }
-  } catch {
-    // keep data-URL fallback from extractAudioTags
+): Promise<ExtractedAudioTags> {
+  const empty: ExtractedAudioTags = {
+    artist: "",
+    album: "",
+    genre: "",
+    year: null,
+    duration: null,
+    cover_url: null,
+    tag_title: "",
+    cover_data: null,
+    cover_format: "image/jpeg",
+  };
+  const tags = await Promise.race([
+    extractAudioTags(buffer, mimeType),
+    new Promise<ExtractedAudioTags>((resolve) => setTimeout(() => resolve(empty), 8_000)),
+  ]);
+  if (tags.cover_data) {
+    const uploaded = await uploadCoverFromPicture(tags.cover_data, tags.cover_format, category);
+    if (uploaded) tags.cover_url = uploaded;
   }
-
   return tags;
 }
 
