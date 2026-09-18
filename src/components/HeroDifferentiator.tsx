@@ -1,12 +1,11 @@
 "use client";
 
-import { ArrowLeft, Bot, Gamepad2, Headphones, Sparkles, Trophy, Zap } from "lucide-react";
+import { ArrowLeft, Bot, Headphones, Sparkles, Trophy, Zap } from "lucide-react";
 import { SafeLink } from "@/components/SafeLink";
 
 const signals = [
   { label: "RAHYAR AI", detail: "دستیار تخصصی تولید موسیقی", icon: Bot, href: "/assistant", accent: "gold" },
-  { label: "PRACTICE ARCADE", detail: "تمرین شنیداری + XP + رکورد", icon: Gamepad2, href: "/practice", accent: "cyan" },
-  { label: "PRO AUDIO LAB", detail: "گوش موسیقی را مثل یک مهارت بساز", icon: Headphones, href: "/practice", accent: "gold" },
+  { label: "PRACTICE ENGINE", detail: "Ear Training + Professional Audio Skills", icon: Headphones, href: "/practice", accent: "cyan" },
 ];
 
 export function HeroDifferentiator() {
