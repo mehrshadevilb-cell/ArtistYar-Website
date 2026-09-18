@@ -23,7 +23,7 @@ export async function savePracticeResult(input: PracticeRecord) {
   if (!supabase) throw new Error("practice_store_not_configured");
   const safe = {
     ...input,
-    score: Math.max(0, Math.round(input.score)),
+    score: Math.max(-5, Math.round(input.score)),
     accuracy: Math.max(0, Math.min(100, Number(input.accuracy) || 0)),
     streak: Math.max(0, Math.round(input.streak)),
     best_score: Math.max(0, Math.round(input.best_score)),
