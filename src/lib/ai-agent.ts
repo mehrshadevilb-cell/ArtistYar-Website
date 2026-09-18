@@ -19,7 +19,10 @@ const MAX_PATHS = 18;
 const MAX_CHANGES_PER_PROPOSAL = 10;
 const HARD_MAX_AGENTS = 16;
 
-let candidateCache: { expiresAt: number; value: Awaited<ReturnType<typeof candidates>> } | null = null;
+type AgentCandidate = { provider: AIProvider; model: string; rank: number };
+type AgentCandidateList = AgentCandidate[];
+
+let candidateCache: { expiresAt: number; value: AgentCandidateList } | null = null;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
