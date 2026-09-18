@@ -11,10 +11,20 @@ import {
   type SessionUser,
 } from "@/lib/auth";
 
-type TelegramWebApp = {
-  initData: string;
+/** Shared Telegram Mini App surface used across the site. */
+export type TelegramWebApp = {
+  initData?: string;
   ready?: () => void;
   expand?: () => void;
+  disableVerticalSwipes?: () => void;
+  onEvent?: (event: string, callback: () => void) => void;
+  offEvent?: (event: string, callback: () => void) => void;
+  setHeaderColor?: (color: string) => void;
+  setBackgroundColor?: (color: string) => void;
+  viewportStableHeight?: number;
+  contentSafeAreaInset?: { top?: number; bottom?: number; left?: number; right?: number };
+  openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
+  openTelegramLink?: (url: string) => void;
 };
 
 declare global {

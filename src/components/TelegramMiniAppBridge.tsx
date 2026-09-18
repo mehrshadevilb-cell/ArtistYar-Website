@@ -1,31 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: {
-        ready?: () => void;
-        expand?: () => void;
-        disableVerticalSwipes?: () => void;
-        onEvent?: (event: string, callback: () => void) => void;
-        offEvent?: (event: string, callback: () => void) => void;
-        setHeaderColor?: (color: string) => void;
-        setBackgroundColor?: (color: string) => void;
-        viewportStableHeight?: number;
-        contentSafeAreaInset?: { top?: number; bottom?: number; left?: number; right?: number };
-        openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
-        openTelegramLink?: (url: string) => void;
-      };
-    };
-  }
-}
+import type { TelegramWebApp } from "./AuthProvider";
 
 /** Prepare the same website for Telegram Mini App and normal browser use. */
 export function TelegramMiniAppBridge() {
   useEffect(() => {
-    let app: NonNullable<NonNullable<Window["Telegram"]>["WebApp"]> | undefined;
+    let app: TelegramWebApp | undefined;
     let poll: number | undefined;
     let attempts = 0;
     let cleanup = () => undefined;
