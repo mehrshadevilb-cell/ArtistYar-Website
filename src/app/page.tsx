@@ -11,6 +11,7 @@ import { SafeLink } from "@/components/SafeLink";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { instagramGallery } from "@/data/instagram-gallery";
 import { HeroDifferentiator } from "@/components/HeroDifferentiator";
+import { PracticeEnginePreview } from "@/components/PracticeEnginePreview";
 
 export const metadata: Metadata = {
   title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | مهرشاد بنائی",
@@ -241,6 +242,8 @@ export default function HomePage() {
           </DepthScene>
         </ScrollDepth>
       </section>
+
+      <PracticeEnginePreview />
 
       <section className="proof-strip border-y border-white/[.06]">
         <div className="container-ay proof-grid">
