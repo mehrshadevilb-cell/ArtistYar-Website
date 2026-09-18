@@ -49,7 +49,7 @@ export async function getPracticeProfile(userId: string) {
 
 export async function getLeaderboard(limit = 50) {
   if (!supabase) throw new Error("practice_store_not_configured");
-  const result = await supabase.from("practice_records").select("user_id,username,full_name,score,best_score,accuracy,streak,played_at").order("score", { ascending: false }).limit(1000);
+  const result = await supabase.from("practice_records").select("user_id,username,full_name,game_id,score,best_score,accuracy,streak,played_at,metadata").order("score", { ascending: false }).limit(1000);
   if (result.error) throw new Error(result.error.message);
   const byUserGame = new Map<string, any>();
   for (const row of result.data || []) {
