@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SyntheticEvent } from "react";
-import { Check, ChevronLeft, Clock3, LockKeyhole, Play, RotateCcw, Sparkles } from "lucide-react";
+import { Check, ChevronLeft, Clock3, FolderOpen, LockKeyhole, Play, RotateCcw, Sparkles, Upload } from "lucide-react";
 import { SectionHeading } from "@/components/SectionHeading";
 import { StatusChip } from "@/components/StatusChip";
 import { fetchFreeLessons, type ApiFreeLesson } from "@/lib/rahyar-api";
@@ -22,6 +22,7 @@ export default function FreePlayerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const activeLesson = useMemo(() => lessons.find((lesson) => lesson.id === activeId) || lessons[0], [lessons, activeId]);
   const activeProgress = activeLesson ? progress[activeLesson.id] || 0 : 0;
@@ -34,7 +35,19 @@ export default function FreePlayerPage() {
       // Local progress is optional and should never block playback.
     }
     loadLessons();
+    void checkAdmin();
   }, []);
+
+  async function checkAdmin() {
+    try {
+      const response = await fetch("/api/auth/session", { cache: "no-store", credentials: "include" });
+      if (!response.ok) return;
+      const data = await response.json();
+      setIsAdmin(data?.user?.role === "admin");
+    } catch {
+      setIsAdmin(false);
+    }
+  }
 
   async function loadLessons() {
     setLoading(true);
@@ -97,6 +110,15 @@ export default function FreePlayerPage() {
 
   return (
     <section className="container-ay py-12 sm:py-16">
+      {isAdmin ? (
+        <div className="mb-5 flex justify-end">
+          <a href="/admin/free-education" className="inline-flex items-center gap-2 rounded-xl border border-gold-400/25 bg-gold-400/[.06] px-4 py-2.5 text-xs font-medium text-gold-200 transition hover:border-gold-400/50 hover:bg-gold-400/[.1]">
+            <Upload size={14} />
+            مدیریت / Upload / Import آموزش رایگان
+            <FolderOpen size={13} className="opacity-70" />
+          </a>
+        </div>
+      ) : null}
       <SectionHeading
         eyebrow="رایگان / Free Player"
         title="یاد بگیر، تمرین کن، جلو برو."
