@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import MusicAnalyzerLab from "@/components/MusicAnalyzerLab";
 
 export const metadata: Metadata = {
-  title: "Music Analyzer · آرتیست‌یار",
-  description: "آپلود فایل موسیقی و دریافت تحلیل هوشمند میکس، لودنس، استریو، فاز و EQ.",
+  title: "تحلیلگر موسیقی · آرتیست‌یار",
+  description: "آپلود فایل موسیقی و دریافت تحلیل هوشمند میکس، تنظیم، لودنس، استریو و EQ.",
   alternates: { canonical: "/music-analyzer" },
 };
 
