@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Check, CloudUpload, LoaderCircle, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, CloudUpload, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 
 type Item = {
   id: string;
@@ -66,6 +66,25 @@ export function GalleryAdminTools({ item }: { item?: Item }) {
       window.location.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "ذخیره ناموفق بود.");
+      setBusy(false);
+    }
+  }
+
+  async function refreshTags() {
+    if (!item) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/media", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "refresh-tags", publicId: item.publicId }),
+      });
+      await parseResponse(response, "استخراج کاور MP3 ناموفق بود.");
+      window.location.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "استخراج کاور ناموفق بود.");
       setBusy(false);
     }
   }
@@ -141,6 +160,9 @@ export function GalleryAdminTools({ item }: { item?: Item }) {
           </button>
           <button type="button" onClick={() => { setError(""); setOpen(true); }} disabled={busy} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] text-gold-300 hover:bg-white/10">
             <CloudUpload size={11} /> Replace
+          </button>
+          <button type="button" onClick={() => void refreshTags()} disabled={busy} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] text-emerald-300 hover:bg-white/10">
+            <RefreshCw size={11} /> Cover
           </button>
           <button type="button" onClick={() => void remove()} disabled={busy} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] text-red-300 hover:bg-red-400/10">
             <Trash2 size={11} /> Delete
