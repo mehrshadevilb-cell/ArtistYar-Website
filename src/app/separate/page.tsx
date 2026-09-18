@@ -42,6 +42,12 @@ type Progress = {
   totalSegments?: number;
 };
 
+type BrowserSeparateFn = (
+  file: File,
+  progress: (p: Progress) => void,
+  mode?: "standard" | "full",
+) => Promise<Blob>;
+
 export default function SeparatePage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -120,21 +126,13 @@ export default function SeparatePage() {
   }
 
   async function runBrowser(
-    browser: NonNullable<
-      Window["artistYarBrowserSeparate" extends never
-        ? never
-        : (Window & {
-            artistYarBrowserSeparate?: (
-              file: File,
-              progress: (p: Progress) => void,
-              mode?: "standard" | "full",
-            ) => Promise<Blob>;
-          })["artistYarBrowserSeparate"]
-    >,
+    browser: BrowserSeparateFn,
     mode: "standard" | "full",
     downloadSuffix: string,
     doneMessage: string,
   ) {
+    if (!file) throw new Error("فایل انتخاب نشده است.");
+
     setStatus(
       ("gpu" in navigator)
         ? mode === "full"
@@ -145,30 +143,33 @@ export default function SeparatePage() {
           : "پردازنده گرافیکی در دسترس نیست؛ در حال استفاده از پردازنده دستگاه برای تفکیک وکال / بی‌کلام…",
     );
 
-    const blob = await browser(file!, (p) => {
-      if (p.phase === "model") {
-        const pct = p.total ? Math.round(((p.loaded || 0) / p.total) * 100) : 0;
-        setStatus("در حال دریافت و آماده‌سازی مدل تفکیک روی دستگاه… " + pct + "٪");
-      } else if (p.segment) {
-        setStatus(
-          "در حال تفکیک " +
-            (mode === "full" ? "۴ استم" : "وکال / بی‌کلام") +
-            " با " +
-            (("gpu" in navigator) ? "پردازنده گرافیکی" : "پردازنده مرکزی") +
-            " دستگاه: بخش " +
-            p.segment +
-            " از " +
-            (p.totalSegments || "?") +
-            "…",
-        );
-      }
-    }, mode);
+    const blob = await browser(
+      file,
+      (p) => {
+        if (p.phase === "model") {
+          const pct = p.total ? Math.round(((p.loaded || 0) / p.total) * 100) : 0;
+          setStatus("در حال دریافت و آماده‌سازی مدل تفکیک روی دستگاه… " + pct + "٪");
+        } else if (p.segment) {
+          setStatus(
+            "در حال تفکیک " +
+              (mode === "full" ? "۴ استم" : "وکال / بی‌کلام") +
+              " با " +
+              (("gpu" in navigator) ? "پردازنده گرافیکی" : "پردازنده مرکزی") +
+              " دستگاه: بخش " +
+              p.segment +
+              " از " +
+              (p.totalSegments || "?") +
+              "…",
+          );
+        }
+      },
+      mode,
+    );
 
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download =
-      "artistyar-" + file!.name.replace(/\.[^.]+$/, "") + downloadSuffix;
+    anchor.download = "artistyar-" + file.name.replace(/\.[^.]+$/, "") + downloadSuffix;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -183,15 +184,8 @@ export default function SeparatePage() {
     setError("");
 
     try {
-      const browser = (
-        window as Window & {
-          artistYarBrowserSeparate?: (
-            file: File,
-            progress: (p: Progress) => void,
-            mode?: "standard" | "full",
-          ) => Promise<Blob>;
-        }
-      ).artistYarBrowserSeparate;
+      const browser = (window as Window & { artistYarBrowserSeparate?: BrowserSeparateFn })
+        .artistYarBrowserSeparate;
 
       // HQ: try server first if configured, otherwise seamless on-device fallback
       if (preset === "demucs_mdx_hq5") {
@@ -207,7 +201,6 @@ export default function SeparatePage() {
             cache: "no-store",
           });
 
-          const contentType = response.headers.get("content-type") || "";
           if (response.ok) {
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
@@ -223,18 +216,7 @@ export default function SeparatePage() {
             return;
           }
 
-          // server failed → fall through to browser
-          if (contentType.includes("application/json")) {
-            const payload = (await response.json().catch(() => ({}))) as { code?: string };
-            if (payload.code !== "UVR_WORKER_NOT_CONFIGURED") {
-              // non-config error: still try local
-              setStatus("سرور در دسترس نبود؛ ادامه با موتور محلی دستگاه…");
-            } else {
-              setStatus("سرور UVR فعال نیست؛ ادامه با Demucs حرفه‌ای روی دستگاه…");
-            }
-          } else {
-            setStatus("سرور در دسترس نبود؛ ادامه با موتور محلی دستگاه…");
-          }
+          setStatus("سرور در دسترس نبود؛ ادامه با Demucs حرفه‌ای روی دستگاه…");
         } else {
           setStatus("در حال تفکیک HQ با Demucs حرفه‌ای روی دستگاه شما…");
         }
