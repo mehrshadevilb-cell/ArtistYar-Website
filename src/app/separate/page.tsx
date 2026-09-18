@@ -16,21 +16,21 @@ import {
 const presets = [
   {
     id: "standard_vocal_inst",
-    title: "Standard — Vocal / Instrumental",
-    body: "Fast 2-stem separation for vocals and instrumental.",
-    tag: "Standard",
+    title: "استاندارد — وکال / بی‌کلام",
+    body: "تفکیک سریع دو بخشی برای وکال و موسیقی بی‌کلام.",
+    tag: "استاندارد",
   },
   {
     id: "demucs_mdx_hq5",
     title: "HQ Hybrid — Demucs + MDX Inst HQ 5",
-    body: "Demucs FT vocals + UVR-MDX-NET Inst HQ 5 instrumental workflow.",
-    tag: "HQ Hybrid",
+    body: "وکال با Demucs FT و بخش بی‌کلام با UVR-MDX-NET Inst HQ 5.",
+    tag: "هیبرید حرفه‌ای",
   },
   {
     id: "full_stem",
-    title: "Full Stem — Demucs 4-Stem",
-    body: "Full 4-stem split: Vocals, Drums, Bass and Other.",
-    tag: "Full Stem",
+    title: "تفکیک کامل — Demucs چهار استم",
+    body: "تفکیک کامل به ۴ بخش: وکال، درام، بیس و سایر سازها.",
+    tag: "۴ استم",
   },
 ] as const;
 
@@ -63,22 +63,22 @@ export default function SeparatePage() {
         script.src = src;
         script.async = true;
         script.onload = () => resolve();
-        script.onerror = () => reject(new Error("Separator runtime could not be loaded."));
+        script.onerror = () => reject(new Error("اجرای موتور تفکیک صدا بارگذاری نشد."));
         document.head.appendChild(script);
       });
 
     void Promise.all([
       load("https://cdn.jsdelivr.net/npm/jszip@3.10.2/dist/jszip.min.js"),
-      load("/separator/browser-separator.js?v=20260918-2"),
+      load("/separator/browser-separator.js?v=20260918-3"),
     ]).catch(() => {
-      setError("Browser separation runtime could not be loaded. Please refresh the page.");
+      setError("موتور تفکیک صدا بارگذاری نشد. لطفاً صفحه را دوباره بارگذاری کنید.");
     });
   }, []);
 
   const size = useMemo(() => {
     if (!file) return "";
     const mb = file.size / 1024 / 1024;
-    return (mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)) + " MB";
+    return (mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)) + " مگابایت";
   }, [file]);
 
   function chooseFile(next: File | null) {
@@ -90,12 +90,12 @@ export default function SeparatePage() {
       !next.type.startsWith("audio/") &&
       !/\.(wav|mp3|flac|m4a|aac|ogg|opus)$/i.test(next.name)
     ) {
-      setError("Please choose a supported audio file.");
+      setError("لطفاً یک فایل صوتی پشتیبانی‌شده انتخاب کنید.");
       return;
     }
 
     if (next.size > 250 * 1024 * 1024) {
-      setError("Maximum file size is 250 MB.");
+      setError("حداکثر حجم فایل ۲۵۰ مگابایت است.");
       return;
     }
 
@@ -120,7 +120,7 @@ export default function SeparatePage() {
       ).artistYarBrowserSeparate;
 
       if (preset === "demucs_mdx_hq5") {
-        setStatus("Preparing HQ Hybrid — Demucs + MDX Inst HQ 5…");
+        setStatus("در حال آماده‌سازی تفکیک هیبرید حرفه‌ای…");
 
         const form = new FormData();
         form.append("file", file);
@@ -134,7 +134,7 @@ export default function SeparatePage() {
 
         const contentType = response.headers.get("content-type") || "";
         if (!response.ok) {
-          let message = "HQ Hybrid separation failed.";
+          let message = "تفکیک هیبرید حرفه‌ای با خطا مواجه شد.";
           if (contentType.includes("application/json")) {
             const payload = (await response.json()) as { error?: string };
             if (payload.error) message = payload.error;
@@ -156,23 +156,23 @@ export default function SeparatePage() {
         anchor.remove();
         URL.revokeObjectURL(url);
 
-        setStatus("Done — HQ Hybrid separation complete.");
+        setStatus("انجام شد — تفکیک هیبرید حرفه‌ای با موفقیت کامل شد.");
         return;
       }
 
       if (!browser) {
-        throw new Error("Browser separator is still loading. Please wait a moment and try again.");
+        throw new Error("موتور تفکیک صدا هنوز در حال بارگذاری است. چند لحظه صبر کنید و دوباره تلاش کنید.");
       }
 
       const mode = preset === "full_stem" ? "full" : "standard";
       setStatus(
         ("gpu" in navigator)
           ? (mode === "full"
-              ? "Preparing Full Stem on your device GPU…"
-              : "Preparing Standard Vocal / Instrumental on your device GPU…")
+              ? "در حال آماده‌سازی تفکیک کامل با پردازنده گرافیکی دستگاه…"
+              : "در حال آماده‌سازی تفکیک استاندارد وکال / بی‌کلام با پردازنده گرافیکی دستگاه…")
           : (mode === "full"
-              ? "WebGPU is unavailable; trying Full Stem CPU fallback…"
-              : "WebGPU is unavailable; trying Standard CPU fallback…"),
+              ? "پردازنده گرافیکی در دسترس نیست؛ در حال استفاده از پردازنده دستگاه برای تفکیک کامل…"
+              : "پردازنده گرافیکی در دسترس نیست؛ در حال استفاده از پردازنده دستگاه برای تفکیک استاندارد…"),
       );
 
       const blob = await browser(file, (p) => {
@@ -180,16 +180,16 @@ export default function SeparatePage() {
           const pct = p.total
             ? Math.round(((p.loaded || 0) / p.total) * 100)
             : 0;
-          setStatus("Loading separation model on your device… " + pct + "%");
+          setStatus("در حال دریافت و آماده‌سازی مدل تفکیک روی دستگاه… " + pct + "٪");
         } else if (p.segment) {
           setStatus(
-            "Separating " +
-              (mode === "full" ? "4 stems" : "vocal / instrumental") +
-              " on your " +
-              (("gpu" in navigator) ? "GPU" : "CPU") +
-              ": segment " +
+            "در حال تفکیک " +
+              (mode === "full" ? "۴ استم" : "وکال / بی‌کلام") +
+              " با " +
+              (("gpu" in navigator) ? "پردازنده گرافیکی" : "پردازنده مرکزی") +
+              " دستگاه: بخش " +
               p.segment +
-              " / " +
+              " از " +
               (p.totalSegments || "?") +
               "…",
           );
@@ -210,11 +210,11 @@ export default function SeparatePage() {
 
       setStatus(
         mode === "full"
-          ? "Done — Full Stem separation complete. Vocals, drums, bass and other were processed locally."
-          : "Done — Standard Vocal / Instrumental separation complete. Your audio was processed locally.",
+          ? "انجام شد — تفکیک کامل با موفقیت انجام شد. وکال، درام، بیس و سایر سازها در فایل خروجی قرار گرفتند."
+          : "انجام شد — تفکیک استاندارد وکال / بی‌کلام با موفقیت انجام شد و فایل‌ها به‌صورت محلی پردازش شدند.",
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Separation failed.");
+      setError(err instanceof Error ? err.message : "تفکیک صدا با خطا مواجه شد.");
       setStatus("");
     } finally {
       setBusy(false);
@@ -224,20 +224,20 @@ export default function SeparatePage() {
   const selectedPreset = presets.find((item) => item.id === preset) ?? presets[0];
 
   return (
-    <main className="min-h-screen bg-[#050505] px-4 py-10 text-white sm:px-6 lg:px-8">
+    <main dir="rtl" className="min-h-screen bg-[#050505] px-4 py-10 text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
         <div className="mb-10 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
             <Waves className="h-7 w-7 text-amber-300" />
           </div>
           <p className="mb-2 text-xs font-medium uppercase tracking-[0.3em] text-amber-300/80">
-            ArtistYar Audio Lab
+            آزمایشگاه صدای آرتیست‌یار
           </p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-            AI Stem Separation
+            تفکیک هوشمند استم‌ها
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">
-            Choose a separation mode, then process your audio with the selected engine.
+            حالت تفکیک موردنظر را انتخاب کنید و فایل صوتی خود را با موتور مناسب پردازش کنید.
           </p>
         </div>
 
@@ -279,18 +279,18 @@ export default function SeparatePage() {
                   <p className="max-w-full truncate text-lg font-medium">{file.name}</p>
                   <p className="mt-2 text-sm text-white/45">{size}</p>
                   <span className="mt-5 rounded-full border border-white/10 px-4 py-2 text-xs text-white/60">
-                    Click or drop another file
+                    برای انتخاب فایل دیگر کلیک کنید یا فایل را اینجا رها کنید
                   </span>
                 </>
               ) : (
                 <>
                   <Upload className="mb-5 h-12 w-12 text-white/70" />
-                  <p className="text-lg font-medium">Drop your audio here</p>
+                  <p className="text-lg font-medium">فایل صوتی را اینجا رها کنید</p>
                   <p className="mt-2 text-sm text-white/45">
-                    WAV, MP3, FLAC, M4A, AAC, OGG or OPUS · up to 250 MB
+                    WAV، MP3، FLAC، M4A، AAC، OGG یا OPUS · حداکثر ۲۵۰ مگابایت
                   </p>
                   <span className="mt-5 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/65">
-                    Choose audio file
+                    انتخاب فایل صوتی
                   </span>
                 </>
               )}
@@ -322,7 +322,7 @@ export default function SeparatePage() {
               {busy ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Processing…
+                  در حال پردازش…
                 </>
               ) : (
                 <>
@@ -336,7 +336,7 @@ export default function SeparatePage() {
           <aside className="rounded-3xl border border-white/10 bg-white/[0.035] p-5 sm:p-7">
             <div className="mb-5 flex items-center gap-3">
               <AudioLines className="h-5 w-5 text-amber-300" />
-              <h2 className="font-semibold">Separation Engine</h2>
+              <h2 className="font-semibold">موتور تفکیک</h2>
             </div>
 
             <div className="space-y-3">
@@ -351,7 +351,7 @@ export default function SeparatePage() {
                     setStatus("");
                   }}
                   className={
-                    "w-full rounded-2xl border p-4 text-left transition " +
+                    "w-full rounded-2xl border p-4 text-right transition " +
                     (preset === item.id
                       ? "border-amber-300/35 bg-amber-300/[0.06]"
                       : "border-white/10 bg-black/20 hover:border-white/20")
@@ -359,7 +359,7 @@ export default function SeparatePage() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-medium leading-5">{item.title}</span>
-                    <span className="shrink-0 rounded-full border border-amber-300/20 px-2 py-1 text-[10px] uppercase tracking-wider text-amber-200/80">
+                    <span className="shrink-0 rounded-full border border-amber-300/20 px-2 py-1 text-[10px] tracking-wider text-amber-200/80">
                       {item.tag}
                     </span>
                   </div>
@@ -372,18 +372,20 @@ export default function SeparatePage() {
               <div className="flex gap-3">
                 <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-300/80" />
                 <span>
-                  Standard and Full Stem browser modes keep the source audio on your device.
+                  در حالت‌های استاندارد و تفکیک کامل، فایل اصلی روی دستگاه شما باقی می‌ماند.
                 </span>
               </div>
               <div className="flex gap-3">
                 <Download className="h-4 w-4 shrink-0 text-white/60" />
                 <span>
-                  Results are packaged locally as WAV files inside a ZIP. HQ Hybrid uses the server worker.
+                  خروجی‌ها به‌صورت فایل‌های WAV داخل یک فایل ZIP آماده می‌شوند. حالت هیبرید حرفه‌ای از موتور سرور استفاده می‌کند.
                 </span>
               </div>
               <div className="flex gap-3">
                 <Sparkles className="h-4 w-4 shrink-0 text-amber-300/80" />
-                <span>WebGPU is used when the browser exposes a compatible GPU.</span>
+                <span>
+                  اگر مرورگر شما پردازنده گرافیکی سازگار داشته باشد، برای پردازش محلی از آن استفاده می‌شود.
+                </span>
               </div>
             </div>
           </aside>
