@@ -38,41 +38,23 @@ const MODEL_RANK: Record<string, number> = {
   "claude-3-5-haiku-latest": 85,
   "claude-3-haiku-20240307": 70,
   "gemini-2.0-flash": 94,
-  "gemini-2.0-flash-001": 94,
-  "gemini-1.5-pro": 96,
-  "gemini-1.5-pro-latest": 96,
-  "gemini-1.5-flash": 86,
-  "gemini-1.5-flash-latest": 86,
   "gemini-2.5-flash": 95,
   "gemini-2.5-pro": 98,
-  "gemini-2.5-flash-lite": 84,
   "llama-3.3-70b-versatile": 87,
-  "llama-3.1-70b-versatile": 82,
-  "llama-3.1-8b-instant": 65,
-  "gemma2-9b-it": 68,
-  "mixtral-8x7b-32768": 72,
   "deepseek-chat": 86,
   "deepseek-reasoner": 89,
-  "mistral-large-latest": 88,
-  "mistral-small-latest": 70,
   "openai/gpt-4o": 100,
   "openai/gpt-4o-mini": 88,
-  "openai/gpt-4.1": 102,
   "anthropic/claude-3.5-sonnet": 99,
-  "google/gemini-2.0-flash-001": 94,
   "google/gemini-2.5-flash": 95,
   "google/gemini-2.5-pro": 98,
   "meta-llama/llama-3.3-70b-instruct": 87,
-  "grok-2": 90,
-  "grok-2-latest": 90,
-  "grok-3": 97,
-  "grok-3-mini": 80,
-  "Qwen/Qwen3-4B": 72,
-  "Qwen/Qwen2.5-72B-Instruct": 85,
-  "llama3.2": 70,
-  "llama3.1": 75,
-  "mistral": 68,
-  "gemma2": 68,
+  "openai/gpt-5.6-sol": 96,
+  "anthropic/claude-sonnet-4-5": 100,
+  "gpt-5.6-sol": 96,
+  "claude-sonnet-4-5": 100,
+  "kimi-k2": 82,
+  "qwen3-coder": 80,
 };
 
 function rankForModel(id: string): number {
@@ -83,20 +65,15 @@ function rankForModel(id: string): number {
       return rank - 2;
     }
   }
-  if (/gpt-4|claude|gemini-2|llama-3\.3|70b|sonnet|pro|grok-3|deepseek-r|qwen2\.5/i.test(id)) return 80;
-  if (/mini|flash|haiku|8b|instant|lite|small/i.test(id)) return 60;
+  if (/gpt-4|gpt-5|claude|gemini-2|llama-3\.3|70b|sonnet|pro|deepseek|qwen/i.test(id)) return 80;
+  if (/mini|flash|haiku|8b|instant|lite|small|nano/i.test(id)) return 60;
   return 40;
 }
 
 function isChatCapableModelStrict(id: string): boolean {
-  if (
-    /embed|whisper|tts|dall-e|moderation|realtime|audio|image|vision-preview|transcribe|sora|batch|search-preview|diarize|codex|computer-use|image-generation/i.test(
-      id,
-    )
-  ) {
-    return false;
-  }
-  return true;
+  return !/embed|whisper|tts|dall-e|moderation|realtime|audio|image|vision-preview|transcribe|sora|batch|search-preview|diarize|codex|computer-use|image-generation/i.test(
+    id,
+  );
 }
 
 function env(name: string): string {
@@ -122,7 +99,6 @@ function pushOpenAICompat(
   defaultModels?: string[],
 ) {
   if (!baseUrl) return;
-  // Ollama often needs no real key — accept empty and use placeholder
   const key = apiKey || (id === "ollama" ? "ollama" : "");
   if (!key && id !== "ollama") return;
   list.push({
@@ -142,6 +118,7 @@ function pushOpenAICompat(
 export function getConfiguredProviders(): AIProvider[] {
   const providers: AIProvider[] = [];
 
+  // OpenAI — https://api.openai.com/v1
   pushOpenAICompat(
     providers,
     "openai",
@@ -151,12 +128,13 @@ export function getConfiguredProviders(): AIProvider[] {
     ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini"],
   );
 
+  // OpenRouter
   pushOpenAICompat(
     providers,
     "openrouter",
     "OpenRouter",
     env("OPENROUTER_API_KEY"),
-    "https://openrouter.ai/api/v1",
+    env("OPENROUTER_BASE_URL") || "https://openrouter.ai/api/v1",
     [
       "google/gemini-2.5-flash",
       "openai/gpt-4o-mini",
@@ -164,51 +142,58 @@ export function getConfiguredProviders(): AIProvider[] {
     ],
   );
 
+  // xKiro — https://api.xkiro.com/v1 (also accepts KIRA_* as alias)
   pushOpenAICompat(
     providers,
-    "groq",
-    "Groq",
-    env("GROQ_API_KEY"),
-    "https://api.groq.com/openai/v1",
-    ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
-  );
-
-  // Bytez — unified API for 100k+ models (OpenAI-compatible)
-  // Docs: baseURL https://api.bytez.com/models/v2/openai/v1 , key = BYTEZ_API_KEY
-  const bytezKey = env("BYTEZ_API_KEY") || env("BYTEZ_KEY");
-  pushOpenAICompat(
-    providers,
-    "bytez",
-    "Bytez",
-    bytezKey,
-    env("BYTEZ_BASE_URL") || "https://api.bytez.com/models/v2/openai/v1",
+    "xkiro",
+    "xKiro",
+    env("XKIRO_API_KEY") || env("KIRA_API_KEY") || env("XTROUTER_API_KEY"),
+    env("XKIRO_BASE_URL") ||
+      env("KIRA_BASE_URL") ||
+      "https://api.xkiro.com/v1",
     [
-      env("BYTEZ_MODEL") || "Qwen/Qwen2.5-72B-Instruct",
-      "Qwen/Qwen3-4B",
-      "openai/gpt-4o-mini",
+      env("XKIRO_MODEL") || env("KIRA_MODEL") || "openai/gpt-5.6-sol",
+      "anthropic/claude-sonnet-4-5",
       "google/gemini-2.0-flash",
-    ].filter(Boolean),
+      "openai/gpt-4o-mini",
+    ],
   );
 
-  // Ollama — local or remote OpenAI-compatible
-  // OLLAMA_BASE_URL e.g. http://127.0.0.1:11434/v1 or https://your-host/v1
-  const ollamaBase =
-    env("OLLAMA_BASE_URL") ||
-    env("OLLAMA_HOST") ||
-    (env("OLLAMA_API_KEY") || env("OLLAMA_ENABLED") === "1"
-      ? "http://127.0.0.1:11434/v1"
-      : "");
+  // OpenCode Zen — https://opencode.ai/zen/v1
   pushOpenAICompat(
     providers,
-    "ollama",
-    "Ollama",
-    env("OLLAMA_API_KEY") || "ollama",
-    ollamaBase,
-    env("OLLAMA_MODEL")
-      ? [env("OLLAMA_MODEL")]
-      : ["llama3.2", "llama3.1", "mistral", "gemma2"],
+    "opencode",
+    "OpenCode Zen",
+    env("OPENCODE_API_KEY") || env("OPENCODE_ZEN_API_KEY"),
+    env("OPENCODE_BASE_URL") ||
+      env("OPENCODE_ZEN_BASE_URL") ||
+      "https://opencode.ai/zen/v1",
+    [
+      env("OPENCODE_MODEL") || "kimi-k2",
+      "qwen3-coder",
+      "glm-5.1",
+      "deepseek-v4-flash",
+    ],
   );
 
+  // AgentRouter — https://agentrouter.org/v1 or co.agentrouter.org/v1
+  pushOpenAICompat(
+    providers,
+    "agentrouter",
+    "AgentRouter",
+    env("AGENTROUTER_API_KEY") || env("AGENT_ROUTER_API_KEY"),
+    env("AGENTROUTER_BASE_URL") ||
+      env("AGENT_ROUTER_BASE_URL") ||
+      "https://agentrouter.org/v1",
+    [
+      env("AGENTROUTER_MODEL") || "gpt-5.6-sol",
+      "claude-opus-5",
+      "glm-5.1",
+      "deepseek-v4-flash",
+    ],
+  );
+
+  // Anthropic — https://api.anthropic.com/v1
   const anthropicKey =
     env("ANTHROPIC_API_KEY") ||
     env("CLAUDE_API_KEY") ||
@@ -217,7 +202,7 @@ export function getConfiguredProviders(): AIProvider[] {
     providers.push({
       id: "anthropic",
       name: "Anthropic Claude",
-      baseUrl: "https://api.anthropic.com/v1",
+      baseUrl: env("ANTHROPIC_BASE_URL") || "https://api.anthropic.com/v1",
       chatPath: "/messages",
       apiKey: anthropicKey,
       modelsRequireAuth: true,
@@ -231,6 +216,7 @@ export function getConfiguredProviders(): AIProvider[] {
     });
   }
 
+  // Google Gemini
   const geminiKey =
     env("GOOGLE_GENERATIVE_AI_API_KEY") ||
     env("GEMINI_API_KEY") ||
@@ -254,6 +240,47 @@ export function getConfiguredProviders(): AIProvider[] {
       ],
     });
   }
+
+  pushOpenAICompat(
+    providers,
+    "groq",
+    "Groq",
+    env("GROQ_API_KEY"),
+    "https://api.groq.com/openai/v1",
+    ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
+  );
+
+  // Bytez
+  pushOpenAICompat(
+    providers,
+    "bytez",
+    "Bytez",
+    env("BYTEZ_API_KEY") || env("BYTEZ_KEY"),
+    env("BYTEZ_BASE_URL") || "https://api.bytez.com/models/v2/openai/v1",
+    [
+      env("BYTEZ_MODEL") || "Qwen/Qwen2.5-72B-Instruct",
+      "Qwen/Qwen3-4B",
+      "openai/gpt-4o-mini",
+    ],
+  );
+
+  // Ollama
+  const ollamaBase =
+    env("OLLAMA_BASE_URL") ||
+    env("OLLAMA_HOST") ||
+    (env("OLLAMA_API_KEY") || env("OLLAMA_ENABLED") === "1"
+      ? "http://127.0.0.1:11434/v1"
+      : "");
+  pushOpenAICompat(
+    providers,
+    "ollama",
+    "Ollama",
+    env("OLLAMA_API_KEY") || "ollama",
+    ollamaBase,
+    env("OLLAMA_MODEL")
+      ? [env("OLLAMA_MODEL")]
+      : ["llama3.2", "llama3.1", "mistral", "gemma2"],
+  );
 
   pushOpenAICompat(
     providers,
@@ -314,16 +341,9 @@ export function getConfiguredProviders(): AIProvider[] {
     env("ORCA_BASE_URL"),
     env("ORCA_MODEL") ? [env("ORCA_MODEL")] : undefined,
   );
-  pushOpenAICompat(
-    providers,
-    "kira",
-    "Kira",
-    env("KIRA_API_KEY"),
-    env("KIRA_BASE_URL"),
-    env("KIRA_MODEL") ? [env("KIRA_MODEL")] : undefined,
-  );
 
-  for (let i = 1; i <= 5; i++) {
+  // Generic slots — any OpenAI-compatible API you put in env
+  for (let i = 1; i <= 8; i++) {
     const key = env(`CUSTOM_AI_${i}_API_KEY`) || env(`AI_PROVIDER_${i}_API_KEY`);
     const base =
       env(`CUSTOM_AI_${i}_BASE_URL`) || env(`AI_PROVIDER_${i}_BASE_URL`);
@@ -366,7 +386,6 @@ export function getConfiguredProviders(): AIProvider[] {
 function authHeaders(provider: AIProvider): HeadersInit {
   const key = provider.apiKey || "";
   if (!key) return { "Content-Type": "application/json" };
-
   switch (provider.authScheme) {
     case "bearer":
       return {
@@ -399,13 +418,11 @@ const ANTHROPIC_FALLBACK = [
   "claude-3-5-sonnet-20241022",
   "claude-3-5-haiku-20241022",
 ];
-
 const GEMINI_FALLBACK = [
   "gemini-2.5-flash",
   "gemini-2.5-pro",
   "gemini-2.0-flash",
   "gemini-1.5-flash",
-  "gemini-1.5-pro",
 ];
 
 export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
@@ -504,7 +521,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       }));
 
     if (list.length) {
-      return list.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 30);
+      return list.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 40);
     }
     return provider.defaultModels ? fallback(provider.defaultModels) : [];
   } catch {
@@ -522,7 +539,6 @@ export async function discoverAllModels() {
       },
     ];
   }
-
   return Promise.all(
     providers.map(async (provider) => ({
       provider: {
@@ -572,7 +588,6 @@ async function chatOpenAICompatible(
       data?.error?.message || `${provider.name} HTTP ${response.status}`,
     );
   }
-
   const content = data?.choices?.[0]?.message?.content?.trim() || "";
   if (!content) throw new Error(`${provider.name}: empty response`);
   return content;
@@ -616,7 +631,6 @@ async function chatAnthropic(
   if (!response.ok) {
     throw new Error(data?.error?.message || `Anthropic HTTP ${response.status}`);
   }
-
   const text =
     data?.content
       ?.filter((c) => c.type === "text")
@@ -644,7 +658,6 @@ async function chatGoogle(
     }));
 
   const url = `${provider.baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(provider.apiKey || "")}`;
-
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -665,7 +678,6 @@ async function chatGoogle(
   if (!response.ok) {
     throw new Error(data?.error?.message || `Gemini HTTP ${response.status}`);
   }
-
   const text =
     data?.candidates?.[0]?.content?.parts
       ?.map((p) => p.text || "")
@@ -710,7 +722,6 @@ async function chatRahYarGateway(
           : `HTTP ${response.status}`;
     throw new Error(`RahYar gateway: ${detail}`);
   }
-
   const content = typeof data?.reply === "string" ? data.reply.trim() : "";
   if (!content) throw new Error("RahYar gateway: empty assistant response");
   return content;
@@ -751,7 +762,7 @@ export async function autoChat(
   const providers = getConfiguredProviders();
   if (!providers.length) {
     throw new Error(
-      "هیچ کلید API در env سایت تنظیم نشده. BYTEZ / OLLAMA / OPENAI / GOOGLE / CLAUDE / OPENROUTER و … را ست کن.",
+      "هیچ کلید API در env نیست. XKIRO / OPENCODE / AGENTROUTER / OPENAI / ANTHROPIC / OPENROUTER / GOOGLE و … را ست کن.",
     );
   }
 
@@ -762,7 +773,6 @@ export async function autoChat(
   for (const entry of discovered) {
     const provider = providers.find((p) => p.id === entry.provider.id);
     if (!provider) continue;
-
     for (const m of entry.models) {
       if (!isChatCapableModelStrict(m.id)) continue;
       candidates.push({
@@ -771,14 +781,9 @@ export async function autoChat(
         rank: m.rank ?? rankForModel(m.id),
       });
     }
-
     if (!entry.models.length && provider.defaultModels?.length) {
       for (const id of provider.defaultModels) {
-        candidates.push({
-          provider,
-          model: id,
-          rank: rankForModel(id),
-        });
+        candidates.push({ provider, model: id, rank: rankForModel(id) });
       }
     }
   }
@@ -820,7 +825,7 @@ export async function autoChat(
   }
 
   if (!ordered.length) {
-    throw new Error("هیچ مدلی پیدا نشد. کلیدها را در env بررسی کن.");
+    throw new Error("هیچ مدلی پیدا نشد. کلیدها و BASE_URL را در env بررسی کن.");
   }
 
   const errors: string[] = [];
@@ -830,16 +835,13 @@ export async function autoChat(
   for (let i = 0; i < maxAttempts; i++) {
     const { provider, model } = ordered[i];
     if (skippedProviders.has(provider.id)) continue;
-
     try {
       const reply = await chatWithProvider(provider, model, messages, clientId);
       return { reply, provider: provider.id, model };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${provider.id}/${model}: ${msg}`);
-      if (isProviderFatalError(msg)) {
-        skippedProviders.add(provider.id);
-      }
+      if (isProviderFatalError(msg)) skippedProviders.add(provider.id);
     }
   }
 
