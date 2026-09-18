@@ -16,6 +16,7 @@ import { PracticeProBanner } from "@/components/PracticeProBanner";
 import { ProArcadeLab } from "@/components/ProArcadeLab";
 import { DailyVoicingLab } from "@/components/DailyVoicingLab";
 import { MixAnalyzerLab } from "@/components/MixAnalyzerLab";
+import { AudioWaveform } from "lucide-react";
 
 type GameId = "hub" | "theory" | "pro-arcade" | "voicing" | "personal" | "analyze";
 
@@ -37,6 +38,11 @@ export default function PracticeEngine() {
           <PracticeProBanner onUpgrade={() => setActive("pro-arcade")} />
 
           <div className="grid gap-3 sm:grid-cols-2">
+            <a href="/music-analyzer" className="card-ay flex items-center gap-4 border-cyan-400/25 p-5 text-right">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-300"><AudioWaveform size={22} /></span>
+              <span className="flex-1"><span className="eyebrow">AI AUDIO</span><strong className="mt-1 block text-sand-50">Music Analyzer</strong><span className="text-xs text-ink-500">Upload · AI Mix Analysis · 1 Free/Day</span></span>
+            </a>
+            
             <button
               type="button"
               className="card-ay flex items-center gap-4 border-cyan-400/25 p-5 text-right"
