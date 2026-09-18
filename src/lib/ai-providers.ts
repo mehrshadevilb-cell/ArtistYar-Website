@@ -652,10 +652,10 @@ async function chatAnthropic(
     signal: AbortSignal.timeout(45_000),
   });
 
-  const data = (await response.json().catch(() => null)) as {
+  const data = await readJsonResponse<{
     content?: Array<{ type?: string; text?: string }>;
     error?: { message?: string };
-  }>();
+  }>(response);
 
   if (!response.ok) {
     throw new Error(data?.error?.message || `Anthropic HTTP ${response.status}`);
