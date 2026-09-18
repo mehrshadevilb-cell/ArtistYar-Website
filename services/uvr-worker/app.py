@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import zipfile
+import wave
 from pathlib import Path
 
 from audio_separator.separator import Separator
@@ -23,6 +24,7 @@ PRESETS = {
     "instrumental_full": {"ensemble_preset": "instrumental_full"},
     "karaoke": {"ensemble_preset": "karaoke"},
     "htdemucs_ft": {"model_filename": "htdemucs_ft.yaml"},
+    "demucs_mdx_hq5": {"hybrid": True},
 }
 
 from asyncio import Semaphore
@@ -38,6 +40,55 @@ def build_separator(preset: str, output_dir: str) -> Separator:
     if "ensemble_preset" in config:
         return Separator(ensemble_preset=config["ensemble_preset"], **common)
     return Separator(model_filename=config["model_filename"], **common)
+
+def _find_stem(paths, needle: str):
+    needle = needle.lower()
+    for path in paths:
+        if needle in path.stem.lower():
+            return path
+    return None
+
+
+def _hybrid_demucs_mdx(source: Path, output_dir: Path):
+    demucs_dir = output_dir / "demucs"
+    mdx_dir = output_dir / "mdx_hq5"
+    demucs_dir.mkdir()
+    mdx_dir.mkdir()
+
+    demucs = Separator(
+        model_filename="htdemucs_ft.yaml",
+        output_dir=str(demucs_dir),
+        model_file_dir=str(MODEL_DIR),
+        output_format="WAV",
+        output_bitrate="320k",
+        demucs_params={"shifts": 2, "overlap": 0.25, "segments_enabled": True},
+    )
+    demucs.load_model()
+    demucs_files = [Path(p) for p in demucs.separate(str(source)) if Path(p).exists()]
+
+    mdx = Separator(
+        model_filename="UVR-MDX-NET-Inst_HQ_5.onnx",
+        output_dir=str(mdx_dir),
+        model_file_dir=str(MODEL_DIR),
+        output_format="WAV",
+        output_bitrate="320k",
+        mdx_params={"hop_length": 1024, "segment_size": 256, "overlap": 0.25, "batch_size": 1, "enable_denoise": False},
+    )
+    mdx.load_model()
+    mdx_files = [Path(p) for p in mdx.separate(str(source)) if Path(p).exists()]
+
+    vocals = _find_stem(demucs_files, "vocals")
+    instrumental = _find_stem(mdx_files, "instrumental")
+    if not vocals:
+        raise RuntimeError("Demucs did not produce a vocals stem.")
+    if not instrumental:
+        raise RuntimeError("MDX Inst HQ 5 did not produce an instrumental stem.")
+
+    final_vocals = output_dir / "vocals_demucs_ft.wav"
+    final_instrumental = output_dir / "instrumental_mdx_inst_hq5.wav"
+    shutil.copy2(vocals, final_vocals)
+    shutil.copy2(instrumental, final_instrumental)
+    return [final_vocals, final_instrumental] + [p for p in demucs_files if p != vocals]
 
 def cleanup(path: Path):
     shutil.rmtree(path, ignore_errors=True)
@@ -77,10 +128,13 @@ async def separate(
 
         output_dir = job_dir / "output"
         output_dir.mkdir()
-        separator = build_separator(preset, str(output_dir))
-        separator.load_model()
-        output_files = separator.separate(str(source))
-        generated = [Path(path) for path in output_files if Path(path).exists()] or list(output_dir.glob("*"))
+        if PRESETS[preset].get("hybrid"):
+            generated = _hybrid_demucs_mdx(source, output_dir)
+        else:
+            separator = build_separator(preset, str(output_dir))
+            separator.load_model()
+            output_files = separator.separate(str(source))
+            generated = [Path(path) for path in output_files if Path(path).exists()] or list(output_dir.glob("*"))
         if not generated:
             raise HTTPException(status_code=500, detail="The separator produced no output stems.")
 
