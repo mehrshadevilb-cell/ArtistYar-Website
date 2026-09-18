@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getPracticeProfile, hasPracticeStore, savePracticeResult } from "@/lib/practice-progress";
 import { createClient } from "@supabase/supabase-js";
 import { recordSkillEvent } from "@/lib/practice-skill-engine";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, USER_SESSION_COOKIE, verifyAdminSession, verifyUserSession } from "@/lib/server-admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,8 +11,6 @@ export const dynamic = "force-dynamic";
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
-const MEMBER_DAILY_STAGES = 5;
-const PRO_DAILY_STAGES = 40;
 
 function collectIds(...values: Array<string | null | undefined>) {
   const ids = new Set<string>();
@@ -48,10 +48,19 @@ async function dailyUsage(userId: string) {
   return data?.length || 0;
 }
 
+async function authorizedUser(request: Request, requestedId: string) {
+  const store = await cookies();
+  if (verifyAdminSession(store.get(ADMIN_SESSION_COOKIE)?.value)) return { id: requestedId, admin: true };
+  const session = verifyUserSession(store.get(USER_SESSION_COOKIE)?.value);
+  if (!session || session.id !== requestedId) return null;
+  return { id: session.id, admin: false };
+}
+
 export async function GET(request: Request) {
   const userId = new URL(request.url).searchParams.get("userId")?.trim();
   if (!userId) return NextResponse.json({ ok: false, error: "شناسه کاربر لازم است." }, { status: 400 });
   if (!hasPracticeStore()) return NextResponse.json({ ok: false, error: "ذخیره‌سازی تمرین تنظیم نشده است." }, { status: 503 });
+  if (!await authorizedUser(request, userId)) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   try {
     return NextResponse.json({ ok: true, ...(await getPracticeProfile(userId)) });
   } catch (error) {
@@ -63,18 +72,22 @@ export async function POST(request: Request) {
   if (!hasPracticeStore()) return NextResponse.json({ ok: false, error: "ذخیره‌سازی تمرین تنظیم نشده است." }, { status: 503 });
   const body = await request.json().catch(() => ({}));
   if (!body.userId || !body.username) return NextResponse.json({ ok: false, error: "اطلاعات کاربر ناقص است." }, { status: 400 });
+  const requestedUserId = String(body.userId).slice(0, 120);
+  const auth = await authorizedUser(request, requestedUserId);
+  if (!auth) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   try {
-    const userId = String(body.userId).slice(0, 120);
+    const userId = requestedUserId;
     const telegramId = body.telegramId ? String(body.telegramId).slice(0, 50) : "";
     const gameId = String(body.gameId || "unknown").slice(0, 80);
     const pro = await isProUser(userId, telegramId);
-    const dailyLimit = pro ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES;
-    const usedToday = await dailyUsage(userId);
-    if (usedToday >= dailyLimit) {
-      return NextResponse.json(
-        { ok: false, code: "daily_limit_reached", pro, dailyLimit, used: usedToday, remaining: 0 },
-        { status: 429 },
-      );
+    if (!pro) {
+      const usedToday = await dailyUsage(userId);
+      if (usedToday >= 5) {
+        return NextResponse.json(
+          { ok: false, code: "daily_limit_reached", pro: false, dailyLimit: 5, used: usedToday, remaining: 0 },
+          { status: 429 },
+        );
+      }
     }
     const row = await savePracticeResult({
       user_id: userId,
@@ -103,7 +116,7 @@ export async function POST(request: Request) {
     } catch {
       // Skill analytics are additive; a migration/provider issue must not block practice.
     }
-    return NextResponse.json({ ok: true, row, pro, remaining: Math.max(0, dailyLimit - usedToday - 1) });
+    return NextResponse.json({ ok: true, row, pro, unlimited: pro, remaining: pro ? null : 4 });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "ذخیره ناموفق بود." }, { status: 503 });
   }
