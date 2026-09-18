@@ -52,7 +52,8 @@ const compressorRounds = [
   { answer: "Threshold پایین", prompt: "تقریباً کل اجرا زیر gain reduction است.", hint: "نقطه‌ی شروع compression پایین است." },
   { answer: "Threshold بالا", prompt: "فقط قله‌های بلند فشرده می‌شوند.", hint: "compression فقط روی peaks است." },
 ];
-function shuffle<T>(items: T[]): T[] { return [...items].sort(() => Math.random() - 0.5); }\nfunction formatFrequency(value: number) { return value >= 1000 ? `${value / 1000}kHz` : `${value}Hz`; }
+function shuffle<T>(items: T[]): T[] { return [...items].sort(() => Math.random() - 0.5); }
+function formatFrequency(value: number) { return value >= 1000 ? `${value / 1000}kHz` : `${value}Hz`; }
 const DAILY_GUEST_STAGES = 5;
 const DAILY_MEMBER_STAGES = 5;
 const PRO_PRICE_TOMAN = 40000;
