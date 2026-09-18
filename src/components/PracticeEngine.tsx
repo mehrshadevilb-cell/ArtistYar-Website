@@ -177,7 +177,8 @@ export default function PracticeEngine() {
 
   const record = useCallback(
     async (correct: boolean, gameId: string) => {
-      const nextScore = score + (correct ? 12 : 0);
+      const points = correct ? 12 : -5;
+      const nextScore = Math.max(0, score + points);
       const nextStreak = correct ? streak + 1 : 0;
       try {
         let anonymousId = localStorage.getItem("artistyar_practice_anon");
@@ -195,7 +196,7 @@ export default function PracticeEngine() {
             fullName: user?.fullName || "Guest",
             telegramId: user?.telegramId,
             gameId,
-            score: correct ? 12 : 0,
+            score: points,
             accuracy: correct ? 100 : 0,
             streak: nextStreak,
             bestScore: nextScore,
@@ -508,8 +509,8 @@ function DrillStage({
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 <p className={`text-sm ${String(picked) === String(q.answer) ? "text-emerald-200" : "text-red-200"}`}>
                   {String(picked) === String(q.answer)
-                    ? "درست — به مرحله بعد برو."
-                    : `نادرست — پاسخ: ${typeof q.answer === "number" ? formatHz(Number(q.answer)) : q.answer}`}
+                    ? "درست — +12 امتیاز. به مرحله بعد برو."
+                    : `نادرست — 5- امتیاز. پاسخ: ${typeof q.answer === "number" ? formatHz(Number(q.answer)) : q.answer}`}
                 </p>
                 <button
                   type="button"
