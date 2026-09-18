@@ -37,6 +37,19 @@ RAHYAR_AI_BRIDGE_SECRET=YOUR_SHARED_SECRET
 
 بعد از deploy، `/api/ai/providers` لیست providerها و مدل‌های کشف‌شده را برمی‌گرداند.
 
+## Multi-Agent Development
+
+پنل `/admin/ai` علاوه بر تحلیل Multi-Agent، یک مسیر Development Agent دارد: مدل‌ها plan می‌سازند، چند Coding Agent به‌صورت هم‌زمان پیشنهاد کد می‌دهند، Reviewerها آن را بررسی می‌کنند و نسخه منتخب در یک branch با نام `ai/*` اعمال و به‌صورت Draft PR ساخته می‌شود. تغییر مستقیم روی `main` انجام نمی‌شود.
+
+برای فعال‌سازی write access روی Render:
+
+```env
+GITHUB_TOKEN=یک_GitHub_Fine-grained_Token_با_دسترسی_فقط_به_این_Repository
+GITHUB_REPOSITORY=mehrshadevilb-cell/ArtistYar-Website
+```
+
+دسترسی Token را حداقلی نگه دار: `Contents` برای نوشتن فایل و `Pull requests` برای ساخت PR. پس از ساخت PR، GitHub Actions فایل `.github/workflows/agent-verify.yml` را اجرا می‌کند و `typecheck` و `build` را بررسی می‌کند. Merge و deploy همچنان باید تحت کنترل owner باشد.
+
 ## همگام‌سازی سایت و ربات
 
 ثبت‌نام، ورود هنرجو، سفارش، پرداخت، لایسنس SpotPlayer و لینک‌های ArtistYar از API و دیتابیس مشترک RahYar استفاده می‌کنند. بنابراین متغیر `RAHYAR_API_URL` باید به همان backend ربات اشاره کند. برای نمایش سایت درون تلگرام، در backend مقدار `TELEGRAM_WEB_APP_URL=https://artistyaar.ir` را تنظیم کن و URL را در BotFather از مسیر **Bot Settings → Web Login** به‌عنوان Allowed URL ثبت کن.
