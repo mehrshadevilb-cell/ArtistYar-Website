@@ -541,12 +541,28 @@ export async function replaceMediaFile(input: { publicId: string; buffer: Buffer
 
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(input.publicId).data.publicUrl;
   const ext = input.filename.toLowerCase().split(".").pop() || String(existing.data.file_ext || "bin");
-  const result = await supabase.from("media_assets").update({
+  const patch: Record<string, unknown> = {
     public_url: publicUrl,
     mime_type: input.mimeType,
     file_ext: ext,
     updated_at: new Date().toISOString(),
-  }).eq("storage_path", input.publicId).select().single();
+  };
+
+  // Re-read ID3/common tags when an MP3/audio file is replaced so its
+  // embedded artwork is not lost from the Gallery.
+  if (input.mimeType.startsWith("audio/") || ["mp3", "mpeg", "wav", "wave", "m4a", "mp4", "ogg", "flac", "aac"].includes(ext)) {
+    const audio = await inspectAudio(input.buffer, input.mimeType, storageFolderForCategory(normalizeCategory(existing.data.category) || "student-work"));
+    Object.assign(patch, {
+      artist: audio.artist,
+      album: audio.album,
+      genre: audio.genre,
+      year: audio.year,
+      duration: audio.duration,
+      cover_url: audio.cover_url,
+    });
+  }
+
+  const result = await updateMediaAsset(input.publicId, patch);
   if (result.error) throw new SupabaseOperationError("media_replace_record", result.error);
   return toItem(result.data);
 }
