@@ -731,7 +731,13 @@ export async function listFreeTrainingStorageFiles(): Promise<StorageItem[]> {
     const folder = folders[index];
     return (result.data || [])
       .filter((file) => file.name !== ".emptyFolderPlaceholder" && !file.name.endsWith("/"))
-      .filter((file) => String(file.metadata?.mimetype || "").startsWith("video/"))
+      .filter((file) => {
+        const mime = String(file.metadata?.mimetype || "").toLowerCase();
+        const name = String(file.name || "").toLowerCase();
+        const ext = name.includes(".") ? name.split(".").pop() || "" : "";
+        const videoExtensions = new Set(["mp4", "webm", "mov", "m4v", "mkv", "avi", "mpeg", "mpg", "ogv", "3gp", "ts", "m2ts"]);
+        return mime.startsWith("video/") || videoExtensions.has(ext);
+      })
       .map((file) => {
         const path = folder ? `${folder}/${file.name}` : file.name;
         if (seen.has(path)) return null;
