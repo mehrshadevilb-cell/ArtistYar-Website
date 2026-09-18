@@ -24,9 +24,9 @@ export default function PracticeEngine() {
     <main className="container-ay relative py-12 sm:py-16">
       <div className="route-ambient route-ambient-one" aria-hidden="true" />
       <SectionHeading
-        eyebrow="PRACTICE ENGINE · SOUNDGYM-CLASS"
+        eyebrow="موتور تمرین · سطح حرفه‌ای"
         title="تمرین شنیداری حرفه‌ای تا Level ۵۰۰"
-        subtitle="تئوری، Pro Arcade، Voicing و تحلیل میکس شبیه Reference 3 — EQ، کمپرس، لیمیت و roadmap."
+        subtitle="تئوری، Pro Arcade، Voicing و تحلیل میکس و تنظیم — EQ، کمپرس، لیمیت و roadmap."
       />
       <SkillEngineDashboard />
 
@@ -40,9 +40,9 @@ export default function PracticeEngine() {
                 <AudioWaveform size={22} />
               </span>
               <span className="flex-1">
-                <span className="eyebrow">AI AUDIO · REFERENCE-STYLE</span>
-                <strong className="mt-1 block text-sand-50">Music Analyzer</strong>
-                <span className="text-xs text-ink-500">آپلود فایل · Peak/RMS/Stereo · AI EQ/Compress/Roadmap</span>
+                <span className="eyebrow">تحلیل صوتی · سبک رفرنس</span>
+                <strong className="mt-1 block text-sand-50">تحلیلگر موسیقی</strong>
+                <span className="text-xs text-ink-500">آپلود فایل · میکس + تنظیم · Peak/RMS · AI و roadmap</span>
               </span>
             </a>
 
@@ -55,9 +55,9 @@ export default function PracticeEngine() {
                 <Gamepad2 size={22} />
               </span>
               <span className="flex-1">
-                <span className="eyebrow">PRACTICE</span>
-                <strong className="mt-1 block text-sand-50">Professional Audio Skills</strong>
-                <span className="text-xs text-ink-500">۵ مرحله رایگان · Pro: بدون محدودیت مرحله تا پایان اشتراک فعال</span>
+                <span className="eyebrow">تمرین</span>
+                <strong className="mt-1 block text-sand-50">مهارت‌های حرفه‌ای صدا</strong>
+                <span className="text-xs text-ink-500">۵ مرحله رایگان · Pro: بدون محدودیت تا پایان اشتراک</span>
               </span>
             </button>
             <button type="button" className="card-ay flex items-center gap-4 p-5 text-right" onClick={() => setActive("theory")}>
@@ -65,8 +65,8 @@ export default function PracticeEngine() {
                 <Sparkles size={22} />
               </span>
               <span className="flex-1">
-                <span className="eyebrow">HARMONY</span>
-                <strong className="mt-1 block text-sand-50">Theory Lab</strong>
+                <span className="eyebrow">هارمونی</span>
+                <strong className="mt-1 block text-sand-50">آزمایشگاه تئوری</strong>
               </span>
             </button>
             <button
