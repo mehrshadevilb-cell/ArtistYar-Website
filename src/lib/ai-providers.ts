@@ -606,10 +606,10 @@ async function chatOpenAICompatible(
     signal: AbortSignal.timeout(20_000),
   });
 
-  const data = (await response.json().catch(() => null)) as {
+  const data = await readJsonResponse<{
     choices?: Array<{ message?: { content?: string } }>;
     error?: { message?: string };
-  }>();
+  }>(response);
 
   if (!response.ok) {
     throw new Error(
