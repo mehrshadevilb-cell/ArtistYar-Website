@@ -104,15 +104,16 @@ export default function PracticePage() {
   async function record(correct: boolean) {
     const nextScore = score + (correct ? 10 : 0);
     const nextStreak = correct ? streak + 1 : 0;
-    if (user?.id && user.username) {
-      try {
-        const response = await fetch("/api/practice/progress",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({
-          userId:user.id,username:user.username,fullName:user.fullName,gameId:active,score:correct?10:0,accuracy:correct?100:0,streak:nextStreak,bestScore:nextScore,
-          metadata:{dailyKey:new Date().toISOString().slice(0,10),level:practiceLevel(nextScore)}
-        })});
-        if (response.status===429) return;
-      } catch { return; }
-    }
+    try {
+      let anonymousId = localStorage.getItem("artistyar_practice_anon");
+      if (!anonymousId) { anonymousId = crypto.randomUUID(); localStorage.setItem("artistyar_practice_anon", anonymousId); }
+      const identity = user?.id || anonymousId;
+      const response = await fetch("/api/practice/progress",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({
+        userId:identity,username:user?.username || "guest",fullName:user?.fullName || "Guest",gameId:active,score:correct?10:0,accuracy:correct?100:0,streak:nextStreak,bestScore:nextScore,
+        metadata:{dailyKey:new Date().toISOString().slice(0,10),level:practiceLevel(nextScore),anonymous:!user?.id}
+      })});
+      if (response.status===429) return;
+    } catch { return; }
     setScore(nextScore); setStreak(nextStreak);
     localStorage.setItem("artistyar_arcade_score", JSON.stringify({ score: nextScore, streak: nextStreak }));
   }
