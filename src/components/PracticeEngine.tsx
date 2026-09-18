@@ -21,6 +21,7 @@ import { TheoryLab } from "@/components/TheoryLab";
 import { SkillEngineDashboard } from "@/components/SkillEngineDashboard";
 import { PracticeProBanner } from "@/components/PracticeProBanner";
 import { ProGate } from "@/components/PracticeProGate";
+import { DailyVoicingLab } from "@/components/DailyVoicingLab";
 import { useAuth } from "@/components/AuthProvider";
 
 type GameId = "hub" | "tone" | "eq" | "compressor" | "phase" | "theory" | "pro-arcade" | "voicing" | "personal";
@@ -281,15 +282,12 @@ export default function PracticeEngine() {
       )}
 
       {active === "theory" && <TheoryLab onBack={() => setActive("hub")} />}
-      {(active === "pro-arcade" || active === "voicing") && (
+      {active === "voicing" && <DailyVoicingLab onBack={() => setActive("hub")} />}
+      {active === "pro-arcade" && (
         <ProGate
           onBack={() => setActive("hub")}
-          title={active === "pro-arcade" ? "Professional Audio Skills" : "Voicing روزانه"}
-          body={
-            active === "pro-arcade"
-              ? "Reverb، Saturation، Masking و Transient برای کاربران Pro."
-              : "هر روز یک Voicing پیانو حرفه‌ای برای Pro."
-          }
+          title="Professional Audio Skills"
+          body="Reverb، Saturation، Masking و Transient برای کاربران Pro."
         />
       )}
       {active === "personal" && (

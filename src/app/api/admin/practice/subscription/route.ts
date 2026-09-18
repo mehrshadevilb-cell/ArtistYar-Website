@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
 
-  // Audit trail is additive; its failure must not roll back a valid admin grant.
+  // Audit trail via payment_requests table when possible
   try {
     await db.from("practice_payment_requests").insert({
       user_id: userId,
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       reviewed_by: session.username,
     });
   } catch {
-    // The subscription has already been created successfully.
+    // Audit failure must not undo an already-created subscription.
   }
 
   return NextResponse.json({
@@ -86,4 +86,25 @@ export async function POST(request: Request) {
     activatedBy: session.username,
     message: `اشتراک Pro برای ${userId} تا ${expires.toISOString()} فعال شد.`,
   });
+}
+
+export async function DELETE(request: Request) {
+  const session = verifyAdminSession((await cookies()).get(ADMIN_SESSION_COOKIE)?.value);
+  if (!session) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!db) return NextResponse.json({ ok: false, error: "practice_store_not_configured" }, { status: 503 });
+
+  const body = await request.json().catch(() => ({}));
+  const subscriptionId = String(body.subscriptionId || "").trim();
+  if (!subscriptionId) return NextResponse.json({ ok: false, error: "subscriptionId_required" }, { status: 400 });
+
+  const { data, error } = await db
+    .from("practice_subscriptions")
+    .update({ status: "cancelled", expires_at: new Date().toISOString() })
+    .eq("id", subscriptionId)
+    .eq("status", "active")
+    .select("id,user_id,status,expires_at")
+    .maybeSingle();
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
+  if (!data) return NextResponse.json({ ok: false, error: "active_subscription_not_found" }, { status: 404 });
+  return NextResponse.json({ ok: true, subscription: data, changedBy: session.username });
 }

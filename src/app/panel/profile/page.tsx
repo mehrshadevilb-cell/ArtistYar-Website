@@ -1,12 +1,23 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
+import { Crown } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { communityLinks } from "@/data/community";
 
 export default function PanelProfilePage() {
   const { user, linkTelegram } = useAuth();
   const [msg, setMsg] = useState("");
+  const [practiceStatus, setPracticeStatus] = useState<{ pro: boolean; expiresAt: string | null; remaining: number } | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetch("/api/practice/status?userId=" + encodeURIComponent(user.id), { cache: "no-store", credentials: "include" })
+      .then((response) => response.json())
+      .then((data) => { if (data?.ok) setPracticeStatus({ pro: Boolean(data.pro), expiresAt: data.proExpiresAt || null, remaining: Number(data.remaining) || 0 }); })
+      .catch(() => {});
+  }, [user?.id]);
 
   function onLink(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -70,6 +81,18 @@ export default function PanelProfilePage() {
             {msg}
           </p>
         ) : null}
+      </div>
+
+      <div className="card-ay border-gold-400/15 p-6 sm:p-7">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2"><Crown size={17} className={practiceStatus?.pro ? "text-emerald-300" : "text-gold-300"} /><h2 className="text-lg font-medium text-sand-50">اشتراک Practice Pro</h2></div>
+            <p className="mt-2 text-sm leading-7 text-ink-400">تمرین‌های پیشرفته‌ی گوش، مسیرهای میکس و Voicing روزانه از اینجا قابل مشاهده است.</p>
+          </div>
+          <span className={`rounded-full px-3 py-1 text-[11px] ${practiceStatus?.pro ? "bg-emerald-400/10 text-emerald-200" : "bg-white/[.06] text-ink-400"}`}>{practiceStatus?.pro ? "فعال" : "رایگان"}</span>
+        </div>
+        <p className="mt-3 text-xs text-ink-500">{practiceStatus?.pro && practiceStatus.expiresAt ? `فعال تا ${new Date(practiceStatus.expiresAt).toLocaleDateString("fa-IR")}` : "سهمیه رایگان روزانه فعال است؛ برای فعال‌سازی Pro با ادمین تماس بگیر."}</p>
+        <Link href="/profile/practice" className="btn-primary mt-4 inline-flex !px-4 !py-2 text-xs">مشاهده پروفایل تمرین</Link>
       </div>
 
       <div className="card-ay p-6 sm:p-7">

@@ -51,12 +51,13 @@ function normalize(raw: unknown, gameId: GameId, level: number): GeneratedQuesti
   const phase = String(answer); if (!["normal", "inverted"].includes(phase)) return null; return { ...common, answer: phase, options: ["normal", "inverted"], audio: { phase } };
 }
 
-function fallback(gameId: GameId, level: number): GeneratedQuestion {
+function fallback(gameId: GameId, level: number, recent: string[] = []): GeneratedQuestion {
   const difficulty = Math.max(0, Math.min(1, (level - 1) / 499));
-  if (gameId === "tone") { const bands = [55,80,110,180,260,440,700,1200,2200,3500,5000,7000,9000,12000,16000]; const frequency = bands[Math.floor(Math.random()*bands.length)]; const options = [...new Set([frequency, Math.round(frequency*.72), Math.round(frequency*.86), Math.round(frequency*1.18), Math.round(frequency*1.38)])]; return { gameId, prompt: "تون را با دقت گوش کن و نزدیک‌ترین فرکانس را انتخاب کن.", hint: "اول محدوده را پیدا کن، بعد فاصله نسبی را بسنج.", answer: frequency, options, audio: { frequency }, difficulty: level, source: "fallback" }; }
-  if (gameId === "eq") { const bands = [80,150,250,500,1000,2000,3000,5000,8000,10000,14000]; const frequency = bands[Math.floor(Math.random()*bands.length)]; const label = frequency < 100 ? "زیر ۱۰۰Hz" : "حدود " + (frequency >= 1000 ? frequency/1000 + "kHz" : frequency + "Hz"); const pool = ["زیر ۱۰۰Hz","حدود ۲۵۰Hz","حدود ۱kHz","حدود ۳kHz","حدود ۸kHz","حدود ۱۰kHz"]; const options = pool.filter(x => x !== label).slice(0,3).concat(label).sort(() => Math.random()-.5); return { gameId, prompt: "یک تغییر EQ را بشنو و ناحیه اصلی آن را تشخیص بده.", hint: "به محل انرژی تغییر، نه بلندی کلی، توجه کن.", answer: label, options, audio: { frequency, gain: 6 + difficulty*5 }, difficulty: level, source: "fallback" }; }
-  if (gameId === "compressor") { const rows = [["Attack سریع",.003,.18,8,-30],["Attack آهسته",.15,.18,4,-20],["Release سریع",.02,.08,8,-24],["Release آهسته",.02,.6,8,-24],["Ratio بالا",.02,.2,12,-24],["Ratio پایین",.02,.2,2,-18],["Threshold پایین",.02,.2,6,-36],["Threshold بالا",.02,.2,6,-8]] as const; const row = rows[Math.floor(Math.random()*rows.length)]; const options = rows.map(x=>x[0]).filter(x=>x!==row[0]).sort(()=>Math.random()-.5).slice(0,3).concat(row[0]).sort(()=>Math.random()-.5); return { gameId, prompt:"رفتار کمپرسور را از روی نمونه صوتی تشخیص بده.", hint:"به transient، recovery و میزان فشرده سازی گوش کن.", answer:row[0], options, audio:{attack:row[1],release:row[2],ratio:row[3],threshold:row[4]}, difficulty:level, source:"fallback" }; }
-  const phase = Math.random() > .5 ? "normal" : "inverted"; return { gameId, prompt:"دو کانال را گوش کن و polarity را تشخیص بده.", hint:"روی مرکز تصویر و استحکام low-end تمرکز کن.", answer:phase, options:["normal","inverted"], audio:{phase}, difficulty:level, source:"fallback" };
+  const offset = recent.length + level;
+  if (gameId === "tone") { const bands = [55,80,110,180,260,440,700,1200,2200,3500,5000,7000,9000,12000,16000]; const frequency = bands[offset % bands.length]; const options = [frequency, bands[(offset + 3) % bands.length], bands[(offset + 7) % bands.length], bands[(offset + 10) % bands.length], bands[(offset + 12) % bands.length]]; return { gameId, prompt: "تون را با دقت گوش کن و نزدیک‌ترین فرکانس را انتخاب کن.", hint: "اول محدوده را پیدا کن، بعد فاصله نسبی را بسنج.", answer: frequency, options, audio: { frequency }, difficulty: level, source: "fallback" }; }
+  if (gameId === "eq") { const bands = [80,150,250,500,1000,2000,3000,5000,8000,10000,14000]; const frequency = bands[offset % bands.length]; const label = frequency < 100 ? "زیر ۱۰۰Hz" : "حدود " + (frequency >= 1000 ? frequency/1000 + "kHz" : frequency + "Hz"); const pool = ["زیر ۱۰۰Hz","حدود ۲۵۰Hz","حدود ۱kHz","حدود ۳kHz","حدود ۸kHz","حدود ۱۰kHz"]; const options = [label, ...pool.filter(x => x !== label)].slice(0, 4); return { gameId, prompt: "یک تغییر EQ را بشنو و ناحیه اصلی آن را تشخیص بده.", hint: "به محل انرژی تغییر، نه بلندی کلی، توجه کن.", answer: label, options, audio: { frequency, gain: 6 + difficulty*5 }, difficulty: level, source: "fallback" }; }
+  if (gameId === "compressor") { const rows = [["Attack سریع",.003,.18,8,-30],["Attack آهسته",.15,.18,4,-20],["Release سریع",.02,.08,8,-24],["Release آهسته",.02,.6,8,-24],["Ratio بالا",.02,.2,12,-24],["Ratio پایین",.02,.2,2,-18],["Threshold پایین",.02,.2,6,-36],["Threshold بالا",.02,.2,6,-8]] as const; const row = rows[offset % rows.length]; const options = [row[0], rows[(offset + 2) % rows.length][0], rows[(offset + 4) % rows.length][0], rows[(offset + 6) % rows.length][0]]; return { gameId, prompt:"رفتار کمپرسور را از روی نمونه صوتی تشخیص بده.", hint:"به transient، recovery و میزان فشرده سازی گوش کن.", answer:row[0], options, audio:{attack:row[1],release:row[2],ratio:row[3],threshold:row[4]}, difficulty:level, source:"fallback" }; }
+  const phase = offset % 2 === 0 ? "normal" : "inverted"; return { gameId, prompt:"دو کانال را گوش کن و polarity را تشخیص بده.", hint:"روی مرکز تصویر و استحکام low-end تمرکز کن.", answer:phase, options:[phase, phase === "normal" ? "inverted" : "normal"], audio:{phase}, difficulty:level, source:"fallback" };
 }
 
 async function ask(key: string, base: string, model: string, prompt: string) {
@@ -71,7 +72,7 @@ function buildPrompt(gameId: GameId, level: number, recent: string[]) {
 async function generate(gameId: GameId, level: number, recent: string[]) {
   const prompt = buildPrompt(gameId, level, recent);
   const active = MODEL_CONFIGS.filter(([keyName]) => Boolean(process.env[keyName]));
-  if (!active.length) return fallback(gameId, level);
+  if (!active.length) return fallback(gameId, level, recent);
 
   // Ensemble depth is adaptive: cheap/simple stages use one model; advanced
   // stages use multiple independent models so a single weak generation cannot
@@ -89,7 +90,7 @@ async function generate(gameId: GameId, level: number, recent: string[]) {
   );
   const candidates = results.flatMap(r => r.status === "fulfilled" ? [r.value] : []);
 
-  if (!candidates.length) return fallback(gameId, level);
+  if (!candidates.length) return fallback(gameId, level, recent);
   if (candidates.length === 1) return { ...candidates[0].question, source: `ai:${candidates[0].provider}` };
 
   // Prefer consensus when independent models agree on the audibly-scored
@@ -104,12 +105,13 @@ async function generate(gameId: GameId, level: number, recent: string[]) {
   }
   const consensus = [...grouped.values()].sort((a, b) => b.length - a.length)[0];
   const winner = consensus.length > 1
-    ? consensus[0]
-    : [...candidates].sort((a, b) => {
-        const aScore = a.question.prompt.length + a.question.hint.length + a.question.options.length * 10;
-        const bScore = b.question.prompt.length + b.question.hint.length + b.question.options.length * 10;
-        return bScore - aScore;
-      })[0];
+    ? consensus[Math.abs(level + recent.length) % consensus.length]
+    : [...candidates]
+        .sort((a, b) => {
+          const aScore = a.question.prompt.length + a.question.hint.length + a.question.options.length * 10;
+          const bScore = b.question.prompt.length + b.question.hint.length + b.question.options.length * 10;
+          return bScore - aScore;
+        })[(level + recent.length) % candidates.length];
   return { ...winner.question, source: `ensemble:${candidates.map(c => c.provider.replace("_API_KEY", "")).join("+")}` };
 }
 
@@ -123,7 +125,7 @@ export async function POST(request: Request) {
   if (db) { const {data} = await db.from("practice_ai_questions").select("fingerprint").eq("user_id",userId).eq("game_id",gameId).order("created_at",{ascending:false}).limit(12); if (data) recent.push(...data.map(x=>String(x.fingerprint))); }
   let question: GeneratedQuestion | null = null;
   for (let attempt=0; attempt<3 && !question; attempt++) { const candidate=await generate(gameId,level,recent); const fingerprint=createHash("sha256").update(JSON.stringify({gameId,answer:candidate.answer,options:candidate.options,audio:candidate.audio,prompt:candidate.prompt})).digest("hex"); if (!recent.includes(fingerprint)) question={...candidate,fingerprint}; else recent.push(fingerprint); }
-  if (!question) { const q=fallback(gameId,level); question={...q,fingerprint:createHash("sha256").update(String(Date.now())+Math.random()).digest("hex")}; }
+  if (!question) { const q=fallback(gameId, level, recent); question={...q,fingerprint:createHash("sha256").update(JSON.stringify({gameId,q})).digest("hex")}; }
   if (db) await db.from("practice_ai_questions").insert({user_id:userId,game_id:gameId,level,fingerprint:question.fingerprint,question});
   return NextResponse.json({ok:true,question});
 }

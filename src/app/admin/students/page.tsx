@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Download, Edit3, RefreshCw, Search, Save, Users, X } from "lucide-react";
+import Link from "next/link";
+import { Crown, Download, Edit3, RefreshCw, Search, Save, Users, X } from "lucide-react";
 
 type Student = {
   id: number | string;
@@ -98,6 +99,9 @@ export default function AdminStudentsPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [proTarget, setProTarget] = useState<Student | null>(null);
+  const [proMonths, setProMonths] = useState(1);
+  const [proBusy, setProBusy] = useState(false);
 
   async function load(query = q) {
     setLoading(true);
@@ -199,6 +203,32 @@ export default function AdminStudentsPage() {
     }
   }
 
+  async function grantPracticePro() {
+    if (!proTarget || typeof proTarget.id !== "number") return;
+    setProBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/practice/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId: String(proTarget.id), months: proMonths, note: `از فهرست هنرجوها · ${proTarget.full_name}` }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        setError(data.error || "فعال‌سازی Practice Pro ناموفق بود.");
+        return;
+      }
+      setMessage(`Practice Pro برای ${proTarget.full_name} به‌مدت ${proMonths} ماه فعال شد.`);
+      setProTarget(null);
+    } catch {
+      setError("ارتباط با سرور اشتراک برقرار نشد.");
+    } finally {
+      setProBusy(false);
+    }
+  }
+
   function exportCsv() {
     const rows = [
       [
@@ -256,6 +286,9 @@ export default function AdminStudentsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/admin/practice/subscriptions" className="btn-ghost !px-4 !text-gold-300">
+            <Crown size={15} /> مدیریت اشتراک Pro
+          </Link>
           <button type="button" className="btn-ghost !px-4" onClick={() => void load()} disabled={loading}>
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
             به‌روزرسانی
@@ -414,14 +447,18 @@ export default function AdminStudentsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {student.editable !== false && typeof student.id === "number" ? (
-                    <button type="button" className="btn-ghost !px-3 !py-1.5 text-xs" onClick={() => edit(student)}>
-                      <Edit3 size={13} />
-                      ویرایش
-                    </button>
-                  ) : (
-                    <span className="text-[11px] text-ink-500">فقط Spot</span>
-                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {student.editable !== false && typeof student.id === "number" ? (
+                      <button type="button" className="btn-ghost !px-3 !py-1.5 text-xs" onClick={() => edit(student)}>
+                        <Edit3 size={13} /> ویرایش
+                      </button>
+                    ) : null}
+                    {typeof student.id === "number" ? (
+                      <button type="button" className="btn-ghost !border-gold-400/25 !px-3 !py-1.5 text-xs !text-gold-300" onClick={() => { setProTarget(student); setProMonths(1); }}>
+                        <Crown size={13} /> افزودن Pro
+                      </button>
+                    ) : <span className="text-[11px] text-ink-500">فقط Spot</span>}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -514,6 +551,23 @@ export default function AdminStudentsPage() {
               ذخیره پروفایل
             </button>
           </form>
+        </div>
+      ) : null}
+      {proTarget ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true">
+          <div className="card-ay w-full max-w-md space-y-5 p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div><p className="eyebrow text-gold-300">PRACTICE PRO</p><h3 className="mt-2 text-lg font-medium text-sand-50">افزودن اشتراک به هنرجو</h3><p className="mt-2 text-sm text-ink-400">{proTarget.full_name}</p></div>
+              <button type="button" className="text-ink-400" onClick={() => setProTarget(null)} aria-label="بستن"><X size={18} /></button>
+            </div>
+            <label className="block space-y-2 text-xs text-ink-400">مدت اشتراک
+              <select value={proMonths} onChange={(event) => setProMonths(Number(event.target.value))} className="input-ay">
+                {[1, 2, 3, 6, 12].map((month) => <option key={month} value={month}>{month} ماه</option>)}
+              </select>
+            </label>
+            <p className="rounded-xl border border-gold-400/15 bg-gold-400/[.05] p-3 text-xs leading-6 text-ink-300">اشتراک از همین لحظه فعال می‌شود و سقف تمرین روزانه هنرجو را افزایش می‌دهد. اگر اشتراک فعال داشته باشد، مدت جدید به پایان اشتراک فعلی اضافه می‌شود.</p>
+            <div className="flex gap-2"><button type="button" className="btn-primary flex-1" disabled={proBusy} onClick={() => void grantPracticePro()}>{proBusy ? "در حال فعال‌سازی…" : "فعال‌سازی Pro"}</button><button type="button" className="btn-ghost" disabled={proBusy} onClick={() => setProTarget(null)}>انصراف</button></div>
+          </div>
         </div>
       ) : null}
     </div>
