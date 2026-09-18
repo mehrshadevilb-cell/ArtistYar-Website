@@ -15,10 +15,22 @@ import {
 
 const presets = [
   {
+    id: "standard_vocal_inst",
+    title: "Standard — Vocal / Instrumental",
+    body: "Fast 2-stem separation for vocals and instrumental.",
+    tag: "Standard",
+  },
+  {
     id: "demucs_mdx_hq5",
     title: "HQ Hybrid — Demucs + MDX Inst HQ 5",
     body: "Demucs FT vocals + UVR-MDX-NET Inst HQ 5 instrumental workflow.",
     tag: "HQ Hybrid",
+  },
+  {
+    id: "full_stem",
+    title: "Full Stem — Demucs 4-Stem",
+    body: "Full 4-stem split: Vocals, Drums, Bass and Other.",
+    tag: "Full Stem",
   },
 ] as const;
 
@@ -57,7 +69,7 @@ export default function SeparatePage() {
 
     void Promise.all([
       load("https://cdn.jsdelivr.net/npm/jszip@3.10.2/dist/jszip.min.js"),
-      load("/separator/browser-separator.js?v=20260918-1"),
+      load("/separator/browser-separator.js?v=20260918-2"),
     ]).catch(() => {
       setError("Browser separation runtime could not be loaded. Please refresh the page.");
     });
@@ -95,10 +107,6 @@ export default function SeparatePage() {
 
     setBusy(true);
     setError("");
-    setStatus(
-      ("gpu" in navigator) ? "Preparing your device GPU and loading the browser separator…"
-        : "WebGPU is unavailable; trying CPU fallback…",
-    );
 
     try {
       const browser = (
@@ -106,13 +114,66 @@ export default function SeparatePage() {
           artistYarBrowserSeparate?: (
             file: File,
             progress: (p: Progress) => void,
+            mode?: "standard" | "full",
           ) => Promise<Blob>;
         }
       ).artistYarBrowserSeparate;
 
+      if (preset === "demucs_mdx_hq5") {
+        setStatus("Preparing HQ Hybrid — Demucs + MDX Inst HQ 5…");
+
+        const form = new FormData();
+        form.append("file", file);
+        form.append("preset", "demucs_mdx_hq5");
+
+        const response = await fetch("/api/separation", {
+          method: "POST",
+          body: form,
+          cache: "no-store",
+        });
+
+        const contentType = response.headers.get("content-type") || "";
+        if (!response.ok) {
+          let message = "HQ Hybrid separation failed.";
+          if (contentType.includes("application/json")) {
+            const payload = (await response.json()) as { error?: string };
+            if (payload.error) message = payload.error;
+          } else {
+            const text = await response.text();
+            if (text) message = text;
+          }
+          throw new Error(message);
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download =
+          "artistyar-" + file.name.replace(/\.[^.]+$/, "") + "-hq-hybrid.zip";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+
+        setStatus("Done — HQ Hybrid separation complete.");
+        return;
+      }
+
       if (!browser) {
         throw new Error("Browser separator is still loading. Please wait a moment and try again.");
       }
+
+      const mode = preset === "full_stem" ? "full" : "standard";
+      setStatus(
+        ("gpu" in navigator)
+          ? (mode === "full"
+              ? "Preparing Full Stem on your device GPU…"
+              : "Preparing Standard Vocal / Instrumental on your device GPU…")
+          : (mode === "full"
+              ? "WebGPU is unavailable; trying Full Stem CPU fallback…"
+              : "WebGPU is unavailable; trying Standard CPU fallback…"),
+      );
 
       const blob = await browser(file, (p) => {
         if (p.phase === "model") {
@@ -122,7 +183,9 @@ export default function SeparatePage() {
           setStatus("Loading separation model on your device… " + pct + "%");
         } else if (p.segment) {
           setStatus(
-            "Separating on your " +
+            "Separating " +
+              (mode === "full" ? "4 stems" : "vocal / instrumental") +
+              " on your " +
               (("gpu" in navigator) ? "GPU" : "CPU") +
               ": segment " +
               p.segment +
@@ -137,20 +200,28 @@ export default function SeparatePage() {
       const anchor = document.createElement("a");
       anchor.href = url;
       anchor.download =
-        "artistyar-" + file.name.replace(/\.[^.]+$/, "") + "-stems.zip";
+        "artistyar-" +
+        file.name.replace(/\.[^.]+$/, "") +
+        (mode === "full" ? "-full-stem.zip" : "-vocal-inst.zip");
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
 
-      setStatus("Done — on-device separation complete. Your stems were processed locally.");
+      setStatus(
+        mode === "full"
+          ? "Done — Full Stem separation complete. Vocals, drums, bass and other were processed locally."
+          : "Done — Standard Vocal / Instrumental separation complete. Your audio was processed locally.",
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Browser separation failed.");
+      setError(err instanceof Error ? err.message : "Separation failed.");
       setStatus("");
     } finally {
       setBusy(false);
     }
   }
+
+  const selectedPreset = presets.find((item) => item.id === preset) ?? presets[0];
 
   return (
     <main className="min-h-screen bg-[#050505] px-4 py-10 text-white sm:px-6 lg:px-8">
@@ -166,8 +237,7 @@ export default function SeparatePage() {
             AI Stem Separation
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">
-            Separate vocals and instruments directly on your device. No upload to a
-            processing server is required in browser mode.
+            Choose a separation mode, then process your audio with the selected engine.
           </p>
         </div>
 
@@ -252,12 +322,12 @@ export default function SeparatePage() {
               {busy ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Processing locally…
+                  Processing…
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  Separate Stems
+                  {selectedPreset.title}
                 </>
               )}
             </button>
@@ -269,37 +339,47 @@ export default function SeparatePage() {
               <h2 className="font-semibold">Separation Engine</h2>
             </div>
 
-            {presets.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                disabled={busy}
-                onClick={() => setPreset(item.id)}
-                className={
-                  "w-full rounded-2xl border p-4 text-left transition " +
-                  (preset === item.id
-                    ? "border-amber-300/35 bg-amber-300/[0.06]"
-                    : "border-white/10 bg-black/20 hover:border-white/20")
-                }
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium">{item.title}</span>
-                  <span className="rounded-full border border-amber-300/20 px-2 py-1 text-[10px] uppercase tracking-wider text-amber-200/80">
-                    {item.tag}
-                  </span>
-                </div>
-                <p className="mt-3 text-xs leading-5 text-white/45">{item.body}</p>
-              </button>
-            ))}
+            <div className="space-y-3">
+              {presets.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setPreset(item.id);
+                    setError("");
+                    setStatus("");
+                  }}
+                  className={
+                    "w-full rounded-2xl border p-4 text-left transition " +
+                    (preset === item.id
+                      ? "border-amber-300/35 bg-amber-300/[0.06]"
+                      : "border-white/10 bg-black/20 hover:border-white/20")
+                  }
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium leading-5">{item.title}</span>
+                    <span className="shrink-0 rounded-full border border-amber-300/20 px-2 py-1 text-[10px] uppercase tracking-wider text-amber-200/80">
+                      {item.tag}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-white/45">{item.body}</p>
+                </button>
+              ))}
+            </div>
 
             <div className="mt-5 space-y-3 border-t border-white/10 pt-5 text-xs text-white/45">
               <div className="flex gap-3">
                 <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-300/80" />
-                <span>Browser mode keeps the source audio on your device.</span>
+                <span>
+                  Standard and Full Stem browser modes keep the source audio on your device.
+                </span>
               </div>
               <div className="flex gap-3">
                 <Download className="h-4 w-4 shrink-0 text-white/60" />
-                <span>The result is packaged locally as a ZIP of WAV stems.</span>
+                <span>
+                  Results are packaged locally as WAV files inside a ZIP. HQ Hybrid uses the server worker.
+                </span>
               </div>
               <div className="flex gap-3">
                 <Sparkles className="h-4 w-4 shrink-0 text-amber-300/80" />
