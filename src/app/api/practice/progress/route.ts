@@ -1,8 +1,22 @@
 import { NextResponse } from "next/server";
 import { getPracticeProfile, hasPracticeStore, savePracticeResult } from "@/lib/practice-progress";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
+const MEMBER_DAILY_STAGES = 15;
+
+async function dailyUsage(userId: string) {
+  if (!db) return 0;
+  const start = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
+  const end = new Date(start.getTime() + 86400000);
+  const { data } = await db.from("practice_records").select("id").eq("user_id", userId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
+  return data?.length || 0;
+}
 
 export async function GET(request: Request) {
   const userId = new URL(request.url).searchParams.get("userId")?.trim();
@@ -17,6 +31,10 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   if (!body.userId || !body.username) return NextResponse.json({ ok: false, error: "اطلاعات کاربر ناقص است." }, { status: 400 });
   try {
+    const usedToday = await dailyUsage(String(body.userId));
+    if (usedToday >= MEMBER_DAILY_STAGES) {
+      return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit: MEMBER_DAILY_STAGES, used: usedToday, remaining: 0 }, { status: 429 });
+    }
     const row = await savePracticeResult({
       user_id: String(body.userId).slice(0, 120),
       username: String(body.username).slice(0, 120),
