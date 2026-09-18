@@ -32,10 +32,31 @@ async function candidates() {
   }
 
   const seen = new Set<string>();
-  return out.sort((a,b)=>b.rank-a.rank).filter(c=>{
-    const key=`${c.provider.id}::${c.model}`;
+  const unique = out.sort((a,b)=>b.rank-a.rank).filter(c=>{
+    const key=`${c.provider.id}::`${c.model}`;
     if(seen.has(key)) return false; seen.add(key); return true;
   });
+
+  // Round-robin providers so one exhausted provider cannot consume the
+  // whole agent pool. Working providers get a chance to answer in parallel.
+  const byProvider = new Map<string, typeof unique>();
+  for (const candidate of unique) {
+    const list = byProvider.get(candidate.provider.id) || [];
+    list.push(candidate);
+    byProvider.set(candidate.provider.id, list);
+  }
+  const balanced: typeof unique = [];
+  for (let depth = 0; balanced.length < unique.length; depth++) {
+    let added = false;
+    for (const list of byProvider.values()) {
+      if (list[depth]) {
+        balanced.push(list[depth]);
+        added = true;
+      }
+    }
+    if (!added) break;
+  }
+  return balanced;
 }
 
 async function ask(provider:AIProvider, model:string, task:string, context:string):Promise<AgentResult>{
@@ -172,12 +193,33 @@ export async function runDevelopmentTask(
       }
     }
     const seen = new Set<string>();
-    return result.sort((a,b)=>b.rank-a.rank).filter(c => {
-      const k = `${c.provider.id}::${c.model}`;
+    const unique = result.sort((a,b)=>b.rank-a.rank).filter(c => {
+      const k = `${c.provider.id}::`${c.model}`;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
     });
+
+    // Balance coding agents across providers so exhausted providers are
+    // automatically bypassed when other configured providers are available.
+    const byProvider = new Map<string, typeof unique>();
+    for (const candidate of unique) {
+      const list = byProvider.get(candidate.provider.id) || [];
+      list.push(candidate);
+      byProvider.set(candidate.provider.id, list);
+    }
+    const balanced: typeof unique = [];
+    for (let depth = 0; balanced.length < unique.length; depth++) {
+      let added = false;
+      for (const list of byProvider.values()) {
+        if (list[depth]) {
+          balanced.push(list[depth]);
+          added = true;
+        }
+      }
+      if (!added) break;
+    }
+    return balanced;
   })();
 
   const coders = candidates.slice(0, Math.min(4, Math.max(2, Math.floor(maxAgents / 4))));
