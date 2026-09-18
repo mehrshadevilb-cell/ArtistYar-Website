@@ -9,7 +9,7 @@ const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_R
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
 const FREE_STAGE_LIMIT = 5;
-const PRO_DAILY_STAGES = 40;
+const PRO_STAGE_LIMIT = 40;
 const PRO_PRICE_TOMAN = 40000;
 
 function dayKey() {
@@ -76,8 +76,8 @@ export async function GET(request: Request) {
   const subscriptionDays = pro && sub?.expires_at
     ? Math.max(1, Math.ceil((new Date(sub.expires_at).getTime() - new Date(sub.created_at || new Date().toISOString()).getTime()) / 86400000))
     : 0;
-  const stageLimit = pro ? PRO_DAILY_STAGES : FREE_STAGE_LIMIT;
-  const dailyLimit = pro ? PRO_DAILY_STAGES : FREE_STAGE_LIMIT;
+  const stageLimit = pro ? PRO_STAGE_LIMIT : FREE_STAGE_LIMIT;
+  const dailyLimit = stageLimit;
 
   return NextResponse.json({
     ok: true, registered: true, dailyLimit, used,
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
   const ids = collectIds(userId, telegramId);
   const used = await countDailyUsage(ids);
   const sub = await findActivePro(ids);
-  const dailyLimit = sub ? PRO_DAILY_STAGES : FREE_STAGE_LIMIT;
+  const dailyLimit = sub ? PRO_STAGE_LIMIT : FREE_STAGE_LIMIT;
   if (used >= dailyLimit) {
     return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit, used, remaining: 0 }, { status: 429 });
   }
