@@ -30,6 +30,7 @@ export type MediaItem = {
   year: number | null;
   duration: number | null;
   coverUrl: string | null;
+  isActive: boolean;
 };
 
 export type StorageItem = {
@@ -134,6 +135,7 @@ function toItem(row: Record<string, unknown>): MediaItem {
     year: row.year ? Number(row.year) : null,
     duration: row.duration ? Number(row.duration) : null,
     coverUrl: row.cover_url ? String(row.cover_url) : null,
+    isActive: row.is_active !== false,
   };
 }
 
@@ -392,6 +394,7 @@ export async function listPublishedMedia(): Promise<MediaItem[]> {
     .from("media_assets")
     .select("*")
     .eq("status", "published")
+    .eq("is_active", true)
     .order("created_at", { ascending: false })
     .limit(200);
   if (result.error) throw new SupabaseOperationError("media_list", result.error);
