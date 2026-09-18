@@ -57,7 +57,7 @@ export default function SeparatePage() {
 
     void Promise.all([
       load("https://cdn.jsdelivr.net/npm/jszip@3.10.2/dist/jszip.min.js"),
-      load("/separator/browser-separator.js"),
+      load("/separator/browser-separator.js?v=20260918-1"),
     ]).catch(() => {
       setError("Browser separation runtime could not be loaded. Please refresh the page.");
     });
