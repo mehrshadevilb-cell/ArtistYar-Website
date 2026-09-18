@@ -9,6 +9,7 @@ import { useAuth } from "./AuthProvider";
 import { ThemeToggle } from "./ThemeToggle";
 
 const links = [
+  { href: "/practice", label: "تمرین و بازی" },
   { href: "/free-player", label: "آموزش رایگان" },
   { href: "/gallery", label: "گالری خروجی‌ها" },
   { href: "/gallery#student-projects", label: "پروژه‌های هنرجوها" },
