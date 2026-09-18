@@ -81,7 +81,7 @@ export function MixAnalyzerLab({ onBack }: { onBack: () => void }) {
     try {
       const params = new URLSearchParams();
       if (user?.id) params.set("userId", user.id);
-      const res = await fetch("/api/practice/status?" + params.toString(), { credentials: "include", cache: "no-store" });
+      const res = await fetch("/api/practice/analyze?" + params.toString(), { credentials: "include", cache: "no-store" });
       const data = await res.json();
       if (data?.ok) setQuota({ dailyLimit: data.dailyLimit, used: data.used, remaining: data.remaining, pro: Boolean(data.pro) });
     } catch {}
