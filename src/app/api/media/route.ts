@@ -9,6 +9,7 @@ import {
   registerExistingMedia,
   refreshMediaTags,
   updateMedia,
+  replaceMediaFile,
   uploadMedia,
   type MediaCategory,
 } from "@/lib/supabase-media";
@@ -137,6 +138,25 @@ export async function PUT(request: Request) {
   if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
+    const contentType = request.headers.get("content-type") || "";
+    if (contentType.includes("multipart/form-data")) {
+      const form = await request.formData();
+      const action = String(form.get("action") || "");
+      const publicId = String(form.get("publicId") || "").trim();
+      const file = form.get("file");
+      if (action !== "replace-file" || !publicId || !(file instanceof File)) {
+        return NextResponse.json({ ok: false, error: "فایل و شناسه معتبر لازم است." }, { status: 400 });
+      }
+      if (file.size <= 0 || file.size > MAX_FILE_SIZE) return NextResponse.json({ ok: false, error: "حجم فایل باید حداکثر ۵۰ مگابایت باشد." }, { status: 400 });
+      const item = await replaceMediaFile({
+        publicId,
+        buffer: Buffer.from(await file.arrayBuffer()),
+        filename: file.name || "replacement",
+        mimeType: resolveMime(file),
+      });
+      return NextResponse.json({ ok: true, item, message: "فایل با موفقیت جایگزین شد." });
+    }
+
     const body = await request.json();
     const publicId = String(body.publicId || "").trim();
     const title = String(body.title || "").trim();
@@ -165,7 +185,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ ok: true, item, message: "فایل موجود در گالری ثبت شد. تگ‌ها استخراج شدند." });
     }
     if (title.length < 3) return NextResponse.json({ ok: false, error: "شناسه و عنوان معتبر لازم است." }, { status: 400 });
-    const item = await updateMedia({ publicId, title, description });
+    const item = await updateMedia({ publicId, title, description, category: category || undefined, isActive: typeof body.isActive === "boolean" ? body.isActive : undefined });
     return NextResponse.json({ ok: true, item, message: "اطلاعات محتوا به‌روزرسانی شد." });
   } catch (error) {
     return errorResponse(error, "عملیات رسانه در Supabase ناموفق بود.", "update");
