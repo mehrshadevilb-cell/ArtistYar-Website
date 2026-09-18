@@ -566,6 +566,7 @@ async function chatOpenAICompatible(
   provider: AIProvider,
   model: string,
   messages: ChatMessage[],
+  clientId = "artistyar-web",
 ): Promise<string> {
   const headers: Record<string, string> = {
     ...(authHeaders(provider) as Record<string, string>),
@@ -583,7 +584,7 @@ async function chatOpenAICompatible(
       model,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
       temperature: 0.6,
-      max_tokens: 2048,
+      max_tokens: clientId.includes("coding") ? 12000 : 2048,
     }),
     cache: "no-store",
     signal: AbortSignal.timeout(45_000),
@@ -608,6 +609,7 @@ async function chatAnthropic(
   provider: AIProvider,
   model: string,
   messages: ChatMessage[],
+  clientId = "artistyar-web",
 ): Promise<string> {
   const system = messages
     .filter((m) => m.role === "system")
@@ -625,7 +627,7 @@ async function chatAnthropic(
     headers: authHeaders(provider),
     body: JSON.stringify({
       model,
-      max_tokens: 2048,
+      max_tokens: clientId.includes("coding") ? 12000 : 2048,
       temperature: 0.6,
       system: system || undefined,
       messages: rest,
@@ -656,6 +658,7 @@ async function chatGoogle(
   provider: AIProvider,
   model: string,
   messages: ChatMessage[],
+  clientId = "artistyar-web",
 ): Promise<string> {
   const system = messages
     .filter((m) => m.role === "system")
@@ -678,7 +681,7 @@ async function chatGoogle(
     body: JSON.stringify({
       systemInstruction: system ? { parts: [{ text: system }] } : undefined,
       contents,
-      generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
+      generationConfig: { temperature: 0.6, maxOutputTokens: clientId.includes("coding") ? 12000 : 2048 },
     }),
     cache: "no-store",
     signal: AbortSignal.timeout(45_000),
@@ -749,11 +752,11 @@ export async function chatWithProvider(
 ): Promise<string> {
   switch (provider.chatStyle) {
     case "openai":
-      return chatOpenAICompatible(provider, model, messages);
+      return chatOpenAICompatible(provider, model, messages, clientId);
     case "anthropic":
-      return chatAnthropic(provider, model, messages);
+      return chatAnthropic(provider, model, messages, clientId);
     case "google":
-      return chatGoogle(provider, model, messages);
+      return chatGoogle(provider, model, messages, clientId);
     case "rahyar":
       return chatRahYarGateway(provider, messages, clientId);
     default:
