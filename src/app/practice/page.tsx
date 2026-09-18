@@ -4,7 +4,7 @@ import { ChangeEvent, RefObject, useEffect, useMemo, useRef, useState } from "re
 import { AudioLines, Award, Check, CircleHelp, Ear, FileAudio, Flame, Gamepad2, Headphones, LockKeyhole, Pause, Play, RotateCcw, Sparkles, Target, Upload, Volume2, Waves, X } from "lucide-react";
 import { SectionHeading } from "@/components/SectionHeading";
 
-type GameId = "hub" | "tone" | "eq" | "compressor" | "phase" | "personal";
+type GameId = "hub" | "tone" | "eq" | "compressor" | "phase" | "personal" | "pro-arcade";
 type Game = { id: Exclude<GameId, "hub" | "personal">; title: string; description: string; icon: typeof Ear; color: string; tag: string };
 
 const games: Game[] = [
@@ -79,14 +79,175 @@ export default function PracticePage() {
 
   return <main className="container-ay relative py-12 sm:py-16"><div className="route-ambient route-ambient-one" aria-hidden="true" /><SectionHeading eyebrow="تمرین‌خانه / Practice Arcade" title="گوشَت را مثل یک ساز تمرین بده." subtitle="بازی‌های کوتاه و شنیداری برای میکس، EQ، داینامیک و فاز؛ بدون اکانت، بدون رتبه‌بندی مصنوعی، فقط تمرین واقعی." />
     <div className="mt-8 flex flex-wrap items-center gap-3"><div className="card-ay flex min-w-[220px] items-center gap-3 px-4 py-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-400/10 text-gold-300"><Award size={18} /></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2 text-[11px] text-ink-500"><span>رتبه‌ی حرفه‌ای</span><strong className="text-gold-300">{rank}</strong></span><span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/[.08]"><span className="block h-full rounded-full bg-gold-400 transition-[width]" style={{ width: `${rankProgress}%` }} /></span><strong className="mt-1 block text-sm text-sand-50">{score} XP</strong></span></div><div className="card-ay flex items-center gap-3 px-4 py-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-400/10 text-orange-300"><Flame size={18} /></span><span><span className="block text-[11px] text-ink-500">زنجیره</span><strong className="text-lg text-sand-50">{streak}</strong></span></div><span className="flex items-center gap-2 text-xs text-ink-500"><LockKeyhole size={14} className="text-gold-400" />پیشرفت فقط روی همین دستگاه ذخیره می‌شود.</span></div>
-    {active === "hub" ? <Hub onSelect={(id) => { resetGame(); setActive(id); }} /> : active === "personal" ? <Personal url={personalUrl} name={personalName} audioRef={personalAudio} loop={personalLoop} speed={personalSpeed} onLoopChange={setPersonalLoop} onSpeedChange={setPersonalSpeed} onUpload={uploadPersonal} onBack={() => setActive("hub")} /> : <GameStage active={active} toneRound={toneRound} setToneRound={setToneRound} toneAnswer={toneAnswer} setToneAnswer={(value) => { setToneAnswer(value); record(value === toneRounds[toneRound].frequency); }} eqRound={eqRound} setEqRound={setEqRound} eqAnswer={eqAnswer} setEqAnswer={(value) => { setEqAnswer(value); record(value === eqRounds[eqRound].answer); }} compressorRound={compressorRound} setCompressorRound={setCompressorRound} compressorAnswer={compressorAnswer} setCompressorAnswer={(value) => { setCompressorAnswer(value); record(value === compressorRounds[compressorRound].answer); }} phaseAnswer={phaseAnswer} setPhaseAnswer={(value) => { setPhaseAnswer(value); record(value === 0); }} onBack={() => setActive("hub")} onReset={resetGame} />}
+    {active === "hub" ? <Hub onSelect={(id) => { resetGame(); setActive(id); }} /> : active === "pro-arcade" ? <ProArcade onBack={() => setActive("hub")} /> : active === "personal" ? <Personal url={personalUrl} name={personalName} audioRef={personalAudio} loop={personalLoop} speed={personalSpeed} onLoopChange={setPersonalLoop} onSpeedChange={setPersonalSpeed} onUpload={uploadPersonal} onBack={() => setActive("hub")} /> : <GameStage active={active} toneRound={toneRound} setToneRound={setToneRound} toneAnswer={toneAnswer} setToneAnswer={(value) => { setToneAnswer(value); record(value === toneRounds[toneRound].frequency); }} eqRound={eqRound} setEqRound={setEqRound} eqAnswer={eqAnswer} setEqAnswer={(value) => { setEqAnswer(value); record(value === eqRounds[eqRound].answer); }} compressorRound={compressorRound} setCompressorRound={setCompressorRound} compressorAnswer={compressorAnswer} setCompressorAnswer={(value) => { setCompressorAnswer(value); record(value === compressorRounds[compressorRound].answer); }} phaseAnswer={phaseAnswer} setPhaseAnswer={(value) => { setPhaseAnswer(value); record(value === 0); }} onBack={() => setActive("hub")} onReset={resetGame} />}
   </main>;
 }
 
 function Hub({ onSelect }: { onSelect: (id: GameId) => void }) {
   const daily = games[new Date().getDate() % games.length];
-  return <div className="mt-10 space-y-6"><div className="rounded-2xl border border-gold-400/20 bg-gradient-to-l from-gold-400/[.12] to-white/[.025] p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><span className="eyebrow">چالش امروز / Daily Challenge</span><h2 className="mt-2 text-lg font-medium text-sand-50">امروز فقط ۵ دقیقه روی {daily.title} تمرکز کن.</h2><p className="mt-1 text-xs leading-6 text-ink-400">هر روز یک مهارت را انتخاب کن؛ کیفیت تمرین از تعداد بازی مهم‌تر است.</p></div><button type="button" className="btn-primary !px-4 !py-2 text-xs" onClick={() => onSelect(daily.id)}>شروع چالش</button></div></div><div className="grid gap-4 md:grid-cols-2">{games.map((game) => { const Icon = game.icon; return <button key={game.id} type="button" className="card-ay group p-6 text-right transition duration-300 hover:-translate-y-1 hover:border-gold-400/35" onClick={() => onSelect(game.id)}><div className="flex items-start justify-between gap-4"><span className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[.05] ${game.color}`}><Icon size={23} /></span><span className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-ink-500">{game.tag}</span></div><h2 className="mt-6 text-xl font-medium text-sand-50">{game.title}</h2><p className="mt-2 max-w-md text-sm leading-7 text-ink-400">{game.description}</p><span className="mt-6 inline-flex items-center gap-2 text-xs text-gold-300">شروع بازی <Play size={13} fill="currentColor" /></span></button>; })}</div><button type="button" className="card-ay group flex w-full flex-col items-start gap-4 p-6 text-right transition hover:border-gold-400/35 sm:flex-row sm:items-center" onClick={() => onSelect("personal")}><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300"><FileAudio size={23} /></span><span className="flex-1"><span className="eyebrow">تمرین شخصی / بدون آپلود</span><strong className="mt-2 block text-lg text-sand-50">فایل خودت را وارد کن و A/B تمرین کن</strong><span className="mt-1 block text-sm leading-7 text-ink-400">یک فایل صوتی را فقط در مرورگر باز کن، بخش‌های مختلفش را loop کن و با هدف مشخص گوش بده.</span></span><Upload size={18} className="text-gold-300" /></button><div className="grid gap-4 rounded-2xl border border-gold-400/15 bg-gold-400/[.045] p-5 text-sm leading-7 text-ink-300 md:grid-cols-3"><p><strong className="text-sand-50">۱. گوش بده</strong><br />اول با گوش تصمیم بگیر، بعد سراغ analyzer برو.</p><p><strong className="text-sand-50">۲. حدس بزن</strong><br />پاسخ اولت را ثبت کن و از دیدن جواب نترس.</p><p><strong className="text-sand-50">۳. تکرار کن</strong><br />رکورد تو روی همین دستگاه می‌ماند و نیاز به حساب ندارد.</p></div>
+  return <div className="mt-10 space-y-6"><div className="rounded-2xl border border-gold-400/20 bg-gradient-to-l from-gold-400/[.12] to-white/[.025] p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><span className="eyebrow">چالش امروز / Daily Challenge</span><h2 className="mt-2 text-lg font-medium text-sand-50">امروز فقط ۵ دقیقه روی {daily.title} تمرکز کن.</h2><p className="mt-1 text-xs leading-6 text-ink-400">هر روز یک مهارت را انتخاب کن؛ کیفیت تمرین از تعداد بازی مهم‌تر است.</p></div><button type="button" className="btn-primary !px-4 !py-2 text-xs" onClick={() => onSelect(daily.id)}>شروع چالش</button></div></div><div className="grid gap-4 md:grid-cols-2">{games.map((game) => { const Icon = game.icon; return <button key={game.id} type="button" className="card-ay group p-6 text-right transition duration-300 hover:-translate-y-1 hover:border-gold-400/35" onClick={() => onSelect(game.id)}><div className="flex items-start justify-between gap-4"><span className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[.05] ${game.color}`}><Icon size={23} /></span><span className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-ink-500">{game.tag}</span></div><h2 className="mt-6 text-xl font-medium text-sand-50">{game.title}</h2><p className="mt-2 max-w-md text-sm leading-7 text-ink-400">{game.description}</p><span className="mt-6 inline-flex items-center gap-2 text-xs text-gold-300">شروع بازی <Play size={13} fill="currentColor" /></span></button>; })}</div><button type="button" className="card-ay group flex w-full flex-col items-start gap-4 border-gold-400/20 bg-gradient-to-l from-gold-400/[.09] to-white/[.02] p-6 text-right transition hover:border-gold-400/40 sm:flex-row sm:items-center" onClick={() => onSelect("pro-arcade")}>
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gold-400/10 text-gold-300"><Gamepad2 size={23} /></span>
+      <span className="flex-1">
+        <span className="eyebrow">PRO ARCADE / Browser Games</span>
+        <strong className="mt-2 block text-lg text-sand-50">مینی‌گیم‌های زنده‌ی شنیداری</strong>
+        <span className="mt-1 block text-sm leading-7 text-ink-400">بازی‌های HTML5 سریع و حرفه‌ای برای reaction، rhythm و stereo focus؛ بدون Flash و بدون نصب.</span>
+      </span>
+      <span className="rounded-full border border-gold-400/25 px-3 py-1 text-[10px] text-gold-300">PRO</span>
+    </button>
+    <button type="button" className="card-ay group flex w-full flex-col items-start gap-4 p-6 text-right transition hover:border-gold-400/35 sm:flex-row sm:items-center" onClick={() => onSelect("personal")}><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300"><FileAudio size={23} /></span><span className="flex-1"><span className="eyebrow">تمرین شخصی / بدون آپلود</span><strong className="mt-2 block text-lg text-sand-50">فایل خودت را وارد کن و A/B تمرین کن</strong><span className="mt-1 block text-sm leading-7 text-ink-400">یک فایل صوتی را فقط در مرورگر باز کن، بخش‌های مختلفش را loop کن و با هدف مشخص گوش بده.</span></span><Upload size={18} className="text-gold-300" /></button><div className="grid gap-4 rounded-2xl border border-gold-400/15 bg-gold-400/[.045] p-5 text-sm leading-7 text-ink-300 md:grid-cols-3"><p><strong className="text-sand-50">۱. گوش بده</strong><br />اول با گوش تصمیم بگیر، بعد سراغ analyzer برو.</p><p><strong className="text-sand-50">۲. حدس بزن</strong><br />پاسخ اولت را ثبت کن و از دیدن جواب نترس.</p><p><strong className="text-sand-50">۳. تکرار کن</strong><br />رکورد تو روی همین دستگاه می‌ماند و نیاز به حساب ندارد.</p></div>
   </div>;
+}
+
+
+function ProArcade({ onBack }: { onBack: () => void }) {
+  type Mode = "reaction" | "rhythm" | "stereo";
+  const [mode, setMode] = useState<Mode>("reaction");
+  const [running, setRunning] = useState(false);
+  const [score, setScore] = useState(0);
+  const [best, setBest] = useState(0);
+  const [message, setMessage] = useState("یک بازی را انتخاب کن.");
+  const [target, setTarget] = useState({ x: 50, y: 50 });
+  const [beat, setBeat] = useState(0);
+  const [stereo, setStereo] = useState<"L" | "R" | null>(null);
+  const [startedAt, setStartedAt] = useState(0);
+  const timer = useRef<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("artistyar_pro_arcade_v1") || "{}");
+      setBest(Math.max(0, Number(saved.best) || 0));
+    } catch {}
+    return () => { if (timer.current) window.clearTimeout(timer.current); };
+  }, []);
+
+  function persist(value: number) {
+    setScore(value);
+    if (value > best) {
+      setBest(value);
+      localStorage.setItem("artistyar_pro_arcade_v1", JSON.stringify({ best: value }));
+    }
+  }
+
+  function startReaction() {
+    if (timer.current) window.clearTimeout(timer.current);
+    setRunning(true); setScore(0); setMessage("صبر کن… وقتی ظاهر شد کلیک کن.");
+    const delay = 900 + Math.random() * 2400;
+    timer.current = window.setTimeout(() => {
+      setTarget({ x: 18 + Math.random() * 64, y: 22 + Math.random() * 56 });
+      setStartedAt(performance.now());
+      setMessage("GO — سریع!");
+    }, delay);
+  }
+
+  function hitReaction() {
+    if (!running) return;
+    if (!startedAt) { setMessage("زود زدی! دوباره شروع کن."); setRunning(false); if (timer.current) window.clearTimeout(timer.current); return; }
+    const ms = Math.max(1, performance.now() - startedAt);
+    const points = Math.max(1, Math.round(500 - ms));
+    persist(points);
+    setRunning(false); setStartedAt(0);
+    setMessage(`${Math.round(ms)}ms · ${points} XP`);
+  }
+
+  function startRhythm() {
+    setRunning(true); setScore(0); setBeat(0); setMessage("روی ضرب‌های روشن کلیک کن.");
+    let n = 0;
+    const tick = () => {
+      n += 1; setBeat(n % 4);
+      if (n < 24) timer.current = window.setTimeout(tick, 420);
+      else { setRunning(false); setMessage("راند تمام شد."); }
+    };
+    tick();
+  }
+
+  function hitBeat(index: number) {
+    if (!running) return;
+    const expected = beat;
+    const points = index === expected ? 25 : 0;
+    persist(score + points);
+    setMessage(index === expected ? "Perfect timing" : "Off beat");
+  }
+
+  function startStereo() {
+    setRunning(true); setScore(0); setStereo(Math.random() > 0.5 ? "L" : "R"); setMessage("سمت درست را انتخاب کن.");
+    window.setTimeout(() => setRunning(false), 1800);
+  }
+
+  function chooseStereo(side: "L" | "R") {
+    if (!running || !stereo) return;
+    const ok = side === stereo;
+    persist(ok ? score + 50 : score);
+    setMessage(ok ? "Correct stereo focus · +50" : "Wrong side");
+    setRunning(false); setStereo(null);
+  }
+
+  function switchMode(next: Mode) {
+    if (timer.current) window.clearTimeout(timer.current);
+    setRunning(false); setStartedAt(0); setStereo(null); setMode(next); setScore(0);
+    setMessage(next === "reaction" ? "واکنش شنیداری/دیداری" : next === "rhythm" ? "Timing و rhythm" : "تمرکز چپ / راست");
+  }
+
+  return (
+    <section className="mt-10 space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت به آرکید</button>
+        <div className="flex items-center gap-3 text-xs text-ink-500"><Gamepad2 size={15} className="text-gold-400" />PRO BROWSER ARCADE</div>
+      </div>
+
+      <div className="card-ay overflow-hidden p-5 sm:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[.07] pb-5">
+          <div><p className="eyebrow">Live HTML5 Mini Games</p><h1 className="mt-2 text-2xl font-semibold text-sand-50">تمرین سریع، امتیاز دقیق</h1><p className="mt-2 text-sm leading-7 text-ink-400">بازی‌ها داخل مرورگر اجرا می‌شوند؛ Flash لازم نیست.</p></div>
+          <div className="text-left"><span className="block text-[10px] text-ink-500">BEST</span><strong className="text-xl text-gold-300">{best}</strong></div>
+        </div>
+
+        <div className="mt-5 grid gap-2 sm:grid-cols-3">
+          {[
+            ["reaction","Reaction Lab","واکنش سریع"],
+            ["rhythm","Rhythm Grid","تایمینگ"],
+            ["stereo","Stereo Focus","چپ / راست"],
+          ].map(([id,title,desc]) => (
+            <button key={id} type="button" onClick={() => switchMode(id as Mode)} className={`rounded-2xl border p-4 text-right transition ${mode === id ? "border-gold-400/35 bg-gold-400/[.07]" : "border-white/[.08] bg-white/[.02] hover:border-gold-400/20"}`}>
+              <strong className="block text-sm text-sand-50">{title}</strong><span className="mt-1 block text-xs text-ink-500">{desc}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-5 rounded-3xl border border-white/[.08] bg-black/20 p-5 sm:p-8">
+          {mode === "reaction" ? (
+            <div className="text-center">
+              <p className="text-sm text-ink-400">{message}</p>
+              <div className="relative mx-auto mt-5 h-64 max-w-2xl overflow-hidden rounded-2xl border border-white/[.07] bg-white/[.025]">
+                {startedAt ? <button type="button" aria-label="Hit target" onClick={hitReaction} className="absolute h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold-300 bg-gold-400/20 text-gold-200" style={{ left: `${target.x}%`, top: `${target.y}%` }}>GO</button> : null}
+              </div>
+              <button type="button" className="btn-primary mt-5" onClick={startReaction}>{running ? "در حال اجرا…" : "شروع Reaction"}</button>
+            </div>
+          ) : mode === "rhythm" ? (
+            <div className="text-center">
+              <p className="text-sm text-ink-400">{message}</p>
+              <div className="mx-auto mt-6 grid max-w-lg grid-cols-4 gap-3">
+                {[0,1,2,3].map(i => <button key={i} type="button" onClick={() => hitBeat(i)} className={`aspect-square rounded-2xl border text-lg transition ${beat === i && running ? "border-gold-300 bg-gold-400/20 text-gold-200" : "border-white/[.08] bg-white/[.025] text-ink-500"}`}>{i+1}</button>)}
+              </div>
+              <button type="button" className="btn-primary mt-5" onClick={startRhythm}>{running ? "ضرب در حال اجرا…" : "شروع Rhythm Grid"}</button>
+            </div>
+          ) : (
+            <div className="text-center">
+              <p className="text-sm text-ink-400">{message}</p>
+              <div className="mx-auto mt-6 grid max-w-lg grid-cols-2 gap-3">
+                <button type="button" className="rounded-2xl border border-white/[.08] bg-white/[.025] p-7 text-lg text-sand-50 hover:border-gold-400/30" onClick={() => chooseStereo("L")}>LEFT · چپ</button>
+                <button type="button" className="rounded-2xl border border-white/[.08] bg-white/[.025] p-7 text-lg text-sand-50 hover:border-gold-400/30" onClick={() => chooseStereo("R")}>RIGHT · راست</button>
+              </div>
+              <button type="button" className="btn-primary mt-5" onClick={startStereo}>{running ? "گوش کن…" : "شروع Stereo Focus"}</button>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-ink-500">
+          <span>Round XP: <strong className="text-gold-300">{score}</strong></span>
+          <span>پیشرفت این بخش فقط روی همین دستگاه ذخیره می‌شود.</span>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function GameStage({ active, toneRound, setToneRound, toneAnswer, setToneAnswer, eqRound, setEqRound, eqAnswer, setEqAnswer, compressorRound, setCompressorRound, compressorAnswer, setCompressorAnswer, phaseAnswer, setPhaseAnswer, onBack, onReset }: { active: Exclude<GameId, "hub" | "personal">; toneRound: number; setToneRound: (value: number) => void; toneAnswer: number | null; setToneAnswer: (value: number) => void; eqRound: number; setEqRound: (value: number) => void; eqAnswer: string | null; setEqAnswer: (value: string) => void; compressorRound: number; setCompressorRound: (value: number) => void; compressorAnswer: string | null; setCompressorAnswer: (value: string) => void; phaseAnswer: number | null; setPhaseAnswer: (value: number) => void; onBack: () => void; onReset: () => void }) {
