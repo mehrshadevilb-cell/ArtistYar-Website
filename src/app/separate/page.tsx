@@ -19,7 +19,16 @@ export default function SeparatePage() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [dragging, setDragging] = useState(false);\n\n  useEffect(() => {\n    const load = (src: string) => new Promise<void>((resolve, reject) => {\n      const script = document.createElement("script"); script.src = src; script.async = true;\n      script.onload = () => resolve(); script.onerror = () => reject(new Error("Separator runtime could not be loaded."));\n      document.head.appendChild(script);\n    });\n    void Promise.all([load("https://cdn.jsdelivr.net/npm/jszip@3.10.2/dist/jszip.min.js"), load("/separator/browser-separator.js")]).catch(() => {});\n  }, []);
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    const load = (src: string) => new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script"); script.src = src; script.async = true;
+      script.onload = () => resolve(); script.onerror = () => reject(new Error("Separator runtime could not be loaded."));
+      document.head.appendChild(script);
+    });
+    void Promise.all([load("https://cdn.jsdelivr.net/npm/jszip@3.10.2/dist/jszip.min.js"), load("/separator/browser-separator.js")]).catch(() => {});
+  }, []);
 
   const size = useMemo(() => {
     if (!file) return "";
