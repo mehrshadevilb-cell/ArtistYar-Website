@@ -116,6 +116,95 @@ export default function PracticePage() {
   </main>;
 }
 
+function GameStage({ active, toneRound, setToneRound, toneAnswer, setToneAnswer, eqRound, setEqRound, eqAnswer, setEqAnswer, compressorRound, setCompressorRound, compressorAnswer, setCompressorAnswer, phaseAnswer, setPhaseAnswer, onBack, onReset }: any) {
+  const { user } = useAuth();
+  const [stage,setStage]=useState(0);
+  const [limit,setLimit]=useState(user ? DAILY_MEMBER_STAGES : DAILY_GUEST_STAGES);
+  const [locked,setLocked]=useState(false);
+  const [recent,setRecent]=useState<number[]>([]);
+  const [played,setPlayed]=useState(false);
+  const [level,setLevel]=useState(1);
+
+  useEffect(() => {
+    let cancelled=false;
+    setStage(0); setLocked(false); setPlayed(false); setRecent([]);
+    const localXp=Number(localStorage.getItem("artistyar_arcade_score") ? JSON.parse(localStorage.getItem("artistyar_arcade_score")||"{}").score : 0)||0;
+    setLevel(practiceLevel(localXp));
+    if(user?.id) {
+      fetch("/api/practice/status?userId="+encodeURIComponent(user.id)+"&gameId="+encodeURIComponent(active),{cache:"no-store",credentials:"include"})
+        .then(r=>r.json()).then(d=>{ if(!cancelled&&d?.ok){setLimit(Number(d.dailyLimit)||DAILY_MEMBER_STAGES);setStage(Number(d.used)||0);setLocked(Number(d.remaining)<=0);}}).catch(()=>{});
+    }
+    return ()=>{cancelled=true};
+  },[active,user?.id]);
+
+  const difficulty=Math.min(1,(level-1)/499);
+  const pickIndex=(length:number)=>{
+    const candidates=Array.from({length},(_,i)=>i).filter(i=>!recent.includes(i));
+    const pool=candidates.length?candidates:Array.from({length},(_,i)=>i);
+    const start=Math.min(pool.length-1,Math.floor(difficulty*(pool.length-1)));
+    const windowSize=Math.max(2,Math.ceil(pool.length*(0.35+0.65*difficulty)));
+    const chosen=pool[Math.floor(Math.random()*Math.min(pool.length,start+windowSize))];
+    setRecent(v=>[...v.slice(-5),chosen]);
+    return chosen;
+  };
+
+  const markStage=async (gameId:string)=>{
+    if(locked) return;
+    const next=stage+1; setStage(next);
+    if(next>=limit) setLocked(true);
+    if(user?.id) {
+      const res=await fetch("/api/practice/progress",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({
+        userId:user.id,username:user.username,fullName:user.fullName,gameId,score:0,accuracy:0,streak:0,bestScore:0,metadata:{stage:next,dailyLimit:limit,level}
+      })});
+      if(res.status===429) setLocked(true);
+    }
+  };
+
+  const playEq=()=>{
+    const A=window.AudioContext||(window as typeof window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;if(!A)return;
+    const ctx=new A();void ctx.resume();
+    const osc=ctx.createOscillator(), noise=ctx.createBufferSource(), filter=ctx.createBiquadFilter(), gain=ctx.createGain();
+    const buf=ctx.createBuffer(1,ctx.sampleRate*1.2,ctx.sampleRate);const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+    noise.buffer=buf;filter.type="peaking";const row=eqRounds[eqRound%eqRounds.length];const freq=Number((row.answer.match(/[0-9]+/)||["250"])[0]);filter.frequency.value=Math.max(80,Math.min(14000,freq));filter.Q.value=1.1;filter.gain.value=6+difficulty*5;
+    gain.gain.value=.08;noise.connect(filter).connect(gain).connect(ctx.destination);noise.start();noise.stop(ctx.currentTime+1.1);setPlayed(true);window.setTimeout(()=>void ctx.close(),1500);
+  };
+  const playComp=()=>{
+    const A=window.AudioContext||(window as typeof window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;if(!A)return;
+    const ctx=new A();void ctx.resume();const osc=ctx.createOscillator(),gain=ctx.createGain(),comp=ctx.createDynamicsCompressor();
+    osc.type="sawtooth";osc.frequency.value=110+level*0.5;comp.threshold.value=-18-difficulty*22;comp.ratio.value=2+difficulty*10;comp.attack.value=0.003+(1-difficulty)*0.15;comp.release.value=.06+difficulty*.5;gain.gain.value=.09;
+    osc.connect(comp).connect(gain).connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+1.2);setPlayed(true);window.setTimeout(()=>void ctx.close(),1500);
+  };
+  const playPhase=()=>{
+    const A=window.AudioContext||(window as typeof window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;if(!A)return;
+    const ctx=new A();void ctx.resume();const merger=ctx.createChannelMerger(2),a=ctx.createOscillator(),b=ctx.createOscillator(),ga=ctx.createGain(),gb=ctx.createGain();
+    a.frequency.value=220;b.frequency.value=220;ga.gain.value=.07;gb.gain.value=phaseAnswer===1?-.07:.07;a.connect(ga).connect(merger,0,0);b.connect(gb).connect(merger,0,1);merger.connect(ctx.destination);a.start();b.start();a.stop(ctx.currentTime+1);b.stop(ctx.currentTime+1);setPlayed(true);window.setTimeout(()=>void ctx.close(),1300);
+  };
+
+  const answer=(correct:boolean,gameId:string,advance:()=>void)=>{
+    if(locked) return;
+    advance(); markStage(gameId);
+  };
+  if(locked) return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button><div className="card-ay mt-5 p-8 text-center"><Award className="mx-auto text-gold-300" size={32}/><h1 className="mt-4 text-xl font-semibold text-sand-50">تمرین امروز این بازی کامل شد.</h1><p className="mt-2 text-sm leading-7 text-ink-400">{user?"۱۵ مرحله‌ی روزانه‌ی عضو":"۵ مرحله‌ی رایگان روزانه"} تمام شد. فردا دوباره سؤال‌های تازه آماده می‌شوند.</p></div></section>;
+
+  const tone=toneRounds[toneRound%toneRounds.length];
+  const eq=eqRounds[eqRound%eqRounds.length];
+  const comp=compressorRounds[compressorRound%compressorRounds.length];
+  const toneChoices=shuffle(tone.options);
+  const eqChoices=shuffle(eqRounds.map(x=>x.answer).filter(x=>x!==eq.answer)).slice(0,3).concat(eq.answer).sort(()=>Math.random()-.5);
+  const compChoices=shuffle(compressorRounds.map(x=>x.answer).filter(x=>x!==comp.answer)).slice(0,3).concat(comp.answer).sort(()=>Math.random()-.5);
+
+  return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button>
+    <div className="card-ay mt-5 p-6 sm:p-10"><div className="mx-auto max-w-3xl">
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">LEVEL {level} · ADAPTIVE HEARING</p><h1 className="mt-2 text-2xl font-semibold text-sand-50">{games.find(g=>g.id===active)?.title}</h1></div><span className="rounded-full border border-gold-400/25 px-3 py-1 text-xs text-gold-300">مرحله {stage+1} / {limit}</span></div>
+      <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/[.07]"><div className="h-full rounded-full bg-gold-400 transition-all" style={{width:(stage/limit)*100+"%"}}/></div>
+      <p className="mt-5 text-sm leading-7 text-ink-400">{active==="tone"?"فرکانس را فقط با گوش تشخیص بده.":active==="eq"?"نمونه‌ی صوتی را گوش کن و ناحیه‌ی EQ را پیدا کن.":active==="compressor"?"نمونه‌ی فشرده‌شده را گوش کن و رفتار کمپرسور را تشخیص بده.":"دو کانال correlated را گوش کن و polarity را تشخیص بده."}</p>
+      {active==="tone"&&<><button className="btn-primary mt-5" onClick={()=>{playTone(tone.frequency,1.3);setPlayed(true)}}><Volume2 size={16}/> پخش دوباره</button><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{toneChoices.map(f=><button key={f} className="rounded-xl border border-white/10 p-4 hover:border-gold-400/40" onClick={()=>{const ok=f===tone.frequency;setToneAnswer(f);answer(ok,"tone",()=>{setToneRound(pickIndex(toneRounds.length));});}}>{formatFrequency(f)}</button>)}</div></>}
+      {active==="eq"&&<><button className="btn-primary mt-5" onClick={playEq}><Volume2 size={16}/> {played?"پخش دوباره نمونه":"پخش نمونه‌ی صوتی"}</button><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">{eqChoices.map(v=><button key={v} className="rounded-xl border border-white/10 p-4 text-sm hover:border-gold-400/40" onClick={()=>{const ok=v===eq.answer;setEqAnswer(v);answer(ok,"eq",()=>setEqRound(pickIndex(eqRounds.length)));}}>{v}</button>)}</div></>}
+      {active==="compressor"&&<><button className="btn-primary mt-5" onClick={playComp}><Volume2 size={16}/> {played?"پخش دوباره نمونه":"پخش نمونه‌ی کمپرسور"}</button><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{compChoices.map(v=><button key={v} className="rounded-xl border border-white/10 p-4 text-sm hover:border-gold-400/40" onClick={()=>{const ok=v===comp.answer;setCompressorAnswer(v);answer(ok,"compressor",()=>setCompressorRound(pickIndex(compressorRounds.length)));}}>{v}</button>)}</div></>}
+      {active==="phase"&&<><button className="btn-primary mt-5" onClick={playPhase}><Volume2 size={16}/> {played?"پخش دوباره":"پخش نمونه‌ی استریو"}</button><div className="mt-5 grid grid-cols-2 gap-3"><button className="rounded-xl border border-white/10 p-4" onClick={()=>{setPhaseAnswer(0);answer(true,"phase",()=>{});}}>Normal</button><button className="rounded-xl border border-white/10 p-4" onClick={()=>{setPhaseAnswer(1);answer(false,"phase",()=>{});}}>Inverted</button></div></>}
+    </div></div></section>;
+}
+
 function Hub({ onSelect }: { onSelect: (id: GameId) => void }) {
   const daily = games[new Date().getDate() % games.length];
   return <div className="mt-10 space-y-6"><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><span className="eyebrow">500+ LEVEL PATH</span><strong className="mt-2 block text-sm text-sand-50">مسیر سطح‌بندی</strong><span className="mt-1 block text-xs text-ink-500">۵ مرحله مهمان / ۱۵ مرحله عضو در روز · XP بیشتر = سؤال سخت‌تر</span></div><div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><span className="eyebrow">SKILL RATING</span><strong className="mt-2 block text-sm text-sand-50">امتیاز مهارت</strong><span className="mt-1 block text-xs text-ink-500">رکورد، Accuracy و Streak</span></div><div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><span className="eyebrow">DAILY 5 MIN</span><strong className="mt-2 block text-sm text-sand-50">چالش روزانه</strong><span className="mt-1 block text-xs text-ink-500">تمرین کوتاه و قابل تکرار</span></div></div><div className="rounded-2xl border border-gold-400/20 bg-gradient-to-l from-gold-400/[.12] to-white/[.025] p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><span className="eyebrow">چالش امروز / Daily Challenge</span><h2 className="mt-2 text-lg font-medium text-sand-50">امروز فقط ۵ دقیقه روی {daily.title} تمرکز کن.</h2><p className="mt-1 text-xs leading-6 text-ink-400">هر روز یک مهارت را انتخاب کن؛ کیفیت تمرین از تعداد بازی مهم‌تر است.</p></div><button type="button" className="btn-primary !px-4 !py-2 text-xs" onClick={() => onSelect(daily.id)}>شروع چالش</button></div></div><div className="grid gap-4 md:grid-cols-2">{games.map((game) => { const Icon = game.icon; return <button key={game.id} type="button" className="card-ay group p-6 text-right transition duration-300 hover:-translate-y-1 hover:border-gold-400/35" onClick={() => onSelect(game.id)}><div className="flex items-start justify-between gap-4"><span className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[.05] ${game.color}`}><Icon size={23} /></span><span className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-ink-500">{game.tag}</span></div><h2 className="mt-6 text-xl font-medium text-sand-50">{game.title}</h2><p className="mt-2 max-w-md text-sm leading-7 text-ink-400">{game.description}</p><span className="mt-6 inline-flex items-center gap-2 text-xs text-gold-300">شروع بازی <Play size={13} fill="currentColor" /></span></button>; })}</div><button type="button" className="card-ay group flex w-full flex-col items-start gap-4 border-gold-400/20 bg-gradient-to-l from-gold-400/[.09] to-white/[.02] p-6 text-right transition hover:border-gold-400/40 sm:flex-row sm:items-center" onClick={() => onSelect("pro-arcade")}>
