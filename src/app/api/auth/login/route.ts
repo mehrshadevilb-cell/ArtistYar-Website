@@ -4,6 +4,9 @@ import {
   ADMIN_SESSION_COOKIE,
   adminSessionCookieOptions,
   createAdminSession,
+  createUserSession,
+  USER_SESSION_COOKIE,
+  userSessionCookieOptions,
 } from "@/lib/server-admin-auth";
 
 export const runtime = "nodejs";
@@ -78,7 +81,17 @@ export async function POST(request: Request) {
     });
     const data = await response.json().catch(() => ({}));
     if (response.ok && data.ok && data.user) {
-      return NextResponse.json(data);
+      const u = data.user as Record<string, unknown>;
+      const normalized = {
+        id: String(u.id ?? u.user_id ?? u.telegram_id ?? username),
+        username: String(u.username ?? u.phone ?? username),
+        fullName: String(u.fullName ?? u.full_name ?? u.name ?? username),
+        role: "student" as const,
+        telegramId: u.telegramId != null ? String(u.telegramId) : u.telegram_id != null ? String(u.telegram_id) : undefined,
+      };
+      const responseOut = NextResponse.json({ ...data, user: { ...data.user, ...normalized } });
+      responseOut.cookies.set(USER_SESSION_COOKIE, createUserSession(normalized), userSessionCookieOptions);
+      return responseOut;
     }
   } catch {
     return NextResponse.json({ ok: false, error: "student_login_backend_unavailable" }, { status: 503 });
