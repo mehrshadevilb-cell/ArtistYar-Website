@@ -424,36 +424,26 @@ const desiredCoders = 1;
   }
   let usable = coderResults.filter((p) => p.changes.length).sort((a, b) => (b.score || 0) - (a.score || 0));
   if (!usable.length && allCandidates.length > desiredCoders) {
-    // Failover is sequential and only starts after the current coding owner fails.
+    // Sequential failover: never spend quota on duplicate coding attempts in parallel.
     const backup = allCandidates.slice(desiredCoders, Math.min(allCandidates.length, desiredCoders + 7));
-    const backupResults = await Promise.all(
-      backup.map(async (candidate) => {
-        const label = `${candidate.provider.id}/${candidate.model}`;
-        try {
-          const reply = await withTimeout(
-            chatWithProvider(
-              candidate.provider,
-              candidate.model,
-              [
-                {
-                  role: "system",
-                  content:
-                    "تو Coding Agent پروژه ArtistYar-Website هستی. خروجی دقیق و قابل اعمال بده. پاسخ نهایی JSON معتبر با فیلد changes باشد.",
-                },
-                { role: "user", content: coderPrompt },
-              ],
-              "artistyar-development-coder-backup",
-            ),
-            CODING_TIMEOUT_MS,
-          );
-          const parsed = await parseCoderReply(reply, label);
-          return { ...parsed, score: scoreProposal(parsed.changes) };
-        } catch {
-          return { agent: label, changes: [] as ProposedChange[], notes: "backup coder failed", score: 0 };
-        }
-      }),
-    );
-    coderResults.push(...backupResults);
+    for (const candidate of backup) {
+      const label = `${candidate.provider.id}/${candidate.model}`;
+      try {
+        const reply = await withTimeout(
+          chatWithProvider(candidate.provider, candidate.model, [
+            { role: "system", content: "تو Coding Agent پروژه ArtistYar-Website هستی. خروجی دقیق و قابل اعمال بده. پاسخ نهایی JSON معتبر با فیلد changes باشد." },
+            { role: "user", content: coderPrompt },
+          ], "artistyar-development-coder-backup"),
+          CODING_TIMEOUT_MS,
+        );
+        const parsed = await parseCoderReply(reply, label);
+        const result = { ...parsed, score: scoreProposal(parsed.changes) };
+        coderResults.push(result);
+        if (result.changes.length) break;
+      } catch (error) {
+        coderResults.push({ agent: label, changes: [], notes: error instanceof Error ? error.message : String(error), score: 0 });
+      }
+    }
     usable = coderResults.filter((p) => p.changes.length).sort((a, b) => (b.score || 0) - (a.score || 0));
   }
   if (!usable.length) {
@@ -467,36 +457,23 @@ const desiredCoders = 1;
         `PROPOSAL ${i + 1} — ${p.agent} (score=${p.score ?? 0})\npaths: ${p.changes.map((c) => c.path).join(", ")}\n${JSON.stringify(p.changes.map((c) => ({ path: c.path, reason: c.reason, contentLength: c.content.length })))}`,
     )
     .join("\n\n---\n\n");
-  const reviewers = allCandidates
-    .filter((c) => !failedCoderProviders.has(c.provider.id))
-    .slice(0, Math.min(4, Math.max(2, allCandidates.length)));
-  const reviews = await Promise.all(
-    reviewers.map(async (c) => {
-      try {
-        return await withTimeout(
-          chatWithProvider(
-            c.provider,
-            c.model,
-            [
-              {
-                role: "system",
-                content:
-                  "تو Senior Reviewer پروژه ArtistYar-Website هستی. correctness، امنیت، TypeScript، Next.js و regression را بررسی کن. سخت‌گیر ولی عملی باش.",
-              },
-              {
-                role: "user",
-                content: `TASK:\n${task}\n\nPLAN:\n${planning.synthesis.reply}\n\nPROPOSALS:\n${proposalText}\n\nدر ابتدای پاسخ دقیقاً بنویس:\nAPPROVE <شماره>\nیا\nREJECT ALL\nسپس دلیل فنی کوتاه بده.`,
-              },
-            ],
-            "artistyar-development-reviewer",
-          ),
-          REVIEW_TIMEOUT_MS,
-        );
-      } catch {
-        return "REJECT ALL — reviewer failed";
-      }
-    }),
-  );
+  // One reviewer owner; next model is fallback only if review fails.
+  const reviewers = allCandidates.filter((c) => !failedCoderProviders.has(c.provider.id));
+  const reviews: string[] = [];
+  for (const c of reviewers) {
+    try {
+      const review = await withTimeout(
+        chatWithProvider(c.provider, c.model, [
+          { role: "system", content: "تو Senior Reviewer پروژه ArtistYar-Website هستی. correctness، امنیت، TypeScript، Next.js و regression را بررسی کن. سخت‌گیر ولی عملی باش." },
+          { role: "user", content: `TASK:\n${task}\n\nPLAN:\n${planning.synthesis.reply}\n\nPROPOSALS:\n${proposalText}\n\nدر ابتدای پاسخ دقیقاً بنویس:\nAPPROVE <شماره>\nیا\nREJECT ALL\nسپس دلیل فنی کوتاه بده.` },
+        ], "artistyar-development-reviewer"),
+        REVIEW_TIMEOUT_MS,
+      );
+      reviews.push(review);
+      break;
+    } catch {}
+  }
+  if (!reviews.length) reviews.push("REJECT ALL — reviewer unavailable");
   const voteWeight = new Map<number, number>();
   for (const r of reviews) {
     const m = r.match(/APPROVE\s+(\d+)/i);
