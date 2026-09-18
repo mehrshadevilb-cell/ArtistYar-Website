@@ -12,6 +12,68 @@ type AiStatus = {
   error?: string;
 };
 
+type Agent = {
+  name: string;
+  role: string;
+  mode: string;
+  status: "recommended" | "available";
+  tasks: string;
+  handoff: string;
+  url: string;
+};
+
+const agents: Agent[] = [
+  {
+    name: "Claude Code",
+    role: "توسعه‌دهنده اصلی",
+    mode: "کدنویسی مستقیم + بررسی کل پروژه",
+    status: "recommended",
+    tasks: "Feature، refactor، bug fix، تست و review معماری Next.js",
+    handoff: "کد فعلی را از GitHub بخوان، ابتدا plan بده، سپس تغییرات را در یک branch جدا انجام بده و قبل از merge تست کن.",
+    url: "https://claude.ai/code",
+  },
+  {
+    name: "Manus",
+    role: "Agent اجرایی و تحقیق",
+    mode: "تحقیق، تحلیل محصول و اجرای workflow",
+    status: "recommended",
+    tasks: "تحقیق رقبا، UX، SEO، ایده Feature و اجرای کارهای چندمرحله‌ای",
+    handoff: "وضعیت فعلی ArtistYar-Website را بررسی کن، task را به مراحل قابل اجرا تقسیم کن و خروجی هر مرحله را مستند کن.",
+    url: "https://manus.im",
+  },
+  {
+    name: "Codex",
+    role: "مهندس کد و review",
+    mode: "کدنویسی، دیباگ و تست",
+    status: "recommended",
+    tasks: "پیاده‌سازی Feature، رفع bug، تست، review و آماده‌سازی PR",
+    handoff: "Repository را بررسی کن، وابستگی‌ها و conventionهای موجود را حفظ کن و فقط تغییرات لازم برای task را اعمال کن.",
+    url: "https://chatgpt.com/codex",
+  },
+  {
+    name: "Cursor",
+    role: "توسعه داخل IDE",
+    mode: "ویرایش سریع و context-aware",
+    status: "available",
+    tasks: "تغییرات UI، componentها، refactor و iteration سریع روی کد",
+    handoff: "ساختار موجود را حفظ کن، component قابل استفاده مجدد بساز و بعد از تغییر، typecheck و lint را اجرا کن.",
+    url: "https://cursor.com",
+  },
+  {
+    name: "AI Agent / Harness",
+    role: "اجرای خودکار workflow",
+    mode: "task runner + automation",
+    status: "available",
+    tasks: "اجرای taskهای تکراری، diagnostics، تست و pipelineهای توسعه",
+    handoff: "قبل از write دسترسی‌ها و branch هدف را بررسی کن؛ خروجی، خطاها و commit/PR نهایی را گزارش بده.",
+    url: "https://harness.io",
+  },
+];
+
+function copyText(text: string) {
+  void navigator.clipboard?.writeText(text);
+}
+
 export default function AdminAiPage() {
   const [data, setData] = useState<AiStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,27 +99,25 @@ export default function AdminAiPage() {
   const healthy = data?.ok !== false && !data?.error;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-medium text-sand-50">AI Agent · پل ربات</h2>
+          <h2 className="text-lg font-medium text-sand-50">AI Agent · مرکز توسعه</h2>
+          <p className="mt-1 text-xs leading-6 text-ink-500">
+            راهنمای انتخاب Agent برای ادامه، توسعه و نگهداری ArtistYar.
+          </p>
           {updatedAt ? (
-            <p className="mt-1 text-xs text-ink-500">آخرین بروزرسانی: {updatedAt}</p>
+            <p className="mt-1 text-[11px] text-ink-600">آخرین بروزرسانی وضعیت: {updatedAt}</p>
           ) : null}
         </div>
-        <button
-          type="button"
-          className="btn-ghost !py-2 text-xs"
-          onClick={load}
-          disabled={loading}
-        >
+        <button type="button" className="btn-ghost !py-2 text-xs" onClick={load} disabled={loading}>
           {loading ? "در حال بارگذاری…" : "بروزرسانی"}
         </button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="card-ay p-4">
-          <p className="text-xs text-ink-500">وضعیت کلی</p>
+          <p className="text-xs text-ink-500">وضعیت کلی پل ربات</p>
           <p className={`mt-1 text-sm font-medium ${healthy ? "text-emerald-400" : "text-red-400"}`}>
             {loading ? "…" : healthy ? "سالم" : "مشکل"}
           </p>
@@ -69,40 +129,95 @@ export default function AdminAiPage() {
           </p>
         </div>
         <div className="card-ay p-4">
-          <p className="text-xs text-ink-500">منبع</p>
-          <p className="mt-1 text-sm font-medium text-sand-50">
-            {loading ? "…" : data?.source ?? "—"}
-          </p>
+          <p className="text-xs text-ink-500">منبع وضعیت</p>
+          <p className="mt-1 text-sm font-medium text-sand-50">{loading ? "…" : data?.source ?? "—"}</p>
         </div>
       </div>
 
-      <div className="card-ay space-y-3 p-6 text-sm">
+      <section className="card-ay space-y-4 p-5">
+        <div>
+          <h3 className="text-base font-medium text-sand-50">Agentهای پیشنهادی برای توسعه</h3>
+          <p className="mt-1 text-xs leading-6 text-ink-500">
+            این بخش «کدام Agent را برای چه کاری استفاده کنم؟» را مشخص می‌کند. وضعیت این Agentهای
+            خارجی از داخل سایت به‌صورت زنده verify نمی‌شود؛ دسترسی GitHub و حساب هر سرویس باید جداگانه تنظیم شود.
+          </p>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          {agents.map((agent) => (
+            <article key={agent.name} className="rounded-2xl border border-white/10 bg-black/10 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-medium text-sand-50">{agent.name}</h4>
+                  <p className="mt-1 text-xs text-gold-400">{agent.role}</p>
+                </div>
+                <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-ink-400">
+                  {agent.status === "recommended" ? "پیشنهاد اصلی" : "قابل استفاده"}
+                </span>
+              </div>
+              <p className="mt-3 text-xs leading-6 text-ink-400">{agent.mode}</p>
+              <p className="mt-2 text-xs leading-6 text-ink-500">
+                <span className="text-ink-300">مناسب برای:</span> {agent.tasks}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <a
+                  href={agent.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-ghost !py-2 text-[11px]"
+                >
+                  باز کردن Agent
+                </a>
+                <button
+                  type="button"
+                  className="btn-ghost !py-2 text-[11px]"
+                  onClick={() => copyText(agent.handoff)}
+                >
+                  کپی دستور شروع
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="card-ay space-y-4 p-5">
+        <div>
+          <h3 className="text-base font-medium text-sand-50">قانون ادامه توسعه</h3>
+          <p className="mt-1 text-xs leading-6 text-ink-500">
+            برای جلوگیری از تداخل چند Agent، هر task باید یک owner، یک branch و یک خروجی مشخص داشته باشد.
+          </p>
+        </div>
+        <div className="grid gap-2 text-xs leading-6 text-ink-400 md:grid-cols-4">
+          <div className="rounded-xl border border-white/10 p-3"><b className="text-sand-50">۱.</b> Repository را بخوان</div>
+          <div className="rounded-xl border border-white/10 p-3"><b className="text-sand-50">۲.</b> Plan و impact را مشخص کن</div>
+          <div className="rounded-xl border border-white/10 p-3"><b className="text-sand-50">۳.</b> روی branch جدا تغییر بده</div>
+          <div className="rounded-xl border border-white/10 p-3"><b className="text-sand-50">۴.</b> Test → Review → PR</div>
+        </div>
+      </section>
+
+      <div className="card-ay space-y-3 p-5 text-sm">
         {data?.note ? <p className="text-xs text-ink-500">{data.note}</p> : null}
         {data?.error ? <p className="text-xs text-red-400">{data.error}</p> : null}
-        {!data && !loading ? (
-          <p className="text-xs text-ink-500">هنوز داده‌ای دریافت نشده.</p>
-        ) : null}
       </div>
 
-      <div className="card-ay p-6">
+      <div className="card-ay p-5">
         <h3 className="text-sm font-medium text-sand-50">Self-Check</h3>
         <pre className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap text-xs leading-6 text-ink-400">
           {loading ? "در حال بارگذاری…" : data?.self_check || "—"}
         </pre>
       </div>
 
-      <div className="card-ay p-6">
-        <h3 className="text-sm font-medium text-sand-50">Agent Status</h3>
+      <div className="card-ay p-5">
+        <h3 className="text-sm font-medium text-sand-50">Agent Status · Telegram Bridge</h3>
         <pre className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap text-xs leading-6 text-ink-400">
           {loading ? "در حال بارگذاری…" : data?.agent_status || "—"}
         </pre>
       </div>
 
       <p className="text-xs leading-6 text-ink-500">
-        Taskهای نوشتن کد (Fix / Feature / PR) فقط از تلگرام ادمین اجرا می‌شوند تا سطح حمله
-        وب باز نشود. سایت و ربات از یک provider و یک دیتابیس برای دستیار آموزشی استفاده
-        می‌کنند. برای پیشرفت خودکار وقتی owner آنلاین نیست، از پنل تلگرام Diagnostics /
-        Test Models و در صورت نیاز AI_AGENT_WRITE_ENABLED استفاده کنید.
+        Taskهای write مانند Fix / Feature / PR از مسیر امن توسعه اجرا شوند. قبل از هر تغییر مهم، branch و backup
+        داشته باش و از اجرای هم‌زمان چند Agent روی یک branch جلوگیری کن.
       </p>
     </div>
   );
