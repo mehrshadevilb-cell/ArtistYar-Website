@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { communityLinks } from "@/data/community";
 
 export default function PanelProfilePage() {
   const { user, linkTelegram } = useAuth();
@@ -21,7 +22,7 @@ export default function PanelProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div className="card-ay p-6">
+      <div className="card-ay p-6 sm:p-7">
         <h2 className="text-lg font-medium text-sand-50">پروفایل</h2>
         <dl className="mt-4 space-y-3 text-sm">
           <div className="flex justify-between gap-4 border-b border-white/[0.05] pb-3">
@@ -41,14 +42,16 @@ export default function PanelProfilePage() {
         </dl>
       </div>
 
-      <div className="card-ay p-6">
+      <div className="card-ay p-6 sm:p-7">
         <h2 className="text-lg font-medium text-sand-50">همگام‌سازی با ربات</h2>
         <p className="mt-2 text-sm leading-7 text-ink-400">
-          با وارد کردن شناسه تلگرام، حساب وب برای لینک بعدی به اکانت ربات علامت‌گذاری
-          می‌شود. تأیید امن از سمت backend راه‌یار خواهد بود.
+          با وارد کردن شناسه تلگرام، حساب وب برای لینک بعدی به اکانت ربات علامت‌گذاری می‌شود. تأیید امن از سمت
+          backend راه‌یار خواهد بود.
         </p>
         <form className="mt-5 space-y-3" onSubmit={onLink}>
-          <label htmlFor="telegram-id" className="sr-only">شناسه تلگرام</label>
+          <label htmlFor="telegram-id" className="sr-only">
+            شناسه تلگرام
+          </label>
           <input
             id="telegram-id"
             className="input-ay"
@@ -58,11 +61,51 @@ export default function PanelProfilePage() {
             autoComplete="off"
             defaultValue={user?.telegramId || ""}
           />
-          <button type="submit" className="btn-primary !text-xs">
+          <button type="submit" className="btn-primary min-h-11 !text-xs">
             ذخیره لینک
           </button>
         </form>
-        {msg ? <p className="mt-3 text-xs text-gold-400" aria-live="polite">{msg}</p> : null}
+        {msg ? (
+          <p className="mt-3 text-xs text-gold-400" aria-live="polite">
+            {msg}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="card-ay p-6 sm:p-7">
+        <h2 className="text-lg font-medium text-sand-50">لینک‌های مفید</h2>
+        <ul className="mt-4 space-y-3 text-sm">
+          <li>
+            <a
+              href={communityLinks.telegramGroup.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gold-400 hover:text-gold-300"
+            >
+              گروه پرسش و پاسخ (ProAudiosGP)
+            </a>
+          </li>
+          <li>
+            <a
+              href={communityLinks.telegramPlugins.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gold-400 hover:text-gold-300"
+            >
+              کانال VST و پلاگین (ProAudios)
+            </a>
+          </li>
+          <li>
+            <a
+              href={communityLinks.instagram.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gold-400 hover:text-gold-300"
+            >
+              اینستاگرام @prodbymehrshad
+            </a>
+          </li>
+        </ul>
       </div>
     </div>
   );

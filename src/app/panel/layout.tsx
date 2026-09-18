@@ -13,7 +13,7 @@ const nav = [
 export default function PanelLayout({ children }: { children: React.ReactNode }) {
   return (
     <RequireAuth role="student">
-      <PanelShell title="Student Panel" nav={nav}>
+      <PanelShell title="پنل هنرجو" nav={nav}>
         {children}
       </PanelShell>
     </RequireAuth>
