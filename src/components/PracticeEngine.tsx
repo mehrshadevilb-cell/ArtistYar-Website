@@ -61,54 +61,103 @@ function formatHz(v: number) {
   return v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}kHz` : `${Math.round(v)}Hz`;
 }
 
-function playTone(frequency: number, duration = 1.15, pan = 0) {
-  if (typeof window === "undefined") return;
+let sharedAudioContext: AudioContext | null = null;
+
+async function getAudioContext() {
+  if (typeof window === "undefined") return null;
   const AC = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AC) return;
-  const ctx = new AC();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-  osc.type = "sine";
-  osc.frequency.value = frequency;
-  gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.04);
-  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
-  if (panner) {
-    panner.pan.value = Math.max(-1, Math.min(1, pan));
-    osc.connect(gain).connect(panner).connect(ctx.destination);
-  } else {
-    osc.connect(gain).connect(ctx.destination);
-  }
-  osc.start();
-  osc.stop(ctx.currentTime + duration + 0.05);
-  window.setTimeout(() => void ctx.close(), (duration + 0.25) * 1000);
+  if (!AC) return null;
+  sharedAudioContext ||= new AC();
+  if (sharedAudioContext.state === "suspended") await sharedAudioContext.resume();
+  return sharedAudioContext;
+}
+
+function playTone(frequency: number, duration = 1.15, pan = 0) {
+  void (async () => {
+    const ctx = await getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(frequency, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    if (panner) { panner.pan.value = Math.max(-1, Math.min(1, pan)); osc.connect(gain).connect(panner).connect(ctx.destination); }
+    else osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + duration + 0.05);
+  })();
 }
 
 function playEqDemo(centerHz: number, gainDb: number) {
-  if (typeof window === "undefined") return;
-  const AC = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AC) return;
-  const ctx = new AC();
-  const bufferSize = Math.floor(ctx.sampleRate * 1.4);
-  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.35;
-  const src = ctx.createBufferSource();
-  src.buffer = buffer;
-  const filter = ctx.createBiquadFilter();
-  filter.type = "peaking";
-  filter.frequency.value = centerHz;
-  filter.Q.value = 1.4;
-  filter.gain.value = gainDb;
-  const gain = ctx.createGain();
-  gain.gain.value = 0.22;
-  src.connect(filter).connect(gain).connect(ctx.destination);
-  src.start();
-  window.setTimeout(() => {
-    try { src.stop(); } catch { /* done */ }
-    void ctx.close();
-  }, 1500);
+  void (async () => {
+    const ctx = await getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const length = Math.floor(ctx.sampleRate * 1.6);
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) {
+      const fade = Math.min(1, i / (ctx.sampleRate * 0.05), (length - i) / (ctx.sampleRate * 0.08));
+      data[i] = (Math.random() * 2 - 1) * 0.28 * Math.max(0, fade);
+    }
+    const src = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    src.buffer = buffer;
+    filter.type = "peaking";
+    filter.frequency.setValueAtTime(centerHz, now);
+    filter.Q.setValueAtTime(1.2, now);
+    filter.gain.setValueAtTime(gainDb, now);
+    gain.gain.value = 0.32;
+    src.connect(filter).connect(gain).connect(ctx.destination);
+    src.start(now); src.stop(now + 1.6);
+  })();
+}
+
+function playCompressorDemo(params: Record<string, number | string>) {
+  void (async () => {
+    const ctx = await getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    const comp = ctx.createDynamicsCompressor();
+    const out = ctx.createGain();
+    comp.attack.setValueAtTime(Math.max(0.001, Number(params.attack) || 0.005), now);
+    comp.release.setValueAtTime(Math.max(0.03, Number(params.release) || 0.18), now);
+    comp.ratio.setValueAtTime(Math.max(1, Number(params.ratio) || 4), now);
+    comp.threshold.setValueAtTime(Number(params.threshold) || -24, now);
+    osc.type = "sawtooth"; osc.frequency.value = 180;
+    out.gain.setValueAtTime(0.0001, now);
+    out.gain.exponentialRampToValueAtTime(0.16, now + 0.04);
+    out.gain.exponentialRampToValueAtTime(0.0001, now + 1.25);
+    osc.connect(env).connect(comp).connect(out).connect(ctx.destination);
+    osc.start(now); osc.stop(now + 1.3);
+  })();
+}
+
+function playPhaseDemo(phase: string) {
+  void (async () => {
+    const ctx = await getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime, length = Math.floor(ctx.sampleRate * 1.4);
+    const buffer = ctx.createBuffer(2, length, ctx.sampleRate);
+    const left = buffer.getChannelData(0), right = buffer.getChannelData(1);
+    const inverted = phase === "inverted";
+    for (let i = 0; i < length; i++) {
+      const t = i / ctx.sampleRate;
+      const s = Math.sin(2 * Math.PI * 120 * t) * 0.55 + Math.sin(2 * Math.PI * 240 * t) * 0.22;
+      const fade = Math.min(1, i / (ctx.sampleRate * 0.04), (length - i) / (ctx.sampleRate * 0.08));
+      left[i] = s * fade; right[i] = (inverted ? -s : s) * fade;
+    }
+    const src = ctx.createBufferSource(), gain = ctx.createGain();
+    gain.gain.value = 0.24; src.buffer = buffer; src.connect(gain).connect(ctx.destination);
+    src.start(now); src.stop(now + 1.4);
+  })();
 }
 
 export default function PracticeEngine() {
@@ -384,8 +433,8 @@ function DrillStage({
       playTone(180, 1.1, inverted ? 0.85 : -0.2);
       return;
     }
-    // compressor: approximate with tone envelope
-    playTone(220, 1.2);
+    if (gameId === "compressor") { playCompressorDemo(q.audio); return; }
+    playPhaseDemo(String(q.answer));
   }
 
   function choose(opt: string | number) {
