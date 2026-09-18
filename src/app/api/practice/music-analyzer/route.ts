@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { parseFile } from "music-metadata";
 import { autoChat } from "@/lib/ai-providers";
 
 export const runtime = "nodejs";
@@ -94,12 +93,7 @@ export async function POST(request: Request) {
   const used = await countUsed(ids);
   if (used >= limit) return NextResponse.json({ ok: false, code: "daily_limit_reached", limit, used, remaining: 0, pro }, { status: 429 });
 
-  let duration = m.durationSec;
-  try {
-    const meta = await parseFile(Buffer.from(await file.arrayBuffer()));
-    if (Number.isFinite(meta.format.duration)) duration = Math.min(3600, Number(meta.format.duration));
-  } catch {}
-  const enriched = Object.assign({}, m, { durationSec: duration });
+  const enriched = Object.assign({}, m);
   let analysis = fallback(enriched, genre, focus);
 
   try {
