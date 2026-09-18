@@ -13,11 +13,12 @@ const nav = [
   { href: "/admin/media", label: "مدیریت محتوا" },
   { href: "/admin/ai", label: "AI Agent" },
   { href: "/admin/system", label: "وضعیت سیستم" },
+  { href: "/admin/settings", label: "تنظیمات پیشرفته" },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
-    <PanelShell title="Admin Panel" nav={nav}>
+    <PanelShell title="پنل ادمین" nav={nav}>
       {children}
     </PanelShell>
   );
