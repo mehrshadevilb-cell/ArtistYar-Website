@@ -48,11 +48,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, code: "daily_limit_reached", pro, dailyLimit, used: usedToday, remaining: 0 }, { status: 429 });
     }
     const awardedXp = Math.max(0, Number(body.score) || 0);
-    await recordSkillEvent({
-      userId, gameId, xp: awardedXp, accuracy: Number(body.accuracy) || 0,
-      difficulty: Number(body.metadata?.difficulty || 0), correct: Number(body.accuracy) >= 50,
-      metadata: { ...(body.metadata || {}), streak: Number(body.streak) || 0 },
-    });
+    try {
+      await recordSkillEvent({
+        userId, gameId, xp: awardedXp, accuracy: Number(body.accuracy) || 0,
+        difficulty: Number(body.metadata?.difficulty || 0), correct: Number(body.accuracy) >= 50,
+        metadata: { ...(body.metadata || {}), streak: Number(body.streak) || 0 },
+      });
+    } catch {
+      // Keep the core practice recorder available if the optional skill migration is not deployed yet.
+    }
     const row = await savePracticeResult({
       user_id: userId,
       username: String(body.username).slice(0, 120),
