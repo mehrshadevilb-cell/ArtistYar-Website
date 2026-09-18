@@ -156,12 +156,7 @@ export function getConfiguredProviders(): AIProvider[] {
     env("XKIRO_BASE_URL") ||
       env("KIRA_BASE_URL") ||
       "https://api.xkiro.com/v1",
-    [
-      env("XKIRO_MODEL") || env("KIRA_MODEL") || "openai/gpt-5.6-sol",
-      "anthropic/claude-sonnet-4-5",
-      "google/gemini-2.0-flash",
-      "openai/gpt-4o-mini",
-    ],
+    env("XKIRO_MODEL") ? [env("XKIRO_MODEL")] : [],
   );
 
   // OpenCode Zen — https://opencode.ai/zen/v1
@@ -238,10 +233,10 @@ export function getConfiguredProviders(): AIProvider[] {
       authScheme: "google",
       chatStyle: "google",
       defaultModels: [
+        "gemini-3.1-pro-preview",
+        "gemini-3.1-flash-lite",
+        "gemini-3-flash-preview",
         "gemini-2.5-flash",
-        "gemini-2.5-pro",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
       ],
     });
   }
@@ -505,16 +500,24 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
     }
 
     const data = (await response.json().catch(() => null)) as {
-      data?: Array<{ id?: string }>;
-      result?: Array<{ id?: string; name?: string }>;
-      models?: Array<{ name?: string; model?: string }>;
+      data?: Array<{ id?: string; access_tier?: string }>;
+      result?: Array<{ id?: string; name?: string; access_tier?: string }>;
+      models?: Array<{ name?: string; model?: string; access_tier?: string }>;
     } | null;
 
-    const rawIds = [
-      ...(data?.data || []).map((i) => i.id || ""),
-      ...(data?.result || []).map((i) => i.id || i.name || ""),
-      ...(data?.models || []).map((i) => i.name || i.model || ""),
-    ].filter(Boolean);
+    const rawEntries = [
+      ...(data?.data || []).map((i) => ({ id: i.id || "", tier: i.access_tier })),
+      ...(data?.result || []).map((i) => ({ id: i.id || i.name || "", tier: i.access_tier })),
+      ...(data?.models || []).map((i) => ({ id: i.name || i.model || "", tier: i.access_tier })),
+    ].filter((i) => i.id);
+
+    const rawIds = rawEntries
+      .filter((entry) =>
+        provider.id !== "xkiro" ||
+        env("XKIRO_FREE_ONLY") !== "1" ||
+        entry.tier === "free",
+      )
+      .map((entry) => entry.id);
 
     const list = rawIds
       .filter(isChatCapableModelStrict)
@@ -755,7 +758,12 @@ export async function chatWithProvider(
   }
 }
 
+function isModelAccessError(message: string): boolean {
+  return /premium model|requires an active paid plan|requires .*balance|plan .*allows|model .*not available|model .*unavailable|permission.?denied.*model|model.*permission/i.test(message);
+}
+
 function isProviderFatalError(message: string): boolean {
+  if (isModelAccessError(message)) return false;
   return /no credits|insufficient.?quota|billing|credit|payment|invalid.?api.?key|incorrect.?api.?key|authentication|unauthorized|401|403|permission.?denied|api key not valid|account.?deactivated|exceeded.?your.?current.?quota|cannot post .*chat\/completions|http 405|http 404/i.test(
     message,
   );
