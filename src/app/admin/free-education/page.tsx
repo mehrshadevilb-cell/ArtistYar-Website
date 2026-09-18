@@ -34,6 +34,7 @@ export default function FreeEducationAdminPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"upload" | "storage">("upload");
+  const [selectedStoragePath, setSelectedStoragePath] = useState("");
   const [editing, setEditing] = useState<Lesson | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
 
@@ -132,15 +133,15 @@ export default function FreeEducationAdminPage() {
             <div><h2 className="font-medium text-sand-50">افزودن آموزش</h2><p className="text-xs text-ink-500">آپلود جدید یا انتخاب از Storage</p></div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-white/[.03] p-1">
-            <button type="button" onClick={() => setMode("upload")} className={`rounded-lg px-3 py-2 text-xs ${mode === "upload" ? "bg-gold-400 text-ink-950" : "text-ink-300"}`}>Upload جدید</button>
-            <button type="button" onClick={() => { setMode("storage"); void loadStorage(); }} className={`rounded-lg px-3 py-2 text-xs ${mode === "storage" ? "bg-gold-400 text-ink-950" : "text-ink-300"}`}>انتخاب از Storage</button>
+            <button type="button" onClick={() => { setMode("upload"); setSelectedStoragePath(""); }} className={`rounded-lg px-3 py-2 text-xs ${mode === "upload" ? "bg-gold-400 text-ink-950" : "text-ink-300"}`}>Upload جدید</button>
+            <button type="button" onClick={() => { setMode("storage"); setSelectedStoragePath(""); void loadStorage(); }} className={`rounded-lg px-3 py-2 text-xs ${mode === "storage" ? "bg-gold-400 text-ink-950" : "text-ink-300"}`}>انتخاب از Storage</button>
           </div>
 
           {mode === "storage" ? (
             <div className="mt-4 space-y-2">
               {storage.map((file) => (
                 <label key={file.path} className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/[.07] p-3 hover:border-gold-400/30">
-                  <input type="radio" name="storagePick" value={file.path} form="storage-form" />
+                  <input type="radio" name="storagePick" value={file.path} checked={selectedStoragePath === file.path} onChange={() => setSelectedStoragePath(file.path)} />
                   <Play size={15} className="text-gold-400" />
                   <span className="min-w-0 flex-1"><span className="block truncate text-sm text-sand-100">{file.name}</span><span className="text-[11px] text-ink-500">{Math.round(file.size / 1024 / 1024)} MB · {file.path}</span></span>
                   <a href={file.url} target="_blank" rel="noreferrer" className="text-xs text-gold-400">Preview</a>
@@ -151,7 +152,7 @@ export default function FreeEducationAdminPage() {
           ) : null}
 
           <form id="storage-form" className="mt-5 space-y-4" onSubmit={submit}>
-            <input type="hidden" name="videoPath" value={mode === "storage" ? (storage.find((x) => x.path === (document.querySelector('input[name="storagePick"]:checked') as HTMLInputElement | null)?.value)?.path || "") : ""} readOnly />
+            <input type="hidden" name="videoPath" value={mode === "storage" ? selectedStoragePath : ""} readOnly />
             <label className="block"><span className="mb-2 block text-xs text-ink-300">عنوان</span><input className="input-ay" name="title" minLength={3} required placeholder="مثلاً آموزش EQ در ۱۰ دقیقه" /></label>
             <label className="block"><span className="mb-2 block text-xs text-ink-300">توضیحات</span><textarea className="input-ay min-h-24" name="description" /></label>
             {mode === "upload" ? (
