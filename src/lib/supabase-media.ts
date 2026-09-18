@@ -271,10 +271,29 @@ async function insertMediaAsset(payload: Record<string, unknown>) {
 }
 
 async function upsertMediaAsset(payload: Record<string, unknown>) {
-  let result = await supabase!.from("media_assets").upsert(payload, { onConflict: "storage_path" }).select().single();
-  if (result.error && isMissingSchemaColumn(result.error)) {
-    console.warn("media_assets schema is missing optional metadata columns; retrying with core columns");
-    result = await supabase!.from("media_assets").upsert(withoutOptionalMetadata(payload), { onConflict: "storage_path" }).select().single();
+  // Register the core asset first. Optional ID3 fields must never prevent
+  // Content Management from registering an otherwise valid Storage object.
+  const corePayload = withoutOptionalMetadata(payload);
+  let result = await supabase!.from("media_assets").upsert(corePayload, { onConflict: "storage_path" }).select().single();
+  if (result.error) return result;
+
+  const metadata = Object.fromEntries(
+    OPTIONAL_METADATA_FIELDS
+      .filter((field) => field in payload)
+      .map((field) => [field, payload[field]]),
+  );
+  if (Object.keys(metadata).length) {
+    const tagged = await supabase!
+      .from("media_assets")
+      .update(metadata)
+      .eq("storage_path", String(payload.storage_path))
+      .select()
+      .single();
+
+    // A stale PostgREST schema cache or an older media_assets table is
+    // tolerated here; the core registration has already succeeded.
+    if (!tagged.error) return tagged;
+    if (!isMissingSchemaColumn(tagged.error)) console.warn("media metadata update skipped:", tagged.error.message);
   }
   return result;
 }
