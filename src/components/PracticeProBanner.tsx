@@ -55,7 +55,7 @@ export function PracticeProBanner({ onUpgrade }: Props) {
             <span className="eyebrow text-emerald-200">PRO ACTIVE</span>
             <h2 className="mt-2 text-lg font-medium text-sand-50">اشتراک Pro فعال است</h2>
             <p className="mt-1 text-xs leading-6 text-ink-400">
-              Free: ۵ مرحله · Pro: ۴۰ مرحله در روز · Professional Audio Skills · Voicing روزانه
+              Free: ۵ مرحله · Pro: ۴۰ مرحله تا پایان اشتراک فعال · Professional Audio Skills · Voicing روزانه
               {proExpires ? ` · تا ${new Date(proExpires).toLocaleDateString("fa-IR")}` : ""}
             </p>
           </div>
