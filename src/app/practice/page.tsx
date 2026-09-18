@@ -13,6 +13,7 @@ import {
   Layers3,
   Play,
   RotateCcw,
+  SlidersHorizontal,
   Sparkles,
   Target,
   Volume2,
@@ -21,7 +22,7 @@ import {
 } from "lucide-react";
 
 const PROGRESS_KEY = "artistyar-ear-training-progress";
-type GameId = "eq" | "compression" | "stereo";
+type GameId = "eq" | "eqmatch" | "compression" | "stereo";
 type Feedback = { correct: boolean; text: string } | null;
 type PracticeRound = { value: string; label: string; hz?: number; amount?: number; width?: number };
 
@@ -40,7 +41,7 @@ const initialProgress: Progress = {
   correct: 0,
   bestStreak: 0,
   streak: 0,
-  completed: { eq: 0, compression: 0, stereo: 0 },
+  completed: { eq: 0, eqmatch: 0, compression: 0, stereo: 0 },
 };
 
 const games = [
@@ -52,6 +53,15 @@ const games = [
     icon: Waves,
     tone: "from-amber-500/20 via-orange-950/30 to-ink-950",
     tags: ["Low / Mid / High", "مخصوص میکس"],
+  },
+  {
+    id: "eqmatch" as const,
+    eyebrow: "گوش و تصمیم‌گیری",
+    title: "EQ Match",
+    description: "یک EQ مخفی را بشنو و با اسلایدرها همان رنگ صدا را بازسازی کن.",
+    icon: SlidersHorizontal,
+    tone: "from-emerald-500/20 via-teal-950/30 to-ink-950",
+    tags: ["Matching", "سطح متوسط"],
   },
   {
     id: "compression" as const,
@@ -177,6 +187,38 @@ function playNoise(getContext: () => AudioContext | null, boostHz?: number, comp
   source.start();
 }
 
+function playEqualizedNoise(getContext: () => AudioContext | null, gains: [number, number, number]) {
+  const ctx = getContext();
+  if (!ctx) return;
+  const duration = 1.7;
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < data.length; i += 1) {
+    const white = Math.random() * 2 - 1;
+    last = last * 0.985 + white * 0.015;
+    data[i] = white * 0.72 + last * 0.28;
+  }
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  let node: AudioNode = source;
+  [120, 1000, 6500].forEach((frequency, index) => {
+    const filter = ctx.createBiquadFilter();
+    filter.type = "peaking";
+    filter.frequency.value = frequency;
+    filter.Q.value = index === 1 ? 1.15 : 0.8;
+    filter.gain.value = gains[index];
+    node.connect(filter);
+    node = filter;
+  });
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.36, ctx.currentTime + 0.05);
+  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+  node.connect(gain).connect(ctx.destination);
+  source.start();
+}
+
 function playStereo(getContext: () => AudioContext | null, width: number) {
   const ctx = getContext();
   if (!ctx) return;
@@ -194,6 +236,58 @@ function playStereo(getContext: () => AudioContext | null, width: number) {
     osc.start(now);
     osc.stop(now + 1.5);
   });
+}
+
+function EqMatchingGame({ progress, onResult }: { progress: Progress; onResult: (correct: boolean, game: GameId) => void }) {
+  const getContext = useAudioContext();
+  const [question, setQuestion] = useState(0);
+  const [values, setValues] = useState<[number, number, number]>([0, 0, 0]);
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [playing, setPlaying] = useState<"target" | "yours" | null>(null);
+  const targets: [number, number, number][] = [[7, -4, 5], [-6, 6, -3], [4, 5, -7], [-5, -3, 7], [6, -5, -5]];
+  const target = targets[question % targets.length];
+
+  function play(kind: "target" | "yours") {
+    setPlaying(kind);
+    playEqualizedNoise(getContext, kind === "target" ? target : values);
+    window.setTimeout(() => setPlaying(null), 1800);
+  }
+
+  function submit() {
+    if (feedback) return;
+    const error = Math.round((Math.abs(values[0] - target[0]) + Math.abs(values[1] - target[1]) + Math.abs(values[2] - target[2])) / 3);
+    const correct = error <= 2;
+    setFeedback({ correct, text: correct ? `عالی؛ میانگین خطا فقط ${error}dB بود.` : `میانگین خطا ${error}dB بود. دوباره گوش بده و اسلایدرها را دقیق‌تر تنظیم کن.` });
+    onResult(correct, "eqmatch");
+  }
+
+  function next() {
+    setQuestion((value) => value + 1);
+    setValues([0, 0, 0]);
+    setFeedback(null);
+  }
+
+  return (
+    <div className="practice-game-panel">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="eyebrow">EQ Match · تمرین {String((question % targets.length) + 1).padStart(2, "0")} / سطح متوسط</p>
+          <h2 className="mt-3 text-2xl font-semibold text-sand-50">یک منحنی EQ را بازسازی کن</h2>
+          <p className="mt-2 max-w-xl text-sm leading-7 text-ink-300">اول صدای هدف را گوش بده، بعد با اسلایدرهای Low، Mid و High نزدیک‌ترین رنگ را بساز. عدد دقیق را تا پایان سؤال نمی‌بینی.</p>
+        </div>
+        <div className="flex items-center gap-2 rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-2 text-xs text-gold-300"><Target size={14} aria-hidden="true" /> امتیاز {progress.score}</div>
+      </div>
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <button type="button" className="practice-play-button !mt-0" onClick={() => play("target")} disabled={Boolean(playing)}><Volume2 size={20} aria-hidden="true" /><span>{playing === "target" ? "در حال پخش هدف…" : "پخش صدای هدف"}</span></button>
+        <button type="button" className="practice-play-button !mt-0 !border-white/10 !bg-white/[.04] !text-sand-100" onClick={() => play("yours")} disabled={Boolean(playing)}><Play size={19} fill="currentColor" aria-hidden="true" /><span>{playing === "yours" ? "در حال پخش تنظیم تو…" : "شنیدن تنظیم من"}</span></button>
+      </div>
+      <div className="mt-6 grid gap-5 md:grid-cols-3">
+        {["Low · 120Hz", "Mid · 1kHz", "High · 6.5kHz"].map((label, index) => <label key={label} className="eq-slider"><span className="flex items-center justify-between text-xs text-ink-300"><span>{label}</span><strong>{values[index] > 0 ? "+" : ""}{values[index]} dB</strong></span><input type="range" min="-12" max="12" step="1" value={values[index]} onChange={(event) => setValues((current) => { const next = [...current] as [number, number, number]; next[index] = Number(event.target.value); return next; })} aria-label={`تنظیم ${label}`} /></label>)}
+      </div>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-ink-500">هدف: نزدیک‌شدن به رنگ صدا، نه حفظ‌کردن عددها.</p><button type="button" onClick={submit} disabled={Boolean(feedback)} className="btn-primary !px-5 !py-2.5 text-xs">ثبت تطبیق <Check size={14} className="ms-2" aria-hidden="true" /></button></div>
+      {feedback ? <div className={`mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 text-sm ${feedback.correct ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200" : "border-rose-400/25 bg-rose-400/10 text-rose-200"}`}><span>{feedback.text}</span><button type="button" onClick={next} className="rounded-full border border-current/30 px-4 py-2 text-xs transition hover:bg-white/10">هدف بعدی <ArrowUpLeft className="ms-1 inline" size={13} aria-hidden="true" /></button></div> : null}
+    </div>
+  );
 }
 
 function PracticeGame({ game, progress, onResult }: { game: GameId; progress: Progress; onResult: (correct: boolean, game: GameId) => void }) {
@@ -355,7 +449,7 @@ export default function PracticePage() {
         <div className="mt-7 grid gap-4 lg:grid-cols-3">
           {games.map((game) => { const Icon = game.icon; const active = activeGame === game.id; return <button key={game.id} type="button" onClick={() => setActiveGame(game.id)} className={`practice-game-card bg-gradient-to-br ${game.tone} ${active ? "is-active" : ""}`}><div className="flex items-start justify-between"><span className="practice-icon"><Icon size={22} aria-hidden="true" /></span><span className="text-xs text-gold-400">{progress.completed[game.id].toLocaleString("fa-IR")} دور</span></div><p className="mt-7 text-xs text-gold-400">{game.eyebrow}</p><h3 className="mt-2 text-xl font-semibold text-sand-50">{game.title}</h3><p className="mt-3 min-h-14 text-sm leading-7 text-ink-300">{game.description}</p><div className="mt-5 flex flex-wrap gap-2">{game.tags.map(tag => <span key={tag} className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] text-ink-400">{tag}</span>)}</div></button>; })}
         </div>
-        <PracticeGame key={activeGame} game={activeGame} progress={progress} onResult={handleResult} />
+        {activeGame === "eqmatch" ? <EqMatchingGame key={activeGame} progress={progress} onResult={handleResult} /> : <PracticeGame key={activeGame} game={activeGame} progress={progress} onResult={handleResult} />}
       </section>
 
       <section className="mt-16" aria-labelledby="resources-title">
