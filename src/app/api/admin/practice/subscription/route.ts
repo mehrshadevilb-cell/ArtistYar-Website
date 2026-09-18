@@ -10,6 +10,25 @@ const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
+const MISSING_TABLE_SQL = `create table if not exists public.practice_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  status text not null default 'active' check (status in ('active','cancelled','expired')),
+  price_toman integer not null default 0,
+  started_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists practice_subscriptions_user_idx on public.practice_subscriptions(user_id, status, expires_at desc);
+create index if not exists practice_subscriptions_active_idx on public.practice_subscriptions(status, expires_at desc);
+alter table public.practice_subscriptions enable row level security;
+notify pgrst, 'reload schema';`;
+
+function isMissingTableError(message: string) {
+  const m = String(message || "").toLowerCase();
+  return m.includes("schema cache") || m.includes("does not exist") || m.includes("practice_subscriptions");
+}
+
 async function requireAdmin() {
   const session = verifyAdminSession((await cookies()).get(ADMIN_SESSION_COOKIE)?.value);
   return session || null;
@@ -24,6 +43,20 @@ function collectIds(...values: Array<string | null | undefined>) {
   return [...ids];
 }
 
+function missingTableResponse(raw?: string) {
+  return NextResponse.json(
+    {
+      ok: false,
+      code: "missing_table",
+      error:
+        "جدول practice_subscriptions در Supabase ساخته نشده. در SQL Editor این SQL را یک‌بار اجرا کن، بعد صفحه را رفرش کن.",
+      sql: MISSING_TABLE_SQL,
+      detail: raw || null,
+    },
+    { status: 503 },
+  );
+}
+
 export async function GET() {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
@@ -33,7 +66,10 @@ export async function GET() {
     .select("id,user_id,status,price_toman,started_at,expires_at")
     .order("expires_at", { ascending: false })
     .limit(200);
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
+  if (error) {
+    if (isMissingTableError(error.message)) return missingTableResponse(error.message);
+    return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
+  }
   return NextResponse.json({ ok: true, subscriptions: data || [] });
 }
 
@@ -66,7 +102,10 @@ export async function POST(request: Request) {
     .eq("status", "active")
     .gt("expires_at", nowIso)
     .order("expires_at", { ascending: false });
-  if (lookupError) return NextResponse.json({ ok: false, error: lookupError.message }, { status: 503 });
+  if (lookupError) {
+    if (isMissingTableError(lookupError.message)) return missingTableResponse(lookupError.message);
+    return NextResponse.json({ ok: false, error: lookupError.message }, { status: 503 });
+  }
 
   const furthest = existing?.[0];
   const base = furthest?.expires_at ? new Date(furthest.expires_at) : now;
@@ -80,19 +119,35 @@ export async function POST(request: Request) {
     if (current?.id) {
       const { data, error } = await db
         .from("practice_subscriptions")
-        .update({ expires_at: expiresIso, price_toman: Number(current.price_toman || 0) + amount, status: "active" })
+        .update({
+          expires_at: expiresIso,
+          price_toman: Number(current.price_toman || 0) + amount,
+          status: "active",
+        })
         .eq("id", current.id)
         .select("id,user_id,status,price_toman,started_at,expires_at")
         .single();
-      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
+      if (error) {
+        if (isMissingTableError(error.message)) return missingTableResponse(error.message);
+        return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
+      }
       activated.push(data);
     } else {
       const { data, error } = await db
         .from("practice_subscriptions")
-        .insert({ user_id: uid, status: "active", price_toman: amount, started_at: nowIso, expires_at: expiresIso })
+        .insert({
+          user_id: uid,
+          status: "active",
+          price_toman: amount,
+          started_at: nowIso,
+          expires_at: expiresIso,
+        })
         .select("id,user_id,status,price_toman,started_at,expires_at")
         .single();
-      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
+      if (error) {
+        if (isMissingTableError(error.message)) return missingTableResponse(error.message);
+        return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
+      }
       activated.push(data);
     }
   }
@@ -134,7 +189,10 @@ export async function DELETE(request: Request) {
     .eq("status", "active")
     .select("id,user_id,status,expires_at")
     .maybeSingle();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
+  if (error) {
+    if (isMissingTableError(error.message)) return missingTableResponse(error.message);
+    return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
+  }
   if (!data) return NextResponse.json({ ok: false, error: "active_subscription_not_found" }, { status: 404 });
   return NextResponse.json({ ok: true, subscription: data, changedBy: session.username });
 }
