@@ -322,6 +322,19 @@ export async function uploadMedia(input: {
   return toItem(inserted.data);
 }
 
+export async function uploadStandaloneAsset(input: { buffer: Buffer; filename: string; mimeType: string; kind: "video" | "thumbnail" }) {
+  if (!supabase) throw new Error("supabase_not_configured");
+  const ext = input.filename.toLowerCase().split(".").pop() || (input.kind === "video" ? "mp4" : "webp");
+  const path = `free-training-assets/${input.kind}/${crypto.randomUUID()}.${ext}`;
+  const upload = await supabase.storage.from(bucket).upload(path, input.buffer, {
+    contentType: input.mimeType || "application/octet-stream",
+    upsert: false,
+    cacheControl: "31536000",
+  });
+  if (upload.error) throw new Error(upload.error.message);
+  return { path, url: supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl, mimeType: input.mimeType, size: input.buffer.length };
+}
+
 export async function listPublishedMedia(): Promise<MediaItem[]> {
   if (!supabase) return [];
   const result = await supabase
