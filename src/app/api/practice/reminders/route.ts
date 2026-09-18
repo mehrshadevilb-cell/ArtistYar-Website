@@ -46,9 +46,7 @@ export async function POST(request: Request) {
     .map(telegramId => ({
       telegramId,
       title: "تمرین امروز ArtistYar",
-      message: "🎧 هنوز تمرین شنیداری امروزت را انجام ندادی.
-
-حتی ۵ دقیقه تمرین متمرکز می‌تواند گوش تو را قوی‌تر کند. وارد ArtistYar شو و تمرین امروزت را انجام بده 💪🎵",
+      message: "🎧 هنوز تمرین شنیداری امروزت را انجام ندادی.\n\nحتی ۵ دقیقه تمرین متمرکز می‌تواند گوش تو را قوی‌تر کند. وارد ArtistYar شو و تمرین امروزت را انجام بده 💪🎵",
     }));
 
   return NextResponse.json({ ok: true, date: start.toISOString().slice(0, 10), reminders });
