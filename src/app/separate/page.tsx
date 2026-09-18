@@ -17,20 +17,23 @@ const presets = [
   {
     id: "standard_vocal_inst",
     title: "استاندارد — وکال / بی‌کلام",
-    body: "تفکیک سریع دو بخشی برای وکال و موسیقی بی‌کلام.",
+    body: "تفکیک سریع دو بخشی برای وکال و موسیقی بی‌کلام. کاملاً روی دستگاه شما.",
     tag: "استاندارد",
+    needsServer: false,
   },
   {
     id: "demucs_mdx_hq5",
     title: "HQ Hybrid — Demucs + MDX Inst HQ 5",
-    body: "وکال با Demucs FT و بخش بی‌کلام با UVR-MDX-NET Inst HQ 5.",
+    body: "وکال با Demucs FT و بخش بی‌کلام با UVR-MDX-NET Inst HQ 5 روی سرور.",
     tag: "هیبرید حرفه‌ای",
+    needsServer: true,
   },
   {
     id: "full_stem",
     title: "تفکیک کامل — Demucs چهار استم",
-    body: "تفکیک کامل به ۴ بخش: وکال، درام، بیس و سایر سازها.",
+    body: "تفکیک کامل به ۴ بخش: وکال، درام، بیس و سایر سازها. روی دستگاه شما.",
     tag: "۴ استم",
+    needsServer: false,
   },
 ] as const;
 
@@ -50,6 +53,7 @@ export default function SeparatePage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [serverReady, setServerReady] = useState<boolean | null>(null);
 
   useEffect(() => {
     const load = (src: string) =>
@@ -74,6 +78,28 @@ export default function SeparatePage() {
       setError("موتور تفکیک صدا بارگذاری نشد. لطفاً صفحه را دوباره بارگذاری کنید.");
     });
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/separation", { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled) setServerReady(Boolean(data?.configured));
+      } catch {
+        if (!cancelled) setServerReady(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (serverReady === false && preset === "demucs_mdx_hq5") {
+      setPreset("standard_vocal_inst");
+    }
+  }, [serverReady, preset]);
 
   const size = useMemo(() => {
     if (!file) return "";
@@ -104,6 +130,14 @@ export default function SeparatePage() {
 
   async function separate() {
     if (!file || busy) return;
+
+    const selected = presets.find((item) => item.id === preset) ?? presets[0];
+    if (selected.needsServer && serverReady === false) {
+      setError(
+        "موتور سرور UVR هنوز فعال نشده است. لطفاً حالت استاندارد یا تفکیک کامل را انتخاب کنید — این دو حالت روی دستگاه شما کار می‌کنند.",
+      );
+      return;
+    }
 
     setBusy(true);
     setError("");
@@ -136,8 +170,13 @@ export default function SeparatePage() {
         if (!response.ok) {
           let message = "تفکیک هیبرید حرفه‌ای با خطا مواجه شد.";
           if (contentType.includes("application/json")) {
-            const payload = (await response.json()) as { error?: string };
-            if (payload.error) message = payload.error;
+            const payload = (await response.json()) as { error?: string; code?: string };
+            if (payload.code === "UVR_WORKER_NOT_CONFIGURED") {
+              message =
+                "موتور سرور UVR فعال نیست. از حالت استاندارد یا تفکیک کامل استفاده کنید (روی دستگاه شما).";
+            } else if (payload.error) {
+              message = payload.error;
+            }
           } else {
             const text = await response.text();
             if (text) message = text;
@@ -194,7 +233,7 @@ export default function SeparatePage() {
               "…",
           );
         }
-      });
+      }, mode);
 
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
@@ -234,7 +273,7 @@ export default function SeparatePage() {
             آزمایشگاه صدای آرتیست‌یار
           </p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-            تفکیک هوشمند استم‌ها
+            جداسازی وکال
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">
             حالت تفکیک موردنظر را انتخاب کنید و فایل صوتی خود را با موتور مناسب پردازش کنید.
@@ -315,7 +354,7 @@ export default function SeparatePage() {
 
             <button
               type="button"
-              disabled={!file || busy}
+              disabled={!file || busy || (selectedPreset.needsServer && serverReady === false)}
               onClick={separate}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-35"
             >
@@ -340,32 +379,43 @@ export default function SeparatePage() {
             </div>
 
             <div className="space-y-3">
-              {presets.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    setPreset(item.id);
-                    setError("");
-                    setStatus("");
-                  }}
-                  className={
-                    "w-full rounded-2xl border p-4 text-right transition " +
-                    (preset === item.id
-                      ? "border-amber-300/35 bg-amber-300/[0.06]"
-                      : "border-white/10 bg-black/20 hover:border-white/20")
-                  }
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium leading-5">{item.title}</span>
-                    <span className="shrink-0 rounded-full border border-amber-300/20 px-2 py-1 text-[10px] tracking-wider text-amber-200/80">
-                      {item.tag}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-xs leading-5 text-white/45">{item.body}</p>
-                </button>
-              ))}
+              {presets.map((item) => {
+                const disabledServer = item.needsServer && serverReady === false;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    disabled={busy || disabledServer}
+                    onClick={() => {
+                      if (disabledServer) return;
+                      setPreset(item.id);
+                      setError("");
+                      setStatus("");
+                    }}
+                    className={
+                      "w-full rounded-2xl border p-4 text-right transition " +
+                      (disabledServer
+                        ? "cursor-not-allowed border-white/5 bg-black/10 opacity-50"
+                        : preset === item.id
+                          ? "border-amber-300/35 bg-amber-300/[0.06]"
+                          : "border-white/10 bg-black/20 hover:border-white/20")
+                    }
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium leading-5">{item.title}</span>
+                      <span className="shrink-0 rounded-full border border-amber-300/20 px-2 py-1 text-[10px] tracking-wider text-amber-200/80">
+                        {disabledServer ? "به‌زودی" : item.tag}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-xs leading-5 text-white/45">{item.body}</p>
+                    {disabledServer ? (
+                      <p className="mt-2 text-[11px] leading-5 text-amber-200/70">
+                        موتور سرور UVR هنوز پیکربندی نشده — از حالت استاندارد یا ۴ استم استفاده کنید.
+                      </p>
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="mt-5 space-y-3 border-t border-white/10 pt-5 text-xs text-white/45">
@@ -378,7 +428,10 @@ export default function SeparatePage() {
               <div className="flex gap-3">
                 <Download className="h-4 w-4 shrink-0 text-white/60" />
                 <span>
-                  خروجی‌ها به‌صورت فایل‌های WAV داخل یک فایل ZIP آماده می‌شوند. حالت هیبرید حرفه‌ای از موتور سرور استفاده می‌کند.
+                  خروجی‌ها به‌صورت فایل‌های WAV داخل یک فایل ZIP آماده می‌شوند.
+                  {serverReady
+                    ? " حالت هیبرید حرفه‌ای از موتور سرور استفاده می‌کند."
+                    : " حالت هیبرید حرفه‌ای فعلاً غیرفعال است."}
                 </span>
               </div>
               <div className="flex gap-3">
