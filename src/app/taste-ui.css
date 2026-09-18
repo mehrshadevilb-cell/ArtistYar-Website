@@ -1,0 +1,475 @@
+/**
+ * ArtistYar Taste + Motion redesign layer
+ * Skills: design-taste-frontend, redesign-existing-projects, design-motion-principles,
+ *         high-end-visual-design, minimalist-ui, apple-design, ui-ux-pro-max
+ *
+ * Design read: premium music-education landing (RTL Persian, mobile + Telegram).
+ * Dials: VARIANCE 6 · MOTION 4 · DENSITY 3
+ * Motion weight: Emil (primary) · Jakub (landing polish) · Jhey (selective delighters only)
+ */
+
+/* ========== Anti AI-slop motion (Emil gate) ========== */
+
+/* Kill decorative infinite loops that fire on every view */
+.waveform i,
+.status-dot,
+.hero-orbit,
+.route-ambient,
+.gold-shimmer {
+  animation: none !important;
+}
+
+/* Orbit stays as static structure, not breathing forever */
+.hero-orbit {
+  opacity: 0.55;
+  transform: rotate(-28deg);
+}
+.orbit-b {
+  transform: rotate(32deg);
+  opacity: 0.4;
+}
+
+/* Record disc: one subtle float only if user allows motion; no perpetual spin */
+.record-disc {
+  animation: none !important;
+  transition: transform 0.5s var(--p-ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .record-disc:hover {
+    transform: translateY(-4px);
+  }
+}
+
+.floating-note {
+  animation: none !important;
+  opacity: 0.55;
+}
+
+/* Card enter: one-shot, short, no stagger spam beyond 3 items */
+.page-shell .card-ay,
+.page-shell form {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-section {
+    animation: ay-fade-up 0.55s var(--p-ease-out, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  }
+}
+
+@keyframes ay-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Hover scale only on primary interactive, not every card */
+.benefit-card:hover,
+.project-card:hover {
+  transform: translateY(-2px) !important;
+}
+.card-ay:hover {
+  transform: none !important;
+}
+.card-ay.ay-pressable:hover,
+a.card-ay:hover {
+  transform: translateY(-2px) !important;
+}
+
+/* ========== Typography (taste + redesign) ========== */
+
+.hero-heading {
+  letter-spacing: -0.04em !important;
+  font-weight: 600 !important;
+  line-height: 1.08 !important;
+  color: var(--color-fg, #f5efe3) !important;
+}
+
+.section-title {
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.section-sub,
+.hero-lead {
+  max-width: 36rem;
+  line-height: 1.85 !important;
+  color: var(--color-fg-muted, #8f8a80) !important;
+}
+
+.eyebrow {
+  font-size: 0.6875rem !important;
+  letter-spacing: 0.16em !important;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--color-accent, #c9a227) !important;
+  opacity: 0.95;
+}
+
+/* ========== Surfaces: fewer glass layers, more material discipline ========== */
+
+.card-ay,
+.benefit-card,
+.project-card {
+  background: rgba(255, 255, 255, 0.028) !important;
+  border: 1px solid rgba(255, 255, 255, 0.075) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.035) inset,
+    0 16px 36px -28px rgba(0, 0, 0, 0.65) !important;
+  border-radius: 1.15rem !important;
+}
+
+.card-ay:hover,
+.benefit-card:hover,
+.project-card:hover {
+  border-color: rgba(201, 162, 39, 0.22) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Kill generic gold shimmer text effect on marketing — solid accent is cleaner */
+.gold-shimmer {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  color: var(--color-accent, #c9a227) !important;
+  animation: none !important;
+}
+
+/* ========== Layout rhythm: less equal-triple symmetry ========== */
+
+.benefit-grid {
+  display: grid !important;
+  gap: 0.85rem !important;
+  margin-top: 2.75rem !important;
+}
+
+@media (min-width: 900px) {
+  .benefit-grid {
+    grid-template-columns: 1.15fr 1fr 1fr !important;
+  }
+  .benefit-grid > :first-child {
+    min-height: 100%;
+  }
+}
+
+@media (max-width: 899px) {
+  .benefit-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.benefit-card {
+  min-height: auto !important;
+  padding: 1.35rem 1.25rem !important;
+}
+
+.benefit-card h3 {
+  margin-top: 1.25rem !important;
+  font-size: 1.02rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.015em;
+  color: var(--color-fg, #eee6d9) !important;
+}
+
+.benefit-card p {
+  margin-top: 0.55rem !important;
+  font-size: 0.84rem !important;
+  line-height: 1.75 !important;
+  color: var(--color-fg-muted, #8f8a80) !important;
+}
+
+.benefit-icon {
+  width: 2.35rem !important;
+  height: 2.35rem !important;
+  border-radius: 0.7rem !important;
+  background: rgba(201, 162, 39, 0.1) !important;
+  color: var(--color-accent, #c9a227) !important;
+}
+
+.benefit-number {
+  color: rgba(255, 255, 255, 0.18) !important;
+  font-size: 0.65rem !important;
+}
+
+/* Proof strip: quieter editorial bar */
+.proof-strip {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.proof-grid {
+  padding-top: 1.1rem !important;
+  padding-bottom: 1.1rem !important;
+  gap: 1.25rem !important;
+}
+
+.proof-grid strong {
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em;
+  color: var(--color-fg) !important;
+}
+
+.proof-grid span {
+  font-size: 0.7rem !important;
+  color: var(--color-fg-subtle, #5f5b53) !important;
+}
+
+.proof-note b {
+  color: var(--color-accent) !important;
+  font-weight: 600 !important;
+}
+
+/* ========== Hero: calmer, CTA-first ========== */
+
+.hero-section {
+  min-height: auto !important;
+  padding-top: clamp(2.25rem, 5vw, 4.5rem) !important;
+  padding-bottom: clamp(2.25rem, 5vw, 4.5rem) !important;
+  gap: clamp(1.75rem, 3.5vw, 3.25rem) !important;
+}
+
+.hero-kicker {
+  font-size: 0.75rem !important;
+  color: var(--color-fg-muted) !important;
+  letter-spacing: 0.02em;
+}
+
+.status-dot {
+  width: 6px !important;
+  height: 6px !important;
+  box-shadow: none !important;
+  background: #6f9b76 !important;
+}
+
+.hero-actions {
+  gap: 0.6rem !important;
+  margin-top: 1.75rem !important;
+}
+
+.hero-actions .btn-primary,
+.hero-actions .btn-ghost {
+  min-height: 3.15rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.015em;
+  border-radius: 9999px !important;
+}
+
+.hero-actions .btn-primary {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 12px 28px -12px rgba(201, 162, 39, 0.45) !important;
+}
+
+.hero-trust {
+  margin-top: 2rem !important;
+  font-size: 0.78rem !important;
+  color: var(--color-fg-subtle) !important;
+}
+
+.hero-signal-row {
+  margin-top: 1.5rem !important;
+  gap: 0.55rem !important;
+}
+
+.hero-signal-card {
+  border-radius: 0.95rem !important;
+  padding: 0.8rem 0.9rem !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+  border-color: rgba(255, 255, 255, 0.07) !important;
+  backdrop-filter: none !important;
+}
+
+.hero-signal-card-active {
+  background: rgba(201, 162, 39, 0.1) !important;
+  border-color: rgba(201, 162, 39, 0.28) !important;
+}
+
+/* Decorative art never captures clicks */
+.hero-art,
+.route-ambient,
+.bg-radial-fade {
+  pointer-events: none !important;
+}
+
+.now-playing {
+  backdrop-filter: blur(16px) !important;
+  border-radius: 0.9rem !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ========== Header: sheet, not heavy chrome ========== */
+
+.site-header {
+  background: rgba(11, 11, 10, 0.72) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.055) !important;
+  box-shadow: 0 8px 28px -24px rgba(0, 0, 0, 0.8) !important;
+}
+
+.nav-link {
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em;
+  padding: 0.45rem 0.85rem !important;
+}
+
+.nav-link-active {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: var(--color-fg) !important;
+}
+
+.mobile-nav-link {
+  min-height: 3rem !important;
+  font-weight: 500 !important;
+  border-radius: 0.75rem !important;
+}
+
+/* ========== Buttons global ========== */
+
+.btn-primary {
+  background: var(--color-accent, #c9a227) !important;
+  color: #14120e !important;
+  font-weight: 600 !important;
+}
+
+.btn-primary:hover {
+  background: var(--color-accent-hover, #d4af37) !important;
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.035) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.btn-primary:active,
+.btn-ghost:active,
+.ay-pressable:active {
+  transform: scale(0.98);
+}
+
+/* ========== Section spacing ========== */
+
+.section-space {
+  padding-top: clamp(3.25rem, 7vw, 6rem) !important;
+  padding-bottom: clamp(3.25rem, 7vw, 6rem) !important;
+}
+
+/* ========== Contact / CTA block ========== */
+
+.contact-card {
+  border-radius: 1.35rem !important;
+  border-color: rgba(201, 162, 39, 0.18) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(201, 162, 39, 0.1),
+    rgba(255, 255, 255, 0.03) 50%,
+    transparent
+  ) !important;
+}
+
+.contact-card:after {
+  display: none !important;
+}
+
+/* ========== Ambient: static, low opacity ========== */
+
+.route-ambient {
+  animation: none !important;
+  opacity: 0.1 !important;
+  filter: blur(90px) !important;
+}
+
+/* ========== Forms ========== */
+
+.input-ay {
+  border-radius: 0.75rem !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.input-ay:focus {
+  border-color: rgba(201, 162, 39, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.12) !important;
+}
+
+/* ========== Projects grid: less template feel ========== */
+
+.projects-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 900px) {
+  .projects-grid {
+    grid-template-columns: 1.2fr 1fr 1fr;
+  }
+}
+
+.project-card {
+  min-height: auto !important;
+}
+
+/* ========== Telegram Mini App overrides ========== */
+
+.telegram-mini-app .hero-section {
+  padding-top: 1.5rem !important;
+  padding-bottom: 1.75rem !important;
+}
+
+.telegram-mini-app .hero-art {
+  min-height: 240px !important;
+}
+
+.telegram-mini-app .record-disc {
+  width: min(200px, 55vw) !important;
+}
+
+.telegram-mini-app .route-ambient,
+.telegram-mini-app .floating-note {
+  display: none !important;
+}
+
+/* ========== Reduced motion absolute ========== */
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-section,
+  .record-disc,
+  .reveal,
+  .card-ay,
+  .benefit-card,
+  .project-card,
+  .btn-primary,
+  .btn-ghost,
+  .ay-pressable {
+    animation: none !important;
+    transition: none !important;
+  }
+  .btn-primary:active,
+  .btn-ghost:active,
+  .ay-pressable:active {
+    transform: none !important;
+  }
+}
+
+/* ========== Mobile density ========== */
+
+@media (max-width: 640px) {
+  .hero-heading {
+    font-size: clamp(2.05rem, 9vw, 2.65rem) !important;
+  }
+  .hero-actions > * {
+    width: 100%;
+  }
+  .now-playing {
+    display: none !important;
+  }
+  .section-title {
+    font-size: 1.85rem !important;
+  }
+}
