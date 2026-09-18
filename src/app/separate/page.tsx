@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { AudioLines, CheckCircle2, Download, FileAudio, Loader2, ShieldCheck, Sparkles, Upload, Waves } from "lucide-react";
 
 const presets = [
@@ -19,7 +19,7 @@ export default function SeparatePage() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [dragging, setDragging] = useState(false);
+  const [dragging, setDragging] = useState(false);\n\n  useEffect(() => {\n    const load = (src: string) => new Promise<void>((resolve, reject) => {\n      const script = document.createElement("script"); script.src = src; script.async = true;\n      script.onload = () => resolve(); script.onerror = () => reject(new Error("Separator runtime could not be loaded."));\n      document.head.appendChild(script);\n    });\n    void Promise.all([load("https://cdn.jsdelivr.net/npm/jszip@3.10.2/dist/jszip.min.js"), load("/separator/browser-separator.js")]).catch(() => {});\n  }, []);
 
   const size = useMemo(() => {
     if (!file) return "";
@@ -40,18 +40,20 @@ export default function SeparatePage() {
     if (!file || busy) return;
     setBusy(true);
     setError("");
-    setStatus("Uploading audio and starting the UVR inference worker…");
+    setStatus(navigator.gpu ? "Preparing your device GPU and loading the browser separator…" : "WebGPU is unavailable; trying CPU fallback…");
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("preset", preset);
-      const response = await fetch("/api/separation", { method: "POST", body: form });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(data?.error || "Separation failed.");
-      }
-      setStatus("Separation complete. Preparing your stems…");
-      const blob = await response.blob();
+      const browser = (window as Window & {
+        artistYarBrowserSeparate?: (file: File, progress: (p: { phase?: string; loaded?: number; total?: number; segment?: number; totalSegments?: number }) => void) => Promise<Blob>;
+      }).artistYarBrowserSeparate;
+      if (!browser) throw new Error("Browser separator is still loading. Please wait a moment and try again.");
+      const blob = await browser(file, (p) => {
+        if (p.phase === "model") {
+          const pct = p.total ? Math.round(((p.loaded || 0) / p.total) * 100) : 0;
+          setStatus("Loading separation model on your device… " + pct + "%");
+        } else if (p.segment) {
+          setStatus("Separating on your " + (navigator.gpu ? "GPU" : "CPU") + ": segment " + p.segment + " / " + p.totalSegments + "…");
+        }
+      });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -60,55 +62,11 @@ export default function SeparatePage() {
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-      setStatus("Done — your separated stems are ready.");
+      setStatus("Done — browser separation complete. Your stems were processed on this device.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Separation failed.");
+      setError(err instanceof Error ? err.message : "Browser separation failed.");
       setStatus("");
     } finally {
       setBusy(false);
     }
   }
-
-  return (
-    <main className="container-ay section-space">
-      <div className="mx-auto max-w-4xl">
-        <div className="eyebrow">/ ARTISTYAR STEM SEPARATOR</div>
-        <h1 className="section-title mt-4 max-w-3xl">Vocal و Instrumental<br /><span className="text-gold-400">با موتور مبتنی بر UVR.</span></h1>
-        <p className="section-sub max-w-2xl">فایل صوتی را بده؛ پردازش روی worker جداگانه انجام می‌شود تا سایت سبک بماند و مدل‌های سنگین AI داخل مرورگر اجرا نشوند.</p>
-
-        <div className="mt-10 grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
-          <section className="rounded-[1.5rem] border border-white/[.08] bg-white/[.025] p-5 sm:p-7">
-            <button type="button" onClick={() => inputRef.current?.click()} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files?.[0] || null); }} className={"group flex min-h-64 w-full flex-col items-center justify-center rounded-2xl border border-dashed px-6 text-center transition " + (dragging ? "border-gold-400/70 bg-gold-400/[.07] scale-[1.01]" : "border-white/15 bg-black/20 hover:border-gold-400/50 hover:bg-gold-400/[.035]")}>
-              <span className="grid h-14 w-14 place-items-center rounded-2xl bg-gold-400/10 text-gold-300 transition group-hover:scale-105">{file ? <FileAudio size={25} /> : <Upload size={25} />}</span>
-              <strong className="mt-5 text-base text-sand-50">{file ? file.name : "Drop audio here or choose a file"}</strong>
-              <span className="mt-2 text-xs text-ink-500">{file ? size : "WAV · MP3 · FLAC · M4A · AAC · OGG · up to 250 MB"}</span>
-            </button>
-            <input ref={inputRef} type="file" accept="audio/*,.wav,.mp3,.flac,.m4a,.aac,.ogg,.opus" className="hidden" onChange={(event) => chooseFile(event.target.files?.[0] || null)} />
-            <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-ink-500">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5"><ShieldCheck size={13} /> Server-side processing</span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5"><Waves size={13} /> WAV output</span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5"><Sparkles size={13} /> UVR-family models</span>
-            </div>
-          </section>
-
-          <section className="rounded-[1.5rem] border border-white/[.08] bg-white/[.025] p-5 sm:p-7">
-            <div className="flex items-center gap-2 text-sm text-sand-50"><AudioLines size={17} className="text-gold-300" /> Separation mode</div>
-            <div className="mt-4 grid gap-2">
-              {presets.map((item) => (
-                <button key={item.id} type="button" onClick={() => setPreset(item.id)} className={"rounded-xl border p-3 text-right transition " + (preset === item.id ? "border-gold-400/45 bg-gold-400/[.08]" : "border-white/[.07] bg-black/10 hover:border-white/15")}>
-                  <div className="flex items-center justify-between gap-3"><strong className="text-sm text-sand-50">{item.title}</strong><span className="text-[10px] text-ink-500">{item.tag}</span></div>
-                  <p className="mt-1 text-xs leading-6 text-ink-500">{item.body}</p>
-                </button>
-              ))}
-            </div>
-            <button type="button" disabled={!file || busy} onClick={separate} className="btn-primary mt-5 w-full gap-2 disabled:cursor-not-allowed disabled:opacity-40">{busy ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}{busy ? "در حال جداسازی…" : "شروع جداسازی"}</button>
-            {status ? <div className="mt-4 rounded-xl border border-white/10 bg-black/15 p-3 text-xs leading-6 text-ink-300"><CheckCircle2 size={14} className="mb-1 inline text-gold-300" /> {status}</div> : null}
-            {error ? <div className="mt-4 rounded-xl border border-red-400/20 bg-red-400/[.04] p-3 text-xs leading-6 text-red-200">{error}</div> : null}
-          </section>
-        </div>
-
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[.06] bg-white/[.015] p-4 text-xs leading-6 text-ink-500"><Download size={15} className="mt-1 shrink-0 text-gold-300" />خروجی‌ها داخل یک ZIP تحویل داده می‌شوند. کیفیت به مدل، GPU، طول فایل و تنظیمات inference وابسته است؛ پردازش به worker AI جدا منتقل می‌شود.</div>
-      </div>
-    </main>
-  );
-}
