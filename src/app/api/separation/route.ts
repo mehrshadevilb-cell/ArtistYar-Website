@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
   const worker = (process.env.UVR_WORKER_URL || "").replace(/\/$/, "");
   const workerSecret = process.env.UVR_WORKER_SECRET || "";
   if (!worker || !workerSecret) {
-    return NextResponse.json({ ok: false, error: "UVR worker production configuration is incomplete." }, { status: 503 });
+    return NextResponse.json({ ok: false, code: "UVR_WORKER_NOT_CONFIGURED", browserAvailable: true, error: "Server UVR worker is not configured. The /separate page uses on-device browser separation and does not require this worker." }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 
   const form = await request.formData();
