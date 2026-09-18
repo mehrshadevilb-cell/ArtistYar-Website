@@ -16,6 +16,7 @@ const primaryLinks = [
   { href: "/free-player", label: "آموزش رایگان" },
   { href: "/practice", label: "Practice Engine" },
   { href: "/music-analyzer", label: "Music Analyzer" },
+  { href: "/separate", label: "Vocal Separator" },
   { href: "/gallery", label: "گالری خروجی‌ها" },
 ];
 
