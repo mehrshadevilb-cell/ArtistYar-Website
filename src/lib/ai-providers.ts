@@ -559,7 +559,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
 export const MODEL_DISCOVERY_CACHE_MS = 60_000;
 let modelDiscoveryCache: { expiresAt: number; value: Awaited<ReturnType<typeof discoverAllModels>> } | null = null;
 
-async function discoverAllModels() {
+export async function discoverAllModels() {
   const providers = getConfiguredProviders();
   if (!providers.length) {
     return [
