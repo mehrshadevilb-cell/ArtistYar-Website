@@ -47,16 +47,6 @@ export async function POST(request: Request) {
     if (usedToday >= dailyLimit) {
       return NextResponse.json({ ok: false, code: "daily_limit_reached", pro, dailyLimit, used: usedToday, remaining: 0 }, { status: 429 });
     }
-    const awardedXp = Math.max(0, Number(body.score) || 0);
-    try {
-      await recordSkillEvent({
-        userId, gameId, xp: awardedXp, accuracy: Number(body.accuracy) || 0,
-        difficulty: Number(body.metadata?.difficulty || 0), correct: Number(body.accuracy) >= 50,
-        metadata: { ...(body.metadata || {}), streak: Number(body.streak) || 0 },
-      });
-    } catch {
-      // Keep the core practice recorder available if the optional skill migration is not deployed yet.
-    }
     const row = await savePracticeResult({
       user_id: userId,
       username: String(body.username).slice(0, 120),
@@ -71,6 +61,15 @@ export async function POST(request: Request) {
         ...(body.telegramId ? { telegramId: String(body.telegramId).slice(0, 50) } : {}),
       },
     });
+    try {
+      await recordSkillEvent({
+        userId, gameId, xp: Math.max(0, Number(body.score) || 0), accuracy: Number(body.accuracy) || 0,
+        difficulty: Number(body.metadata?.difficulty || 0), correct: Number(body.accuracy) >= 50,
+        metadata: { ...(body.metadata || {}), streak: Number(body.streak) || 0 },
+      });
+    } catch {
+      // Skill analytics are additive; a migration/provider issue must not block practice.
+    }
     return NextResponse.json({ ok: true, row });
   } catch (error) { return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "ذخیره ناموفق بود." }, { status: 503 }); }
 }
