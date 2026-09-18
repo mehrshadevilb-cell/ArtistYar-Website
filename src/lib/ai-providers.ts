@@ -7,7 +7,6 @@ export type AIModel = {
   id: string;
   provider: string;
   task?: string;
-  /** Higher = preferred when auto-selecting */
   rank?: number;
 };
 
@@ -20,15 +19,12 @@ export type AIProvider = {
   apiKey?: string;
   modelsRequireAuth: boolean;
   authScheme: "bearer" | "raw" | "anthropic" | "google";
-  /** OpenAI-compatible chat completions vs provider-specific */
   chatStyle: "openai" | "anthropic" | "google" | "rahyar";
+  /** Optional fixed models when /models is unavailable */
+  defaultModels?: string[];
 };
 
-// ---------------------------------------------------------------------------
-// Ranking: prefer strong instruction-following + Persian-capable models
-// ---------------------------------------------------------------------------
 const MODEL_RANK: Record<string, number> = {
-  // OpenAI
   "gpt-4o": 100,
   "gpt-4o-mini": 88,
   "gpt-4.1": 102,
@@ -36,14 +32,12 @@ const MODEL_RANK: Record<string, number> = {
   "gpt-4.1-nano": 75,
   "o4-mini": 92,
   "o3-mini": 91,
-  // Anthropic
   "claude-sonnet-4-20250514": 101,
   "claude-3-5-sonnet-20241022": 99,
   "claude-3-5-sonnet-latest": 99,
   "claude-3-5-haiku-20241022": 85,
   "claude-3-5-haiku-latest": 85,
   "claude-3-haiku-20240307": 70,
-  // Google
   "gemini-2.0-flash": 94,
   "gemini-2.0-flash-001": 94,
   "gemini-1.5-pro": 96,
@@ -52,20 +46,28 @@ const MODEL_RANK: Record<string, number> = {
   "gemini-1.5-flash-latest": 86,
   "gemini-2.5-flash": 95,
   "gemini-2.5-pro": 98,
-  // Groq (fast)
+  "gemini-2.5-flash-lite": 84,
   "llama-3.3-70b-versatile": 87,
   "llama-3.1-70b-versatile": 82,
   "llama-3.1-8b-instant": 65,
   "gemma2-9b-it": 68,
   "mixtral-8x7b-32768": 72,
-  // OpenRouter aliases / common
+  "deepseek-chat": 86,
+  "deepseek-reasoner": 89,
+  "mistral-large-latest": 88,
+  "mistral-small-latest": 70,
   "openai/gpt-4o": 100,
   "openai/gpt-4o-mini": 88,
+  "openai/gpt-4.1": 102,
   "anthropic/claude-3.5-sonnet": 99,
   "google/gemini-2.0-flash-001": 94,
   "google/gemini-2.5-flash": 95,
   "google/gemini-2.5-pro": 98,
   "meta-llama/llama-3.3-70b-instruct": 87,
+  "grok-2": 90,
+  "grok-2-latest": 90,
+  "grok-3": 97,
+  "grok-3-mini": 80,
 };
 
 function rankForModel(id: string): number {
@@ -76,13 +78,21 @@ function rankForModel(id: string): number {
       return rank - 2;
     }
   }
-  if (/gpt-4|claude-3|gemini-2|llama-3\.3|70b|sonnet|pro/i.test(id)) return 80;
-  if (/mini|flash|haiku|8b|instant/i.test(id)) return 60;
+  if (/gpt-4|claude|gemini-2|llama-3\.3|70b|sonnet|pro|grok-3|deepseek-r/i.test(id)) return 80;
+  if (/mini|flash|haiku|8b|instant|lite|small/i.test(id)) return 60;
   return 40;
 }
 
-/** Drop non-chat / specialty models from discovery lists */
 function isChatCapableModel(id: string): boolean {
+  return !/embed|whisper|tts|dall-e|moderation|realtime|audio|image|vision-preview|transcribe|sora|batch|search-preview|diarize|codex|computer-use|image-generation|:free$/i.test(
+    id,
+  )
+    ? !/:free$/i.test(id) || true
+    : false;
+}
+
+// Slightly looser: allow openrouter free models if needed
+function isChatCapableModelStrict(id: string): boolean {
   if (
     /embed|whisper|tts|dall-e|moderation|realtime|audio|image|vision-preview|transcribe|sora|batch|search-preview|diarize|codex|computer-use|image-generation/i.test(
       id,
@@ -93,9 +103,6 @@ function isChatCapableModel(id: string): boolean {
   return true;
 }
 
-// ---------------------------------------------------------------------------
-// Env helpers
-// ---------------------------------------------------------------------------
 function env(name: string): string {
   return (process.env[name] || "").trim();
 }
@@ -110,71 +117,94 @@ function gatewaySecret(): string {
   return env("RAHYAR_AI_BRIDGE_SECRET") || env("RAHYAR_AI_KEY");
 }
 
-// ---------------------------------------------------------------------------
-// Provider registry — keys live on the website env
-// ---------------------------------------------------------------------------
+function pushOpenAICompat(
+  list: AIProvider[],
+  id: string,
+  name: string,
+  apiKey: string,
+  baseUrl: string,
+  defaultModels?: string[],
+) {
+  if (!apiKey || !baseUrl) return;
+  list.push({
+    id,
+    name,
+    baseUrl: baseUrl.replace(/\/$/, ""),
+    modelsUrl: "/models",
+    chatPath: "/chat/completions",
+    apiKey,
+    modelsRequireAuth: true,
+    authScheme: "bearer",
+    chatStyle: "openai",
+    defaultModels,
+  });
+}
+
+/**
+ * Every API key present in env becomes a live provider.
+ * Models are discovered on each request; broken models are skipped fast.
+ */
 export function getConfiguredProviders(): AIProvider[] {
   const providers: AIProvider[] = [];
 
-  const openaiKey = env("OPENAI_API_KEY");
-  if (openaiKey) {
-    providers.push({
-      id: "openai",
-      name: "OpenAI",
-      baseUrl: env("OPENAI_BASE_URL") || "https://api.openai.com/v1",
-      modelsUrl: "/models",
-      chatPath: "/chat/completions",
-      apiKey: openaiKey,
-      modelsRequireAuth: true,
-      authScheme: "bearer",
-      chatStyle: "openai",
-    });
-  }
+  // --- OpenAI ---
+  pushOpenAICompat(
+    providers,
+    "openai",
+    "OpenAI",
+    env("OPENAI_API_KEY"),
+    env("OPENAI_BASE_URL") || "https://api.openai.com/v1",
+    ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini"],
+  );
 
-  const openrouterKey = env("OPENROUTER_API_KEY");
-  if (openrouterKey) {
-    providers.push({
-      id: "openrouter",
-      name: "OpenRouter",
-      baseUrl: "https://openrouter.ai/api/v1",
-      modelsUrl: "/models",
-      chatPath: "/chat/completions",
-      apiKey: openrouterKey,
-      modelsRequireAuth: true,
-      authScheme: "bearer",
-      chatStyle: "openai",
-    });
-  }
+  // --- OpenRouter (many models behind one key) ---
+  pushOpenAICompat(
+    providers,
+    "openrouter",
+    "OpenRouter",
+    env("OPENROUTER_API_KEY"),
+    "https://openrouter.ai/api/v1",
+    [
+      "google/gemini-2.5-flash",
+      "openai/gpt-4o-mini",
+      "meta-llama/llama-3.3-70b-instruct",
+    ],
+  );
 
-  const groqKey = env("GROQ_API_KEY");
-  if (groqKey) {
-    providers.push({
-      id: "groq",
-      name: "Groq",
-      baseUrl: "https://api.groq.com/openai/v1",
-      modelsUrl: "/models",
-      chatPath: "/chat/completions",
-      apiKey: groqKey,
-      modelsRequireAuth: true,
-      authScheme: "bearer",
-      chatStyle: "openai",
-    });
-  }
+  // --- Groq ---
+  pushOpenAICompat(
+    providers,
+    "groq",
+    "Groq",
+    env("GROQ_API_KEY"),
+    "https://api.groq.com/openai/v1",
+    ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
+  );
 
-  const anthropicKey = env("ANTHROPIC_API_KEY");
+  // --- Claude / Anthropic ---
+  const anthropicKey =
+    env("ANTHROPIC_API_KEY") ||
+    env("CLAUDE_API_KEY") ||
+    env("CLAUD_API_KEY");
   if (anthropicKey) {
     providers.push({
       id: "anthropic",
-      name: "Anthropic",
+      name: "Anthropic Claude",
       baseUrl: "https://api.anthropic.com/v1",
       chatPath: "/messages",
       apiKey: anthropicKey,
       modelsRequireAuth: true,
       authScheme: "anthropic",
       chatStyle: "anthropic",
+      defaultModels: [
+        "claude-sonnet-4-20250514",
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku-20241022",
+      ],
     });
   }
 
+  // --- Google Gemini ---
   const geminiKey =
     env("GOOGLE_GENERATIVE_AI_API_KEY") ||
     env("GEMINI_API_KEY") ||
@@ -190,9 +220,113 @@ export function getConfiguredProviders(): AIProvider[] {
       modelsRequireAuth: true,
       authScheme: "google",
       chatStyle: "google",
+      defaultModels: [
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+      ],
     });
   }
 
+  // --- DeepSeek ---
+  pushOpenAICompat(
+    providers,
+    "deepseek",
+    "DeepSeek",
+    env("DEEPSEEK_API_KEY"),
+    env("DEEPSEEK_BASE_URL") || "https://api.deepseek.com",
+    ["deepseek-chat", "deepseek-reasoner"],
+  );
+
+  // --- Mistral ---
+  pushOpenAICompat(
+    providers,
+    "mistral",
+    "Mistral",
+    env("MISTRAL_API_KEY"),
+    env("MISTRAL_BASE_URL") || "https://api.mistral.ai/v1",
+    ["mistral-large-latest", "mistral-small-latest"],
+  );
+
+  // --- Together AI ---
+  pushOpenAICompat(
+    providers,
+    "together",
+    "Together",
+    env("TOGETHER_API_KEY"),
+    "https://api.together.xyz/v1",
+  );
+
+  // --- Fireworks ---
+  pushOpenAICompat(
+    providers,
+    "fireworks",
+    "Fireworks",
+    env("FIREWORKS_API_KEY"),
+    "https://api.fireworks.ai/inference/v1",
+  );
+
+  // --- xAI (Grok) ---
+  pushOpenAICompat(
+    providers,
+    "xai",
+    "xAI Grok",
+    env("XAI_API_KEY") || env("GROK_API_KEY"),
+    env("XAI_BASE_URL") || "https://api.x.ai/v1",
+    ["grok-3", "grok-3-mini", "grok-2-latest"],
+  );
+
+  // --- Cloudflare Workers AI (OpenAI-compatible gateway if configured) ---
+  // Env: CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID  OR  FLARE_API_KEY + FLARE_BASE_URL
+  const flareKey = env("FLARE_API_KEY") || env("CLOUDFLARE_API_TOKEN");
+  const flareBase =
+    env("FLARE_BASE_URL") ||
+    (env("CLOUDFLARE_ACCOUNT_ID")
+      ? `https://api.cloudflare.com/client/v4/accounts/${env("CLOUDFLARE_ACCOUNT_ID")}/ai/v1`
+      : "");
+  pushOpenAICompat(providers, "flare", "Cloudflare / Flare", flareKey, flareBase);
+
+  // --- Custom slots: Orca, Kira, or any OpenAI-compatible endpoint ---
+  pushOpenAICompat(
+    providers,
+    "orca",
+    "Orca",
+    env("ORCA_API_KEY"),
+    env("ORCA_BASE_URL"),
+    env("ORCA_MODEL") ? [env("ORCA_MODEL")] : undefined,
+  );
+  pushOpenAICompat(
+    providers,
+    "kira",
+    "Kira",
+    env("KIRA_API_KEY"),
+    env("KIRA_BASE_URL"),
+    env("KIRA_MODEL") ? [env("KIRA_MODEL")] : undefined,
+  );
+
+  // Generic custom providers: CUSTOM_AI_1_API_KEY + CUSTOM_AI_1_BASE_URL + optional NAME/MODEL
+  for (let i = 1; i <= 5; i++) {
+    const key = env(`CUSTOM_AI_${i}_API_KEY`) || env(`AI_PROVIDER_${i}_API_KEY`);
+    const base =
+      env(`CUSTOM_AI_${i}_BASE_URL`) || env(`AI_PROVIDER_${i}_BASE_URL`);
+    const name =
+      env(`CUSTOM_AI_${i}_NAME`) ||
+      env(`AI_PROVIDER_${i}_NAME`) ||
+      `Custom AI ${i}`;
+    const model =
+      env(`CUSTOM_AI_${i}_MODEL`) || env(`AI_PROVIDER_${i}_MODEL`);
+    pushOpenAICompat(
+      providers,
+      `custom-${i}`,
+      name,
+      key,
+      base,
+      model ? [model] : undefined,
+    );
+  }
+
+  // --- RahYar gateway (optional fallback) ---
   const gw = gatewayUrl();
   const secret = gatewaySecret();
   if (gw && secret) {
@@ -206,6 +340,7 @@ export function getConfiguredProviders(): AIProvider[] {
       modelsRequireAuth: true,
       authScheme: "raw",
       chatStyle: "rahyar",
+      defaultModels: ["centralized-router"],
     });
   }
 
@@ -243,16 +378,13 @@ function authHeaders(provider: AIProvider): HeadersInit {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Model discovery
-// ---------------------------------------------------------------------------
-const ANTHROPIC_FALLBACK_MODELS = [
+const ANTHROPIC_FALLBACK = [
   "claude-sonnet-4-20250514",
   "claude-3-5-sonnet-20241022",
   "claude-3-5-haiku-20241022",
 ];
 
-const GEMINI_FALLBACK_MODELS = [
+const GEMINI_FALLBACK = [
   "gemini-2.5-flash",
   "gemini-2.5-pro",
   "gemini-2.0-flash",
@@ -261,13 +393,21 @@ const GEMINI_FALLBACK_MODELS = [
 ];
 
 export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
+  const fallback = (ids: string[]) =>
+    ids.map((id) => ({
+      id,
+      provider: provider.id,
+      task: "chat" as const,
+      rank: rankForModel(id),
+    }));
+
   try {
     if (provider.chatStyle === "rahyar") {
       const response = await fetch(`${provider.baseUrl}/api/v1/ai/status`, {
         method: "GET",
         headers: authHeaders(provider),
         cache: "no-store",
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(8_000),
       });
       const data = (await response.json().catch(() => null)) as {
         agent_status?: string;
@@ -279,12 +419,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
     }
 
     if (provider.chatStyle === "anthropic") {
-      return ANTHROPIC_FALLBACK_MODELS.map((id) => ({
-        id,
-        provider: provider.id,
-        task: "chat",
-        rank: rankForModel(id),
-      }));
+      return fallback(provider.defaultModels || ANTHROPIC_FALLBACK);
     }
 
     if (provider.chatStyle === "google") {
@@ -292,16 +427,9 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       const response = await fetch(url, {
         method: "GET",
         cache: "no-store",
-        signal: AbortSignal.timeout(12_000),
+        signal: AbortSignal.timeout(10_000),
       });
-      if (!response.ok) {
-        return GEMINI_FALLBACK_MODELS.map((id) => ({
-          id,
-          provider: provider.id,
-          task: "chat",
-          rank: rankForModel(id),
-        }));
-      }
+      if (!response.ok) return fallback(provider.defaultModels || GEMINI_FALLBACK);
       const data = (await response.json().catch(() => null)) as {
         models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
       } | null;
@@ -315,49 +443,55 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
             return {
               id: raw,
               provider: provider.id,
-              task: "chat",
+              task: "chat" as const,
               rank: rankForModel(raw),
             };
           })
-          .filter((m) => m.id && isChatCapableModel(m.id) && !/embedding|aqa|gecko/i.test(m.id)) || [];
+          .filter((m) => m.id && isChatCapableModelStrict(m.id)) || [];
       return models.length
-        ? models.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 20)
-        : GEMINI_FALLBACK_MODELS.map((id) => ({
-            id,
-            provider: provider.id,
-            task: "chat",
-            rank: rankForModel(id),
-          }));
+        ? models.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 25)
+        : fallback(provider.defaultModels || GEMINI_FALLBACK);
     }
 
-    // OpenAI-compatible (OpenAI, Groq, OpenRouter, …)
-    const modelsPath = provider.modelsUrl || "/models";
-    const response = await fetch(`${provider.baseUrl}${modelsPath}`, {
-      method: "GET",
-      headers: authHeaders(provider),
-      cache: "no-store",
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (!response.ok) return [];
+    // OpenAI-compatible discovery
+    const response = await fetch(
+      `${provider.baseUrl}${provider.modelsUrl || "/models"}`,
+      {
+        method: "GET",
+        headers: authHeaders(provider),
+        cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!response.ok) {
+      return provider.defaultModels ? fallback(provider.defaultModels) : [];
+    }
 
     const data = (await response.json().catch(() => null)) as {
       data?: Array<{ id?: string }>;
+      result?: Array<{ id?: string; name?: string }>;
     } | null;
 
-    const list = (data?.data || [])
-      .map((item) => (typeof item?.id === "string" ? item.id : ""))
-      .filter(Boolean)
-      .filter(isChatCapableModel)
+    const rawIds = [
+      ...(data?.data || []).map((i) => i.id || ""),
+      ...(data?.result || []).map((i) => i.id || i.name || ""),
+    ].filter(Boolean);
+
+    const list = rawIds
+      .filter(isChatCapableModelStrict)
       .map((id) => ({
         id,
         provider: provider.id,
-        task: "chat",
+        task: "chat" as const,
         rank: rankForModel(id),
       }));
 
-    return list.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 25);
+    if (list.length) {
+      return list.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 30);
+    }
+    return provider.defaultModels ? fallback(provider.defaultModels) : [];
   } catch {
-    return [];
+    return provider.defaultModels ? fallback(provider.defaultModels) : [];
   }
 }
 
@@ -366,62 +500,49 @@ export async function discoverAllModels() {
   if (!providers.length) {
     return [
       {
-        provider: {
-          id: "none",
-          name: "No provider configured",
-          configured: false,
-        },
+        provider: { id: "none", name: "No provider configured", configured: false },
         models: [] as AIModel[],
       },
     ];
   }
 
-  const results = await Promise.all(
-    providers.map(async (provider) => {
-      const models = await discoverModels(provider);
-      return {
-        provider: {
-          id: provider.id,
-          name: provider.name,
-          configured: Boolean(provider.apiKey),
-        },
-        models,
-      };
-    }),
+  return Promise.all(
+    providers.map(async (provider) => ({
+      provider: {
+        id: provider.id,
+        name: provider.name,
+        configured: Boolean(provider.apiKey),
+      },
+      models: await discoverModels(provider),
+    })),
   );
-
-  return results;
 }
 
-// ---------------------------------------------------------------------------
-// Chat implementations
-// ---------------------------------------------------------------------------
 async function chatOpenAICompatible(
   provider: AIProvider,
   model: string,
   messages: ChatMessage[],
 ): Promise<string> {
-  const body: Record<string, unknown> = {
-    model,
-    messages: messages.map((m) => ({ role: m.role, content: m.content })),
-    temperature: 0.6,
-    max_tokens: 2048,
-  };
-
   const headers: Record<string, string> = {
     ...(authHeaders(provider) as Record<string, string>),
   };
   if (provider.id === "openrouter") {
-    headers["HTTP-Referer"] = env("NEXT_PUBLIC_SITE_URL") || "https://artistyaar.ir";
+    headers["HTTP-Referer"] =
+      env("NEXT_PUBLIC_SITE_URL") || "https://artistyaar.ir";
     headers["X-Title"] = "ArtistYar RahYar AI";
   }
 
   const response = await fetch(`${provider.baseUrl}${provider.chatPath}`, {
     method: "POST",
     headers,
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      model,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      temperature: 0.6,
+      max_tokens: 2048,
+    }),
     cache: "no-store",
-    signal: AbortSignal.timeout(70_000),
+    signal: AbortSignal.timeout(45_000),
   });
 
   const data = (await response.json().catch(() => null)) as {
@@ -467,7 +588,7 @@ async function chatAnthropic(
       messages: rest,
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(70_000),
+    signal: AbortSignal.timeout(45_000),
   });
 
   const data = (await response.json().catch(() => null)) as {
@@ -476,9 +597,7 @@ async function chatAnthropic(
   } | null;
 
   if (!response.ok) {
-    throw new Error(
-      data?.error?.message || `Anthropic HTTP ${response.status}`,
-    );
+    throw new Error(data?.error?.message || `Anthropic HTTP ${response.status}`);
   }
 
   const text =
@@ -513,17 +632,12 @@ async function chatGoogle(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      systemInstruction: system
-        ? { parts: [{ text: system }] }
-        : undefined,
+      systemInstruction: system ? { parts: [{ text: system }] } : undefined,
       contents,
-      generationConfig: {
-        temperature: 0.6,
-        maxOutputTokens: 2048,
-      },
+      generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(70_000),
+    signal: AbortSignal.timeout(45_000),
   });
 
   const data = (await response.json().catch(() => null)) as {
@@ -562,11 +676,10 @@ async function chatRahYarGateway(
       client_id: clientId.slice(0, 64),
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(70_000),
+    signal: AbortSignal.timeout(45_000),
   });
 
   const data = (await response.json().catch(() => null)) as {
-    ok?: boolean;
     reply?: unknown;
     detail?: unknown;
   } | null;
@@ -578,11 +691,6 @@ async function chatRahYarGateway(
         : typeof data?.reply === "string"
           ? data.reply
           : `HTTP ${response.status}`;
-    if (detail === "ai_bridge_not_configured") {
-      throw new Error(
-        "روی RahYar مقدار RAHYAR_AI_BRIDGE_SECRET ست نشده (باید با ArtistYar یکی باشد)",
-      );
-    }
     throw new Error(`RahYar gateway: ${detail}`);
   }
 
@@ -611,16 +719,19 @@ export async function chatWithProvider(
   }
 }
 
-/** True when the provider account is unusable (billing, invalid key, quota). */
 function isProviderFatalError(message: string): boolean {
-  return /no credits|insufficient.?quota|billing|credit|payment|invalid.?api.?key|incorrect.?api.?key|authentication|unauthorized|401|403|permission.?denied|api key not valid/i.test(
+  return /no credits|insufficient.?quota|billing|credit|payment|invalid.?api.?key|incorrect.?api.?key|authentication|unauthorized|401|403|permission.?denied|api key not valid|account.?deactivated|exceeded.?your.?current.?quota/i.test(
     message,
   );
 }
 
-// ---------------------------------------------------------------------------
-// Auto-select best model — diversify across providers, skip broken accounts
-// ---------------------------------------------------------------------------
+/** Model-level errors: try next model on same provider */
+function isModelLevelError(message: string): boolean {
+  return /model.?not.?found|does not exist|invalid.?model|not.?available|unsupported|404|unknown.?model/i.test(
+    message,
+  );
+}
+
 export async function autoChat(
   messages: ChatMessage[],
   preferredProvider?: string,
@@ -630,13 +741,12 @@ export async function autoChat(
   const providers = getConfiguredProviders();
   if (!providers.length) {
     throw new Error(
-      "هیچ کلید API در env سایت تنظیم نشده. OPENAI_API_KEY / GROQ_API_KEY / ANTHROPIC_API_KEY / OPENROUTER_API_KEY / GEMINI_API_KEY یا Gateway راه‌یار را ست کن.",
+      "هیچ کلید API در env سایت تنظیم نشده. OPENAI / ANTHROPIC(CLAUDE) / GOOGLE / GROQ / OPENROUTER / DEEPSEEK / MISTRAL / XAI / ORCA / KIRA / CUSTOM_AI_* را ست کن.",
     );
   }
 
   type Candidate = { provider: AIProvider; model: string; rank: number };
   const candidates: Candidate[] = [];
-
   const discovered = await discoverAllModels();
 
   for (const entry of discovered) {
@@ -644,7 +754,7 @@ export async function autoChat(
     if (!provider) continue;
 
     for (const m of entry.models) {
-      if (!isChatCapableModel(m.id)) continue;
+      if (!isChatCapableModelStrict(m.id)) continue;
       candidates.push({
         provider,
         model: m.id,
@@ -652,19 +762,8 @@ export async function autoChat(
       });
     }
 
-    if (entry.models.length === 0 && provider.chatStyle !== "rahyar") {
-      const defaults: Record<string, string[]> = {
-        openai: ["gpt-4o-mini", "gpt-4o"],
-        groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
-        openrouter: [
-          "google/gemini-2.5-flash",
-          "openai/gpt-4o-mini",
-          "meta-llama/llama-3.3-70b-instruct",
-        ],
-        anthropic: ANTHROPIC_FALLBACK_MODELS,
-        google: GEMINI_FALLBACK_MODELS,
-      };
-      for (const id of defaults[provider.id] || []) {
+    if (!entry.models.length && provider.defaultModels?.length) {
+      for (const id of provider.defaultModels) {
         candidates.push({
           provider,
           model: id,
@@ -675,18 +774,16 @@ export async function autoChat(
   }
 
   if (preferredProvider || preferredModel) {
-    const preferred = candidates.filter((c) => {
-      if (preferredProvider && c.provider.id !== preferredProvider) return false;
-      if (preferredModel && c.model !== preferredModel) return false;
-      return true;
-    });
-    if (preferred.length) {
-      preferred.sort((a, b) => b.rank - a.rank);
-      candidates.unshift(...preferred);
-    }
+    const preferred = candidates
+      .filter((c) => {
+        if (preferredProvider && c.provider.id !== preferredProvider) return false;
+        if (preferredModel && c.model !== preferredModel) return false;
+        return true;
+      })
+      .sort((a, b) => b.rank - a.rank);
+    candidates.unshift(...preferred);
   }
 
-  // Deduplicate, then interleave providers so we don't burn all attempts on one dead account
   const seen = new Set<string>();
   const byProvider = new Map<string, Candidate[]>();
   for (const c of candidates.sort((a, b) => b.rank - a.rank)) {
@@ -698,11 +795,11 @@ export async function autoChat(
     byProvider.set(c.provider.id, list);
   }
 
-  // Round-robin across providers (best model of each, then second-best, …)
+  // Round-robin across providers so one dead account never blocks the rest
   const ordered: Candidate[] = [];
   let depth = 0;
   let added = true;
-  while (added && ordered.length < 24) {
+  while (added && ordered.length < 30) {
     added = false;
     for (const list of byProvider.values()) {
       if (depth < list.length) {
@@ -715,41 +812,34 @@ export async function autoChat(
 
   if (!ordered.length) {
     throw new Error(
-      "هیچ مدلی از providerهای تنظیم‌شده پیدا نشد. کلیدها و دسترسی مدل را بررسی کن.",
+      "هیچ مدلی پیدا نشد. کلیدها و دسترسی مدل را در env بررسی کن.",
     );
   }
 
   const errors: string[] = [];
   const skippedProviders = new Set<string>();
-  const maxAttempts = Math.min(ordered.length, 10);
+  const maxAttempts = Math.min(ordered.length, 12);
 
   for (let i = 0; i < maxAttempts; i++) {
     const { provider, model } = ordered[i];
     if (skippedProviders.has(provider.id)) continue;
 
     try {
-      const reply = await chatWithProvider(
-        provider,
-        model,
-        messages,
-        clientId,
-      );
-      return {
-        reply,
-        provider: provider.id,
-        model,
-      };
+      const reply = await chatWithProvider(provider, model, messages, clientId);
+      return { reply, provider: provider.id, model };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${provider.id}/${model}: ${msg}`);
-      // Billing / invalid key → skip entire provider for remaining attempts
       if (isProviderFatalError(msg)) {
+        // No credits / bad key → drop entire provider immediately
         skippedProviders.add(provider.id);
       }
+      // Model-level errors: just continue to next candidate (already next in loop)
+      void isModelLevelError;
     }
   }
 
   throw new Error(
-    `اتصال به مدل‌های هوش مصنوعی برقرار نشد. ${errors.slice(0, 4).join(" | ")}`,
+    `هیچ مدل زنده‌ای پاسخ نداد. ${errors.slice(0, 5).join(" | ")}`,
   );
 }
