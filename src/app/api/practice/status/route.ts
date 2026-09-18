@@ -9,7 +9,8 @@ const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_R
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
 const GUEST_DAILY_STAGES = 5;
-const MEMBER_DAILY_STAGES = 15;
+const MEMBER_DAILY_STAGES = 5;
+const PRO_DAILY_STAGES = 40;
 const PRO_PRICE_TOMAN = 40000;
 
 function dayKey() {
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
     db.from("practice_subscriptions").select("id,expires_at,status").eq("user_id", userId).eq("status", "active").gt("expires_at", new Date().toISOString()).order("expires_at", { ascending: false }).limit(1),
   ]);
   const used = rows?.length || 0;
-  return NextResponse.json({ ok: true, registered: true, dailyLimit: MEMBER_DAILY_STAGES, used, remaining: Math.max(0, MEMBER_DAILY_STAGES - used), pro: Boolean(sub?.length), proPriceToman: PRO_PRICE_TOMAN, proExpiresAt: sub?.[0]?.expires_at || null });
+  return NextResponse.json({ ok: true, registered: true, dailyLimit: sub?.length ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES, used, remaining: Math.max(0, (sub?.length ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES) - used), pro: Boolean(sub?.length), proPriceToman: PRO_PRICE_TOMAN, proExpiresAt: sub?.[0]?.expires_at || null });
 }
 
 export async function POST(request: Request) {
@@ -45,6 +46,8 @@ export async function POST(request: Request) {
   const { data: rows, error } = await db.from("practice_records").select("id").eq("user_id", userId).eq("game_id", gameId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
   const used = rows?.length || 0;
-  if (used >= MEMBER_DAILY_STAGES) return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit: MEMBER_DAILY_STAGES, used, remaining: 0 }, { status: 429 });
-  return NextResponse.json({ ok: true, dailyLimit: MEMBER_DAILY_STAGES, used, remaining: MEMBER_DAILY_STAGES - used });
+  const { data: sub } = await db.from("practice_subscriptions").select("id").eq("user_id", userId).eq("status", "active").gt("expires_at", new Date().toISOString()).limit(1);
+  const dailyLimit = sub?.length ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES;
+  if (used >= dailyLimit) return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit, used, remaining: 0 }, { status: 429 });
+  return NextResponse.json({ ok: true, dailyLimit, used, remaining: dailyLimit - used, pro: Boolean(sub?.length) });
 }
