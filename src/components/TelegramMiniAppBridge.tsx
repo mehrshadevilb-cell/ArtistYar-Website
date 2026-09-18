@@ -15,6 +15,8 @@ declare global {
         setBackgroundColor?: (color: string) => void;
         viewportStableHeight?: number;
         contentSafeAreaInset?: { top?: number; bottom?: number; left?: number; right?: number };
+        openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
+        openTelegramLink?: (url: string) => void;
       };
     };
   }
@@ -26,6 +28,7 @@ export function TelegramMiniAppBridge() {
     let app: NonNullable<NonNullable<Window["Telegram"]>["WebApp"]> | undefined;
     let poll: number | undefined;
     let attempts = 0;
+    let cleanup = () => undefined;
 
     const connect = () => {
       app = window.Telegram?.WebApp;
@@ -39,12 +42,15 @@ export function TelegramMiniAppBridge() {
       document.documentElement.classList.add("dark");
       document.documentElement.style.colorScheme = "dark";
       document.body.classList.add("telegram-mini-app");
+
       const syncViewport = () => {
         const height = app?.viewportStableHeight || window.innerHeight;
         const inset = app?.contentSafeAreaInset || {};
         document.documentElement.style.setProperty("--tg-viewport-height", `${height}px`);
         document.documentElement.style.setProperty("--tg-safe-top", `${inset.top || 0}px`);
         document.documentElement.style.setProperty("--tg-safe-bottom", `${inset.bottom || 0}px`);
+        document.documentElement.style.setProperty("--tg-safe-left", `${inset.left || 0}px`);
+        document.documentElement.style.setProperty("--tg-safe-right", `${inset.right || 0}px`);
       };
 
       app.ready?.();
@@ -59,7 +65,7 @@ export function TelegramMiniAppBridge() {
         app?.offEvent?.("viewportChanged", syncViewport);
       };
     };
-    let cleanup = () => undefined;
+
     connect();
 
     return () => {
