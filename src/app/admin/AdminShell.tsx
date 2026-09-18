@@ -12,6 +12,7 @@ const nav = [
   { href: "/admin/enrollments", label: "کلاس‌ها و ثبت‌نام‌ها" },
   { href: "/admin/analytics", label: "تحلیل و آمار" },
   { href: "/admin/media", label: "مدیریت محتوا" },
+  { href: "/admin/free-education", label: "آموزش رایگان" },
   { href: "/admin/ai", label: "AI Agent" },
   { href: "/admin/system", label: "وضعیت سیستم" },
   { href: "/admin/settings", label: "تنظیمات پیشرفته" },
