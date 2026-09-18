@@ -5,6 +5,7 @@ import { SectionHeading } from "@/components/SectionHeading";
 import { StatusChip } from "@/components/StatusChip";
 import { listPublishedMedia } from "@/lib/supabase-media";
 import { MediaPlayer } from "@/components/MediaPlayer";
+import { GalleryAdminTools } from "@/components/GalleryAdminTools";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -27,7 +28,7 @@ function categoryLabel(category: string) {
 
 function InstagramCard({ item }: { item: (typeof instagramGallery)[number] }) {
   return (
-    <article className="card-ay gallery-card flex h-full flex-col p-6">
+    <article className="card-ay gallery-card relative flex h-full flex-col p-6">
       <div className="flex items-center justify-between gap-3">
         <StatusChip tone={item.kind === "audio" ? "gold" : "ok"}>
           {item.kind === "audio" ? (
@@ -96,11 +97,14 @@ export default async function GalleryPage() {
 
   return (
     <section className="container-ay py-16">
-      <SectionHeading
+      <div className="flex flex-wrap items-end justify-between gap-5">
+        <SectionHeading
         eyebrow="گالری ArtistYar"
         title="هر خروجی، جای خودش"
         subtitle="خروجی هنرجوها، آثار مهرشاد، آموزش‌ها و آرشیو منابع Instagram را جدا و شفاف ببین."
       />
+        <GalleryAdminTools />
+      </div>
       <div className="gallery-index-grid mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <a href="#student-projects" className="card-ay p-5 transition hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950">
           <GraduationCap className="text-gold-400" size={22} />
@@ -243,6 +247,7 @@ function MediaCard({ item }: { item: Awaited<ReturnType<typeof listPublishedMedi
         <span className="text-xs text-ink-500">{item.format ? item.format.toUpperCase() : "فایل"}</span>
       </div>
 
+      <GalleryAdminTools item={item} />
       <h3 className="mt-5 text-xl font-semibold text-sand-50">{item.title}</h3>
 
       {isPlayable ? (
