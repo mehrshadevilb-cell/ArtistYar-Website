@@ -268,7 +268,8 @@ Rules:
         return { agent: candidate.provider.id + "/" + candidate.model, changes, notes: parsed?.notes };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        const fatal = /no credits|insufficient.?quota|billing|credit|payment|invalid.?api.?key|incorrect.?api.?key|authentication|unauthorized|401|403|permission.?denied|account.?deactivated|http 404|http 405|not available|requires an active paid plan|premium model/i.test(message);
+        const modelOnlyAccess = /premium model|requires an active paid plan|requires .*balance|plan .*allows|model .*not available|model .*unavailable|permission.?denied.*model|model.*permission/i.test(message);
+        const fatal = !modelOnlyAccess && /no credits|insufficient.?quota|billing|credit|payment|invalid.?api.?key|incorrect.?api.?key|authentication|unauthorized|401|403|permission.?denied|account.?deactivated|http 404|http 405|not available/i.test(message);
         if (fatal) failedCoderProviders.add(candidate.provider.id);
         return { agent: candidate.provider.id + "/" + candidate.model, changes:[], notes: message };
       }
