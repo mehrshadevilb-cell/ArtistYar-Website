@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPracticeProfile, hasPracticeStore, savePracticeResult } from "@/lib/practice-progress";
 import { createClient } from "@supabase/supabase-js";
+import { recordSkillEvent } from "@/lib/practice-skill-engine";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +9,8 @@ export const dynamic = "force-dynamic";
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
-const MEMBER_DAILY_STAGES = 5;\nconst PRO_DAILY_STAGES = 40;
+const MEMBER_DAILY_STAGES = 5;
+const PRO_DAILY_STAGES = 40;
 
 async function isProUser(userId: string) {
   if (!db) return false;
@@ -45,6 +47,12 @@ export async function POST(request: Request) {
     if (usedToday >= dailyLimit) {
       return NextResponse.json({ ok: false, code: "daily_limit_reached", pro, dailyLimit, used: usedToday, remaining: 0 }, { status: 429 });
     }
+    const awardedXp = Math.max(0, Number(body.score) || 0);
+    await recordSkillEvent({
+      userId, gameId, xp: awardedXp, accuracy: Number(body.accuracy) || 0,
+      difficulty: Number(body.metadata?.difficulty || 0), correct: Number(body.accuracy) >= 50,
+      metadata: { ...(body.metadata || {}), streak: Number(body.streak) || 0 },
+    });
     const row = await savePracticeResult({
       user_id: userId,
       username: String(body.username).slice(0, 120),
