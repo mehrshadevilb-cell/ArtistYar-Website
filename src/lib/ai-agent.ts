@@ -222,7 +222,8 @@ export async function runDevelopmentTask(
     return balanced;
   })();
 
-  const coders = candidates.slice(0, Math.min(4, Math.max(2, Math.floor(maxAgents / 4))));
+  const desiredCoders = Math.min(6, Math.max(2, Math.floor(maxAgents / 3)));
+  const coders = candidates.slice(0, Math.min(candidates.length, Math.max(desiredCoders, 8)));
   if (!coders.length) throw new Error("هیچ Agent کدنویسی فعالی پیدا نشد.");
 
   const coderPrompt = `TASK:
@@ -262,11 +263,54 @@ Rules:
     }
   }));
 
-  const usable = coderResults.filter(p => p.changes.length);
-  if (!usable.length) throw new Error("Coding Agentها نتوانستند patch معتبر تولید کنند.");
+  let usable = coderResults.filter(p => p.changes.length);
+
+  // Backfill from later providers/models when the first wave contains only
+  // exhausted, invalid, or temporarily unavailable providers.
+  if (!usable.length && candidates.length > coders.length) {
+    const backupCoders = candidates.slice(
+      coders.length,
+      Math.min(candidates.length, coders.length + 8),
+    );
+    const backupResults = await Promise.all(backupCoders.map(async candidate => {
+      try {
+        const reply = await chatWithProvider(candidate.provider, candidate.model, [
+          { role:"system", content:"تو Coding Agent پروژه ArtistYar-Website هستی. خروجی دقیق و قابل اعمال بده. پاسخ نهایی JSON خالص باشد." },
+          { role:"user", content:coderPrompt },
+        ], "artistyar-development-coder-backup");
+        const parsed = extractJson<{changes?: ProposedChange[];notes?:string}>(reply);
+        const changes = Array.isArray(parsed?.changes)
+          ? parsed!.changes.filter(x => x && typeof x.path === "string" && typeof x.content === "string").slice(0, 8)
+          : [];
+        return {
+          agent: candidate.provider.id + "/" + candidate.model,
+          changes,
+          notes: parsed?.notes,
+        };
+      } catch {
+        return {
+          agent: candidate.provider.id + "/" + candidate.model,
+          changes: [],
+          notes: "backup coder failed",
+        };
+      }
+    }));
+    coderResults.push(...backupResults);
+    usable = coderResults.filter(p => p.changes.length);
+  }
+
+  if (!usable.length) {
+    const failures = coderResults
+      .map(p => p.agent + ": " + (p.notes || "no valid patch"))
+      .join(" | ");
+    throw new Error("Coding Agentها نتوانستند patch معتبر تولید کنند. " + failures);
+  }
 
   const proposalText = usable.map((p,i)=>`PROPOSAL ${i+1} — ${p.agent}\n${JSON.stringify(p.changes)}`).join("\n\n---\n\n");
-  const reviewers = candidates.slice(coders.length, coders.length + Math.min(3, candidates.length - coders.length));
+  const reviewers = candidates.slice(
+    coders.length,
+    coders.length + Math.min(4, Math.max(0, candidates.length - coders.length)),
+  );
   const reviews = await Promise.all(reviewers.map(async c => {
     try {
       return await chatWithProvider(c.provider, c.model, [
