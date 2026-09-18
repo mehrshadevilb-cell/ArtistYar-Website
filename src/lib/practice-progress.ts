@@ -4,6 +4,13 @@ const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const supabase = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
+// A single practice session cannot legitimately be worth more than this. The
+// value is intentionally generous (well above what any real mini-game round
+// awards) but bounds what a client can inject into the leaderboard, the
+// monthly-XP discount eligibility check (see /api/practice/reward), and the
+// skill engine.
+const MAX_SESSION_SCORE = 300;
+
 export type PracticeRecord = {
   user_id: string;
   username: string;
@@ -23,10 +30,10 @@ export async function savePracticeResult(input: PracticeRecord) {
   if (!supabase) throw new Error("practice_store_not_configured");
   const safe = {
     ...input,
-    score: Math.max(-5, Math.round(input.score)),
+    score: Math.max(-5, Math.min(MAX_SESSION_SCORE, Math.round(input.score))),
     accuracy: Math.max(0, Math.min(100, Number(input.accuracy) || 0)),
     streak: Math.max(0, Math.round(input.streak)),
-    best_score: Math.max(0, Math.round(input.best_score)),
+    best_score: Math.max(0, Math.min(MAX_SESSION_SCORE, Math.round(input.best_score))),
   };
   const result = await supabase.from("practice_records").insert(safe).select().single();
   if (result.error) throw new Error(result.error.message);
