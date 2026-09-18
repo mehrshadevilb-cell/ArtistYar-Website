@@ -19,26 +19,45 @@ const games: Game[] = [
 ];
 
 const toneRounds = [
-  { frequency: 110, options: [80, 110, 180, 260] },
-  { frequency: 440, options: [220, 330, 440, 660] },
-  { frequency: 1200, options: [700, 900, 1200, 1800] },
-  { frequency: 4200, options: [2400, 3200, 4200, 6000] },
+  { frequency: 55, options: [55, 70, 90, 120] }, { frequency: 80, options: [60, 80, 110, 150] },
+  { frequency: 110, options: [80, 110, 160, 220] }, { frequency: 180, options: [120, 180, 240, 320] },
+  { frequency: 260, options: [180, 260, 360, 480] }, { frequency: 440, options: [330, 440, 550, 660] },
+  { frequency: 700, options: [500, 700, 900, 1200] }, { frequency: 1200, options: [800, 1200, 1600, 2200] },
+  { frequency: 2200, options: [1400, 2200, 3000, 4200] }, { frequency: 3500, options: [2400, 3500, 5000, 7000] },
+  { frequency: 5000, options: [3500, 5000, 7000, 9000] }, { frequency: 7000, options: [5000, 7000, 9000, 12000] },
+  { frequency: 9000, options: [6000, 9000, 12000, 14000] }, { frequency: 12000, options: [8000, 12000, 14000, 16000] },
+  { frequency: 16000, options: [10000, 12000, 16000, 18000] },
 ];
 const eqRounds = [
-  { answer: "زیر ۱۰۰Hz", prompt: "میکس گل‌آلود است و kick فضای زیادی اشغال کرده.", hint: "به low-end و rumble فکر کن." },
-  { answer: "حدود ۳kHz", prompt: "وکال تیز و خسته‌کننده شنیده می‌شود.", hint: "حضور و edge معمولاً این اطراف است." },
-  { answer: "حدود ۱۰kHz", prompt: "میکس کدر است و هوا کم دارد.", hint: "به high-shelf و air فکر کن." },
-  { answer: "حدود ۲۵۰Hz", prompt: "سازها جعبه‌ای و پر از mud هستند.", hint: "بدنه‌ی پایینِ میانی را بررسی کن." },
+  { answer: "زیر ۱۰۰Hz", prompt: "یک تغییر EQ عمیق در low-end شنیده می‌شود.", hint: "rumble و sub را بررسی کن." },
+  { answer: "حدود ۱۵۰Hz", prompt: "بدنه‌ی صدا بیش از حد ضخیم شده.", hint: "low-mid پایین را گوش کن." },
+  { answer: "حدود ۲۵۰Hz", prompt: "میکس boxy و muddy شده.", hint: "low-mid را بررسی کن." },
+  { answer: "حدود ۵۰۰Hz", prompt: "صدا nasal و congested شده.", hint: "میانه‌ی پایین را بررسی کن." },
+  { answer: "حدود ۱kHz", prompt: "میکس honky و تلفنی شده.", hint: "midrange را بررسی کن." },
+  { answer: "حدود ۲kHz", prompt: "attack و clarity بیش از حد برجسته است.", hint: "upper-mid پایین را بررسی کن." },
+  { answer: "حدود ۳kHz", prompt: "وکال تیز و خسته‌کننده شده.", hint: "presence را بررسی کن." },
+  { answer: "حدود ۵kHz", prompt: "ترنزینت‌ها harsh شده‌اند.", hint: "presence/edge را گوش کن." },
+  { answer: "حدود ۸kHz", prompt: "hi-hat بیش از حد روشن است.", hint: "high-mid را بررسی کن." },
+  { answer: "حدود ۱۰kHz", prompt: "air و brightness تغییر کرده.", hint: "high shelf را گوش کن." },
+  { answer: "حدود ۱۴kHz", prompt: "فقط بالاترین air تغییر کرده.", hint: "extreme top-end را بررسی کن." },
 ];
 const compressorRounds = [
-  { answer: "Attack سریع", prompt: "ترنزینت‌ها نرم شده‌اند و ضربه‌ی ابتدایی کمتر شنیده می‌شود.", hint: "کمپرسور سریع‌تر وارد عمل شده است." },
-  { answer: "Release آهسته", prompt: "صدا بعد از ضربه دیرتر به سطح عادی برمی‌گردد و حس کشیده‌شدن دارد.", hint: "به زمان برگشت gain reduction گوش کن." },
-  { answer: "Ratio بالا", prompt: "با کمی افزایش ورودی، خروجی خیلی کمتر بالا می‌رود.", hint: "شیب رابطه‌ی input و output را تصور کن." },
-  { answer: "Threshold پایین", prompt: "تقریباً تمام اجرای ساز تحت gain reduction قرار گرفته است.", hint: "نقطه‌ی شروع فشرده‌سازی پایین‌تر است." },
+  { answer: "Attack سریع", prompt: "ترنزینت ضربه‌ای نرم و کم‌جان شده.", hint: "شروع transient را گوش کن." },
+  { answer: "Attack آهسته", prompt: "ضربه‌ی اولیه عبور می‌کند ولی sustain فشرده می‌شود.", hint: "transient قبل از gain reduction است." },
+  { answer: "Release سریع", prompt: "gain reduction خیلی سریع برمی‌گردد و pumping نزدیک است.", hint: "برگشت بعد از ضربه را گوش کن." },
+  { answer: "Release آهسته", prompt: "صدا دیرتر به سطح عادی برمی‌گردد.", hint: "زمان recovery را گوش کن." },
+  { answer: "Ratio بالا", prompt: "با افزایش input، output خیلی کمتر بالا می‌رود.", hint: "شیب input/output را تصور کن." },
+  { answer: "Ratio پایین", prompt: "کمپرس نرم و ملایم است.", hint: "فشرده‌سازی gentle است." },
+  { answer: "Threshold پایین", prompt: "تقریباً کل اجرا زیر gain reduction است.", hint: "نقطه‌ی شروع compression پایین است." },
+  { answer: "Threshold بالا", prompt: "فقط قله‌های بلند فشرده می‌شوند.", hint: "compression فقط روی peaks است." },
 ];
-const phaseOptions = ["مرکز و محکم", "پهن اما ناپایدار", "کاملاً بی‌صدا", "فقط در سمت چپ"];
-
 function formatFrequency(value: number) { return value >= 1000 ? `${value / 1000}kHz` : `${value}Hz`; }
+const DAILY_GUEST_STAGES = 5;
+const DAILY_MEMBER_STAGES = 15;
+const PRO_PRICE_TOMAN = 40000;
+const PRACTICE_XP_PER_LEVEL = 100;
+const PRACTICE_MAX_LEVEL = 500;
+function practiceLevel(xp: number) { return Math.min(PRACTICE_MAX_LEVEL, Math.max(1, Math.floor(Math.max(0, xp) / PRACTICE_XP_PER_LEVEL) + 1)); }
 
 function playTone(frequency: number, duration = 1.3, pan = 0) {
   if (typeof window === "undefined") return;
@@ -75,7 +94,8 @@ export default function PracticePage() {
   const [personalLoop, setPersonalLoop] = useState(false);
   const [personalSpeed, setPersonalSpeed] = useState("1");
   const personalAudio = useRef<HTMLAudioElement | null>(null);
-  const rank = score >= 500 ? "گوش طلایی" : score >= 250 ? "میکس‌خوان" : score >= 100 ? "شنونده‌ی دقیق" : "شروع‌کننده";
+  const level = practiceLevel(score);
+  const rank = level >= 100 ? "گوش طلایی" : level >= 50 ? "میکس‌خوان" : level >= 10 ? "شنونده‌ی دقیق" : "شروع‌کننده";
   const rankFloor = score >= 500 ? 500 : score >= 250 ? 250 : score >= 100 ? 100 : 0;
   const rankCeiling = score >= 500 ? 750 : score >= 250 ? 500 : score >= 100 ? 250 : 100;
   const rankProgress = Math.min(100, Math.round(((score - rankFloor) / (rankCeiling - rankFloor)) * 100));
@@ -91,19 +111,19 @@ export default function PracticePage() {
   function resetGame() { setToneAnswer(null); setEqAnswer(null); setPhaseAnswer(null); setCompressorAnswer(null); }
 
   return <main className="container-ay relative py-12 sm:py-16"><div className="route-ambient route-ambient-one" aria-hidden="true" /><SectionHeading eyebrow="تمرین‌خانه / Practice Arcade" title="گوشَت را مثل یک ساز تمرین بده." subtitle="بازی‌های کوتاه و شنیداری برای میکس، EQ، داینامیک و فاز؛ بدون اکانت، بدون رتبه‌بندی مصنوعی، فقط تمرین واقعی." />
-    <div className="mt-8 flex flex-wrap items-center gap-3"><div className="card-ay flex min-w-[220px] items-center gap-3 px-4 py-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-400/10 text-gold-300"><Award size={18} /></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2 text-[11px] text-ink-500"><span>رتبه‌ی حرفه‌ای</span><strong className="text-gold-300">{rank}</strong></span><span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/[.08]"><span className="block h-full rounded-full bg-gold-400 transition-[width]" style={{ width: `${rankProgress}%` }} /></span><strong className="mt-1 block text-sm text-sand-50">{score} XP</strong></span></div><div className="card-ay flex items-center gap-3 px-4 py-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-400/10 text-orange-300"><Flame size={18} /></span><span><span className="block text-[11px] text-ink-500">زنجیره</span><strong className="text-lg text-sand-50">{streak}</strong></span></div><span className="flex items-center gap-2 text-xs text-ink-500"><LockKeyhole size={14} className="text-gold-400" />پیشرفت فقط روی همین دستگاه ذخیره می‌شود.</span></div>
+    <div className="mt-8 flex flex-wrap items-center gap-3"><div className="card-ay flex min-w-[220px] items-center gap-3 px-4 py-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-400/10 text-gold-300"><Award size={18} /></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2 text-[11px] text-ink-500"><span>رتبه‌ی حرفه‌ای</span><strong className="text-gold-300">{rank}</strong></span><span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/[.08]"><span className="block h-full rounded-full bg-gold-400 transition-[width]" style={{ width: `${rankProgress}%` }} /></span><strong className="mt-1 block text-sm text-sand-50">{score} XP · Level {level}/{PRACTICE_MAX_LEVEL}</strong></span></div><div className="card-ay flex items-center gap-3 px-4 py-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-400/10 text-orange-300"><Flame size={18} /></span><span><span className="block text-[11px] text-ink-500">زنجیره</span><strong className="text-lg text-sand-50">{streak}</strong></span></div><span className="flex items-center gap-2 text-xs text-ink-500"><LockKeyhole size={14} className="text-gold-400" />پیشرفت فقط روی همین دستگاه ذخیره می‌شود.</span></div>
     {active === "hub" ? <><Hub onSelect={(id) => { resetGame(); setActive(id); }} /><PracticeProgressPanel /></> : active === "pro-arcade" ? <ProArcade onBack={() => setActive("hub")} /> : active === "theory" ? <TheoryLab onBack={() => setActive("hub")} /> : active === "personal" ? <Personal url={personalUrl} name={personalName} audioRef={personalAudio} loop={personalLoop} speed={personalSpeed} onLoopChange={setPersonalLoop} onSpeedChange={setPersonalSpeed} onUpload={uploadPersonal} onBack={() => setActive("hub")} /> : <GameStage active={active} toneRound={toneRound} setToneRound={setToneRound} toneAnswer={toneAnswer} setToneAnswer={(value) => { setToneAnswer(value); record(value === toneRounds[toneRound].frequency); }} eqRound={eqRound} setEqRound={setEqRound} eqAnswer={eqAnswer} setEqAnswer={(value) => { setEqAnswer(value); record(value === eqRounds[eqRound].answer); }} compressorRound={compressorRound} setCompressorRound={setCompressorRound} compressorAnswer={compressorAnswer} setCompressorAnswer={(value) => { setCompressorAnswer(value); record(value === compressorRounds[compressorRound].answer); }} phaseAnswer={phaseAnswer} setPhaseAnswer={(value) => { setPhaseAnswer(value); record(value === 0); }} onBack={() => setActive("hub")} onReset={resetGame} />}
   </main>;
 }
 
 function Hub({ onSelect }: { onSelect: (id: GameId) => void }) {
   const daily = games[new Date().getDate() % games.length];
-  return <div className="mt-10 space-y-6"><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><span className="eyebrow">500+ LEVEL PATH</span><strong className="mt-2 block text-sm text-sand-50">مسیر سطح‌بندی</strong><span className="mt-1 block text-xs text-ink-500">از تمرین پایه تا گوش حرفه‌ای</span></div><div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><span className="eyebrow">SKILL RATING</span><strong className="mt-2 block text-sm text-sand-50">امتیاز مهارت</strong><span className="mt-1 block text-xs text-ink-500">رکورد، Accuracy و Streak</span></div><div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><span className="eyebrow">DAILY 5 MIN</span><strong className="mt-2 block text-sm text-sand-50">چالش روزانه</strong><span className="mt-1 block text-xs text-ink-500">تمرین کوتاه و قابل تکرار</span></div></div><div className="rounded-2xl border border-gold-400/20 bg-gradient-to-l from-gold-400/[.12] to-white/[.025] p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><span className="eyebrow">چالش امروز / Daily Challenge</span><h2 className="mt-2 text-lg font-medium text-sand-50">امروز فقط ۵ دقیقه روی {daily.title} تمرکز کن.</h2><p className="mt-1 text-xs leading-6 text-ink-400">هر روز یک مهارت را انتخاب کن؛ کیفیت تمرین از تعداد بازی مهم‌تر است.</p></div><button type="button" className="btn-primary !px-4 !py-2 text-xs" onClick={() => onSelect(daily.id)}>شروع چالش</button></div></div><div className="grid gap-4 md:grid-cols-2">{games.map((game) => { const Icon = game.icon; return <button key={game.id} type="button" className="card-ay group p-6 text-right transition duration-300 hover:-translate-y-1 hover:border-gold-400/35" onClick={() => onSelect(game.id)}><div className="flex items-start justify-between gap-4"><span className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[.05] ${game.color}`}><Icon size={23} /></span><span className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-ink-500">{game.tag}</span></div><h2 className="mt-6 text-xl font-medium text-sand-50">{game.title}</h2><p className="mt-2 max-w-md text-sm leading-7 text-ink-400">{game.description}</p><span className="mt-6 inline-flex items-center gap-2 text-xs text-gold-300">شروع بازی <Play size={13} fill="currentColor" /></span></button>; })}</div><button type="button" className="card-ay group flex w-full flex-col items-start gap-4 border-gold-400/20 bg-gradient-to-l from-gold-400/[.09] to-white/[.02] p-6 text-right transition hover:border-gold-400/40 sm:flex-row sm:items-center" onClick={() => onSelect("pro-arcade")}>
+  return <div className="mt-10 space-y-6"><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><span className="eyebrow">500+ LEVEL PATH</span><strong className="mt-2 block text-sm text-sand-50">مسیر سطح‌بندی</strong><span className="mt-1 block text-xs text-ink-500">۵ مرحله مهمان / ۱۵ مرحله عضو در روز · XP بیشتر = سؤال سخت‌تر</span></div><div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><span className="eyebrow">SKILL RATING</span><strong className="mt-2 block text-sm text-sand-50">امتیاز مهارت</strong><span className="mt-1 block text-xs text-ink-500">رکورد، Accuracy و Streak</span></div><div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><span className="eyebrow">DAILY 5 MIN</span><strong className="mt-2 block text-sm text-sand-50">چالش روزانه</strong><span className="mt-1 block text-xs text-ink-500">تمرین کوتاه و قابل تکرار</span></div></div><div className="rounded-2xl border border-gold-400/20 bg-gradient-to-l from-gold-400/[.12] to-white/[.025] p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><span className="eyebrow">چالش امروز / Daily Challenge</span><h2 className="mt-2 text-lg font-medium text-sand-50">امروز فقط ۵ دقیقه روی {daily.title} تمرکز کن.</h2><p className="mt-1 text-xs leading-6 text-ink-400">هر روز یک مهارت را انتخاب کن؛ کیفیت تمرین از تعداد بازی مهم‌تر است.</p></div><button type="button" className="btn-primary !px-4 !py-2 text-xs" onClick={() => onSelect(daily.id)}>شروع چالش</button></div></div><div className="grid gap-4 md:grid-cols-2">{games.map((game) => { const Icon = game.icon; return <button key={game.id} type="button" className="card-ay group p-6 text-right transition duration-300 hover:-translate-y-1 hover:border-gold-400/35" onClick={() => onSelect(game.id)}><div className="flex items-start justify-between gap-4"><span className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[.05] ${game.color}`}><Icon size={23} /></span><span className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-ink-500">{game.tag}</span></div><h2 className="mt-6 text-xl font-medium text-sand-50">{game.title}</h2><p className="mt-2 max-w-md text-sm leading-7 text-ink-400">{game.description}</p><span className="mt-6 inline-flex items-center gap-2 text-xs text-gold-300">شروع بازی <Play size={13} fill="currentColor" /></span></button>; })}</div><button type="button" className="card-ay group flex w-full flex-col items-start gap-4 border-gold-400/20 bg-gradient-to-l from-gold-400/[.09] to-white/[.02] p-6 text-right transition hover:border-gold-400/40 sm:flex-row sm:items-center" onClick={() => onSelect("pro-arcade")}>
       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gold-400/10 text-gold-300"><Gamepad2 size={23} /></span>
       <span className="flex-1">
         <span className="eyebrow">PRO ARCADE / Browser Games</span>
         <strong className="mt-2 block text-lg text-sand-50">مینی‌گیم‌های زنده‌ی شنیداری</strong>
-        <span className="mt-1 block text-sm leading-7 text-ink-400">بازی‌های HTML5 سریع و حرفه‌ای برای reaction، rhythm و stereo focus؛ بدون Flash و بدون نصب.</span>
+        <span className="mt-1 block text-sm leading-7 text-ink-400">آرکید حرفه‌ای شنیداری با تمرین‌های پیشرفته؛ اشتراک Pro ماهانه ۴۰٬۰۰۰ تومان.</span>
       </span>
       <span className="rounded-full border border-gold-400/25 px-3 py-1 text-[10px] text-gold-300">PRO</span>
     </button>
