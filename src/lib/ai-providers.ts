@@ -461,7 +461,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       });
       const data = await readJsonResponse<{
         agent_status?: string;
-      }>();
+      }>(response);
       if (!response.ok) return [];
       return data?.agent_status
         ? [{ id: "centralized-router", provider: provider.id, task: "chat", rank: 70 }]
@@ -741,10 +741,10 @@ async function chatRahYarGateway(
     signal: AbortSignal.timeout(45_000),
   });
 
-  const data = (await response.json().catch(() => null)) as {
+  const data = await readJsonResponse<{
     reply?: unknown;
     detail?: unknown;
-  }>();
+  }>(response);
 
   if (!response.ok) {
     const detail =
@@ -806,7 +806,17 @@ export async function autoChat(
 
   type Candidate = { provider: AIProvider; model: string; rank: number };
   const candidates: Candidate[] = [];
-  const now = Date.now();\n  let discovered: Awaited<ReturnType<typeof discoverAllModels>>;\n  if (modelDiscoveryCache && modelDiscoveryCache.expiresAt > now) {\n    discovered = modelDiscoveryCache.value;\n  } else {\n    discovered = await discoverAllModels();\n    modelDiscoveryCache = { expiresAt: now + MODEL_DISCOVERY_CACHE_MS, value: discovered };\n  }
+  const now = Date.now();
+  let discovered: Awaited<ReturnType<typeof discoverAllModels>>;
+  if (modelDiscoveryCache && modelDiscoveryCache.expiresAt > now) {
+    discovered = modelDiscoveryCache.value;
+  } else {
+    discovered = await discoverAllModels();
+    modelDiscoveryCache = {
+      expiresAt: now + MODEL_DISCOVERY_CACHE_MS,
+      value: discovered,
+    };
+  }
 
   for (const entry of discovered) {
     const provider = providers.find((p) => p.id === entry.provider.id);
