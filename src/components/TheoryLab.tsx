@@ -184,7 +184,7 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
           <p className="eyebrow text-gold-300">PRACTICE STAGE LIMIT</p>
           <h1 className="mt-3 text-2xl font-semibold text-sand-50">مراحل رایگان این تمرین تمام شد</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-8 text-ink-400">
-            بدون اشتراک تا ۵ مرحله، با Pro تا ۴۰ مرحله در روز
+            بدون اشتراک تا ۵ مرحله، با Pro تا ۴۰ مرحله در مدت فعال بودن اشتراک
             {proExpiresAt
               ? ` و اشتراک فعلی تا ${new Date(proExpiresAt).toLocaleDateString("fa-IR")} فعال است.`
               : "."}
