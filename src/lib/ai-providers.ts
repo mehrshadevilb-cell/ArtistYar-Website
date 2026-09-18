@@ -480,9 +480,9 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
         signal: AbortSignal.timeout(3_500),
       });
       if (!response.ok) return fallback(provider.defaultModels || GEMINI_FALLBACK);
-      const data = (await response.json().catch(() => null)) as {
+      const data = await readJsonResponse<{
         models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
-      }>();
+      }>(response);
       const models =
         data?.models
           ?.filter((m) =>
