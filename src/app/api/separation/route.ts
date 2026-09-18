@@ -14,6 +14,7 @@ const ALLOWED_PRESETS = new Set([
   "instrumental_full",
   "karaoke",
   "htdemucs_ft",
+  "demucs_mdx_hq5",
 ]);
 
 async function isAuthenticated() {
