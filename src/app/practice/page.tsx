@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, RefObject, useEffect, useMemo, useRef, useState } from "react";
-import { AudioLines, Award, Check, CircleHelp, Ear, FileAudio, Flame, Gamepad2, Headphones, LockKeyhole, Pause, Play, RotateCcw, Sparkles, Target, Upload, Volume2, Waves, X } from "lucide-react";
+import { AudioLines, Award, Check, CircleHelp, Ear, FileAudio, Flame, Headphones, LockKeyhole, Pause, Play, RotateCcw, Sparkles, Target, Upload, Volume2, Waves, X } from "lucide-react";
 import { SectionHeading } from "@/components/SectionHeading";
 import { useAuth } from "@/components/AuthProvider";
 import type { SessionUser } from "@/lib/auth";
@@ -54,7 +54,7 @@ const compressorRounds = [
 ];
 function formatFrequency(value: number) { return value >= 1000 ? `${value / 1000}kHz` : `${value}Hz`; }
 const DAILY_GUEST_STAGES = 5;
-const DAILY_MEMBER_STAGES = 40;
+const DAILY_MEMBER_STAGES = 5;
 const PRO_PRICE_TOMAN = 40000;
 const PRACTICE_XP_PER_LEVEL = 100;
 const PRACTICE_MAX_LEVEL = 500;
