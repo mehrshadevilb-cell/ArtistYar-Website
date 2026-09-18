@@ -337,7 +337,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
   const [xp, setXp] = useState(0);
 
   const stageNumber = round + 1;
-  const stageLocked = !checking && stageNumber > stageLimit;
+  const stageLocked = !checking && !pro && stageNumber > stageLimit;
 
   const tier = tierFromXp(xp, round);
   const question = useMemo(() => {
