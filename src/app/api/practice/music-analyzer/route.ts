@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { autoChat } from "@/lib/ai-providers";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, USER_SESSION_COOKIE, verifyAdminSession, verifyUserSession } from "@/lib/server-admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -307,7 +309,13 @@ function tierLabel(isAdmin: boolean, pro: boolean, course: boolean) {
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
   const ids = Array.from(new Set([p.get("userId") || "", p.get("telegramId") || ""].filter(Boolean)));
-  const isAdmin = p.get("role") === "admin";
+  const cookieStore = await cookies();
+  const isAdmin = Boolean(verifyAdminSession(cookieStore.get(ADMIN_SESSION_COOKIE)?.value));
+  const sessionUser = verifyUserSession(cookieStore.get(USER_SESSION_COOKIE)?.value);
+  if (!isAdmin && sessionUser && ids.some((id) => id !== sessionUser.id && id !== sessionUser.telegramId)) {
+    return NextResponse.json({ ok: false, error: "user_identity_mismatch" }, { status: 403 });
+  }
+  if (!isAdmin && !sessionUser) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
   if (isAdmin) {
     return NextResponse.json({
       ok: true,
@@ -353,8 +361,9 @@ export async function POST(request: Request) {
   const file = form.get("file");
   const userId = String(form.get("userId") || "").trim();
   const telegramId = String(form.get("telegramId") || "").trim();
-  const role = String(form.get("role") || "").trim().toLowerCase();
-  const isAdmin = role === "admin";
+  const cookieStore = await cookies();
+  const isAdmin = Boolean(verifyAdminSession(cookieStore.get(ADMIN_SESSION_COOKIE)?.value));
+  const sessionUser = verifyUserSession(cookieStore.get(USER_SESSION_COOKIE)?.value);
   const genre = String(form.get("genre") || "عمومی").slice(0, 80);
   const focus = String(form.get("focus") || "فول میکس").slice(0, 80);
   const notes = String(form.get("notes") || "").slice(0, 800);
@@ -366,7 +375,13 @@ export async function POST(request: Request) {
 
   if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "audio_file_required" }, { status: 400 });
   if (!m) return NextResponse.json({ ok: false, error: "audio_metrics_required" }, { status: 400 });
-  if (!userId && !telegramId && !isAdmin) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
+  if (!isAdmin && !sessionUser) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
+  if (!isAdmin && sessionUser) {
+    const allowed = [sessionUser.id, sessionUser.telegramId].filter(Boolean) as string[];
+    if (![userId, telegramId].filter(Boolean).every((id) => allowed.includes(id))) {
+      return NextResponse.json({ ok: false, error: "user_identity_mismatch" }, { status: 403 });
+    }
+  }
   if (file.size <= 0 || file.size > MAX_BYTES)
     return NextResponse.json({ ok: false, error: "file_too_large_or_empty" }, { status: 413 });
 
