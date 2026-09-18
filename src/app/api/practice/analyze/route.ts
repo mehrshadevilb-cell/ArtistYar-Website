@@ -1,8 +1,29 @@
 import { NextResponse } from "next/server";
 import { autoChat, type ChatMessage } from "@/lib/ai-providers";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const dbUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const dbSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const db = dbUrl && dbSecret ? createClient(dbUrl, dbSecret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
+const MIX_FREE_DAILY_LIMIT = 1;
+const MIX_PRO_DAILY_LIMIT = 40;
+
+function mixDayStart() {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
+}
+
+async function mixQuota(userId: string) {
+  if (!db || !userId) return { limit: MIX_FREE_DAILY_LIMIT, used: 0, pro: false };
+  const [sub, rows] = await Promise.all([
+    db.from("practice_subscriptions").select("id").eq("user_id", userId).eq("status", "active").gt("expires_at", new Date().toISOString()).limit(1),
+    db.from("practice_records").select("id").eq("user_id", userId).eq("game_id", "mix-analyzer").gte("played_at", mixDayStart()),
+  ]);
+  const pro = Boolean(sub.data && sub.data.length);
+  return { limit: pro ? MIX_PRO_DAILY_LIMIT : MIX_FREE_DAILY_LIMIT, used: rows.data ? rows.data.length : 0, pro };
+}
 
 type AnalyzeBody = {
   genre?: string;
@@ -331,6 +352,12 @@ export async function POST(request: Request) {
   const problems = String(body.problems || "").slice(0, 500);
   const stage = String(body.stage || "میکس").slice(0, 40);
   const notes = String(body.notes || "").slice(0, 800);
+  const userId = String(body.userId || "").trim();
+  const quota = await mixQuota(userId);
+  if (quota.used >= quota.limit) {
+    return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit: quota.limit, used: quota.used, remaining: 0, pro: quota.pro }, { status: 429 });
+  }
+
 
   const system = `تو مهندس میکس/مستر حرفه‌ای هستی و مثل پلاگین Reference 3 تحلیل می‌کنی.
 خروجی فقط JSON معتبر با این کلیدها:
