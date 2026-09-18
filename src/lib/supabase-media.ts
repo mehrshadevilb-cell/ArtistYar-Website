@@ -5,6 +5,7 @@ import { SupabaseOperationError } from "./supabase-error";
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const bucket = process.env.SUPABASE_BUCKET || "artistyar-media";
+const STORAGE_FILE_LIMIT = "1GB";
 const configured = Boolean(url && secret);
 const supabase = configured
   ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } })
@@ -56,6 +57,30 @@ const STORAGE_FOLDERS = ["", "student-work", "free-training", "ProdBy Mehrshad",
 
 export function hasSupabase(): boolean {
   return configured;
+}
+
+async function ensureStorageBucket(): Promise<void> {
+  if (!supabase) throw new Error("supabase_not_configured");
+  const current = await supabase.storage.getBucket(bucket);
+
+  if (current.error) {
+    const created = await supabase.storage.createBucket(bucket, {
+      public: true,
+      fileSizeLimit: STORAGE_FILE_LIMIT,
+    });
+    if (created.error && !/already exists|duplicate|exists/i.test(created.error.message)) {
+      throw new SupabaseOperationError("bucket_create", created.error);
+    }
+    return;
+  }
+
+  if (!current.data?.public || String(current.data?.file_size_limit || "") !== STORAGE_FILE_LIMIT) {
+    const updated = await supabase.storage.updateBucket(bucket, {
+      public: true,
+      fileSizeLimit: STORAGE_FILE_LIMIT,
+    });
+    if (updated.error) throw new SupabaseOperationError("bucket_update", updated.error);
+  }
 }
 
 export async function probeMediaConnection(): Promise<{ bucket: string; bucketPublic: boolean }> {
@@ -283,6 +308,7 @@ export async function uploadMedia(input: {
   consent: boolean;
 }): Promise<MediaItem> {
   if (!supabase) throw new Error("supabase_not_configured");
+  await ensureStorageBucket();
   const ext = input.filename.toLowerCase().split(".").pop() || "bin";
   const folder = storageFolderForCategory(input.category);
   const path = `${folder}/${crypto.randomUUID()}.${ext}`;
@@ -324,6 +350,7 @@ export async function uploadMedia(input: {
 
 export async function uploadStandaloneAsset(input: { buffer: Buffer; filename: string; mimeType: string; kind: "video" | "thumbnail" }) {
   if (!supabase) throw new Error("supabase_not_configured");
+  await ensureStorageBucket();
   const ext = input.filename.toLowerCase().split(".").pop() || (input.kind === "video" ? "mp4" : "webp");
   const path = `free-training-assets/${input.kind}/${crypto.randomUUID()}.${ext}`;
   const upload = await supabase.storage.from(bucket).upload(path, input.buffer, {
