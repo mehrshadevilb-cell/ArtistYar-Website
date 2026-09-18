@@ -17,8 +17,38 @@ import { supabaseErrorHttpStatus, supabaseErrorPayload } from "@/lib/supabase-er
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
+
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const allowedCategories = new Set<MediaCategory>(["student-work", "free-training", "prodby-mehrshad"]);
+
+const mimeByExt: Record<string, string> = {
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  flac: "audio/flac",
+  m4a: "audio/mp4",
+  aac: "audio/aac",
+  ogg: "audio/ogg",
+  opus: "audio/opus",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  mkv: "video/x-matroska",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  avif: "image/avif",
+  gif: "image/gif",
+  pdf: "application/pdf",
+};
+
+function resolveMime(file: File): string {
+  const reported = (file.type || "").trim();
+  if (reported && reported !== "application/octet-stream") return reported;
+  const ext = file.name.toLowerCase().split(".").pop() || "";
+  return mimeByExt[ext] || reported || "application/octet-stream";
+}
 
 async function authorized(): Promise<boolean> {
   const cookieStore = await cookies();
@@ -51,19 +81,30 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست." }, { status: 401 });
+  if (!(await authorized())) return NextResponse.json({ ok: false, error: "دسترسی مدیریت معتبر نیست. دوباره وارد حساب ادمین شو." }, { status: 401 });
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
     const contentLength = Number(request.headers.get("content-length") || 0);
-    if (contentLength > MAX_FILE_SIZE + 1024 * 1024) {
+    if (contentLength > MAX_FILE_SIZE + 2 * 1024 * 1024) {
       return NextResponse.json({ ok: false, error: "حجم درخواست از سقف ۵۰ مگابایت بیشتر است." }, { status: 413 });
     }
-    const form = await request.formData();
+
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return NextResponse.json(
+        { ok: false, error: "خواندن فایل ناموفق بود. حجم فایل را کمتر از ۵۰ مگابایت نگه دار و دوباره تلاش کن." },
+        { status: 400 },
+      );
+    }
+
     const file = form.get("file");
     const title = String(form.get("title") || "").trim();
     const description = String(form.get("description") || "").trim();
     const category = normalizeCategory(form.get("category"));
-    const consent = form.get("consent") === "true" || category === "prodby-mehrshad";
+    const consent = form.get("consent") === "true" || category === "prodby-mehrshad" || category === "free-training";
+
     if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "فایل را انتخاب کنید." }, { status: 400 });
     if (!title || title.length < 3) return NextResponse.json({ ok: false, error: "عنوان محتوا را کامل وارد کنید." }, { status: 400 });
     if (!category || !allowedCategories.has(category)) return NextResponse.json({ ok: false, error: "دسته‌بندی معتبر نیست." }, { status: 400 });
@@ -72,16 +113,21 @@ export async function POST(request: Request) {
     if (file.size <= 0 || file.size > MAX_FILE_SIZE)
       return NextResponse.json({ ok: false, error: "حجم فایل باید بین ۱ بایت و ۵۰ مگابایت باشد." }, { status: 400 });
 
+    const mimeType = resolveMime(file);
     const item = await uploadMedia({
       buffer: Buffer.from(await file.arrayBuffer()),
-      filename: file.name,
-      mimeType: file.type || "application/octet-stream",
+      filename: file.name || `upload.${mimeType.split("/")[1] || "bin"}`,
+      mimeType,
       title,
       description,
       category,
       consent,
     });
-    return NextResponse.json({ ok: true, item, message: "محتوا با موفقیت در Supabase آپلود و منتشر شد. تگ‌های MP3 و کاور استخراج شدند." });
+    return NextResponse.json({
+      ok: true,
+      item,
+      message: "محتوا با موفقیت در Supabase آپلود و منتشر شد.",
+    });
   } catch (error) {
     return errorResponse(error, "آپلود در Supabase ناموفق بود.", "upload");
   }
@@ -96,7 +142,7 @@ export async function PUT(request: Request) {
     const title = String(body.title || "").trim();
     const description = String(body.description || "").trim();
     const category = normalizeCategory(body.category);
-    const consent = body.consent === true || category === "prodby-mehrshad";
+    const consent = body.consent === true || category === "prodby-mehrshad" || category === "free-training";
 
     if (!publicId) return NextResponse.json({ ok: false, error: "شناسه فایل لازم است." }, { status: 400 });
     if (body.action === "refresh-tags") {
@@ -105,8 +151,8 @@ export async function PUT(request: Request) {
     }
     if (body.action === "register") {
       if (title.length < 3) return NextResponse.json({ ok: false, error: "عنوان معتبر لازم است." }, { status: 400 });
-    if (!category) return NextResponse.json({ ok: false, error: "دسته‌بندی معتبر نیست." }, { status: 400 });
-    if (category === "student-work" && !consent)
+      if (!category) return NextResponse.json({ ok: false, error: "دسته‌بندی معتبر نیست." }, { status: 400 });
+      if (category === "student-work" && !consent)
         return NextResponse.json({ ok: false, error: "برای نمونه‌کار هنرجو، تأیید رضایت لازم است." }, { status: 400 });
       const item = await registerExistingMedia({
         publicId,
