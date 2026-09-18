@@ -393,14 +393,22 @@ export async function runDevelopmentTask(
     return balanced;
   })();
   if (!allCandidates.length) throw new Error("هیچ Agent کدنویسی فعالی پیدا نشد.");
-  const desiredCoders = Math.min(6, Math.max(2, Math.floor(capped / 3)));
-  const coderPrompt = `TASK:\n${task}\n\nLEAD PLAN:\n${planning.synthesis.reply}\n\nREPOSITORY FILES:\n${projectContext}\n\nYou are a coding specialist for ArtistYar-Website (Next.js + TypeScript).\nProduce a concrete implementation proposal.\n\nReturn ONLY valid JSON (no markdown fences required but allowed):\n{"changes":[{"path":"src/...","content":"COMPLETE FILE CONTENT","reason":"why"}],"notes":"..."}\n\nRules:\n- Only propose files that need changing.\n- Content must be the COMPLETE replacement content, never a diff or partial snippet.\n- Preserve existing behavior unless the task requires changing it.\n- Do not invent dependencies, secrets, or env vars.\n- Do not modify lockfiles or .env files.\n- Keep TypeScript/Next.js conventions and existing import style.\n- Prefer minimal focused changes over large rewrites.\n`;
-  const coderPool = allCandidates.slice(0, Math.min(allCandidates.length, Math.max(20, capped * 3)));
+  // Development agents are an execution team, not a voting/research swarm.
+// Use parallelism to reduce wall-clock time, while assigning each stage one owner.
+// Multiple agents only appear as failover when the current owner cannot complete the stage.
+const desiredCoders = 1;
+  const coderPrompt = `TASK:\n${task}\n\nLEAD PLAN:\n${planning.synthesis.reply}\n\nREPOSITORY FILES:\n${projectContext}\n\nYou are a coding specialist for ArtistYar-Website (Next.js + TypeScript).\nProduce a concrete implementation proposal.\n\nReturn ONLY valid JSON (no markdown fences required but allowed):\n{"changes":[{"path":"src/...","content":"COMPLETE FILE CONTENT","reason":"why"}],"notes":"..."}\n\nRules:\n- Only propose files that need changing.\n- Content must be the COMPLETE replacement content, never a diff or partial snippet.\n- Preserve existing behavior unless the task requires changing it.\n- Do not invent dependencies, secrets, or env vars.\n- Do not modify lockfiles or .env files.\n- Keep TypeScript/Next.js conventions and existing import style.\n- Prefer minimal focused changes over large rewrites.
+- You are the single execution owner for this task. Do not debate alternatives or ask other agents to solve the same task.
+- Produce the patch directly and finish the task as quickly as possible.
+- Parallelism is handled by the runtime for independent stages; your job is execution, not multi-agent coordination.\n`;
+  const coderPool = allCandidates.slice(0, Math.min(allCandidates.length, Math.max(8, capped)));
   const coderResults: Array<{ agent: string; changes: ProposedChange[]; notes?: string; score?: number }> = [];
   const failedCoderProviders = new Set<string>();
   const targetUsable = 1;
-  for (let offset = 0; offset < coderPool.length && coderResults.filter((p) => p.changes.length).length < targetUsable; offset += 8) {
-    const wave = coderPool.slice(offset, offset + 8).filter((c) => !failedCoderProviders.has(c.provider.id));
+  // One active coding owner at a time. This prevents several models from
+  // solving the same task independently and wasting quota/time.
+  for (let offset = 0; offset < coderPool.length && coderResults.filter((p) => p.changes.length).length < targetUsable; offset += 1) {
+    const wave = coderPool.slice(offset, offset + 1).filter((c) => !failedCoderProviders.has(c.provider.id));
     if (!wave.length) continue;
     const waveResults = await Promise.all(
       wave.map(async (candidate) => {
@@ -435,7 +443,8 @@ export async function runDevelopmentTask(
   }
   let usable = coderResults.filter((p) => p.changes.length).sort((a, b) => (b.score || 0) - (a.score || 0));
   if (!usable.length && allCandidates.length > desiredCoders) {
-    const backup = allCandidates.slice(desiredCoders, Math.min(allCandidates.length, desiredCoders + 12));
+    // Failover is sequential and only starts after the current coding owner fails.
+    const backup = allCandidates.slice(desiredCoders, Math.min(allCandidates.length, desiredCoders + 7));
     const backupResults = await Promise.all(
       backup.map(async (candidate) => {
         const label = `${candidate.provider.id}/${candidate.model}`;
