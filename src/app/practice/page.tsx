@@ -109,7 +109,7 @@ export default function PracticePage() {
       if (!anonymousId) { anonymousId = crypto.randomUUID(); localStorage.setItem("artistyar_practice_anon", anonymousId); }
       const identity = user?.id || anonymousId;
       const response = await fetch("/api/practice/progress",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({
-        userId:identity,username:user?.username || "guest",fullName:user?.fullName || "Guest",gameId:active,score:correct?10:0,accuracy:correct?100:0,streak:nextStreak,bestScore:nextScore,
+        userId:identity,username:user?.username || "guest",fullName:user?.fullName || "Guest",telegramId:user?.telegramId,gameId:active,score:correct?10:0,accuracy:correct?100:0,streak:nextStreak,bestScore:nextScore,
         metadata:{dailyKey:new Date().toISOString().slice(0,10),level:practiceLevel(nextScore),anonymous:!user?.id}
       })});
       if (response.status===429) return;
