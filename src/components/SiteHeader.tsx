@@ -15,6 +15,7 @@ const primaryLinks = [
   { href: "/assistant", label: "راه‌یار AI" },
   { href: "/free-player", label: "آموزش رایگان" },
   { href: "/practice", label: "Practice Engine" },
+  { href: "/music-analyzer", label: "Music Analyzer" },
   { href: "/gallery", label: "گالری خروجی‌ها" },
 ];
 
