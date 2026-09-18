@@ -11,11 +11,26 @@ async function candidates() {
   const providers = getConfiguredProviders();
   const entries = await discoverAllModels();
   const out:Array<{provider:AIProvider;model:string;rank:number}> = [];
+
   for (const entry of entries) {
     const provider = providers.find(p => p.id === entry.provider.id);
     if (!provider) continue;
-    for (const m of entry.models) out.push({ provider, model:m.id, rank:m.rank ?? 0 });
+
+    // Model discovery endpoints are not reliable for every provider (especially
+    // routers/proxies). Always fall back to the provider's configured defaults.
+    const discovered = entry.models?.length ? entry.models : (provider.defaultModels || []).map(model => ({
+      id: model,
+      provider: provider.id,
+      task: "chat" as const,
+      rank: 0,
+    }));
+
+    for (const m of discovered) {
+      if (!m.id) continue;
+      out.push({ provider, model:m.id, rank:m.rank ?? 0 });
+    }
   }
+
   const seen = new Set<string>();
   return out.sort((a,b)=>b.rank-a.rank).filter(c=>{
     const key=`${c.provider.id}::${c.model}`;
@@ -55,7 +70,13 @@ export async function runMultiAgent(task:string, context="", maxAgents=12) {
   // All selected models are invoked concurrently.
   const results=await Promise.all(selected.map(c=>ask(c.provider,c.model,task,context)));
   const successful=results.filter(r=>r.ok && r.reply);
-  if(!successful.length) throw new Error("هیچ Agent فعالی پاسخ نداد.");
+  if(!successful.length) {
+    const diagnostics = results
+      .map(r => `${r.provider}/${r.model}: ${r.error || "empty response"}`)
+      .slice(0, 8)
+      .join(" | ");
+    throw new Error(`هیچ Agent فعالی پاسخ نداد. خطاهای واقعی: ${diagnostics}`);
+  }
 
   const reports=successful.map((r,i)=>`AGENT ${i+1} — ${r.provider} / ${r.model}:
 ${r.reply}`).join("\n\n---\n\n").slice(0,50000);
@@ -141,8 +162,13 @@ export async function runDevelopmentTask(
     for (const entry of entries) {
       const provider = providers.find(p => p.id === entry.provider.id);
       if (!provider) continue;
-      for (const m of entry.models) {
-        if (isChatCapableModelForDevelopment(m.id)) result.push({ provider, model:m.id, rank:m.rank ?? 0 });
+      const models = entry.models?.length
+        ? entry.models
+        : (provider.defaultModels || []).map(model => ({ id: model, rank: 0 }));
+      for (const m of models) {
+        if (m.id && isChatCapableModelForDevelopment(m.id)) {
+          result.push({ provider, model:m.id, rank:m.rank ?? 0 });
+        }
       }
     }
     const seen = new Set<string>();
