@@ -10,11 +10,11 @@ const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_R
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 const MEMBER_DAILY_STAGES = 15;
 
-async function dailyUsage(userId: string) {
+async function dailyUsage(userId: string, gameId: string) {
   if (!db) return 0;
   const start = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
   const end = new Date(start.getTime() + 86400000);
-  const { data } = await db.from("practice_records").select("id").eq("user_id", userId).eq("game_id", String(body.gameId || "unknown")).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
+  const { data } = await db.from("practice_records").select("id").eq("user_id", userId).eq("game_id", gameId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
   return data?.length || 0;
 }
 
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   if (!body.userId || !body.username) return NextResponse.json({ ok: false, error: "اطلاعات کاربر ناقص است." }, { status: 400 });
   try {
-    const usedToday = await dailyUsage(String(body.userId));
+    const usedToday = await dailyUsage(String(body.userId), String(body.gameId || "unknown"));
     if (usedToday >= MEMBER_DAILY_STAGES) {
       return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit: MEMBER_DAILY_STAGES, used: usedToday, remaining: 0 }, { status: 429 });
     }
