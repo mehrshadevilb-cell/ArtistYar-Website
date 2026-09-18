@@ -76,7 +76,7 @@ export async function GET(request: Request) {
   const subscriptionDays = pro && sub?.expires_at
     ? Math.max(1, Math.ceil((new Date(sub.expires_at).getTime() - new Date(sub.created_at || new Date().toISOString()).getTime()) / 86400000))
     : 0;
-  const stageLimit = pro ? subscriptionDays : FREE_STAGE_LIMIT;
+  const stageLimit = pro ? PRO_DAILY_STAGES : FREE_STAGE_LIMIT;
   const dailyLimit = pro ? PRO_DAILY_STAGES : FREE_STAGE_LIMIT;
 
   return NextResponse.json({
