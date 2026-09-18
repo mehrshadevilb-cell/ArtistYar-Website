@@ -319,10 +319,10 @@ Rules:
     );
     const backupResults = await Promise.all(backupCoders.map(async candidate => {
       try {
-        const reply = await chatWithProvider(candidate.provider, candidate.model, [
+        const reply = await withTimeout(chatWithProvider(candidate.provider, candidate.model, [
           { role:"system", content:"تو Coding Agent پروژه ArtistYar-Website هستی. خروجی دقیق و قابل اعمال بده. پاسخ نهایی JSON خالص باشد." },
           { role:"user", content:coderPrompt },
-        ], "artistyar-development-coder-backup"));
+        ], "artistyar-development-coder-backup")));
         const parsed = extractJson<{changes?: ProposedChange[];notes?:string}>(reply);
         const changes = Array.isArray(parsed?.changes)
           ? parsed!.changes.filter(x => x && typeof x.path === "string" && typeof x.content === "string").slice(0, 8)
