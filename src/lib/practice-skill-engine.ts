@@ -88,7 +88,11 @@ export async function recordSkillEvent(input: {
   await db.from("practice_skill_events").insert({
     user_id: input.userId, skill, game_id: input.gameId, xp,
     accuracy: clamp(input.accuracy, 0, 100), difficulty: clamp(Number(input.difficulty) || 0, 0, 500),
-    correct: input.correct, metadata: input.metadata || {},
+    correct: input.correct,
+    response_time_ms: Number(input.metadata?.responseTimeMs) > 0 ? Math.min(60000, Math.round(Number(input.metadata?.responseTimeMs))) : null,
+    session_id: typeof input.metadata?.sessionId === "string" ? input.metadata.sessionId.slice(0, 120) : null,
+    item_key: typeof input.metadata?.itemKey === "string" ? input.metadata.itemKey.slice(0, 240) : null,
+    metadata: input.metadata || {},
   });
   const profile = await db.from("practice_skill_profiles").select("*").eq("user_id", input.userId).maybeSingle();
   const nextXp = Number(profile.data?.total_xp || 0) + xp;
