@@ -4,12 +4,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { AudioLines, CheckCircle2, Download, FileAudio, Loader2, ShieldCheck, Sparkles, Upload, Waves } from "lucide-react";
 
 const presets = [
-  { id: "vocal_balanced", title: "Vocal + Instrumental", body: "UVR-based balanced ensemble for a strong all-around result.", tag: "Recommended" },
-  { id: "vocal_clean", title: "Clean Vocal", body: "Prioritizes vocal isolation and reduced instrumental bleed.", tag: "Vocal" },
-  { id: "instrumental_clean", title: "Clean Instrumental", body: "Prioritizes a clean instrumental / karaoke stem.", tag: "Instrumental" },
-  { id: "instrumental_full", title: "Full Instrumental", body: "Preserves more of the instrumental body and fullness.", tag: "Instrumental" },
-  { id: "karaoke", title: "Karaoke / Lead Vocal", body: "UVR-family karaoke separation with an additional vocal-focused stage.", tag: "Advanced" },
-  { id: "htdemucs_ft", title: "4-Stem Demucs", body: "Vocals, drums, bass and other. Slower, but useful for stem work.", tag: "4-Stem" },
+  { id: "vocal_balanced", title: "Vocal + Instrumental", body: "Browser-based BS-Roformer separation using your device GPU when WebGPU is available.", tag: "WebGPU" },
 ] as const;
 
 export default function SeparatePage() {
