@@ -251,7 +251,12 @@ async function inspectAudio(
 const OPTIONAL_METADATA_FIELDS = ["artist", "album", "genre", "year", "duration", "cover_url"] as const;
 
 function isMissingSchemaColumn(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error !== null && "message" in error
+        ? String((error as { message?: unknown }).message || "")
+        : String(error);
   return /could not find the [^\n]* column|column .* does not exist|schema cache/i.test(message);
 }
 
