@@ -461,7 +461,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       const response = await fetch(url, {
         method: "GET",
         cache: "no-store",
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(3_500),
       });
       if (!response.ok) return fallback(provider.defaultModels || GEMINI_FALLBACK);
       const data = (await response.json().catch(() => null)) as {
@@ -587,7 +587,7 @@ async function chatOpenAICompatible(
       max_tokens: clientId.includes("coding") ? 12000 : 2048,
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(45_000),
+    signal: AbortSignal.timeout(20_000),
   });
 
   const data = (await response.json().catch(() => null)) as {
@@ -790,7 +790,7 @@ export async function autoChat(
 
   type Candidate = { provider: AIProvider; model: string; rank: number };
   const candidates: Candidate[] = [];
-  const discovered = await discoverAllModels();
+  const now = Date.now();\n  let discovered: Awaited<ReturnType<typeof discoverAllModels>>;\n  if (modelDiscoveryCache && modelDiscoveryCache.expiresAt > now) {\n    discovered = modelDiscoveryCache.value;\n  } else {\n    discovered = await discoverAllModels();\n    modelDiscoveryCache = { expiresAt: now + MODEL_DISCOVERY_CACHE_MS, value: discovered };\n  }
 
   for (const entry of discovered) {
     const provider = providers.find((p) => p.id === entry.provider.id);
