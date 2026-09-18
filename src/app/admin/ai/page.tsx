@@ -77,7 +77,12 @@ function copyText(text: string) {
 export default function AdminAiPage() {
   const [data, setData] = useState<AiStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);\n  const [task, setTask] = useState("");\n  const [agentCount, setAgentCount] = useState(12);\n  const [running, setRunning] = useState(false);\n  const [agentRun, setAgentRun] = useState<any>(null);\n  const [agentError, setAgentError] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [task, setTask] = useState("");
+  const [agentCount, setAgentCount] = useState(12);
+  const [running, setRunning] = useState(false);
+  const [agentRun, setAgentRun] = useState<any>(null);
+  const [agentError, setAgentError] = useState<string | null>(null);
   const [devRunning, setDevRunning] = useState(false);
   const [devRun, setDevRun] = useState<any>(null);
   const [devError, setDevError] = useState<string | null>(null);
@@ -97,7 +102,23 @@ export default function AdminAiPage() {
     } catch (error) {
       setDevError(error instanceof Error ? error.message : "اجرای Development Agent ناموفق بود");
     } finally { setDevRunning(false); }
-  };\n\n  const runAgents = async () => {\n    if (!task.trim() || running) return;\n    setRunning(true); setAgentError(null); setAgentRun(null);\n    try {\n      const response = await fetch("/api/ai/agent", {\n        method: "POST", headers: { "Content-Type": "application/json" },\n        body: JSON.stringify({ task: task.trim(), maxAgents: agentCount }),\n      });\n      const json = await response.json();\n      if (!response.ok || !json.ok) throw new Error(json.error || "Agent execution failed");\n      setAgentRun(json);\n    } catch (error) {\n      setAgentError(error instanceof Error ? error.message : "اجرای Multi-Agent ناموفق بود");\n    } finally { setRunning(false); }\n  };
+  };
+
+  const runAgents = async () => {
+    if (!task.trim() || running) return;
+    setRunning(true); setAgentError(null); setAgentRun(null);
+    try {
+      const response = await fetch("/api/ai/agent", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task: task.trim(), maxAgents: agentCount }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.ok) throw new Error(json.error || "Agent execution failed");
+      setAgentRun(json);
+    } catch (error) {
+      setAgentError(error instanceof Error ? error.message : "اجرای Multi-Agent ناموفق بود");
+    } finally { setRunning(false); }
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -203,6 +224,122 @@ export default function AdminAiPage() {
                 ))}
               </div>
             </details>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="card-ay space-y-5 p-5 border border-emerald-400/20">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-medium text-sand-50">🚀 Development Agent · بگو چه بسازم</h3>
+            <span className="rounded-full border border-emerald-400/20 px-2 py-1 text-[10px] text-emerald-400">CODE → APPLY → PR</span>
+          </div>
+          <p className="mt-2 text-xs leading-6 text-ink-500">
+            اینجا فقط سؤال نپرس؛ دقیقاً بگو چه تغییری می‌خواهی. تیم AI پروژه را بررسی می‌کند، plan می‌سازد،
+            چند Agent شروع به کدنویسی می‌کنند، Reviewerها کد را بررسی می‌کنند، تغییرات منتخب روی branch اعمال می‌شود
+            و در پایان Draft PR ساخته می‌شود.
+          </p>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            "این سایت را از نظر UI/UX بررسی کن و مشکلات مهم را رفع کن.",
+            "صفحه خرید دوره‌ها را کامل‌تر و حرفه‌ای‌تر کن.",
+            "مشکلات mobile و responsive سایت را پیدا و برطرف کن.",
+            "یک Feature جدید برای پنل ادمین طراحی و پیاده‌سازی کن.",
+          ].map((example) => (
+            <button
+              key={example}
+              type="button"
+              onClick={() => setTask(example)}
+              className="rounded-xl border border-white/10 bg-black/10 p-3 text-right text-[11px] leading-5 text-ink-400 transition hover:border-gold-400/30 hover:text-sand-50"
+            >
+              {example}
+            </button>
+          ))}
+        </div>
+
+        <textarea
+          value={task}
+          onChange={(e) => setTask(e.target.value)}
+          placeholder="مثلاً: یک سیستم جستجوی پیشرفته برای دوره‌ها اضافه کن؛ UI، API، validation، mobile و performance را هم کامل کن."
+          className="min-h-36 w-full rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-7 text-sand-50 outline-none placeholder:text-ink-600"
+          dir="rtl"
+        />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-ink-400">
+            تعداد Agent:
+            <select
+              value={agentCount}
+              onChange={(e) => setAgentCount(Number(e.target.value))}
+              className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sand-50"
+            >
+              {[4, 8, 12, 16, 20, 24].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+
+          <button
+            type="button"
+            onClick={developTask}
+            disabled={!task.trim() || devRunning}
+            className="btn-ghost !py-2.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {devRunning ? "⏳ تیم AI در حال کدنویسی و اعمال تغییرات…" : "▶ شروع کدنویسی و اعمال تغییرات"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setTask(""); setDevRun(null); setDevError(null); }}
+            disabled={devRunning}
+            className="btn-ghost !py-2.5 text-xs"
+          >
+            پاک کردن
+          </button>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-4 text-[11px]">
+          <div className="rounded-xl border border-white/10 p-3 text-ink-500"><b className="text-sand-50">۱</b> تحلیل کل پروژه</div>
+          <div className="rounded-xl border border-white/10 p-3 text-ink-500"><b className="text-sand-50">۲</b> کدنویسی موازی</div>
+          <div className="rounded-xl border border-white/10 p-3 text-ink-500"><b className="text-sand-50">۳</b> Review و انتخاب</div>
+          <div className="rounded-xl border border-white/10 p-3 text-ink-500"><b className="text-sand-50">۴</b> Apply + Draft PR</div>
+        </div>
+
+        {devError ? <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs leading-6 text-red-400">{devError}</div> : null}
+
+        {devRun ? (
+          <div className="space-y-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-emerald-400">✅ اجرای Development Agent تمام شد</p>
+                <p className="mt-1 text-[11px] text-ink-500">
+                  {devRun.appliedChanges?.length || 0} فایل تغییر کرده · Branch: {devRun.branch || "—"}
+                </p>
+              </div>
+              {devRun.pullRequest?.url ? (
+                <a href={devRun.pullRequest.url} target="_blank" rel="noreferrer" className="btn-ghost !py-2 text-[11px]">
+                  باز کردن Draft PR
+                </a>
+              ) : null}
+            </div>
+
+            {devRun.appliedChanges?.length ? (
+              <div className="rounded-xl border border-white/10 p-3 text-xs leading-6 text-ink-400">
+                <span className="text-sand-50">فایل‌های اعمال‌شده:</span>{" "}
+                {devRun.appliedChanges.join("، ")}
+              </div>
+            ) : null}
+
+            {devRun.reviews?.length ? (
+              <details className="rounded-xl border border-white/10 p-3">
+                <summary className="cursor-pointer text-xs text-sand-50">مشاهده Review Agentها</summary>
+                <div className="mt-3 space-y-2">
+                  {devRun.reviews.map((review: string, i: number) => (
+                    <pre key={i} className="whitespace-pre-wrap text-[11px] leading-6 text-ink-400">{review}</pre>
+                  ))}
+                </div>
+              </details>
+            ) : null}
           </div>
         ) : null}
       </section>
