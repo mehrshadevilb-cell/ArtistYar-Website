@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Vazirmatn } from "next/font/google";
+import "./design-tokens.css";
 import "./globals.css";
 import "./theme-music.css";
 import "./responsive.css";
@@ -110,7 +111,8 @@ const academyJsonLd = {
   url: siteUrl,
   sameAs: [
     "https://www.instagram.com/prodbymehrshad/",
-    "https://t.me/+ZY_tAu75ccs2ZmU0",
+    "https://t.me/ProAudios",
+    "https://t.me/ProAudiosGP",
   ],
   founder: {
     "@type": "Person",

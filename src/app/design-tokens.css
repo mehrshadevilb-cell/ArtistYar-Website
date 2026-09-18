@@ -1,0 +1,212 @@
+/**
+ * ArtistYar Design Tokens — UI/UX Pro Max architecture
+ * Layer 1 Primitive → Layer 2 Semantic → Layer 3 Component
+ * Brand: dark premium music academy · gold accent · RTL Persian
+ */
+
+:root {
+  /* —— Primitive: color —— */
+  --p-ink-950: #0b0b0a;
+  --p-ink-900: #121210;
+  --p-ink-800: #1c1c1a;
+  --p-ink-700: #2a2a27;
+  --p-ink-500: #5f5b53;
+  --p-ink-400: #8f8a80;
+  --p-ink-300: #b5b0a7;
+  --p-sand-50: #f7f1e5;
+  --p-sand-100: #f5efe3;
+  --p-sand-200: #e9e1d2;
+  --p-gold-300: #e8c547;
+  --p-gold-400: #d4af37;
+  --p-gold-500: #c9a227;
+  --p-gold-600: #a8841f;
+  --p-emerald-400: #34d399;
+  --p-red-400: #f87171;
+  --p-white: #ffffff;
+
+  /* —— Primitive: space (4px base) —— */
+  --p-space-1: 0.25rem;
+  --p-space-2: 0.5rem;
+  --p-space-3: 0.75rem;
+  --p-space-4: 1rem;
+  --p-space-5: 1.25rem;
+  --p-space-6: 1.5rem;
+  --p-space-8: 2rem;
+  --p-space-10: 2.5rem;
+  --p-space-12: 3rem;
+  --p-space-16: 4rem;
+  --p-space-20: 5rem;
+  --p-space-24: 6rem;
+  --p-space-28: 7rem;
+
+  /* —— Primitive: radius —— */
+  --p-radius-sm: 0.75rem;
+  --p-radius-md: 1.125rem;
+  --p-radius-lg: 1.5rem;
+  --p-radius-xl: 1.75rem;
+  --p-radius-pill: 9999px;
+
+  /* —— Primitive: motion —— */
+  --p-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --p-ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --p-duration-fast: 120ms;
+  --p-duration-base: 220ms;
+  --p-duration-slow: 400ms;
+
+  /* —— Semantic —— */
+  --color-bg: var(--p-ink-950);
+  --color-bg-elevated: rgba(28, 28, 26, 0.72);
+  --color-bg-sunken: rgba(255, 255, 255, 0.02);
+  --color-fg: var(--p-sand-100);
+  --color-fg-muted: var(--p-ink-400);
+  --color-fg-subtle: var(--p-ink-500);
+  --color-accent: var(--p-gold-500);
+  --color-accent-hover: var(--p-gold-400);
+  --color-accent-soft: rgba(201, 162, 39, 0.14);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-success: var(--p-emerald-400);
+  --color-danger: var(--p-red-400);
+  --color-focus-ring: rgba(240, 194, 92, 0.7);
+
+  --space-section: clamp(3.5rem, 8vw, 7rem);
+  --space-section-tight: clamp(2.5rem, 5vw, 5rem);
+  --content-max: 72rem;
+  --content-readable: 42rem;
+
+  /* —— Component —— */
+  --btn-height: 3.25rem;
+  --btn-height-sm: 2.75rem;
+  --btn-radius: var(--p-radius-pill);
+  --btn-primary-bg: var(--p-gold-500);
+  --btn-primary-fg: var(--p-ink-950);
+  --btn-ghost-bg: rgba(255, 255, 255, 0.04);
+  --btn-ghost-border: var(--color-border-strong);
+
+  --card-radius: var(--p-radius-md);
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: var(--color-border);
+  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -28px rgba(0, 0, 0, 0.7);
+
+  --input-height: 2.9rem;
+  --input-radius: var(--p-radius-sm);
+  --input-bg: rgba(255, 255, 255, 0.035);
+  --input-border: rgba(255, 255, 255, 0.12);
+
+  --header-blur: 40px;
+  --header-bg: rgba(11, 11, 10, 0.55);
+  --z-header: 50;
+  --z-hero-cta: 30;
+  --z-assistant: 70;
+}
+
+/* Light theme semantic overrides */
+html.light,
+html[data-theme="light"] {
+  --color-bg: #f7f1e8;
+  --color-bg-elevated: rgba(255, 255, 255, 0.82);
+  --color-bg-sunken: rgba(0, 0, 0, 0.03);
+  --color-fg: #1a1812;
+  --color-fg-muted: #5f5b53;
+  --color-fg-subtle: #8f8a80;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.14);
+  --header-bg: rgba(247, 241, 232, 0.75);
+  --card-bg: rgba(255, 255, 255, 0.7);
+  --btn-ghost-bg: rgba(0, 0, 0, 0.03);
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --input-border: rgba(0, 0, 0, 0.12);
+}
+
+/* Bridge existing ay-* vars to tokens */
+:root {
+  --ay-bg: var(--color-bg);
+  --ay-elevated: var(--color-bg-elevated);
+  --ay-stroke: var(--color-border);
+  --ay-stroke-bright: var(--color-border-strong);
+  --ay-gold: var(--color-accent);
+  --ay-gold-soft: var(--color-accent-soft);
+  --ay-sand: var(--color-fg);
+  --ay-ink-muted: var(--color-fg-muted);
+  --ay-spring: var(--p-ease-out);
+  --ay-spring-soft: var(--p-ease-spring);
+  --ay-radius-sm: var(--p-radius-sm);
+  --ay-radius-md: var(--p-radius-md);
+  --ay-radius-lg: var(--p-radius-lg);
+  --ay-radius-pill: var(--p-radius-pill);
+}
+
+/* Pro Max surface utilities */
+.u-section {
+  padding-block: var(--space-section);
+}
+
+.u-section-tight {
+  padding-block: var(--space-section-tight);
+}
+
+.u-readable {
+  max-width: var(--content-readable);
+}
+
+.u-surface {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+
+.u-hairline {
+  border-color: var(--color-border);
+}
+
+.u-accent-text {
+  color: var(--color-accent);
+}
+
+.u-muted {
+  color: var(--color-fg-muted);
+}
+
+/* Tighten global section rhythm via tokens */
+.section-space {
+  padding-top: var(--space-section) !important;
+  padding-bottom: var(--space-section) !important;
+}
+
+.section-sub {
+  max-width: var(--content-readable);
+  color: var(--color-fg-muted);
+}
+
+.eyebrow {
+  color: var(--color-accent) !important;
+  letter-spacing: 0.14em;
+}
+
+/* Proof strip redesign — clearer hierarchy */
+.proof-strip {
+  background: var(--color-bg-sunken) !important;
+}
+
+.proof-grid strong {
+  color: var(--color-fg) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.proof-grid span {
+  color: var(--color-fg-subtle) !important;
+}
+
+/* Ensure primary CTA always meets Pro Max touch target */
+.btn-primary,
+.btn-ghost {
+  min-height: var(--btn-height);
+}
+
+@media (max-width: 640px) {
+  .section-space {
+    padding-top: var(--space-section-tight) !important;
+    padding-bottom: var(--space-section-tight) !important;
+  }
+}
