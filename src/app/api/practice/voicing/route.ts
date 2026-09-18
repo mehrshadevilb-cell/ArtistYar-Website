@@ -1,5 +1,7 @@
 import { createHash } from "crypto";
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { USER_SESSION_COOKIE, verifyUserSession } from "@/lib/server-admin-auth";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -39,7 +41,9 @@ function normalize(raw: any, level: number): VoicingQuestion | null {
 }
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const userId = String(body.userId || "anonymous").slice(0,120);
+  const userId = String(body.userId || "").slice(0,120);
+  const session = verifyUserSession((await cookies()).get(USER_SESSION_COOKIE)?.value);
+  if (!session || session.id !== userId) return NextResponse.json({ ok:false, error:"unauthorized" }, { status:401 });
   const level = Math.max(1, Math.min(500, Number(body.level) || 1));
   const dayKey = String(body.dayKey || new Date().toISOString().slice(0,10));
   const recent = Array.isArray(body.recent) ? body.recent.map(String).slice(-30) : [];
