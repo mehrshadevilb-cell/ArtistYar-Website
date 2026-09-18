@@ -230,7 +230,7 @@ export async function runMultiAgent(task: string, context = "", maxAgents = 12) 
     const result = await ask(candidate.provider, candidate.model, task, context);
     results.push(result);
     if (result.ok && result.reply && result.reply.trim().length > 40) { winner = result; break; }
-    if (result.error && isProviderFatal(result.error)) failedProviders.add(result.provider.id);
+    if (result.error && isProviderFatal(result.error)) failedProviders.add(candidate.provider.id);
   }
   if (!winner) {
     const diagnostics = results.map((r) => `${r.provider}/${r.model}: ${r.error || "empty response"}`).slice(0, 12).join(" | ");
