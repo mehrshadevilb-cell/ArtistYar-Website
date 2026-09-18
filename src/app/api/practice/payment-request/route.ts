@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { USER_SESSION_COOKIE, verifyUserSession } from "@/lib/server-admin-auth";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -21,6 +23,8 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const userId = String(body.userId || "").trim();
   const reference = String(body.reference || "").trim().slice(0, 120);
+  const session = verifyUserSession((await cookies()).get(USER_SESSION_COOKIE)?.value);
+  if (!session || session.id !== userId) return NextResponse.json({ ok:false, error:"unauthorized" }, { status:401 });
   if (!userId || !reference) return NextResponse.json({ ok: false, error: "user_and_reference_required" }, { status: 400 });
 
   const { error } = await db.from("practice_payment_requests").insert({
