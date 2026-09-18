@@ -1,58 +1,88 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Award, Check, Flame, Headphones, RotateCcw, Sparkles, Target, X } from "lucide-react";
+import { ChangeEvent, RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { AudioLines, Award, Check, CircleHelp, Ear, FileAudio, Flame, Gamepad2, Headphones, LockKeyhole, Pause, Play, RotateCcw, Sparkles, Target, Upload, Volume2, Waves, X } from "lucide-react";
 import { SectionHeading } from "@/components/SectionHeading";
 
-const drills = [
-  { id: "low-cut", level: "شروع", category: "میکس", title: "پاک‌سازی پایینِ وکال", prompt: "برای کم‌کردن صدای بمِ اضافی وکال، اولین انتخاب منطقی چیست؟", options: ["افزایش ۸۰ هرتز", "High-pass ملایم", "کمپرسور با ratio ۱۰:۱", "افزایش reverb"], answer: 1, explanation: "High-pass ملایم فضای پایین را تمیز می‌کند، بدون اینکه بدنه‌ی طبیعی وکال را نابود کند." },
-  { id: "compressor", level: "شروع", category: "میکس", title: "رفتار کمپرسور", prompt: "اگر attack کمپرسور را خیلی سریع کنیم، معمولاً چه اتفاقی برای ترنزینت می‌افتد؟", options: ["ترنزینت بیشتر برجسته می‌شود", "ترنزینت نرم‌تر و کم‌حجم‌تر می‌شود", "پهنای استریو دو برابر می‌شود", "هیچ تغییری نمی‌کند"], answer: 1, explanation: "Attack سریع ترنزینت را زودتر می‌گیرد و صدای ورودی را نرم‌تر می‌کند." },
-  { id: "headroom", level: "متوسط", category: "مسترینگ", title: "فضای امن میکس", prompt: "چرا قبل از مسترینگ باید headroom کافی باقی بگذاریم؟", options: ["برای افزایش نویز", "برای جلوگیری از clipping و جا دادن پردازش نهایی", "برای حذف پنینگ", "برای کوتاه‌تر شدن آهنگ"], answer: 1, explanation: "فضای خالی به پردازش‌های مسترینگ اجازه می‌دهد بدون clipping و فشار ناخواسته انجام شوند." },
-  { id: "reverb", level: "متوسط", category: "تنظیم", title: "ریورب تمیزتر", prompt: "برای اینکه ریورب وکال مزاحم وضوح کلمات نشود، چه تکنیکی مفید است؟", options: ["افزایش pre-delay یا ducking ریورب", "حذف کامل dry signal", "پان‌کردن همه‌چیز به چپ", "افزایش saturation روی مستر"], answer: 0, explanation: "Pre-delay فضا را از کلمات جدا می‌کند و ducking باعث می‌شود ریورب هنگام اجرای وکال عقب‌تر بنشیند." },
-  { id: "stereo", level: "متوسط", category: "میکس", title: "مرکز میکس", prompt: "کدام عنصر معمولاً بهتر است در مرکز میکس جای بگیرد؟", options: ["وکال اصلی یا kick", "همه‌ی افکت‌ها", "فقط hi-hat", "هیچ‌چیز"], answer: 0, explanation: "عناصر اصلی مثل وکال و kick اغلب مرکز می‌مانند تا تصویر میکس پایدار و قابل ترجمه باشد." },
-  { id: "reference", level: "پیشرفته", category: "گوش", title: "گوش‌دادن مرجع", prompt: "هنگام مقایسه با یک reference track، کدام روش دقیق‌تر است؟", options: ["بلندتر کردن آهنگ خودمان", "مقایسه در ولوم نزدیک و با تغییرات کوتاه A/B", "فقط نگاه‌کردن به waveform", "مقایسه با هدفون خراب"], answer: 1, explanation: "ولوم نزدیک و A/B کوتاه، قضاوت درباره‌ی تعادل، punch و tone را قابل‌اعتمادتر می‌کند." },
+type GameId = "hub" | "tone" | "eq" | "compressor" | "phase" | "personal";
+type Game = { id: Exclude<GameId, "hub" | "personal">; title: string; description: string; icon: typeof Ear; color: string; tag: string };
+
+const games: Game[] = [
+  { id: "tone", title: "فرکانس‌یاب", description: "یک تون مرموز را گوش کن و نزدیک‌ترین فرکانس را پیدا کن.", icon: Ear, color: "text-cyan-300", tag: "EQ / گوش" },
+  { id: "eq", title: "کارآگاه EQ", description: "قبل از دیدن پاسخ، حدس بزن مشکل در کدام ناحیه‌ی فرکانسی است.", icon: Waves, color: "text-gold-300", tag: "میکس" },
+  { id: "compressor", title: "حس کمپرسور", description: "رفتار attack و release را از روی تغییرات صدا تشخیص بده.", icon: AudioLines, color: "text-violet-300", tag: "داینامیک" },
+  { id: "phase", title: "شکارچی فاز", description: "حالت درست و غلط فاز را بشنو و تصویر پایدارتر را انتخاب کن.", icon: Volume2, color: "text-emerald-300", tag: "استریو" },
 ];
 
-type Result = { correct: boolean; selected: number };
-const STORAGE_KEY = "artistyar_practice_progress";
+const toneRounds = [
+  { frequency: 110, options: [80, 110, 180, 260] },
+  { frequency: 440, options: [220, 330, 440, 660] },
+  { frequency: 1200, options: [700, 900, 1200, 1800] },
+  { frequency: 4200, options: [2400, 3200, 4200, 6000] },
+];
+const eqRounds = [
+  { answer: "زیر ۱۰۰Hz", prompt: "میکس گل‌آلود است و kick فضای زیادی اشغال کرده.", hint: "به low-end و rumble فکر کن." },
+  { answer: "حدود ۳kHz", prompt: "وکال تیز و خسته‌کننده شنیده می‌شود.", hint: "حضور و edge معمولاً این اطراف است." },
+  { answer: "حدود ۱۰kHz", prompt: "میکس کدر است و هوا کم دارد.", hint: "به high-shelf و air فکر کن." },
+  { answer: "حدود ۲۵۰Hz", prompt: "سازها جعبه‌ای و پر از mud هستند.", hint: "بدنه‌ی پایینِ میانی را بررسی کن." },
+];
+const phaseOptions = ["مرکز و محکم", "پهن اما ناپایدار", "کاملاً بی‌صدا", "فقط در سمت چپ"];
+
+function formatFrequency(value: number) { return value >= 1000 ? `${value / 1000}kHz` : `${value}Hz`; }
+
+function playTone(frequency: number, duration = 1.3) {
+  if (typeof window === "undefined") return;
+  const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextClass) return;
+  const context = new AudioContextClass();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = "sine"; oscillator.frequency.value = frequency;
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.22, context.currentTime + 0.04);
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + duration);
+  oscillator.connect(gain).connect(context.destination); oscillator.start(); oscillator.stop(context.currentTime + duration + 0.05);
+  window.setTimeout(() => void context.close(), (duration + 0.2) * 1000);
+}
 
 export default function PracticePage() {
-  const [level, setLevel] = useState("همه");
-  const [index, setIndex] = useState(0);
-  const [results, setResults] = useState<Record<string, Result>>({});
+  const [active, setActive] = useState<GameId>("hub");
+  const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [finished, setFinished] = useState(false);
-  const available = useMemo(() => level === "همه" ? drills : drills.filter((drill) => drill.level === level), [level]);
-  const current = available[index % Math.max(available.length, 1)];
-  const currentResult = current ? results[current.id] : undefined;
-  const answered = Object.keys(results).length;
-  const correctCount = Object.values(results).filter((result) => result.correct).length;
+  const [toneRound, setToneRound] = useState(0);
+  const [toneAnswer, setToneAnswer] = useState<number | null>(null);
+  const [eqRound, setEqRound] = useState(0);
+  const [eqAnswer, setEqAnswer] = useState<string | null>(null);
+  const [phaseAnswer, setPhaseAnswer] = useState<number | null>(null);
+  const [personalUrl, setPersonalUrl] = useState("");
+  const [personalName, setPersonalName] = useState("");
+  const personalAudio = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); setStreak(Number(saved.streak) || 0); } catch { /* optional local progress */ }
-  }, []);
+  useEffect(() => { try { const saved = JSON.parse(localStorage.getItem("artistyar_arcade_score") || "{}"); setScore(Number(saved.score) || 0); setStreak(Number(saved.streak) || 0); } catch { /* local-only progress is optional */ } }, []);
+  function record(correct: boolean) { const nextScore = score + (correct ? 10 : 0); const nextStreak = correct ? streak + 1 : 0; setScore(nextScore); setStreak(nextStreak); localStorage.setItem("artistyar_arcade_score", JSON.stringify({ score: nextScore, streak: nextStreak })); }
+  function uploadPersonal(event: ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file) return; if (personalUrl) URL.revokeObjectURL(personalUrl); setPersonalUrl(URL.createObjectURL(file)); setPersonalName(file.name); }
+  function resetGame() { setToneAnswer(null); setEqAnswer(null); setPhaseAnswer(null); }
 
-  function choose(option: number) {
-    if (!current || currentResult) return;
-    const correct = option === current.answer;
-    const next = { ...results, [current.id]: { correct, selected: option } };
-    setResults(next); setStreak((value) => correct ? value + 1 : value);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ streak: correct ? streak + 1 : streak, updatedAt: new Date().toISOString() }));
-  }
-
-  function next() {
-    if (index + 1 >= available.length) setFinished(true); else setIndex((value) => value + 1);
-  }
-
-  function reset() { setIndex(0); setResults({}); setFinished(false); }
-  function changeLevel(value: string) { setLevel(value); setIndex(0); setResults({}); setFinished(false); }
-
-  return <main className="container-ay relative py-12 sm:py-16"><div className="route-ambient route-ambient-one" aria-hidden="true" /><SectionHeading eyebrow="تمرین‌خانه / Practice Lab" title="هر روز کمی بهتر بشنو." subtitle="تمرین‌های کوتاه و پروژه‌محور برای تقویت تصمیم‌های میکس، تنظیم و گوش موسیقی؛ بدون فشار، اما با تکرار." />
-    <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-      <section className="space-y-5" aria-label="تمرین فعال">
-        {finished ? <div className="card-ay p-8 text-center sm:p-12"><Award className="mx-auto text-gold-400" size={34} /><p className="eyebrow mt-5">جلسه کامل شد</p><h1 className="mt-3 text-2xl font-semibold text-sand-50">{correctCount} از {available.length} پاسخ درست</h1><p className="mx-auto mt-3 max-w-md text-sm leading-7 text-ink-400">تمرین بعدی را فردا تکرار کن و سعی کن قبل از دیدن پاسخ، دلیل انتخابت را با صدای بلند توضیح بدهی.</p><button type="button" className="btn-primary mt-7 gap-2" onClick={reset}><RotateCcw size={16} />شروع دوباره</button></div> : current ? <div className="card-ay p-5 sm:p-8"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><span className="rounded-full border border-gold-400/25 bg-gold-400/10 px-3 py-1 text-[11px] text-gold-300">{current.category}</span><span className="text-xs text-ink-500">سطح {current.level}</span></div><span className="font-mono text-xs text-ink-500">{index + 1} / {available.length}</span></div><div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/[.07]"><div className="h-full rounded-full bg-gold-400 transition-[width] duration-300" style={{ width: `${((index + 1) / available.length) * 100}%` }} /></div><h1 className="mt-8 text-2xl font-semibold text-sand-50">{current.title}</h1><p className="mt-3 text-base leading-8 text-ink-300">{current.prompt}</p><div className="mt-7 grid gap-3 sm:grid-cols-2">{current.options.map((option, optionIndex) => { const selected = currentResult?.selected === optionIndex; const correct = current.answer === optionIndex; const state = currentResult ? correct ? "border-emerald-400/45 bg-emerald-400/10 text-emerald-200" : selected ? "border-red-400/40 bg-red-400/10 text-red-200" : "border-white/[.06] text-ink-500" : "border-white/[.08] bg-white/[.025] text-ink-200 hover:border-gold-400/40 hover:bg-gold-400/[.06]"; return <button key={option} type="button" className={`rounded-2xl border p-4 text-right text-sm leading-7 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 ${state}`} onClick={() => choose(optionIndex)} disabled={Boolean(currentResult)}><span className="flex items-center gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[.07] font-mono text-xs">{String.fromCharCode(65 + optionIndex)}</span>{option}{currentResult && correct ? <Check className="mr-auto shrink-0" size={17} /> : null}{currentResult && selected && !correct ? <X className="mr-auto shrink-0" size={17} /> : null}</span></button>; })}</div>{currentResult ? <div className={`mt-6 rounded-2xl border p-4 text-sm leading-7 ${currentResult.correct ? "border-emerald-400/20 bg-emerald-400/[.06] text-emerald-200" : "border-gold-400/20 bg-gold-400/[.06] text-sand-200"}`}><strong>{currentResult.correct ? "درست بود. " : "نزدیک بود. "}</strong>{current.explanation}</div> : <p className="mt-6 flex items-center gap-2 text-xs text-ink-500"><Headphones size={14} className="text-gold-400" />قبل از انتخاب، دلیل هر گزینه را در ذهنت مرور کن.</p>}{currentResult ? <button type="button" className="btn-primary mt-6 gap-2" onClick={next}>{index + 1 === available.length ? "دیدن نتیجه" : "تمرین بعدی"}<Target size={15} /></button> : null}</div> : null}
-      </section>
-      <aside className="space-y-4"><div className="card-ay p-5"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-400/10 text-orange-300"><Flame size={19} /></span><div><p className="text-xs text-ink-500">زنجیره‌ی شخصی</p><p className="mt-1 text-xl font-semibold text-sand-50">{streak} پاسخ درست</p></div></div><p className="mt-4 text-xs leading-6 text-ink-500">پیشرفت این تمرین‌ها روی همین دستگاه ذخیره می‌شود.</p></div><div className="card-ay p-5"><div className="flex items-center gap-2"><Sparkles size={16} className="text-gold-400" /><h2 className="text-sm font-medium text-sand-50">سطح تمرین</h2></div><div className="mt-4 flex flex-wrap gap-2">{["همه", "شروع", "متوسط", "پیشرفته"].map((item) => <button key={item} type="button" className={`rounded-full border px-3 py-2 text-xs transition ${level === item ? "border-gold-400/45 bg-gold-400/10 text-gold-300" : "border-white/10 text-ink-400 hover:border-white/25 hover:text-sand-100"}`} onClick={() => changeLevel(item)}>{item}</button>)}</div></div><div className="rounded-2xl border border-gold-400/15 bg-gold-400/[.045] p-5 text-sm leading-7 text-ink-300"><strong className="text-sand-50">قانون طلایی</strong><p className="mt-2">پاسخ درست مهم است، اما توضیح‌دادنِ دلیل پاسخ است که گوش تو را حرفه‌ای می‌کند.</p></div></aside>
-    </div>
+  return <main className="container-ay relative py-12 sm:py-16"><div className="route-ambient route-ambient-one" aria-hidden="true" /><SectionHeading eyebrow="تمرین‌خانه / Practice Arcade" title="گوشَت را مثل یک ساز تمرین بده." subtitle="بازی‌های کوتاه و شنیداری برای میکس، EQ، داینامیک و فاز؛ بدون اکانت، بدون رتبه‌بندی مصنوعی، فقط تمرین واقعی." />
+    <div className="mt-8 flex flex-wrap items-center gap-3"><div className="card-ay flex items-center gap-3 px-4 py-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-400/10 text-gold-300"><Award size={18} /></span><span><span className="block text-[11px] text-ink-500">امتیاز امروز</span><strong className="text-lg text-sand-50">{score}</strong></span></div><div className="card-ay flex items-center gap-3 px-4 py-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-400/10 text-orange-300"><Flame size={18} /></span><span><span className="block text-[11px] text-ink-500">زنجیره</span><strong className="text-lg text-sand-50">{streak}</strong></span></div><span className="flex items-center gap-2 text-xs text-ink-500"><LockKeyhole size={14} className="text-gold-400" />پیشرفت فقط روی همین دستگاه ذخیره می‌شود.</span></div>
+    {active === "hub" ? <Hub onSelect={(id) => { resetGame(); setActive(id); }} /> : active === "personal" ? <Personal url={personalUrl} name={personalName} audioRef={personalAudio} onUpload={uploadPersonal} onBack={() => setActive("hub")} /> : <GameStage active={active} toneRound={toneRound} setToneRound={setToneRound} toneAnswer={toneAnswer} setToneAnswer={(value) => { setToneAnswer(value); record(value === toneRounds[toneRound].frequency); }} eqRound={eqRound} setEqRound={setEqRound} eqAnswer={eqAnswer} setEqAnswer={(value) => { setEqAnswer(value); record(value === eqRounds[eqRound].answer); }} phaseAnswer={phaseAnswer} setPhaseAnswer={(value) => { setPhaseAnswer(value); record(value === 0); }} onBack={() => setActive("hub")} onReset={resetGame} />}
   </main>;
 }
+
+function Hub({ onSelect }: { onSelect: (id: GameId) => void }) {
+  return <div className="mt-10 space-y-6"><div className="grid gap-4 md:grid-cols-2">{games.map((game) => { const Icon = game.icon; return <button key={game.id} type="button" className="card-ay group p-6 text-right transition duration-300 hover:-translate-y-1 hover:border-gold-400/35" onClick={() => onSelect(game.id)}><div className="flex items-start justify-between gap-4"><span className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[.05] ${game.color}`}><Icon size={23} /></span><span className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-ink-500">{game.tag}</span></div><h2 className="mt-6 text-xl font-medium text-sand-50">{game.title}</h2><p className="mt-2 max-w-md text-sm leading-7 text-ink-400">{game.description}</p><span className="mt-6 inline-flex items-center gap-2 text-xs text-gold-300">شروع بازی <Play size={13} fill="currentColor" /></span></button>; })}</div><button type="button" className="card-ay group flex w-full flex-col items-start gap-4 p-6 text-right transition hover:border-gold-400/35 sm:flex-row sm:items-center" onClick={() => onSelect("personal")}><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300"><FileAudio size={23} /></span><span className="flex-1"><span className="eyebrow">تمرین شخصی / بدون آپلود</span><strong className="mt-2 block text-lg text-sand-50">فایل خودت را وارد کن و A/B تمرین کن</strong><span className="mt-1 block text-sm leading-7 text-ink-400">یک فایل صوتی را فقط در مرورگر باز کن، بخش‌های مختلفش را loop کن و با هدف مشخص گوش بده.</span></span><Upload size={18} className="text-gold-300" /></button><div className="grid gap-4 rounded-2xl border border-gold-400/15 bg-gold-400/[.045] p-5 text-sm leading-7 text-ink-300 md:grid-cols-3"><p><strong className="text-sand-50">۱. گوش بده</strong><br />اول با گوش تصمیم بگیر، بعد سراغ analyzer برو.</p><p><strong className="text-sand-50">۲. حدس بزن</strong><br />پاسخ اولت را ثبت کن و از دیدن جواب نترس.</p><p><strong className="text-sand-50">۳. تکرار کن</strong><br />رکورد تو روی همین دستگاه می‌ماند و نیاز به حساب ندارد.</p></div></div>;
+}
+
+function GameStage({ active, toneRound, setToneRound, toneAnswer, setToneAnswer, eqRound, setEqRound, eqAnswer, setEqAnswer, phaseAnswer, setPhaseAnswer, onBack, onReset }: { active: Exclude<GameId, "hub" | "personal">; toneRound: number; setToneRound: (value: number) => void; toneAnswer: number | null; setToneAnswer: (value: number) => void; eqRound: number; setEqRound: (value: number) => void; eqAnswer: string | null; setEqAnswer: (value: string) => void; phaseAnswer: number | null; setPhaseAnswer: (value: number) => void; onBack: () => void; onReset: () => void }) {
+  const game = games.find((item) => item.id === active)!;
+  const Icon = game.icon;
+  const solved = active === "tone" ? toneAnswer !== null : active === "eq" ? eqAnswer !== null : phaseAnswer !== null;
+  const next = () => { onReset(); if (active === "tone") setToneRound((toneRound + 1) % toneRounds.length); if (active === "eq") setEqRound((eqRound + 1) % eqRounds.length); };
+  return <section className="mt-10"><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت به آرکید</button><span className="flex items-center gap-2 text-xs text-ink-500"><Icon size={15} className={game.color} />{game.title}</span></div><div className="card-ay p-6 sm:p-10"><div className="mx-auto max-w-2xl text-center"><span className={`mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white/[.05] ${game.color}`}><Icon size={30} /></span><p className="eyebrow mt-6">{game.tag}</p>{active === "tone" ? <ToneGame round={toneRounds[toneRound]} answer={toneAnswer} onAnswer={setToneAnswer} /> : active === "eq" ? <EqGame round={eqRounds[eqRound]} answer={eqAnswer} onAnswer={setEqAnswer} /> : <PhaseGame answer={phaseAnswer} onAnswer={setPhaseAnswer} />}{solved ? <button type="button" className="btn-primary mt-7 gap-2" onClick={next}>راند بعدی <Target size={15} /></button> : null}<p className="mt-8 flex items-center justify-center gap-2 text-xs text-ink-500"><Headphones size={14} className="text-gold-400" />با هدفون یا مانیتور در ولوم امن تمرین کن.</p></div></div></section>;
+}
+
+function ToneGame({ round, answer, onAnswer }: { round: typeof toneRounds[number]; answer: number | null; onAnswer: (value: number) => void }) { return <><h1 className="mt-5 text-2xl font-semibold text-sand-50">کدام فرکانس را شنیدی؟</h1><p className="mt-3 text-sm leading-7 text-ink-400">دکمه‌ی پخش را بزن، با دقت گوش کن و نزدیک‌ترین گزینه را انتخاب کن.</p><button type="button" className="btn-primary mt-7 gap-2" onClick={() => playTone(round.frequency)}><Play size={16} fill="currentColor" />پخش تون مرموز</button><div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4">{round.options.map((option) => <button type="button" key={option} className={`rounded-xl border p-3 text-sm transition ${answer === option ? option === round.frequency ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-200" : "border-red-400/40 bg-red-400/10 text-red-200" : "border-white/10 text-ink-300 hover:border-gold-400/40"}`} onClick={() => onAnswer(option)} disabled={answer !== null}>{formatFrequency(option)}{answer !== null && option === round.frequency ? <Check className="mx-auto mt-1" size={14} /> : null}</button>)}</div>{answer !== null ? <p className="mt-5 text-sm text-ink-300">فرکانس درست: <strong className="text-gold-300">{formatFrequency(round.frequency)}</strong></p> : null}</>; }
+function EqGame({ round, answer, onAnswer }: { round: typeof eqRounds[number]; answer: string | null; onAnswer: (value: string) => void }) { const options = ["زیر ۱۰۰Hz", "حدود ۲۵۰Hz", "حدود ۳kHz", "حدود ۱۰kHz"]; return <><h1 className="mt-5 text-2xl font-semibold text-sand-50">کارآگاه EQ</h1><p className="mt-4 rounded-2xl border border-white/[.08] bg-white/[.03] p-5 text-sm leading-8 text-sand-100">«{round.prompt}»</p><p className="mt-4 text-xs text-ink-500">{round.hint}</p><div className="mt-6 grid gap-3 sm:grid-cols-2">{options.map((option) => <button type="button" key={option} className={`rounded-xl border p-4 text-sm transition ${answer ? option === round.answer ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-200" : answer === option ? "border-red-400/40 bg-red-400/10 text-red-200" : "border-white/10 text-ink-500" : "border-white/10 text-ink-300 hover:border-gold-400/40"}`} onClick={() => onAnswer(option)} disabled={Boolean(answer)}>{option}</button>)}</div>{answer ? <p className="mt-5 text-sm text-ink-300">ناحیه‌ی پیشنهادی: <strong className="text-gold-300">{round.answer}</strong></p> : null}</>; }
+function PhaseGame({ answer, onAnswer }: { answer: number | null; onAnswer: (value: number) => void }) { return <><h1 className="mt-5 text-2xl font-semibold text-sand-50">شکارچی فاز</h1><p className="mt-3 text-sm leading-7 text-ink-400">دو حالت تصویر استریو را تصور کن. کدام گزینه نشانه‌ی فاز پایدارتر و قابل‌اعتمادتر است؟</p><div className="mt-7 grid gap-3 sm:grid-cols-2">{phaseOptions.map((option, index) => <button type="button" key={option} className={`rounded-xl border p-4 text-sm transition ${answer !== null ? index === 0 ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-200" : answer === index ? "border-red-400/40 bg-red-400/10 text-red-200" : "border-white/10 text-ink-500" : "border-white/10 text-ink-300 hover:border-gold-400/40"}`} onClick={() => onAnswer(index)} disabled={answer !== null}>{option}</button>)}</div>{answer !== null ? <p className="mt-5 text-sm leading-7 text-ink-300">در میکس مونو، مرکز و محکم‌بودن معمولاً نشانه‌ی امن‌تری است؛ با correlation meter هم بررسی کن.</p> : null}</>; }
+
+function Personal({ url, name, audioRef, onUpload, onBack }: { url: string; name: string; audioRef: RefObject<HTMLAudioElement | null>; onUpload: (event: ChangeEvent<HTMLInputElement>) => void; onBack: () => void }) { return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت به آرکید</button><div className="card-ay mt-5 p-6 sm:p-10"><div className="mx-auto max-w-2xl text-center"><FileAudio className="mx-auto text-emerald-300" size={34} /><p className="eyebrow mt-5">تمرین شخصی / Local only</p><h1 className="mt-3 text-2xl font-semibold text-sand-50">فایل خودت را دقیق‌تر گوش کن.</h1><p className="mt-3 text-sm leading-8 text-ink-400">فایل فقط در مرورگر تو باز می‌شود و به سرور یا اکانت ارسال نمی‌شود. از loop و مقایسه‌ی چندباره برای پیدا کردن یک مسئله‌ی مشخص استفاده کن.</p><label className="btn-primary mt-7 cursor-pointer gap-2"><Upload size={16} />انتخاب فایل صوتی<input className="sr-only" type="file" accept="audio/*,video/*" onChange={onUpload} /></label>{url ? <div className="mt-8 rounded-2xl border border-emerald-400/20 bg-emerald-400/[.06] p-5"><p className="truncate text-sm text-emerald-200">{name}</p><audio ref={audioRef} className="mt-4 w-full" controls src={url} /></div> : <div className="mt-8 flex items-center justify-center gap-2 text-xs text-ink-500"><CircleHelp size={14} />پیشنهاد: یک loop هشت‌میزانی انتخاب کن و فقط یک موضوع را بررسی کن.</div>}<div className="mt-8 grid gap-3 text-right sm:grid-cols-3"><div className="rounded-xl bg-white/[.03] p-3 text-xs leading-6 text-ink-400"><strong className="text-sand-100">A</strong><br />صدای خام</div><div className="rounded-xl bg-white/[.03] p-3 text-xs leading-6 text-ink-400"><strong className="text-sand-100">B</strong><br />بعد از تغییر</div><div className="rounded-xl bg-white/[.03] p-3 text-xs leading-6 text-ink-400"><strong className="text-sand-100">یادداشت</strong><br />یک جمله بنویس</div></div></div></div></section>; }
