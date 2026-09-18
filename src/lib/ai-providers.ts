@@ -384,6 +384,22 @@ export function getConfiguredProviders(): AIProvider[] {
   return providers;
 }
 
+async function readJsonResponse<T>(response: Response): Promise<T | null> {
+  const raw = await response.text();
+  if (!raw.trim()) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    const contentType = response.headers.get("content-type") || "";
+    const preview = raw.replace(/\\s+/g, " ").slice(0, 220);
+    throw new Error(
+      contentType.includes("text/html")
+        ? `Provider returned HTML instead of JSON (HTTP ${response.status}): ${preview}`
+        : `Provider returned invalid JSON (HTTP ${response.status}): ${preview}`,
+    );
+  }
+}
+
 function authHeaders(provider: AIProvider): HeadersInit {
   const key = provider.apiKey || "";
   if (!key) return { "Content-Type": "application/json" };
@@ -443,7 +459,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
         cache: "no-store",
         signal: AbortSignal.timeout(8_000),
       });
-      const data = (await response.json().catch(() => null)) as {
+      const data = await readJsonResponse<{
         agent_status?: string;
       } | null;
       if (!response.ok) return [];
