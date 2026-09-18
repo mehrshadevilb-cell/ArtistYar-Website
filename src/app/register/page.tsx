@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { CommunityLinks } from "@/components/CommunityLinks";
 
 const errorMessages: Record<string, string> = {
   invalid_phone: "شماره موبایل معتبر نیست.",
@@ -54,19 +55,67 @@ export default function RegisterPage() {
   }
 
   return (
-    <section className="container-ay flex justify-center py-16">
-      <div className="card-ay w-full max-w-md p-8">
-        <p className="text-xs font-medium uppercase tracking-[.22em] text-gold-500">شروع مسیر</p>
-        <h1 className="mt-3 text-2xl font-semibold text-sand-50">ثبت‌نام هنرجو</h1>
-        <p className="mt-2 text-sm leading-7 text-ink-400">فقط نام، شماره موبایل و یک رمز عبور انتخاب کن. اگر این شماره فقط در SpotPlayer یا ربات ثبت شده باشد، اولین ثبت‌نام سایت همان سابقه و دسترسی‌ها را به حساب تو متصل می‌کند.</p>
-        <form className="mt-8 space-y-4" onSubmit={onSubmit}>
-          <label className="block"><span className="mb-2 block text-xs text-ink-400">نام و نام خانوادگی</span><input className="input-ay" name="fullName" autoComplete="name" required minLength={2} /></label>
-          <label className="block"><span className="mb-2 block text-xs text-ink-400">شماره موبایل</span><input className="input-ay" name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="0912…" required minLength={10} /></label>
-          <label className="block"><span className="mb-2 block text-xs text-ink-400">انتخاب رمز عبور</span><input className="input-ay" type="password" name="password" autoComplete="new-password" required minLength={6} /></label>
-          {error ? <p className="text-sm leading-6 text-red-400" role="alert">{error}</p> : null}
-          <button type="submit" className="btn-primary w-full" disabled={loading}>{loading ? "در حال ثبت‌نام…" : "ثبت‌نام و ورود"}</button>
-        </form>
-        <p className="mt-6 text-center text-xs text-ink-500">قبلاً ثبت‌نام کرده‌اید؟ <Link href="/login" className="text-gold-400">ورود</Link></p>
+    <section className="container-ay flex justify-center py-14 sm:py-16">
+      <div className="w-full max-w-md space-y-6">
+        <div className="card-ay p-7 sm:p-8">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-gold-500">شروع مسیر</p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-sand-50">ثبت‌نام هنرجو</h1>
+          <p className="mt-2 text-sm leading-7 text-ink-400">
+            فقط نام، شماره موبایل و یک رمز عبور انتخاب کن. اگر این شماره فقط در SpotPlayer یا ربات ثبت شده باشد، اولین
+            ثبت‌نام سایت همان سابقه و دسترسی‌ها را به حساب تو متصل می‌کند.
+          </p>
+          <form className="mt-8 space-y-4" onSubmit={onSubmit}>
+            <label className="block">
+              <span className="mb-2 block text-xs text-ink-400">نام و نام خانوادگی</span>
+              <input className="input-ay" name="fullName" autoComplete="name" required minLength={2} />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs text-ink-400">شماره موبایل</span>
+              <input
+                className="input-ay"
+                name="phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="0912…"
+                required
+                minLength={10}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs text-ink-400">انتخاب رمز عبور</span>
+              <input
+                className="input-ay"
+                type="password"
+                name="password"
+                autoComplete="new-password"
+                required
+                minLength={6}
+              />
+            </label>
+            {error ? (
+              <p className="text-sm leading-6 text-red-400" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <button type="submit" className="btn-primary w-full min-h-[52px]" disabled={loading}>
+              {loading ? "در حال ثبت‌نام…" : "ثبت‌نام و ورود"}
+            </button>
+          </form>
+          <p className="mt-6 text-center text-xs text-ink-500">
+            قبلاً ثبت‌نام کرده‌اید؟{" "}
+            <Link href="/login" className="text-gold-400 hover:text-gold-300">
+              ورود
+            </Link>
+          </p>
+        </div>
+
+        <div className="px-1">
+          <p className="mb-3 text-center text-[10px] font-medium uppercase tracking-[0.16em] text-ink-500">
+            جامعه و منابع
+          </p>
+          <CommunityLinks variant="pills" className="justify-center" />
+        </div>
       </div>
     </section>
   );
