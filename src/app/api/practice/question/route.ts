@@ -88,7 +88,7 @@ async function generate(gameId: GameId, level: number, recent: string[]) {
     }),
   );
   const candidates = results
-    .filter((r): r is PromiseFulfilledResult<{question: GeneratedQuestion; provider: string; model: string}> => r.status === "fulfilled")
+    .filter(r => r.status === "fulfilled")
     .map(r => r.value);
 
   if (!candidates.length) return fallback(gameId, level);
