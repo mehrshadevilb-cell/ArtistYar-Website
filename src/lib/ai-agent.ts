@@ -10,13 +10,14 @@ export type AgentResult = {
 };
 
 const ANALYSIS_TIMEOUT_MS = 45_000;
-const CODING_TIMEOUT_MS = 70_000;
-const REVIEW_TIMEOUT_MS = 40_000;
+const CODING_TIMEOUT_MS = 110_000;
+const REVIEW_TIMEOUT_MS = 50_000;
 const DISCOVERY_CACHE_MS = 30_000;
 const MAX_CONTEXT_CHARS = 28_000;
 const MAX_FILE_CHARS = 22_000;
 const MAX_PATHS = 18;
 const MAX_CHANGES_PER_PROPOSAL = 10;
+const CODING_MAX_OUTPUT_CHARS = 180_000;
 const HARD_MAX_AGENTS = 16;
 
 type AgentCandidate = { provider: AIProvider; model: string; rank: number };
@@ -286,7 +287,7 @@ async function parseCoderReply(
   reply: string,
   agentLabel: string,
 ): Promise<{ agent: string; changes: ProposedChange[]; notes?: string }> {
-  let parsed = extractJson<{ changes?: ProposedChange[]; notes?: string }>(reply);
+  let parsed = extractJson<{ changes?: ProposedChange[]; notes?: string }>(reply.slice(0, CODING_MAX_OUTPUT_CHARS));
   if (!parsed?.changes?.length && reply.length > 80) {
     try {
       const repair = await autoChat(
@@ -394,12 +395,12 @@ export async function runDevelopmentTask(
   if (!allCandidates.length) throw new Error("هیچ Agent کدنویسی فعالی پیدا نشد.");
   const desiredCoders = Math.min(6, Math.max(2, Math.floor(capped / 3)));
   const coderPrompt = `TASK:\n${task}\n\nLEAD PLAN:\n${planning.synthesis.reply}\n\nREPOSITORY FILES:\n${projectContext}\n\nYou are a coding specialist for ArtistYar-Website (Next.js + TypeScript).\nProduce a concrete implementation proposal.\n\nReturn ONLY valid JSON (no markdown fences required but allowed):\n{"changes":[{"path":"src/...","content":"COMPLETE FILE CONTENT","reason":"why"}],"notes":"..."}\n\nRules:\n- Only propose files that need changing.\n- Content must be the COMPLETE replacement content, never a diff or partial snippet.\n- Preserve existing behavior unless the task requires changing it.\n- Do not invent dependencies, secrets, or env vars.\n- Do not modify lockfiles or .env files.\n- Keep TypeScript/Next.js conventions and existing import style.\n- Prefer minimal focused changes over large rewrites.\n`;
-  const coderPool = allCandidates.slice(0, Math.min(allCandidates.length, Math.max(16, capped * 2)));
+  const coderPool = allCandidates.slice(0, Math.min(allCandidates.length, Math.max(20, capped * 3)));
   const coderResults: Array<{ agent: string; changes: ProposedChange[]; notes?: string; score?: number }> = [];
   const failedCoderProviders = new Set<string>();
-  const targetUsable = 2;
-  for (let offset = 0; offset < coderPool.length && coderResults.filter((p) => p.changes.length).length < targetUsable; offset += 6) {
-    const wave = coderPool.slice(offset, offset + 6).filter((c) => !failedCoderProviders.has(c.provider.id));
+  const targetUsable = 1;
+  for (let offset = 0; offset < coderPool.length && coderResults.filter((p) => p.changes.length).length < targetUsable; offset += 8) {
+    const wave = coderPool.slice(offset, offset + 8).filter((c) => !failedCoderProviders.has(c.provider.id));
     if (!wave.length) continue;
     const waveResults = await Promise.all(
       wave.map(async (candidate) => {
@@ -434,7 +435,7 @@ export async function runDevelopmentTask(
   }
   let usable = coderResults.filter((p) => p.changes.length).sort((a, b) => (b.score || 0) - (a.score || 0));
   if (!usable.length && allCandidates.length > desiredCoders) {
-    const backup = allCandidates.slice(desiredCoders, Math.min(allCandidates.length, desiredCoders + 8));
+    const backup = allCandidates.slice(desiredCoders, Math.min(allCandidates.length, desiredCoders + 12));
     const backupResults = await Promise.all(
       backup.map(async (candidate) => {
         const label = `${candidate.provider.id}/${candidate.model}`;
