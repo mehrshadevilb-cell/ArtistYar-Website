@@ -20,7 +20,6 @@ export type AIProvider = {
   modelsRequireAuth: boolean;
   authScheme: "bearer" | "raw" | "anthropic" | "google";
   chatStyle: "openai" | "anthropic" | "google" | "rahyar";
-  /** Optional fixed models when /models is unavailable */
   defaultModels?: string[];
 };
 
@@ -68,6 +67,12 @@ const MODEL_RANK: Record<string, number> = {
   "grok-2-latest": 90,
   "grok-3": 97,
   "grok-3-mini": 80,
+  "Qwen/Qwen3-4B": 72,
+  "Qwen/Qwen2.5-72B-Instruct": 85,
+  "llama3.2": 70,
+  "llama3.1": 75,
+  "mistral": 68,
+  "gemma2": 68,
 };
 
 function rankForModel(id: string): number {
@@ -78,20 +83,11 @@ function rankForModel(id: string): number {
       return rank - 2;
     }
   }
-  if (/gpt-4|claude|gemini-2|llama-3\.3|70b|sonnet|pro|grok-3|deepseek-r/i.test(id)) return 80;
+  if (/gpt-4|claude|gemini-2|llama-3\.3|70b|sonnet|pro|grok-3|deepseek-r|qwen2\.5/i.test(id)) return 80;
   if (/mini|flash|haiku|8b|instant|lite|small/i.test(id)) return 60;
   return 40;
 }
 
-function isChatCapableModel(id: string): boolean {
-  return !/embed|whisper|tts|dall-e|moderation|realtime|audio|image|vision-preview|transcribe|sora|batch|search-preview|diarize|codex|computer-use|image-generation|:free$/i.test(
-    id,
-  )
-    ? !/:free$/i.test(id) || true
-    : false;
-}
-
-// Slightly looser: allow openrouter free models if needed
 function isChatCapableModelStrict(id: string): boolean {
   if (
     /embed|whisper|tts|dall-e|moderation|realtime|audio|image|vision-preview|transcribe|sora|batch|search-preview|diarize|codex|computer-use|image-generation/i.test(
@@ -125,14 +121,17 @@ function pushOpenAICompat(
   baseUrl: string,
   defaultModels?: string[],
 ) {
-  if (!apiKey || !baseUrl) return;
+  if (!baseUrl) return;
+  // Ollama often needs no real key — accept empty and use placeholder
+  const key = apiKey || (id === "ollama" ? "ollama" : "");
+  if (!key && id !== "ollama") return;
   list.push({
     id,
     name,
     baseUrl: baseUrl.replace(/\/$/, ""),
     modelsUrl: "/models",
     chatPath: "/chat/completions",
-    apiKey,
+    apiKey: key,
     modelsRequireAuth: true,
     authScheme: "bearer",
     chatStyle: "openai",
@@ -140,14 +139,9 @@ function pushOpenAICompat(
   });
 }
 
-/**
- * Every API key present in env becomes a live provider.
- * Models are discovered on each request; broken models are skipped fast.
- */
 export function getConfiguredProviders(): AIProvider[] {
   const providers: AIProvider[] = [];
 
-  // --- OpenAI ---
   pushOpenAICompat(
     providers,
     "openai",
@@ -157,7 +151,6 @@ export function getConfiguredProviders(): AIProvider[] {
     ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini"],
   );
 
-  // --- OpenRouter (many models behind one key) ---
   pushOpenAICompat(
     providers,
     "openrouter",
@@ -171,7 +164,6 @@ export function getConfiguredProviders(): AIProvider[] {
     ],
   );
 
-  // --- Groq ---
   pushOpenAICompat(
     providers,
     "groq",
@@ -181,7 +173,42 @@ export function getConfiguredProviders(): AIProvider[] {
     ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
   );
 
-  // --- Claude / Anthropic ---
+  // Bytez — unified API for 100k+ models (OpenAI-compatible)
+  // Docs: baseURL https://api.bytez.com/models/v2/openai/v1 , key = BYTEZ_API_KEY
+  const bytezKey = env("BYTEZ_API_KEY") || env("BYTEZ_KEY");
+  pushOpenAICompat(
+    providers,
+    "bytez",
+    "Bytez",
+    bytezKey,
+    env("BYTEZ_BASE_URL") || "https://api.bytez.com/models/v2/openai/v1",
+    [
+      env("BYTEZ_MODEL") || "Qwen/Qwen2.5-72B-Instruct",
+      "Qwen/Qwen3-4B",
+      "openai/gpt-4o-mini",
+      "google/gemini-2.0-flash",
+    ].filter(Boolean),
+  );
+
+  // Ollama — local or remote OpenAI-compatible
+  // OLLAMA_BASE_URL e.g. http://127.0.0.1:11434/v1 or https://your-host/v1
+  const ollamaBase =
+    env("OLLAMA_BASE_URL") ||
+    env("OLLAMA_HOST") ||
+    (env("OLLAMA_API_KEY") || env("OLLAMA_ENABLED") === "1"
+      ? "http://127.0.0.1:11434/v1"
+      : "");
+  pushOpenAICompat(
+    providers,
+    "ollama",
+    "Ollama",
+    env("OLLAMA_API_KEY") || "ollama",
+    ollamaBase,
+    env("OLLAMA_MODEL")
+      ? [env("OLLAMA_MODEL")]
+      : ["llama3.2", "llama3.1", "mistral", "gemma2"],
+  );
+
   const anthropicKey =
     env("ANTHROPIC_API_KEY") ||
     env("CLAUDE_API_KEY") ||
@@ -204,7 +231,6 @@ export function getConfiguredProviders(): AIProvider[] {
     });
   }
 
-  // --- Google Gemini ---
   const geminiKey =
     env("GOOGLE_GENERATIVE_AI_API_KEY") ||
     env("GEMINI_API_KEY") ||
@@ -229,7 +255,6 @@ export function getConfiguredProviders(): AIProvider[] {
     });
   }
 
-  // --- DeepSeek ---
   pushOpenAICompat(
     providers,
     "deepseek",
@@ -239,7 +264,6 @@ export function getConfiguredProviders(): AIProvider[] {
     ["deepseek-chat", "deepseek-reasoner"],
   );
 
-  // --- Mistral ---
   pushOpenAICompat(
     providers,
     "mistral",
@@ -249,7 +273,6 @@ export function getConfiguredProviders(): AIProvider[] {
     ["mistral-large-latest", "mistral-small-latest"],
   );
 
-  // --- Together AI ---
   pushOpenAICompat(
     providers,
     "together",
@@ -258,7 +281,6 @@ export function getConfiguredProviders(): AIProvider[] {
     "https://api.together.xyz/v1",
   );
 
-  // --- Fireworks ---
   pushOpenAICompat(
     providers,
     "fireworks",
@@ -267,7 +289,6 @@ export function getConfiguredProviders(): AIProvider[] {
     "https://api.fireworks.ai/inference/v1",
   );
 
-  // --- xAI (Grok) ---
   pushOpenAICompat(
     providers,
     "xai",
@@ -277,8 +298,6 @@ export function getConfiguredProviders(): AIProvider[] {
     ["grok-3", "grok-3-mini", "grok-2-latest"],
   );
 
-  // --- Cloudflare Workers AI (OpenAI-compatible gateway if configured) ---
-  // Env: CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID  OR  FLARE_API_KEY + FLARE_BASE_URL
   const flareKey = env("FLARE_API_KEY") || env("CLOUDFLARE_API_TOKEN");
   const flareBase =
     env("FLARE_BASE_URL") ||
@@ -287,7 +306,6 @@ export function getConfiguredProviders(): AIProvider[] {
       : "");
   pushOpenAICompat(providers, "flare", "Cloudflare / Flare", flareKey, flareBase);
 
-  // --- Custom slots: Orca, Kira, or any OpenAI-compatible endpoint ---
   pushOpenAICompat(
     providers,
     "orca",
@@ -305,7 +323,6 @@ export function getConfiguredProviders(): AIProvider[] {
     env("KIRA_MODEL") ? [env("KIRA_MODEL")] : undefined,
   );
 
-  // Generic custom providers: CUSTOM_AI_1_API_KEY + CUSTOM_AI_1_BASE_URL + optional NAME/MODEL
   for (let i = 1; i <= 5; i++) {
     const key = env(`CUSTOM_AI_${i}_API_KEY`) || env(`AI_PROVIDER_${i}_API_KEY`);
     const base =
@@ -326,7 +343,6 @@ export function getConfiguredProviders(): AIProvider[] {
     );
   }
 
-  // --- RahYar gateway (optional fallback) ---
   const gw = gatewayUrl();
   const secret = gatewaySecret();
   if (gw && secret) {
@@ -453,7 +469,6 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
         : fallback(provider.defaultModels || GEMINI_FALLBACK);
     }
 
-    // OpenAI-compatible discovery
     const response = await fetch(
       `${provider.baseUrl}${provider.modelsUrl || "/models"}`,
       {
@@ -470,11 +485,13 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
     const data = (await response.json().catch(() => null)) as {
       data?: Array<{ id?: string }>;
       result?: Array<{ id?: string; name?: string }>;
+      models?: Array<{ name?: string; model?: string }>;
     } | null;
 
     const rawIds = [
       ...(data?.data || []).map((i) => i.id || ""),
       ...(data?.result || []).map((i) => i.id || i.name || ""),
+      ...(data?.models || []).map((i) => i.name || i.model || ""),
     ].filter(Boolean);
 
     const list = rawIds
@@ -725,13 +742,6 @@ function isProviderFatalError(message: string): boolean {
   );
 }
 
-/** Model-level errors: try next model on same provider */
-function isModelLevelError(message: string): boolean {
-  return /model.?not.?found|does not exist|invalid.?model|not.?available|unsupported|404|unknown.?model/i.test(
-    message,
-  );
-}
-
 export async function autoChat(
   messages: ChatMessage[],
   preferredProvider?: string,
@@ -741,7 +751,7 @@ export async function autoChat(
   const providers = getConfiguredProviders();
   if (!providers.length) {
     throw new Error(
-      "هیچ کلید API در env سایت تنظیم نشده. OPENAI / ANTHROPIC(CLAUDE) / GOOGLE / GROQ / OPENROUTER / DEEPSEEK / MISTRAL / XAI / ORCA / KIRA / CUSTOM_AI_* را ست کن.",
+      "هیچ کلید API در env سایت تنظیم نشده. BYTEZ / OLLAMA / OPENAI / GOOGLE / CLAUDE / OPENROUTER و … را ست کن.",
     );
   }
 
@@ -795,7 +805,6 @@ export async function autoChat(
     byProvider.set(c.provider.id, list);
   }
 
-  // Round-robin across providers so one dead account never blocks the rest
   const ordered: Candidate[] = [];
   let depth = 0;
   let added = true;
@@ -811,9 +820,7 @@ export async function autoChat(
   }
 
   if (!ordered.length) {
-    throw new Error(
-      "هیچ مدلی پیدا نشد. کلیدها و دسترسی مدل را در env بررسی کن.",
-    );
+    throw new Error("هیچ مدلی پیدا نشد. کلیدها را در env بررسی کن.");
   }
 
   const errors: string[] = [];
@@ -831,11 +838,8 @@ export async function autoChat(
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${provider.id}/${model}: ${msg}`);
       if (isProviderFatalError(msg)) {
-        // No credits / bad key → drop entire provider immediately
         skippedProviders.add(provider.id);
       }
-      // Model-level errors: just continue to next candidate (already next in loop)
-      void isModelLevelError;
     }
   }
 
