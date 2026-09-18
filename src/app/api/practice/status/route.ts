@@ -8,8 +8,7 @@ const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
-const GUEST_DAILY_STAGES = 5;
-const MEMBER_DAILY_STAGES = 5;
+const FREE_STAGE_LIMIT = 5;
 const PRO_DAILY_STAGES = 40;
 const PRO_PRICE_TOMAN = 40000;
 
@@ -30,7 +29,7 @@ async function findActivePro(userIds: string[]) {
   if (!db || !userIds.length) return null;
   const { data } = await db
     .from("practice_subscriptions")
-    .select("id,expires_at,status,user_id")
+    .select("id,expires_at,created_at,status,user_id")
     .in("user_id", userIds)
     .eq("status", "active")
     .gt("expires_at", new Date().toISOString())
@@ -60,25 +59,31 @@ export async function GET(request: Request) {
   if (!userId && !telegramId) {
     return NextResponse.json({
       ok: true, registered: false, dailyLimit: GUEST_DAILY_STAGES, used: 0,
-      remaining: GUEST_DAILY_STAGES, pro: false, proPriceToman: PRO_PRICE_TOMAN,
+      remaining: FREE_STAGE_LIMIT, stageLimit: FREE_STAGE_LIMIT, remainingStages: FREE_STAGE_LIMIT, subscriptionDays: 0, pro: false, proPriceToman: PRO_PRICE_TOMAN,
     });
   }
 
   if (!db) {
     return NextResponse.json({
       ok: true, registered: true, dailyLimit: MEMBER_DAILY_STAGES, used: 0,
-      remaining: MEMBER_DAILY_STAGES, pro: false, proPriceToman: PRO_PRICE_TOMAN,
+      remaining: FREE_STAGE_LIMIT, stageLimit: FREE_STAGE_LIMIT, remainingStages: FREE_STAGE_LIMIT, subscriptionDays: 0, pro: false, proPriceToman: PRO_PRICE_TOMAN,
     });
   }
 
   const ids = collectIds(userId, telegramId);
   const [used, sub] = await Promise.all([countDailyUsage(ids), findActivePro(ids)]);
   const pro = Boolean(sub);
-  const dailyLimit = pro ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES;
+  const subscriptionDays = pro && sub?.expires_at
+    ? Math.max(1, Math.ceil((new Date(sub.expires_at).getTime() - new Date(sub.created_at || new Date().toISOString()).getTime()) / 86400000))
+    : 0;
+  const stageLimit = pro ? subscriptionDays : FREE_STAGE_LIMIT;
+  const dailyLimit = pro ? PRO_DAILY_STAGES : FREE_STAGE_LIMIT;
 
   return NextResponse.json({
     ok: true, registered: true, dailyLimit, used,
     remaining: Math.max(0, dailyLimit - used), pro,
+    stageLimit, subscriptionDays,
+    remainingStages: stageLimit,
     proPriceToman: PRO_PRICE_TOMAN, proExpiresAt: sub?.expires_at || null,
   });
 }
@@ -93,7 +98,7 @@ export async function POST(request: Request) {
   const ids = collectIds(userId, telegramId);
   const used = await countDailyUsage(ids);
   const sub = await findActivePro(ids);
-  const dailyLimit = sub ? PRO_DAILY_STAGES : MEMBER_DAILY_STAGES;
+  const dailyLimit = sub ? PRO_DAILY_STAGES : FREE_STAGE_LIMIT;
   if (used >= dailyLimit) {
     return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit, used, remaining: 0 }, { status: 429 });
   }
