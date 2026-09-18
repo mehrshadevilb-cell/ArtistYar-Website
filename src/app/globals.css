@@ -92,3 +92,35 @@ code{font-variant-numeric:tabular-nums}
 
 /* WebView-safe headline rendering: never paint the gradient as a rectangular inline box. */
 .gold-shimmer{display:inline;color:#d4af37!important;background:none!important;background-image:none!important;-webkit-text-fill-color:#d4af37!important;text-shadow:0 0 28px rgba(201,162,39,.12);animation:none!important}
+
+
+/* Homepage differentiator cockpit: make RahYar AI + Practice Arcade visible before the fold. */
+.hero-differentiator{position:relative;margin-top:2rem;max-width:43rem;padding:1rem;border:1px solid rgba(255,255,255,.09);border-radius:1.35rem;background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.018));box-shadow:0 22px 60px -42px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.04);backdrop-filter:blur(18px);animation:hero-rise .8s .34s ease both}
+.hero-differentiator:before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(circle at 12% 0,rgba(201,162,39,.13),transparent 34%),radial-gradient(circle at 90% 100%,rgba(61,177,199,.07),transparent 32%)}
+.hero-differentiator-head{position:relative;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:0 .15rem .75rem;color:#77736b;font-size:.63rem}
+.hero-differentiator-live{display:inline-flex;align-items:center;gap:.45rem;color:#d4af37;font:9px ui-monospace,monospace;letter-spacing:.12em}
+.hero-differentiator-live i{width:5px;height:5px;border-radius:50%;background:#75b184;box-shadow:0 0 0 4px rgba(117,177,132,.09);animation:status-pulse 2.4s ease-in-out infinite}
+.hero-differentiator-label{color:#918b80}
+.hero-differentiator-grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem}
+.hero-feature-card{position:relative;display:flex;align-items:center;gap:.65rem;min-width:0;padding:.72rem .7rem;border:1px solid rgba(255,255,255,.075);border-radius:.95rem;background:rgba(0,0,0,.18);overflow:hidden;transition:transform .3s var(--ease-out),border-color .3s ease,background .3s ease,box-shadow .3s ease}
+.hero-feature-card:before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.07) 50%,transparent 65%);transform:translateX(130%);transition:transform .65s var(--ease-in-out)}
+.hero-feature-card:hover{transform:translateY(-3px);background:rgba(255,255,255,.045);border-color:rgba(201,162,39,.34);box-shadow:0 16px 30px -25px rgba(201,162,39,.5)}
+.hero-feature-card:hover:before{transform:translateX(-130%)}
+.hero-feature-icon{position:relative;display:grid;place-items:center;width:2rem;height:2rem;flex:none;border-radius:.7rem;color:#d4af37;background:rgba(201,162,39,.11)}
+.hero-feature-cyan .hero-feature-icon{color:#79c5d2;background:rgba(66,160,180,.1)}
+.hero-feature-copy{position:relative;display:block;min-width:0}
+.hero-feature-copy strong{display:block;overflow:hidden;color:#e9e1d4;font:500 .62rem ui-monospace,monospace;letter-spacing:.055em;text-overflow:ellipsis;white-space:nowrap}
+.hero-feature-copy small{display:block;margin-top:.22rem;overflow:hidden;color:#7f7a70;font-size:.56rem;line-height:1.5;text-overflow:ellipsis;white-space:nowrap}
+.hero-feature-arrow{position:relative;margin-right:auto;flex:none;color:#68635a;transition:transform .25s ease,color .25s ease}
+.hero-feature-card:hover .hero-feature-arrow{transform:translateX(-3px);color:#d4af37}
+.hero-feature-index{position:absolute;left:.55rem;bottom:.42rem;color:#4d4942;font:8px ui-monospace,monospace}
+.hero-differentiator-bottom{position:relative;display:flex;align-items:center;gap:1rem;margin-top:.7rem;padding:.55rem .15rem 0;border-top:1px solid rgba(255,255,255,.055);color:#68635b;font-size:.58rem}
+.hero-xp{display:flex;align-items:center;gap:.38rem;white-space:nowrap}
+.hero-xp svg{color:#77716a}
+.hero-xp-icon{display:grid;place-items:center;color:#d4af37!important}
+.hero-xp b{color:#d4af37;font-weight:600}
+.hero-differentiator-spark{display:inline-flex;align-items:center;gap:.3rem;margin-right:auto;color:#69645b;font:8px ui-monospace,monospace;letter-spacing:.04em}
+.hero-differentiator-spark svg{color:#d4af37}
+@media (max-width:800px){.hero-differentiator{max-width:none}.hero-differentiator-grid{grid-template-columns:1fr}.hero-feature-card{padding:.72rem .8rem}.hero-differentiator-bottom{flex-wrap:wrap;gap:.6rem}.hero-differentiator-spark{margin-right:0}}
+@media (max-width:520px){.hero-differentiator{margin-top:1.5rem;padding:.8rem}.hero-differentiator-label{font-size:.55rem}.hero-differentiator-bottom{display:none}}
+@media (prefers-reduced-motion:reduce){.hero-differentiator,.hero-differentiator-live i,.hero-feature-card,.hero-feature-card:before{animation:none;transition:none}.hero-feature-card:hover{transform:none}}
