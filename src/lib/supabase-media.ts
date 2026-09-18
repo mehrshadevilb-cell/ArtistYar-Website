@@ -389,15 +389,20 @@ export async function uploadStandaloneAsset(input: { buffer: Buffer; filename: s
 
 export async function listPublishedMedia(): Promise<MediaItem[]> {
   if (!supabase) return [];
+  // Do not query is_active at the SQL level: older Supabase projects may
+  // still be running before the free-education migration. A missing column
+  // there would make the entire public Gallery disappear even though the
+  // underlying media_assets rows and Storage files are intact.
   const result = await supabase
     .from("media_assets")
     .select("*")
     .eq("status", "published")
-    .eq("is_active", true)
     .order("created_at", { ascending: false })
     .limit(200);
   if (result.error) throw new SupabaseOperationError("media_list", result.error);
-  return (result.data || []).map((row) => toItem(row));
+  return (result.data || [])
+    .filter((row) => row.is_active !== false)
+    .map((row) => toItem(row));
 }
 
 export async function listStorageFiles(): Promise<StorageItem[]> {
