@@ -4,7 +4,9 @@ export type AgentResult = { provider:string; model:string; ok:boolean; reply?:st
 
 const AGENT_TIMEOUT_MS = 35_000;
 const DISCOVERY_CACHE_MS = 30_000;
-let candidateCache: { expiresAt:number; value:Awaited<ReturnType<typeof candidates>> } | null = null;
+type Candidate = { provider:AIProvider; model:string; rank:number };
+type CandidateList = Candidate[];
+let candidateCache: { expiresAt:number; value:CandidateList } | null = null;
 
 function withTimeout<T>(promise:Promise<T>, ms=AGENT_TIMEOUT_MS):Promise<T>{
   return Promise.race([promise,new Promise<T>((_,reject)=>setTimeout(()=>reject(new Error("Agent timeout")),ms))]);
