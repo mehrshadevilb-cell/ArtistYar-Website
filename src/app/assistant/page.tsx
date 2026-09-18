@@ -53,8 +53,8 @@ export default function AssistantPage() {
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState("");
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [connection, setConnection] = useState<ConnectionState>("loading");
-  const [connectionNote, setConnectionNote] = useState("");
+  const [connection, setConnection] = useState<ConnectionState>("ready");
+  const [connectionNote, setConnectionNote] = useState("آماده پاسخ‌گویی");
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -69,30 +69,7 @@ export default function AssistantPage() {
     return id;
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    fetch("/api/ai/providers", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((data) => {
-        if (!active) return;
-        const provider = data?.providers?.[0];
-        if (provider?.provider?.configured && provider?.models?.length) {
-          setConnection("ready");
-          setConnectionNote("آماده پاسخ‌گویی");
-        } else {
-          setConnection("offline");
-          setConnectionNote("اتصال در حال آماده‌سازی است");
-        }
-      })
-      .catch(() => {
-        if (!active) return;
-        setConnection("offline");
-        setConnectionNote("اتصال در دسترس نیست");
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  // No blocking provider health-check here: the first answer request should start immediately.\n);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
