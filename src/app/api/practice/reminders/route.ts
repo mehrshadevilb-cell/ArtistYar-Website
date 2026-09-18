@@ -18,9 +18,9 @@ export async function POST(request: Request) {
   if (!authorized(request)) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   if (!db) return NextResponse.json({ ok: false, error: "practice_store_unavailable" }, { status: 503 });
 
-  const body = await request.json().catch(() => ({}));
+  const body: { telegramIds?: unknown } = await request.json().catch(() => ({}));
   const telegramIds = Array.isArray(body.telegramIds)
-    ? [...new Set(body.telegramIds.map(String).map(v => v.trim()).filter(Boolean))].slice(0, 500)
+    ? [...new Set(body.telegramIds.map(String).map((v: string) => v.trim()).filter(Boolean))].slice(0, 500)
     : [];
   if (!telegramIds.length) return NextResponse.json({ ok: true, reminders: [] });
 
