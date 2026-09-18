@@ -74,7 +74,7 @@ function metricsOf(input: any) {
     highEnergyPct: input.highEnergyPct == null ? null : clamp(n("highEnergyPct"), 0, 100),
     clipPct: input.clipPct == null ? null : clamp(n("clipPct"), 0, 100),
     bandEnergy: be ? {
-      sub: clamp(n.call ? n("sub", be.sub) : Number(be.sub) || 0, 0, 100),
+      sub: clamp(Number(be.sub) || 0, 0, 100),
       low: clamp(Number(be.low) || 0, 0, 100),
       lowMid: clamp(Number(be.lowMid) || 0, 0, 100),
       mid: clamp(Number(be.mid) || 0, 0, 100),
