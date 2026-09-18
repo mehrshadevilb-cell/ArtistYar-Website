@@ -74,7 +74,7 @@ export function PracticeProBanner({ onUpgrade }: Props) {
           <span className="eyebrow">PRACTICE PRO · ۴۰٬۰۰۰ تومان / ماه</span>
           <h2 className="mt-2 text-lg font-medium text-sand-50">برای تمرین حرفه‌ای، Pro شو</h2>
           <ul className="mt-2 space-y-1 text-xs leading-6 text-ink-400">
-            <li>· تا ۵ مرحله رایگان؛ با Pro تا ۴۰ مرحله، در تمام مدت فعال بودن اشتراک</li>
+            <li>· تا ۵ مرحله رایگان؛ با Pro بدون محدودیت مرحله، در تمام مدت فعال بودن اشتراک</li>
             <li>· Professional Audio Skills (Reverb / Saturation / Masking / Transient)</li>
             <li>· ۱ Voicing پیانو روزانه · تحلیل‌های AI با سهمیه جداگانه</li>
           </ul>
