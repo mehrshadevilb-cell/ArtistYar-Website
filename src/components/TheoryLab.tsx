@@ -164,20 +164,34 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
   const tierLabel = ["مبتدی · فقط ۲m / ۲M", "مقدماتی · تا ۳M", "متوسط · تا ۵P", "حرفه‌ای · همه فواصل"][tier];
 
   if (accessLoading) {
-    return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button><div className="card-ay mt-5 p-8 text-center text-sm text-ink-400">در حال بررسی دسترسی تمرین…</div></section>;
+    return (
+      <section className="mt-10">
+        <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>
+          بازگشت
+        </button>
+        <div className="card-ay mt-5 p-8 text-center text-sm text-ink-400">در حال بررسی دسترسی تمرین…</div>
+      </section>
+    );
   }
 
   if (stageLocked) {
     return (
       <section className="mt-10">
-        <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button>
+        <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>
+          بازگشت
+        </button>
         <div className="card-ay mt-5 p-8 text-center">
           <p className="eyebrow text-gold-300">PRACTICE STAGE LIMIT</p>
           <h1 className="mt-3 text-2xl font-semibold text-sand-50">مراحل رایگان این تمرین تمام شد</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-8 text-ink-400">
-            بدون اشتراک تا ۵ مرحله، با Pro تا ۴۰ مرحله در روز" و اشتراک فعلی تا " + new Date(proExpiresAt).toLocaleDateString("fa-IR") + " فعال است." : "."}
+            بدون اشتراک تا ۵ مرحله، با Pro تا ۴۰ مرحله در روز
+            {proExpiresAt
+              ? ` و اشتراک فعلی تا ${new Date(proExpiresAt).toLocaleDateString("fa-IR")} فعال است.`
+              : "."}
           </p>
-          <p className="mt-4 text-sm text-gold-200">{pro ? `اشتراک فعال · ${subscriptionDays} مرحله` : "برای ادامه، اشتراک فعال کن."}</p>
+          <p className="mt-4 text-sm text-gold-200">
+            {pro ? `اشتراک فعال · ${subscriptionDays} مرحله` : "برای ادامه، اشتراک فعال کن."}
+          </p>
         </div>
       </section>
     );
