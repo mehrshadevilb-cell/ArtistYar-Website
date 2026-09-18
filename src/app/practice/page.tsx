@@ -226,31 +226,116 @@ function Hub({ onSelect }: { onSelect: (id: GameId) => void }) {
 
 function ProArcade({ onBack }: { onBack: () => void }) {
   const { user } = useAuth();
-  const [mode,setMode]=useState<"frequency"|"stereo"|"phase"|"memory"|"rhythm">("frequency");
-  const [pro,setPro]=useState(false); const [proLoading,setProLoading]=useState(true);
-  const [running,setRunning]=useState(false); const [score,setScore]=useState(0); const [best,setBest]=useState(0);
-  const [message,setMessage]=useState("یک تمرین را انتخاب کن و حتماً با صدا گوش بده.");
-  const [target,setTarget]=useState(440); const [options,setOptions]=useState<number[]>([]);
-  const [side,setSide]=useState<"L"|"R"|null>(null); const [polarity,setPolarity]=useState<"normal"|"inverted"|null>(null);
-  const [sequence,setSequence]=useState<number[]>([]); const [input,setInput]=useState<number[]>([]); const timer=useRef<number|null>(null);
-  useEffect(()=>{let cancelled=false; if(user?.role==="admin"){setPro(true);setProLoading(false);return;} if(!user?.id){setPro(false);setProLoading(false);return;} fetch("/api/practice/status?userId="+encodeURIComponent(user.id),{cache:"no-store",credentials:"include"}).then(r=>r.json()).then(d=>{if(!cancelled)setPro(Boolean(d?.pro))}).catch(()=>{if(!cancelled)setPro(false)}).finally(()=>{if(!cancelled)setProLoading(false)}); return()=>{cancelled=true}},[user?.id,user?.role]);
-  const audio=(play:(c:AudioContext)=>void)=>{const A=window.AudioContext||(window as typeof window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;if(!A)return;const c=new A();void c.resume();play(c);window.setTimeout(()=>void c.close(),4000)};
-  const tone=(c:AudioContext,f:number,d=.7,p=0)=>{const o=c.createOscillator(),g=c.createGain(),x=c.createStereoPanner();o.type="sine";o.frequency.value=f;x.pan.value=p;g.gain.setValueAtTime(.0001,c.currentTime);g.gain.exponentialRampToValueAtTime(.1,c.currentTime+.03);g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+d);o.connect(g).connect(x).connect(c.destination);o.start();o.stop(c.currentTime+d+.05)};
-  const stop=()=>{if(timer.current)clearTimeout(timer.current);timer.current=null;setRunning(false)};
-  const save=(points:number,acc:number,id:string)=>{const n=Math.max(0,score+points);setScore(n);setBest(v=>Math.max(v,n));if(user?.id&&user.username)void fetch("/api/practice/progress",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({userId:user.id,username:user.username,fullName:user.fullName,gameId:id,score:points,accuracy:acc,streak:acc===100?1:0,bestScore:Math.max(best,n),metadata:{pro:true}})}).catch(()=>{})};
-  const frequency=()=>{stop();const pool=[55,80,110,220,440,880,1800,3500,7000,12000],f=pool[Math.floor(Math.random()*pool.length)],o=[f];while(o.length<4){const x=pool[Math.floor(Math.random()*pool.length)];if(!o.includes(x))o.push(x)}setTarget(f);setOptions(o.sort(()=>Math.random()-.5));setRunning(true);setMessage("تون را کامل گوش کن و بعد فرکانس درست را انتخاب کن.");audio(c=>tone(c,f,1.2));timer.current=window.setTimeout(stop,5000)};
-  const answerFrequency=(f:number)=>{if(!running)return;const ok=f===target;stop();save(ok?100:0,ok?100:0,"pro-frequency");setMessage(ok?"درست — گوش دقیق بود.":"اشتباه — دوباره با دقت به pitch گوش کن.")};
-  const stereo=()=>{stop();const s=Math.random()>.5?"L":"R" as "L"|"R";setSide(s);setRunning(true);setMessage("فقط جهت صدا را با هدفون تشخیص بده.");audio(c=>tone(c,330,1.2,s==="L"?-.95:.95));timer.current=window.setTimeout(stop,4000)};
-  const answerSide=(v:"L"|"R")=>{if(!running||!side)return;const ok=v===side;stop();save(ok?100:0,ok?100:0,"pro-stereo");setSide(null);setMessage(ok?"Stereo Focus درست بود.":"سمت را اشتباه شنیدی.")};
-  const phase=()=>{stop();const p=Math.random()>.5?"inverted":"normal" as "normal"|"inverted";setPolarity(p);setRunning(true);setMessage("به تصویر مرکزی و افت احتمالی در مونو گوش کن.");audio(c=>{tone(c,220,.8,0);tone(c,277.18,.8,p==="inverted"?-.45:.45)});timer.current=window.setTimeout(stop,3500)};
-  const answerPhase=(v:"normal"|"inverted")=>{if(!running||!polarity)return;const ok=v===polarity;stop();save(ok?120:0,ok?100:0,"pro-phase");setPolarity(null);setMessage(ok?"Polarity تشخیص داده شد.":"دوباره با دقت به center image گوش کن.")};
-  const memory=()=>{stop();const q=Array.from({length:3+Math.min(4,Math.floor(score/250))},()=>Math.floor(Math.random()*4));setSequence(q);setInput([]);setRunning(true);setMessage("ترتیب تون‌ها را حفظ کن.");audio(c=>q.forEach((n,i)=>setTimeout(()=>tone(c,[220,330,440,660][n],.3),i*380)));timer.current=window.setTimeout(()=>setMessage("حالا همان ترتیب را وارد کن."),2000)};
-  const choose=(n:number)=>{if(!running)return;const next=[...input,n];setInput(next);if(next.length===sequence.length){const ok=next.every((v,i)=>v===sequence[i]);stop();save(ok?150:0,ok?100:0,"pro-memory");setMessage(ok?"حافظه شنیداری عالی بود.":"ترتیب را اشتباه به خاطر سپردی.")}};
-  const rhythm=()=>{stop();const q=[0,1,2,1,0,2];setSequence(q);setInput([]);setRunning(true);setMessage("الگوی ریتمیک را گوش کن؛ بعد بازسازی کن.");audio(c=>q.forEach((n,i)=>setTimeout(()=>tone(c,[220,330,440][n],.13),i*280)));timer.current=window.setTimeout(()=>setMessage("حالا بازسازی کن."),1800)};
-  const start=()=>mode==="frequency"?frequency():mode==="stereo"?stereo():mode==="phase"?phase():mode==="memory"?memory():rhythm();
-  if(proLoading) return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button><div className="card-ay mt-5 p-8 text-center text-sm text-ink-400">در حال بررسی اشتراک Pro…</div></section>;
-  if(!pro) return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button><div className="card-ay mt-5 p-8 sm:p-10 text-center"><LockKeyhole className="mx-auto text-gold-300" size={34}/><p className="eyebrow mt-5">PRO AUDIO LAB</p><h1 className="mt-3 text-2xl font-semibold text-sand-50">تمرین‌های حرفه‌ای Pro</h1><p className="mx-auto mt-3 max-w-xl text-sm leading-8 text-ink-400">Frequency، Stereo، Polarity، Memory و Rhythm پیشرفته برای اعضای Pro فعال است.</p><div className="mx-auto mt-6 max-w-sm rounded-2xl border border-gold-400/20 bg-gold-400/[.06] p-5"><strong className="block text-xl text-gold-200">۴۰٬۰۰۰ تومان / ماه</strong><span className="mt-2 block text-xs text-ink-500">در صورت داشتن شرایط پاداش استمرار، ۲۰٪ تخفیف ماه بعد اعمال می‌شود.</span></div><p className="mt-5 text-xs text-ink-500">{user?"اشتراک Pro پس از تأیید پرداخت برای حساب فعال می‌شود.":"برای استفاده از Pro ابتدا ثبت‌نام یا ورود کن."}</p></div></section>;
-  return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={()=>{stop();onBack()}}><RotateCcw size={14}/> بازگشت</button><div className="card-ay mt-5 p-6 sm:p-10"><div className="mx-auto max-w-3xl"><p className="eyebrow">PRO AUDIO LAB · LISTENING FIRST</p><h1 className="mt-3 text-2xl font-semibold text-sand-50">تمرین حرفه‌ای؛ اول گوش، بعد کلیک</h1><p className="mt-3 text-sm leading-8 text-ink-400">این بازی‌ها با موس حل نمی‌شوند. هر مرحله صدا تولید می‌کند و برای هدفون یا مانیتور استودیویی طراحی شده است.</p><div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">{[["frequency","Frequency / EQ"],["stereo","Stereo Focus"],["phase","Phase / Polarity"],["memory","Audio Memory"],["rhythm","Rhythm"]].map(([id,label])=><button key={id} onClick={()=>{stop();setMode(id as typeof mode)}} className={`rounded-xl border p-3 text-xs ${mode===id?"border-gold-400/40 bg-gold-400/10 text-gold-200":"border-white/10 text-ink-400"}`}>{label}</button>)}</div><div className="mt-6 rounded-2xl border border-emerald-400/15 bg-emerald-400/[.05] p-4 text-xs leading-6 text-emerald-100"><Headphones size={15} className="mb-1"/> هدفون/مانیتور پیشنهاد می‌شود؛ ولوم را در سطح راحت نگه دار.</div><button className="btn-primary mt-6" onClick={start} disabled={running}><Play size={15} fill="currentColor"/> {running?"در حال پخش…":"پخش صوت و شروع"}</button><p className="mt-4 min-h-12 rounded-xl border border-white/[.07] bg-white/[.025] p-4 text-sm">{message}</p>{mode==="frequency"&&<div className="grid grid-cols-2 gap-3">{options.map(f=><button key={f} onClick={()=>answerFrequency(f)} className="rounded-xl border border-white/10 p-4 hover:border-gold-400/40">{f>=1000?f/1000+"kHz":f+"Hz"}</button>)}</div>}{mode==="stereo"&&<div className="grid grid-cols-2 gap-3"><button className="rounded-xl border border-white/10 p-5" onClick={()=>answerSide("L")}>◀ LEFT</button><button className="rounded-xl border border-white/10 p-5" onClick={()=>answerSide("R")}>RIGHT ▶</button></div>}{mode==="phase"&&<div className="grid grid-cols-2 gap-3"><button className="rounded-xl border border-white/10 p-4" onClick={()=>answerPhase("normal")}>Normal Polarity</button><button className="rounded-xl border border-white/10 p-4" onClick={()=>answerPhase("inverted")}>Inverted Polarity</button></div>}{(mode==="memory"||mode==="rhythm")&&<div className="grid grid-cols-4 gap-2">{[0,1,2,3].map(n=><button key={n} className="rounded-xl border border-white/10 p-5 hover:border-gold-400/40" onClick={()=>choose(n)}>{["LOW","MID","HIGH","AIR"][n]}</button>)}</div>}</div></div></section>;
+  const [mode,setMode]=useState<"reverb"|"saturation"|"masking"|"transient">("reverb");
+  const [pro,setPro]=useState(false);
+  const [proLoading,setProLoading]=useState(true);
+  const [running,setRunning]=useState(false);
+  const [score,setScore]=useState(0);
+  const [target,setTarget]=useState("");
+  const [message,setMessage]=useState("یک تمرین حرفه‌ای را انتخاب کن و با هدفون گوش بده.");
+  const [options,setOptions]=useState<string[]>([]);
+  const [cardNumber,setCardNumber]=useState("شماره کارت را در تنظیمات سایت وارد کنید");
+  const [cardHolder,setCardHolder]=useState("نام صاحب کارت");
+  const [reference,setReference]=useState("");
+  const [paymentSent,setPaymentSent]=useState(false);
+  const [paymentError,setPaymentError]=useState("");
+  const [paymentLoading,setPaymentLoading]=useState(false);
+
+  useEffect(()=>{
+    let cancelled=false;
+    if(user?.role==="admin"){setPro(true);setProLoading(false);return;}
+    if(!user?.id){setPro(false);setProLoading(false);return;}
+    fetch("/api/practice/status?userId="+encodeURIComponent(user.id),{cache:"no-store",credentials:"include"})
+      .then(r=>r.json()).then(d=>{if(!cancelled)setPro(Boolean(d?.pro))})
+      .catch(()=>{if(!cancelled)setPro(false)})
+      .finally(()=>{if(!cancelled)setProLoading(false)});
+    fetch("/api/practice/payment-config",{cache:"no-store"})
+      .then(r=>r.json()).then(d=>{if(!cancelled){setCardNumber(d?.cardNumber||cardNumber);setCardHolder(d?.cardHolder||cardHolder)}}).catch(()=>{});
+    return()=>{cancelled=true};
+  },[user?.id,user?.role]);
+
+  const audio=(play:(c:AudioContext)=>void)=>{
+    const A=window.AudioContext||(window as typeof window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
+    if(!A)return;
+    const c=new A();void c.resume();play(c);window.setTimeout(()=>void c.close(),4500);
+  };
+  const tone=(c:AudioContext,f:number,d=.8)=>{
+    const o=c.createOscillator(),g=c.createGain();
+    o.type="sawtooth";o.frequency.value=f;
+    g.gain.setValueAtTime(.0001,c.currentTime);
+    g.gain.exponentialRampToValueAtTime(.055,c.currentTime+.04);
+    g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+d);
+    o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+d+.05);
+  };
+  const noise=(c:AudioContext,d=1.2)=>{
+    const b=c.createBuffer(1,c.sampleRate*d,c.sampleRate),data=b.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1;
+    const n=c.createBufferSource(),g=c.createGain();n.buffer=b;g.gain.value=.045;n.connect(g).connect(c.destination);n.start();n.stop(c.currentTime+d);
+  };
+  const start=()=>{
+    setRunning(true);setMessage("صدا را کامل گوش کن؛ پاسخ را بعد از پخش انتخاب کن.");
+    if(mode==="reverb"){
+      const t=Math.random()>.5?"کوتاه / اتاق کوچک":"بلند / فضای بزرگ";
+      setTarget(t);setOptions(["کوتاه / اتاق کوچک","بلند / فضای بزرگ"]);
+      audio(c=>{
+        const o=c.createOscillator(),g=c.createGain(),wet=c.createGain(),delay=c.createDelay(1.5);
+        o.type="sine";o.frequency.value=440;g.gain.value=.07;wet.gain.value=.34;
+        o.connect(g).connect(c.destination);
+        o.connect(delay).connect(wet).connect(c.destination);
+        o.start();o.stop(c.currentTime+.35);
+        const delayTime=t.startsWith("کوتاه")?.12:.62;delay.delayTime.value=delayTime;
+      });
+    } else if(mode==="saturation"){
+      const t=Math.random()>.5?"تمیز / Clean":"اشباع‌شده / Saturated";setTarget(t);setOptions(["تمیز / Clean","اشباع‌شده / Saturated"]);
+      audio(c=>{
+        const o=c.createOscillator(),g=c.createGain();o.frequency.value=180;g.gain.value=.06;
+        if(t.startsWith("اشباع")){
+          const sh=c.createWaveShaper();const curve=new Float32Array(256);for(let i=0;i<256;i++){const x=i*2/255-1;curve[i]=Math.tanh(x*3)}sh.curve=curve;sh.oversample="2x";o.connect(sh).connect(g).connect(c.destination);
+        } else o.connect(g).connect(c.destination);
+        o.start();o.stop(c.currentTime+1.1);
+      });
+    } else if(mode==="masking"){
+      const t=Math.random()>.5?"جدا / Clear":"پوشانده / Masked";setTarget(t);setOptions(["جدا / Clear","پوشانده / Masked"]);
+      audio(c=>{
+        tone(c,440,1);
+        if(t.startsWith("پوشانده")){const b=c.createBuffer(1,c.sampleRate,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const n=c.createBufferSource(),g=c.createGain();n.buffer=b;g.gain.value=.035;n.connect(g).connect(c.destination);n.start();}
+      });
+    } else {
+      const t=Math.random()>.5?"Transient روشن":"Transient نرم";setTarget(t);setOptions(["Transient روشن","Transient نرم"]);
+      audio(c=>{
+        const o=c.createOscillator(),g=c.createGain(),comp=c.createDynamicsCompressor();o.type="triangle";o.frequency.value=110;
+        comp.threshold.value=-18;comp.ratio.value=t==="Transient روشن"?2:12;comp.attack.value=t==="Transient روشن"?.08:.003;comp.release.value=.12;g.gain.value=.07;
+        o.connect(comp).connect(g).connect(c.destination);o.start();o.stop(c.currentTime+1);
+      });
+    }
+    window.setTimeout(()=>setRunning(false),1800);
+  };
+  const answer=(value:string)=>{
+    if(running||!target)return;
+    const ok=value===target;setScore(v=>v+(ok?120:0));setMessage(ok?"درست — تشخیص شنیداری دقیق بود.":"اشتباه — دوباره با تمرکز روی تفاوت شنیداری تمرین کن.");setTarget("");
+  };
+  const submitPayment=async()=>{
+    if(!user?.id){setPaymentError("برای خرید Pro ابتدا وارد حساب کاربری شو.");return;}
+    if(!reference.trim()){setPaymentError("کد پیگیری/شماره تراکنش را وارد کن.");return;}
+    setPaymentLoading(true);setPaymentError("");
+    try{
+      const res=await fetch("/api/practice/payment-request",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({userId:user.id,reference:reference.trim()})});
+      const data=await res.json();
+      if(!res.ok) throw new Error(data?.error||"ثبت درخواست انجام نشد.");
+      setPaymentSent(true);
+    }catch(e){setPaymentError(e instanceof Error?e.message:"ثبت درخواست انجام نشد.");}
+    finally{setPaymentLoading(false);}
+  };
+
+  if(proLoading)return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button><div className="card-ay mt-5 p-8 text-center text-sm text-ink-400">در حال بررسی اشتراک Pro…</div></section>;
+
+  if(!pro)return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button><div className="card-ay mt-5 p-6 sm:p-10">
+    <div className="mx-auto max-w-2xl text-center"><LockKeyhole className="mx-auto text-gold-300" size={34}/><p className="eyebrow mt-5">PRO AUDIO LAB</p><h1 className="mt-3 text-2xl font-semibold text-sand-50">تمرین‌های حرفه‌ای Pro</h1><p className="mt-3 text-sm leading-8 text-ink-400">فقط تمرین‌های شنیداری پیشرفته و غیرتکراری؛ Reverb، Saturation، Masking و Transient.</p>
+    <div className="mx-auto mt-6 max-w-md rounded-2xl border border-gold-400/20 bg-gold-400/[.06] p-5 text-right"><strong className="block text-xl text-gold-200">۴۰٬۰۰۰ تومان / ماه</strong><p className="mt-3 text-xs leading-6 text-ink-400">فعلاً پرداخت به‌صورت کارت‌به‌کارت انجام می‌شود. بعد از تأیید، اشتراک برای حساب فعال می‌شود.</p><div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4"><span className="block text-[11px] text-ink-500">شماره کارت</span><strong className="mt-1 block select-all text-lg tracking-wider text-sand-50">{cardNumber}</strong><span className="mt-3 block text-[11px] text-ink-500">به نام</span><strong className="mt-1 block text-sm text-sand-100">{cardHolder}</strong></div>
+    {paymentSent?<div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/[.06] p-4 text-sm leading-7 text-emerald-200">درخواست پرداخت ثبت شد. بعد از بررسی رسید/کد پیگیری، Pro فعال می‌شود.</div>:<><input value={reference} onChange={e=>setReference(e.target.value)} placeholder="کد پیگیری / شماره تراکنش" className="mt-4 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-sand-50 outline-none focus:border-gold-400/40"/><button type="button" className="btn-primary mt-3 w-full" onClick={submitPayment} disabled={paymentLoading}>{paymentLoading?"در حال ثبت…":"ثبت پرداخت کارت‌به‌کارت"}</button>{paymentError&&<p className="mt-3 text-xs text-red-300">{paymentError}</p>}</>}</div></div>
+  </div></section>;
+
+  return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت</button><div className="card-ay mt-5 p-6 sm:p-10"><div className="mx-auto max-w-3xl"><p className="eyebrow">PRO AUDIO LAB · ADVANCED LISTENING</p><h1 className="mt-3 text-2xl font-semibold text-sand-50">تمرین حرفه‌ای؛ بدون بازی‌های تکراری</h1><p className="mt-3 text-sm leading-8 text-ink-400">هر مرحله یک مسئله‌ی شنیداری واقعی از میکس را شبیه‌سازی می‌کند.</p><div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">{[["reverb","Reverb Space"],["saturation","Saturation"],["masking","Masking"],["transient","Transient"]].map(([id,label])=><button key={id} onClick={()=>{setMode(id as typeof mode);setTarget("");setRunning(false)}} className={`rounded-xl border p-3 text-xs ${mode===id?"border-gold-400/40 bg-gold-400/10 text-gold-200":"border-white/10 text-ink-400"}`}>{label}</button>)}</div><div className="mt-6 rounded-2xl border border-emerald-400/15 bg-emerald-400/[.05] p-4 text-xs leading-6 text-emerald-100"><Headphones size={15} className="mb-1"/> هدفون یا مانیتور استودیویی؛ ولوم راحت و ثابت.</div><button className="btn-primary mt-6" onClick={start} disabled={running}><Play size={15} fill="currentColor"/> {running?"در حال پخش…":"پخش صوت و شروع"}</button><p className="mt-4 min-h-12 rounded-xl border border-white/[.07] bg-white/[.025] p-4 text-sm">{message}</p>{options.length>0&&<div className="grid grid-cols-2 gap-3">{options.map(o=><button key={o} disabled={Boolean(target)||running} onClick={()=>answer(o)} className="rounded-xl border border-white/10 p-4 hover:border-gold-400/40 disabled:opacity-50">{o}</button>)}</div>}</div></div></section>;
 }
 
 function Personal({ url, name, audioRef, loop, speed, onLoopChange, onSpeedChange, onUpload, onBack }: { url: string; name: string; audioRef: RefObject<HTMLAudioElement | null>; loop: boolean; speed: string; onLoopChange: (value: boolean) => void; onSpeedChange: (value: string) => void; onUpload: (event: ChangeEvent<HTMLInputElement>) => void; onBack: () => void }) { return <section className="mt-10"><button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={onBack}>بازگشت به آرکید</button><div className="card-ay mt-5 p-6 sm:p-10"><div className="mx-auto max-w-2xl text-center"><FileAudio className="mx-auto text-emerald-300" size={34} /><p className="eyebrow mt-5">تمرین شخصی / Local only</p><h1 className="mt-3 text-2xl font-semibold text-sand-50">فایل خودت را دقیق‌تر گوش کن.</h1><p className="mt-3 text-sm leading-8 text-ink-400">فایل فقط در مرورگر تو باز می‌شود و به سرور یا اکانت ارسال نمی‌شود. از loop و مقایسه‌ی چندباره برای پیدا کردن یک مسئله‌ی مشخص استفاده کن.</p><label className="btn-primary mt-7 cursor-pointer gap-2"><Upload size={16} />انتخاب فایل صوتی<input className="sr-only" type="file" accept="audio/*,video/*" onChange={onUpload} /></label>{url ? <div className="mt-8 rounded-2xl border border-emerald-400/20 bg-emerald-400/[.06] p-5"><p className="truncate text-sm text-emerald-200">{name}</p><audio ref={audioRef} className="mt-4 w-full" controls loop={loop} src={url} /><div className="mt-4 flex flex-wrap items-center justify-center gap-3"><label className="flex items-center gap-2 text-xs text-ink-300"><input type="checkbox" checked={loop} onChange={(event) => onLoopChange(event.target.checked)} /> پخش حلقه‌ای</label><label className="flex items-center gap-2 text-xs text-ink-300">سرعت<select className="rounded-lg border border-white/10 bg-ink-950 px-2 py-1" value={speed} onChange={(event) => { onSpeedChange(event.target.value); if (audioRef.current) audioRef.current.playbackRate = Number(event.target.value); }}><option value="0.75">۰٫۷۵×</option><option value="1">۱×</option><option value="1.25">۱٫۲۵×</option><option value="1.5">۱٫۵×</option></select></label><button type="button" className="text-xs text-gold-300 hover:text-gold-200" onClick={() => { if (audioRef.current) { audioRef.current.currentTime = 0; void audioRef.current.play(); } }}>از ابتدا</button></div></div> : <div className="mt-8 flex items-center justify-center gap-2 text-xs text-ink-500"><CircleHelp size={14} />پیشنهاد: یک loop هشت‌میزانی انتخاب کن و فقط یک موضوع را بررسی کن.</div>}<div className="mt-8 grid gap-3 text-right sm:grid-cols-3"><div className="rounded-xl bg-white/[.03] p-3 text-xs leading-6 text-ink-400"><strong className="text-sand-100">A</strong><br />صدای خام</div><div className="rounded-xl bg-white/[.03] p-3 text-xs leading-6 text-ink-400"><strong className="text-sand-100">B</strong><br />بعد از تغییر</div><div className="rounded-xl bg-white/[.03] p-3 text-xs leading-6 text-ink-400"><strong className="text-sand-100">یادداشت</strong><br />یک جمله بنویس</div></div></div></div></section>; }
