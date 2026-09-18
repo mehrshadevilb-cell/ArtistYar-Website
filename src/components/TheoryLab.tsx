@@ -71,7 +71,7 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
   const [round, setRound] = useState(0);
   const [xp, setXp] = useState(0);
   const stageNumber = round + 1;
-  const stageLocked = !accessLoading && stageNumber > stageLimit;
+  const stageLocked = !accessLoading && !pro && stageNumber > stageLimit;
 
   useEffect(() => {
     try {
