@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   BarChart3,
@@ -75,8 +75,22 @@ export function MixAnalyzerLab({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [analysis, setAnalysis] = useState<MixAnalysis | null>(null);
+  const [quota, setQuota] = useState({ dailyLimit: 1, used: 0, remaining: 1, pro: false });
+
+  const refreshQuota = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (user?.id) params.set("userId", user.id);
+      const res = await fetch("/api/practice/status?" + params.toString(), { credentials: "include", cache: "no-store" });
+      const data = await res.json();
+      if (data?.ok) setQuota({ dailyLimit: data.dailyLimit, used: data.used, remaining: data.remaining, pro: Boolean(data.pro) });
+    } catch {}
+  }, [user]);
+
+  useEffect(() => { void refreshQuota(); }, [refreshQuota]);
 
   const run = useCallback(async () => {
+    if (quota.remaining <= 0) { setError("سهمیه تحلیل رایگان امروز تمام شده است."); return; }
     setLoading(true);
     setError("");
     try {
@@ -95,9 +109,11 @@ export function MixAnalyzerLab({ onBack }: { onBack: () => void }) {
       });
       const data = await res.json();
       if (!data?.ok || !data.analysis) {
+        if (data?.code === "daily_limit_reached") { await refreshQuota(); throw new Error("سهمیه تحلیل امروز تمام شده است. برای تحلیل بیشتر Pro لازم است."); }
         throw new Error(data?.error || "تحلیل انجام نشد");
       }
       setAnalysis(data.analysis as MixAnalysis);
+      await refreshQuota();
       if (user?.id) {
         void fetch("/api/practice/progress", {
           method: "POST",
@@ -137,6 +153,8 @@ export function MixAnalyzerLab({ onBack }: { onBack: () => void }) {
           شبیه منطق Reference 3: تونال بالانس، EQ curve، کمپرس، لیمیت، استریو و فاز را بر اساس سبک هدف بررسی می‌کند
           و یک roadmap عملی می‌دهد تا به رفرنس حرفه‌ای نزدیک شوی.
         </p>
+
+<div className="mt-5 flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-ink-300">Daily: <b className="text-cyan-200">{quota.remaining}/{quota.dailyLimit}</b></span><span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-ink-500">{quota.pro ? "Pro" : "Free"}</span></div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <label className="block text-xs text-ink-400">
@@ -196,7 +214,7 @@ export function MixAnalyzerLab({ onBack }: { onBack: () => void }) {
           />
         </label>
 
-        <button type="button" className="btn-primary mt-6" disabled={loading} onClick={() => void run()}>
+        <button type="button" className="btn-primary mt-6" disabled={loading || quota.remaining <= 0} onClick={() => void run()}>
           {loading ? (
             <>
               <Loader2 size={16} className="animate-spin" /> در حال تحلیل AI…
