@@ -26,22 +26,31 @@ async function isAuthenticated() {
 
 export async function POST(request: NextRequest) {
   if (!(await isAuthenticated())) {
-    return NextResponse.json({ ok: false, error: "برای استفاده از Vocal Separator ابتدا وارد حساب شوید." }, { status: 401 });
+    return NextResponse.json({ ok: false, error: "برای استفاده از جداسازی وکال ابتدا وارد حساب شوید." }, { status: 401 });
   }
 
   const worker = (process.env.UVR_WORKER_URL || "").replace(/\/$/, "");
   const workerSecret = process.env.UVR_WORKER_SECRET || "";
   if (!worker || !workerSecret) {
-    return NextResponse.json({ ok: false, code: "UVR_WORKER_NOT_CONFIGURED", browserAvailable: true, error: "Server UVR worker is not configured. The /separate page uses on-device browser separation and does not require this worker." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      {
+        ok: false,
+        code: "UVR_WORKER_NOT_CONFIGURED",
+        browserAvailable: true,
+        error:
+          "موتور سرور UVR فعال نیست. از حالت استاندارد یا تفکیک کامل روی صفحه جداسازی وکال استفاده کنید — این دو حالت روی دستگاه شما کار می‌کنند و نیازی به سرور ندارند.",
+      },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const form = await request.formData();
   const file = form.get("file");
   const preset = String(form.get("preset") || "vocal_balanced");
 
-  if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "Audio file is required." }, { status: 400 });
-  if (file.size <= 0 || file.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "File must be between 1 byte and 250 MB." }, { status: 413 });
-  if (!ALLOWED_PRESETS.has(preset)) return NextResponse.json({ ok: false, error: "Unsupported separation preset." }, { status: 400 });
+  if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "فایل صوتی الزامی است." }, { status: 400 });
+  if (file.size <= 0 || file.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "حجم فایل باید بین ۱ بایت تا ۲۵۰ مگابایت باشد." }, { status: 413 });
+  if (!ALLOWED_PRESETS.has(preset)) return NextResponse.json({ ok: false, error: "حالت تفکیک پشتیبانی نمی‌شود." }, { status: 400 });
 
   const upstream = new FormData();
   upstream.append("file", file, file.name);
@@ -58,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
-      return NextResponse.json({ ok: false, error: detail || ("Separation worker returned HTTP " + response.status + ".") }, { status: response.status >= 500 ? 502 : response.status });
+      return NextResponse.json({ ok: false, error: detail || ("موتور تفکیک خطای HTTP " + response.status + " برگرداند.") }, { status: response.status >= 500 ? 502 : response.status });
     }
 
     const blob = await response.blob();
@@ -71,7 +80,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Separation worker is unreachable.";
+    const message = error instanceof Error ? error.message : "موتور تفکیک در دسترس نیست.";
     return NextResponse.json({ ok: false, error: message }, { status: 502 });
   }
 }
