@@ -37,6 +37,7 @@ export async function POST(request: Request) {
   if (!db) return NextResponse.json({ ok: false, error: "practice_store_not_configured" }, { status: 503 });
   const body = await request.json().catch(() => ({}));
   const userId = String(body.userId || "").trim();
+  const gameId = String(body.gameId || "tone").trim();
   if (!userId) return NextResponse.json({ ok: false, error: "userId_required" }, { status: 400 });
 
   const start = new Date(`${dayKey()}T00:00:00.000Z`);
