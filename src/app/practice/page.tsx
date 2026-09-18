@@ -1,1 +1,3 @@
-LOADING_FROM_FILE
+"use client";
+
+export { default } from "@/components/PracticeEngine";
