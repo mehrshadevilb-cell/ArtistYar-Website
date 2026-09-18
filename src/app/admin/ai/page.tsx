@@ -77,7 +77,27 @@ function copyText(text: string) {
 export default function AdminAiPage() {
   const [data, setData] = useState<AiStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);\n  const [task, setTask] = useState("");\n  const [agentCount, setAgentCount] = useState(12);\n  const [running, setRunning] = useState(false);\n  const [agentRun, setAgentRun] = useState<any>(null);\n  const [agentError, setAgentError] = useState<string | null>(null);\n\n  const runAgents = async () => {\n    if (!task.trim() || running) return;\n    setRunning(true); setAgentError(null); setAgentRun(null);\n    try {\n      const response = await fetch("/api/ai/agent", {\n        method: "POST", headers: { "Content-Type": "application/json" },\n        body: JSON.stringify({ task: task.trim(), maxAgents: agentCount }),\n      });\n      const json = await response.json();\n      if (!response.ok || !json.ok) throw new Error(json.error || "Agent execution failed");\n      setAgentRun(json);\n    } catch (error) {\n      setAgentError(error instanceof Error ? error.message : "اجرای Multi-Agent ناموفق بود");\n    } finally { setRunning(false); }\n  };
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);\n  const [task, setTask] = useState("");\n  const [agentCount, setAgentCount] = useState(12);\n  const [running, setRunning] = useState(false);\n  const [agentRun, setAgentRun] = useState<any>(null);\n  const [agentError, setAgentError] = useState<string | null>(null);
+  const [devRunning, setDevRunning] = useState(false);
+  const [devRun, setDevRun] = useState<any>(null);
+  const [devError, setDevError] = useState<string | null>(null);
+
+  const developTask = async () => {
+    if (!task.trim() || devRunning) return;
+    setDevRunning(true); setDevError(null); setDevRun(null);
+    try {
+      const response = await fetch("/api/ai/develop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task: task.trim(), maxAgents: agentCount, execute: true }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.ok) throw new Error(json.error || "Development Agent failed");
+      setDevRun(json);
+    } catch (error) {
+      setDevError(error instanceof Error ? error.message : "اجرای Development Agent ناموفق بود");
+    } finally { setDevRunning(false); }
+  };\n\n  const runAgents = async () => {\n    if (!task.trim() || running) return;\n    setRunning(true); setAgentError(null); setAgentRun(null);\n    try {\n      const response = await fetch("/api/ai/agent", {\n        method: "POST", headers: { "Content-Type": "application/json" },\n        body: JSON.stringify({ task: task.trim(), maxAgents: agentCount }),\n      });\n      const json = await response.json();\n      if (!response.ok || !json.ok) throw new Error(json.error || "Agent execution failed");\n      setAgentRun(json);\n    } catch (error) {\n      setAgentError(error instanceof Error ? error.message : "اجرای Multi-Agent ناموفق بود");\n    } finally { setRunning(false); }\n  };
 
   const load = useCallback(() => {
     setLoading(true);
