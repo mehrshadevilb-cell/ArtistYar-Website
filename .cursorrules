@@ -1,0 +1,18 @@
+# Project Specific Rules for Cursor AI
+
+## General
+- Always respond in Persian (Farsi) when discussing logic, but keep code comments in English.
+- This is a Next.js 15 + React 19 + Tailwind CSS 3 project.
+
+## Design System: Apple HIG Compliance
+When generating UI components, strictly adhere to the guidelines defined in `docs/design-systems/apple-hig-guidelines.md`:
+1. **Minimalism**: Prioritize whitespace and clarity over decoration.
+2. **Motion**: Use standard easing curves. Avoid abrupt changes.
+3. **Accessibility**: Ensure high contrast and proper semantic HTML structure.
+4. **Consistency**: Reuse existing primitives from `src/components/ui` before creating new ones.
+
+## Code Style
+- Use functional components with hooks.
+- Prefer Server Components by default; use Client Components ('use client') only when interactivity is required.
+- Import Lucide React icons explicitly.
+- Do not install new dependencies without explicit approval.
