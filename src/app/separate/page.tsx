@@ -19,6 +19,7 @@ export default function SeparatePage() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [dragging, setDragging] = useState(false);
 
   const size = useMemo(() => {
     if (!file) return "";
@@ -77,7 +78,7 @@ export default function SeparatePage() {
 
         <div className="mt-10 grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
           <section className="rounded-[1.5rem] border border-white/[.08] bg-white/[.025] p-5 sm:p-7">
-            <button type="button" onClick={() => inputRef.current?.click()} className="group flex min-h-64 w-full flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-black/20 px-6 text-center transition hover:border-gold-400/50 hover:bg-gold-400/[.035]">
+            <button type="button" onClick={() => inputRef.current?.click()} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files?.[0] || null); }} className={"group flex min-h-64 w-full flex-col items-center justify-center rounded-2xl border border-dashed px-6 text-center transition " + (dragging ? "border-gold-400/70 bg-gold-400/[.07] scale-[1.01]" : "border-white/15 bg-black/20 hover:border-gold-400/50 hover:bg-gold-400/[.035]")}>
               <span className="grid h-14 w-14 place-items-center rounded-2xl bg-gold-400/10 text-gold-300 transition group-hover:scale-105">{file ? <FileAudio size={25} /> : <Upload size={25} />}</span>
               <strong className="mt-5 text-base text-sand-50">{file ? file.name : "Drop audio here or choose a file"}</strong>
               <span className="mt-2 text-xs text-ink-500">{file ? size : "WAV · MP3 · FLAC · M4A · AAC · OGG · up to 250 MB"}</span>
