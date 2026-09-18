@@ -114,7 +114,18 @@ export default function AssistantPage() {
             .map((item) => ({ role: item.role, content: item.text })),
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      const contentType = res.headers.get("content-type") || "";
+      const raw = await res.text();
+      let data: { reply?: unknown; error?: unknown } = {};
+      if (contentType.includes("application/json")) {
+        try {
+          data = JSON.parse(raw) as typeof data;
+        } catch {
+          data = {};
+        }
+      } else if (raw) {
+        data = { error: raw.slice(0, 300) };
+      }
       const reply = typeof data.reply === "string" ? data.reply : "";
 
       if (res.ok && reply) {
@@ -134,7 +145,7 @@ export default function AssistantPage() {
             role: "assistant",
             error: true,
             retryText: text,
-            text: "در حال حاضر اتصال راه‌یار به مدل هوش مصنوعی آماده نیست. می‌توانی چند لحظه دیگر دوباره امتحان کنی.",
+            text: typeof data.error === "string" && !data.error.includes("<!DOCTYPE") ? `اتصال راه‌یار خطا داد: ${data.error}` : "در حال حاضر اتصال راه‌یار به مدل هوش مصنوعی آماده نیست. می‌توانی چند لحظه دیگر دوباره امتحان کنی.",
           },
         ]);
       }
