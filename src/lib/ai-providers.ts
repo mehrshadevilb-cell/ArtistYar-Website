@@ -802,6 +802,22 @@ function isProviderFatalError(message: string): boolean {
   );
 }
 
+export async function chatExactProviderModel(
+  messages: ChatMessage[],
+  providerId: string,
+  modelId: string,
+  clientId = "artistyar-web",
+  signal?: AbortSignal,
+) {
+  const provider = getConfiguredProviders().find((item) => item.id === providerId);
+  if (!provider) throw new Error("provider_not_configured");
+  return {
+    reply: await chatWithProvider(provider, modelId, messages, clientId, signal),
+    provider: provider.id,
+    model: modelId,
+  };
+}
+
 export async function autoChat(
   messages: ChatMessage[],
   preferredProvider?: string,
