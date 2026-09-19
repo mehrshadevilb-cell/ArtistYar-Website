@@ -230,6 +230,9 @@ export default function SeparatePage() {
             return;
           }
 
+          if (file.size > LOCAL_MAX_BYTES) {
+            throw new Error("پردازش سروری ناموفق بود و فایل برای پردازش محلی بزرگ است. لطفاً بعداً دوباره تلاش کنید یا فایل را به زیر ۳۰ مگابایت کاهش دهید.");
+          }
           setStatus("سرور در دسترس نبود؛ ادامه با Demucs حرفه‌ای روی دستگاه…");
         } else {
           setStatus("در حال تفکیک HQ با Demucs حرفه‌ای روی دستگاه شما…");
