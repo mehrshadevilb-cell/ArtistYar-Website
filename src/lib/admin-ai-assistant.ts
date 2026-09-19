@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { autoChat, type ChatMessage } from "@/lib/ai-providers";
+import { autoChat, chatExactProviderModel, type ChatMessage } from "@/lib/ai-providers";
 import { listAdminAiRoutingCandidates } from "@/lib/admin-ai-model-registry";
 import { listHealthyAdminAiModels, recordAdminAiModelFailure, recordAdminAiModelSuccess } from "@/lib/admin-ai-model-health";
 
@@ -76,7 +76,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
       throw new Error("admin_ai_model_not_enabled_for_routing");
     }
     try {
-      result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider, model, "rahyar-admin-assistant", signal);
+      result = await chatExactProviderModel([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider, model, "rahyar-admin-assistant", signal);
       await recordAdminAiModelSuccess(provider, model);
     } catch (error) {
       if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
