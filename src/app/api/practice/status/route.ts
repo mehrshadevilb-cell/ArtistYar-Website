@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { USER_SESSION_COOKIE, verifyUserSession } from "@/lib/server-admin-auth";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -53,8 +55,22 @@ async function countDailyUsage(userIds: string[]) {
 
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
-  const userId = params.get("userId")?.trim();
-  const telegramId = params.get("telegramId")?.trim();
+  const requestedUserId = params.get("userId")?.trim();
+  const requestedTelegramId = params.get("telegramId")?.trim();
+  const session = verifyUserSession((await cookies()).get(USER_SESSION_COOKIE)?.value);
+  if (!session) {
+    if (!requestedUserId && !requestedTelegramId) {
+      return NextResponse.json({
+        ok: true, registered: false, dailyLimit: FREE_STAGE_LIMIT, used: 0,
+        remaining: FREE_STAGE_LIMIT, stageLimit: FREE_STAGE_LIMIT, remainingStages: FREE_STAGE_LIMIT, subscriptionDays: 0, pro: false, proPriceToman: PRO_PRICE_TOMAN,
+      });
+    }
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+  if (requestedUserId && requestedUserId !== session.id) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (requestedTelegramId && session.telegramId && requestedTelegramId !== session.telegramId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  const userId = session.id;
+  const telegramId = session.telegramId || "";
 
   if (!userId && !telegramId) {
     return NextResponse.json({
@@ -91,9 +107,14 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   if (!db) return NextResponse.json({ ok: false, error: "practice_store_not_configured" }, { status: 503 });
   const body = await request.json().catch(() => ({}));
-  const userId = String(body.userId || "").trim();
-  const telegramId = String(body.telegramId || "").trim();
-  if (!userId && !telegramId) return NextResponse.json({ ok: false, error: "userId_required" }, { status: 400 });
+  const session = verifyUserSession((await cookies()).get(USER_SESSION_COOKIE)?.value);
+  if (!session) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  const requestedUserId = String(body.userId || "").trim();
+  const requestedTelegramId = String(body.telegramId || "").trim();
+  if (requestedUserId && requestedUserId !== session.id) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (requestedTelegramId && session.telegramId && requestedTelegramId !== session.telegramId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  const userId = session.id;
+  const telegramId = session.telegramId || "";
 
   const ids = collectIds(userId, telegramId);
   const used = await countDailyUsage(ids);
