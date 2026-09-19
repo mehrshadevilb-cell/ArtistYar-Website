@@ -1,63 +1,70 @@
 "use client";
 
 import Link from "next/link";
-import { studentCourses, studentReservations } from "@/lib/demo-data";
-import { StatusChip } from "@/components/StatusChip";
+import { useAuth } from "@/components/AuthProvider";
+import { CommunityLinks } from "@/components/CommunityLinks";
+import { communityLinks } from "@/data/community";
 
 export default function PanelHomePage() {
+  const { user } = useAuth();
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[
-          { label: "دوره فعال", value: String(studentCourses.length) },
-          { label: "رزرو پیش‌رو", value: String(studentReservations.length) },
-          { label: "وضعیت", value: "فعال" },
-        ].map((item) => (
-          <div key={item.label} className="card-ay p-5">
-            <p className="text-xs text-ink-500">{item.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-sand-50">{item.value}</p>
-          </div>
-        ))}
+      <div className="card-ay p-6 sm:p-7">
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-ink-500">خوش آمدی</p>
+        <h2 className="mt-2 text-xl font-semibold tracking-tight text-sand-50 sm:text-2xl">
+          {user?.fullName || user?.username || "هنرجو"}
+        </h2>
+        <p className="mt-3 text-sm leading-7 text-ink-400">
+          پنل هنرجو به حساب واقعی راه‌یار وصل می‌شود. دوره‌ها و رزروها پس از پرداخت و تأیید اینجا نمایش داده
+          می‌شوند.
+        </p>
       </div>
 
-      <div className="flex items-start gap-3 rounded-2xl border border-gold-500/20 bg-gold-500/[.05] p-4 text-sm leading-7 text-ink-300">
-        <StatusChip tone="gold">حالت نمایشی</StatusChip>
-        <p>این نمای پنل با دادهٔ نمونه نمایش داده می‌شود؛ اتصال واقعی هنرجوها به API راه‌یار در مرحلهٔ بعدی فعال می‌شود.</p>
-      </div>
-
-      <div className="card-ay p-6">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-medium text-sand-50">رزروهای نزدیک</h2>
-          <Link href="/panel/reservations" className="text-xs text-gold-400">
-            همه
-          </Link>
-        </div>
-        <ul className="mt-4 space-y-3">
-          {studentReservations.map((r) => (
-            <li
-              key={r.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 text-sm"
-            >
-              <span className="text-sand-100">
-                {r.course} · {r.date} · {r.time}
-              </span>
-              <span className="text-xs text-ink-400">{r.status}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="card-ay p-6">
+      <div className="dashboard-panel card-ay p-6 sm:p-7">
         <h2 className="text-lg font-medium text-sand-50">اقدام سریع</h2>
         <div className="mt-4 flex flex-wrap gap-3">
-          <Link href="/online" className="btn-ghost !py-2 text-xs">
+          <Link href="/online" className="btn-ghost min-h-11 !py-2 text-xs">
             رزرو کلاس جدید
           </Link>
-          <Link href="/panel/profile" className="btn-primary !py-2 text-xs">
+          <Link href="/panel/profile" className="btn-primary min-h-11 !py-2 text-xs">
             اتصال به ربات
+          </Link>
+          <Link href="/courses" className="btn-ghost min-h-11 !py-2 text-xs">
+            مشاهده دوره‌ها
+          </Link>
+          <Link href="/assistant" className="btn-ghost min-h-11 !py-2 text-xs">
+            راه‌یار AI
           </Link>
         </div>
       </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <a
+          href={communityLinks.telegramGroup.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="card-ay ay-pressable block p-5 transition hover:border-gold-500/30"
+        >
+          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-ink-500">تلگرام</p>
+          <strong className="mt-2 block text-base text-sand-50">گروه پرسش و پاسخ</strong>
+          <p className="mt-2 text-sm leading-7 text-ink-400">سؤال بپرس و از تجربه هم‌مسیرها استفاده کن.</p>
+          <span className="mt-3 inline-flex text-xs font-medium text-gold-400">ProAudiosGP ←</span>
+        </a>
+        <a
+          href={communityLinks.telegramPlugins.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="card-ay ay-pressable block p-5 transition hover:border-gold-500/30"
+        >
+          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-ink-500">ابزار</p>
+          <strong className="mt-2 block text-base text-sand-50">کانال VST و پلاگین</strong>
+          <p className="mt-2 text-sm leading-7 text-ink-400">دانلود و معرفی پلاگین‌های تولید موسیقی.</p>
+          <span className="mt-3 inline-flex text-xs font-medium text-gold-400">ProAudios ←</span>
+        </a>
+      </div>
+
+      <CommunityLinks variant="pills" className="pt-2" />
     </div>
   );
 }

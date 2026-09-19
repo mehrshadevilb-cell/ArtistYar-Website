@@ -10,38 +10,132 @@ export type SessionUser = {
 };
 
 const STORAGE_KEY = "artistyar_session_v1";
+const MEMBERS_KEY = "artistyar_members_v1";
 
-/** Demo accounts until backend auth is wired. */
-const DEMO_USERS: Array<SessionUser & { password: string }> = [
-  {
-    id: "1",
-    username: "student",
-    password: "student123",
-    fullName: "هنرجوی نمونه",
-    role: "student",
-    telegramLinked: false,
-  },
-  {
-    id: "2",
-    username: "admin",
-    password: "admin123",
-    fullName: "مدیر آکادمی",
-    role: "admin",
-    telegramLinked: true,
-    telegramId: "owner",
-  },
-];
+type StoredMember = SessionUser & { password: string };
+
+function setStorageItem(key: string, value: string): void {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(key, value); } catch { /* Storage must not crash auth. */ }
+}
+
+function removeStorageItem(key: string): void {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.removeItem(key); } catch { /* Ignore unavailable storage. */ }
+}
+
+export function saveSession(user: SessionUser): void {
+  setStorageItem(STORAGE_KEY, JSON.stringify(user));
+}
+
+export function getSession(): SessionUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const session = JSON.parse(raw) as Partial<SessionUser>;
+    if (
+      typeof session.id !== "string" ||
+      typeof session.username !== "string" ||
+      typeof session.fullName !== "string" ||
+      (session.role !== "student" && session.role !== "admin")
+    ) return null;
+    return {
+      id: session.id,
+      username: session.username,
+      fullName: session.fullName,
+      role: session.role,
+      telegramLinked: Boolean(session.telegramLinked),
+      ...(typeof session.telegramId === "string" ? { telegramId: session.telegramId } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function clearLocalSession(): void {
+  removeStorageItem(STORAGE_KEY);
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    });
+  } finally {
+    clearLocalSession();
+  }
+}
+
+function readLocalStudents(): StoredMember[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(MEMBERS_KEY);
+    const local = raw ? (JSON.parse(raw) as StoredMember[]) : [];
+    if (!Array.isArray(local)) return [];
+    return local.filter(
+      (u) => u && typeof u.username === "string" && u.role !== "admin" &&
+        u.username.toLowerCase() !== "admin" && u.username.toLowerCase() !== "student",
+    );
+  } catch { return []; }
+}
+
+function writeLocalStudent(member: StoredMember) {
+  if (typeof window === "undefined") return;
+  const existing = readLocalStudents().filter(
+    (u) => u.username.toLowerCase() !== member.username.toLowerCase(),
+  );
+  existing.push(member);
+  setStorageItem(MEMBERS_KEY, JSON.stringify(existing));
+}
 
 export function login(username: string, password: string): SessionUser | null {
-  const found = DEMO_USERS.find(
-    (u) => u.username === username.trim() && u.password === password,
+  if (process.env.NODE_ENV === "production") return null;
+  const found = readLocalStudents().find(
+    (u) => u.username.toLowerCase() === username.trim().toLowerCase() && u.password === password,
   );
   if (!found) return null;
   const { password: _, ...session } = found;
-  if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  }
+  setStorageItem(STORAGE_KEY, JSON.stringify(session));
   return session;
+}
+
+export async function loginViaApi(
+  username: string,
+  password: string,
+): Promise<{ ok: true; user: SessionUser } | { ok: false; error: string }> {
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+      cache: "no-store",
+      credentials: "include",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok || !data.user) {
+      if (process.env.NODE_ENV !== "production") {
+        try {
+          const local = login(username, password);
+          if (local) return { ok: true, user: local };
+        } catch { /* Fall through to a normal login error. */ }
+      }
+      return { ok: false, error: data.error || "نام کاربری یا رمز عبور نادرست است." };
+    }
+    const user = data.user as SessionUser;
+    setStorageItem(STORAGE_KEY, JSON.stringify(user));
+    return { ok: true, user };
+  } catch {
+    if (process.env.NODE_ENV !== "production") {
+      try {
+        const local = login(username, password);
+        if (local) return { ok: true, user: local };
+      } catch { /* Storage errors must not crash the panel. */ }
+    }
+    return { ok: false, error: "ارتباط با سرور ورود برقرار نشد." };
+  }
 }
 
 export function registerLocal(input: {
@@ -49,44 +143,23 @@ export function registerLocal(input: {
   password: string;
   fullName: string;
 }): SessionUser | { error: string } {
+  if (process.env.NODE_ENV === "production") {
+    return { error: "ثبت‌نام محلی در محیط تولید غیرفعال است. از فرم ثبت‌نام اصلی استفاده کن." };
+  }
   const username = input.username.trim();
   if (username.length < 3) return { error: "نام کاربری حداقل ۳ کاراکتر باشد." };
   if (input.password.length < 6) return { error: "رمز عبور حداقل ۶ کاراکتر باشد." };
-  if (DEMO_USERS.some((u) => u.username === username)) {
-    return { error: "این نام کاربری قبلاً ثبت شده (دمو)." };
+  if (!input.fullName.trim()) return { error: "نام کامل را وارد کن." };
+  if (["admin", "student"].includes(username.toLowerCase())) return { error: "این نام کاربری مجاز نیست." };
+  if (readLocalStudents().some((u) => u.username.toLowerCase() === username.toLowerCase())) {
+    return { error: "این نام کاربری قبلاً ثبت شده است." };
   }
-  const session: SessionUser = {
-    id: String(Date.now()),
-    username,
-    fullName: input.fullName.trim() || username,
-    role: "student",
-    telegramLinked: false,
+  const member: StoredMember = {
+    id: String(Date.now()), username, password: input.password, fullName: input.fullName.trim(),
+    role: "student", telegramLinked: false,
   };
-  if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  }
+  writeLocalStudent(member);
+  const { password: _, ...session } = member;
+  setStorageItem(STORAGE_KEY, JSON.stringify(session));
   return session;
-}
-
-export function logout(): void {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem(STORAGE_KEY);
-  }
-}
-
-export function getSession(): SessionUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as SessionUser;
-  } catch {
-    return null;
-  }
-}
-
-export function saveSession(user: SessionUser): void {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-  }
 }

@@ -1,0 +1,76 @@
+import { createClient } from "@supabase/supabase-js";
+
+const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const supabase = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
+
+const MAX_SESSION_SCORE = 300;
+
+export type PracticeRecord = {
+  user_id: string;
+  username: string;
+  full_name: string;
+  game_id: string;
+  score: number;
+  accuracy: number;
+  streak: number;
+  best_score: number;
+  metadata: Record<string, unknown>;
+  played_at?: string;
+};
+
+export function hasPracticeStore() { return Boolean(supabase); }
+
+export async function savePracticeResult(input: PracticeRecord) {
+  if (!supabase) throw new Error("practice_store_not_configured");
+  const safe = {
+    ...input,
+    score: Math.max(-5, Math.min(MAX_SESSION_SCORE, Math.round(input.score))),
+    accuracy: Math.max(0, Math.min(100, Number(input.accuracy) || 0)),
+    streak: Math.max(0, Math.min(1, Math.round(input.streak))),
+    best_score: Math.max(0, Math.min(MAX_SESSION_SCORE, Math.round(input.best_score))),
+  };
+  const result = await supabase.from("practice_records").insert(safe).select().single();
+  if (result.error) throw new Error(result.error.message);
+  return result.data;
+}
+
+export async function getPracticeProfile(userId: string) {
+  if (!supabase) throw new Error("practice_store_not_configured");
+  const result = await supabase.from("practice_records").select("*").eq("user_id", userId).order("played_at", { ascending: false }).limit(500);
+  if (result.error) throw new Error(result.error.message);
+  const rows = result.data || [];
+  const byGame = new Map<string, Record<string, unknown>>();
+  for (const row of rows) {
+    const current = byGame.get(String(row.game_id));
+    if (!current || Number(row.best_score) > Number(current.best_score)) byGame.set(String(row.game_id), row as Record<string, unknown>);
+  }
+  const totalXp = rows.reduce((sum, row) => sum + Number(row.score || 0), 0);
+  return { records: rows, bestByGame: Array.from(byGame.values()), totalXp, sessions: rows.length };
+}
+
+export async function getLeaderboard(limit = 50) {
+  if (!supabase) throw new Error("practice_store_not_configured");
+  const result = await supabase.from("practice_records").select("user_id,username,full_name,game_id,score,best_score,accuracy,streak,played_at,metadata").order("score", { ascending: false }).limit(1000);
+  if (result.error) throw new Error(result.error.message);
+  const byUserGame = new Map<string, Record<string, unknown>>();
+  for (const row of result.data || []) {
+    const key = String(row.user_id) + "::" + String(row.game_id || "unknown");
+    const existing = byUserGame.get(key);
+    if (!existing || Number(row.best_score || row.score || 0) > Number(existing.best_score || existing.score || 0)) byUserGame.set(key, row as Record<string, unknown>);
+  }
+  const totals = new Map<string, Record<string, unknown>>();
+  for (const row of byUserGame.values()) {
+    const existing = totals.get(String(row.user_id));
+    const best = Number(row.best_score || row.score || 0);
+    if (!existing) totals.set(String(row.user_id), { ...row, total_score: best, best_score: best, games_played: 1 });
+    else {
+      existing.total_score = Number(existing.total_score) + best;
+      existing.best_score = Math.max(Number(existing.best_score), best);
+      existing.games_played = Number(existing.games_played) + 1;
+      existing.accuracy = Math.max(Number(existing.accuracy || 0), Number(row.accuracy || 0));
+      existing.streak = Math.max(Number(existing.streak || 0), Number(row.streak || 0));
+    }
+  }
+  return Array.from(totals.values()).sort((a, b) => Number(b.total_score) - Number(a.total_score)).slice(0, limit).map((row, index) => ({ rank: index + 1, ...row }));
+}

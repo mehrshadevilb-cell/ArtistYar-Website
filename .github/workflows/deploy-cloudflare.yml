@@ -1,0 +1,49 @@
+name: Deploy Cloudflare Workers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudflare-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Prepare environment
+        env:
+          ARTISTYAR_ENV_FILE: ${{ secrets.ARTISTYAR_ENV_FILE }}
+        run: |
+          test -n "$ARTISTYAR_ENV_FILE"
+          printf '%s' "$ARTISTYAR_ENV_FILE" > .env.production
+          chmod 600 .env.production
+
+      # package-lock.json predates @opennextjs/cloudflare + wrangler — npm ci fails.
+      - name: Install
+        run: npm install
+
+      - name: OpenNext build
+        run: npx opennextjs-cloudflare build
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      - name: Remove environment file
+        if: always()
+        run: rm -f .env.production

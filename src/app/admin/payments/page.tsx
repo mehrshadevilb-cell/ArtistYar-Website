@@ -1,33 +1,21 @@
 "use client";
 
-import { adminPayments } from "@/lib/demo-data";
+import { useEffect, useState } from "react";
+import { Check, CreditCard, ExternalLink, X } from "lucide-react";
+
+type Payment = { id: number; student_id: number; student_name: string; phone: string | null; course_title: string; amount: number; status: string; receipt_file_id: string | null; transaction_id: string | null; discount_amount: number; admin_notes: string | null; created_at: string };
 
 export default function AdminPaymentsPage() {
-  return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-medium text-sand-50">پرداخت‌های در انتظار</h2>
-      <div className="space-y-3">
-        {adminPayments.map((p) => (
-          <div key={p.id} className="card-ay flex flex-wrap items-center justify-between gap-3 p-5">
-            <div>
-              <p className="text-sm text-sand-50">
-                #{p.id} · {p.student}
-              </p>
-              <p className="mt-1 text-xs text-ink-400">
-                {p.product} · {p.amount} تومان
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button type="button" className="btn-primary !px-4 !py-2 text-xs">
-                تأیید
-              </button>
-              <button type="button" className="btn-ghost !px-4 !py-2 text-xs">
-                رد
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  const [rows, setRows] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<number | null>(null);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function load() { setLoading(true); setError(""); try { const response = await fetch("/api/rahyar/admin/payments", { cache: "no-store" }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "دریافت پرداخت‌ها ناموفق بود."); setRows(Array.isArray(data) ? data : []); } catch (cause) { setError(cause instanceof Error ? cause.message : "دریافت پرداخت‌ها ناموفق بود."); } finally { setLoading(false); } }
+  useEffect(() => { void load(); }, []);
+
+  async function review(row: Payment, action: "approve" | "reject") { const notes = action === "reject" ? window.prompt("دلیل رد تراکنش را وارد کن:", "رسید پرداخت قابل تأیید نیست") : null; if (action === "reject" && notes === null) return; setBusy(row.id); setError(""); setMessage(""); try { const response = await fetch("/api/rahyar/admin/payments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: row.id, action, notes }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || data.detail || "بررسی پرداخت ناموفق بود."); setMessage(data.message || "عملیات انجام شد."); setRows((items) => items.filter((item) => item.id !== row.id)); } catch (cause) { setError(cause instanceof Error ? cause.message : "بررسی پرداخت ناموفق بود."); } finally { setBusy(null); } }
+
+  return <div className="space-y-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow">/ مالی و تراکنش</p><h2 className="mt-3 text-2xl font-semibold text-sand-50">صف بررسی پرداخت‌ها</h2><p className="mt-2 text-sm leading-7 text-ink-400">پرداخت‌های در انتظار از همان جدول مشترک ربات و سایت خوانده می‌شوند. تأیید پرداخت، ثبت‌نام دوره را نیز ایجاد می‌کند.</p></div><button type="button" className="btn-ghost !px-4" onClick={() => void load()} disabled={loading}>به‌روزرسانی</button></div>{error ? <p className="rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-xs leading-6 text-red-300" role="alert">{error}</p> : null}{message ? <p className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs leading-6 text-emerald-300" role="status">{message}</p> : null}{loading ? <div className="card-ay p-6 text-sm text-ink-400">در حال دریافت تراکنش‌ها…</div> : null}{!loading && !rows.length ? <div className="card-ay p-6 text-sm text-ink-400">پرداخت در انتظار بررسی وجود ندارد.</div> : null}<div className="grid gap-4 lg:grid-cols-2">{rows.map((row) => <article key={row.id} className="card-ay p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-xs text-ink-500">تراکنش #{row.id} · هنرجو #{row.student_id}</p><h3 className="mt-2 text-base font-medium text-sand-50">{row.student_name || "بدون نام"}</h3><p className="mt-1 text-sm text-gold-400">{row.course_title}</p></div><CreditCard className="text-gold-400" size={19} /></div><div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-white/[.06] bg-white/[.02] p-3 text-xs"><div><span className="text-ink-500">مبلغ</span><p className="mt-1 text-sand-100">{row.amount.toLocaleString("fa-IR")} تومان</p></div><div><span className="text-ink-500">تخفیف</span><p className="mt-1 text-sand-100">{row.discount_amount.toLocaleString("fa-IR")} تومان</p></div></div><p className="mt-3 text-xs text-ink-400">موبایل: <span dir="ltr">{row.phone || "—"}</span></p>{row.receipt_file_id ? <p className="mt-2 flex items-center gap-1 truncate text-xs text-ink-400"><ExternalLink size={13} />رسید: <span dir="ltr">{row.receipt_file_id}</span></p> : <p className="mt-2 text-xs text-red-300">رسید ثبت نشده است.</p>}{row.transaction_id ? <p className="mt-2 text-xs text-ink-500">شناسه تراکنش: <span dir="ltr">{row.transaction_id}</span></p> : null}<p className="mt-3 text-[10px] text-ink-500">ثبت شده: {row.created_at ? new Date(row.created_at).toLocaleString("fa-IR") : "—"}</p><div className="mt-4 flex gap-2"><button type="button" className="btn-primary flex-1 !px-3 !py-2 text-xs" onClick={() => void review(row, "approve")} disabled={busy === row.id}><Check size={14} />تأیید و ثبت‌نام</button><button type="button" className="btn-ghost flex-1 !border-red-300/20 !px-3 !py-2 text-xs !text-red-300" onClick={() => void review(row, "reject")} disabled={busy === row.id}><X size={14} />رد پرداخت</button></div></article>)}</div></div>;
 }

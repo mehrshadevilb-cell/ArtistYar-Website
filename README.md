@@ -2,55 +2,87 @@
 
 پلتفرم وب **آرتیست‌یار** — متصل به ربات راه‌یار (دیتابیس + AI).
 
+## ورود ادمین
+
+حساب‌های دمو (`admin/admin123` و `student/student123`) حذف شده‌اند.
+
+در Render سایت این دو متغیر را **حتماً** تنظیم کن:
+
+```env
+ARTISTYAR_ADMIN_USERNAME=mehrshad
+ARTISTYAR_ADMIN_PASSWORD=یک_رمز_قوی_اختصاصی
+```
+
+سپس با همان نام کاربری و رمز از `/login` وارد پنل `/admin` شو.
+
 ## اتصال AI
 
-AI سایت از این به بعد providerها را مستقیم صدا نمی‌زند؛ سایت به **RahYar AI Gateway** وصل می‌شود تا همان `ChatAssistantService`، provider router، failover، cooldown، دانش داخلی، کاتالوگ دوره‌ها و web research در ربات و سایت مشترک باشد.
+سایت خودش مدل‌ها را از کلیدهای env کشف می‌کند و به **بهترین مدل موجود** وصل می‌شود.
+حداقل یکی از این کلیدها را روی سرویس سایت (Render و غیره) ست کن:
 
-| سطح | کجا | چه کار می‌کند |
-|------|-----|----------------|
-| دستیار آموزشی | سایت `/assistant` + ربات | همان `ChatAssistantService` و provider pool |
-| Diagnostics | سایت `/admin/ai` | self-check + status agent |
-| Developer Agent (کدنویسی/PR) | **فقط تلگرام ادمین** | امن؛ از وب باز نیست |
+```env
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+GROQ_API_KEY=
+OPENROUTER_API_KEY=
+GOOGLE_GENERATIVE_AI_API_KEY=   # یا GEMINI_API_KEY / GOOGLE_API_KEY
+```
 
-### Environment
-
-در Render سایت:
+اختیاری — Gateway راه‌یار به‌عنوان fallback:
 
 ```env
 RAHYAR_AI_GATEWAY_URL=https://YOUR-BOT-HOST
 RAHYAR_AI_BRIDGE_SECRET=YOUR_SHARED_SECRET
 ```
 
-در Render ربات، همین مقدار secret را تنظیم کنید:
+بعد از deploy، `/api/ai/providers` لیست providerها و مدل‌های کشف‌شده را برمی‌گرداند.
+
+## Multi-Agent Development
+
+پنل `/admin/ai` علاوه بر تحلیل Multi-Agent، یک مسیر Development Agent دارد: مدل‌ها plan می‌سازند، چند Coding Agent به‌صورت هم‌زمان پیشنهاد کد می‌دهند، Reviewerها آن را بررسی می‌کنند و نسخه منتخب در یک branch با نام `ai/*` اعمال و به‌صورت Draft PR ساخته می‌شود. تغییر مستقیم روی `main` انجام نمی‌شود.
+
+برای فعال‌سازی write access روی Render:
 
 ```env
-RAHYAR_AI_BRIDGE_SECRET=YOUR_SHARED_SECRET
+GITHUB_TOKEN=یک_GitHub_Fine-grained_Token_با_دسترسی_فقط_به_این_Repository
+GITHUB_REPOSITORY=mehrshadevilb-cell/ArtistYar-Website
 ```
 
-`RAHYAR_AI_BRIDGE_SECRET` باید یک مقدار تصادفی قوی و یکسان در هر دو سرویس باشد. این مقدار را داخل Git commit نکنید.
+دسترسی Token را حداقلی نگه دار: `Contents` برای نوشتن فایل و `Pull requests` برای ساخت PR. پس از ساخت PR، GitHub Actions فایل `.github/workflows/agent-verify.yml` را اجرا می‌کند و `typecheck` و `build` را بررسی می‌کند. Merge و deploy همچنان باید تحت کنترل owner باشد.
 
-Backend endpoints:
-- `POST /api/v1/assistant/chat`
-- `GET  /api/v1/ai/status`
-- `GET  /api/v1/products` · `classes` · `orders` · ...
+## همگام‌سازی سایت و ربات
 
-## آپلود محتوای رسانه‌ای
-برای نگهداری پایدار فایل‌های نمونه‌کار هنرجو و آموزش رایگان، از Supabase Storage استفاده می‌شود. این متغیرها را در محیط Render تنظیم کنید:
+ثبت‌نام، ورود هنرجو، سفارش، پرداخت، لایسنس SpotPlayer و لینک‌های ArtistYar از API و دیتابیس مشترک RahYar استفاده می‌کنند. بنابراین متغیر `RAHYAR_API_URL` باید به همان backend ربات اشاره کند. برای نمایش سایت درون تلگرام، در backend مقدار `TELEGRAM_WEB_APP_URL=https://artistyaar.ir` را تنظیم کن و URL را در BotFather از مسیر **Bot Settings → Web Login** به‌عنوان Allowed URL ثبت کن.
+
+## رسانه (Supabase)
 
 ```env
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_SECRET_KEY=sb_secret_...
 SUPABASE_BUCKET=artistyar-media
-ARTISTYAR_UPLOAD_ADMIN_TOKEN=یک_کلید_تصادفی_قوی
+ARTISTYAR_SESSION_SECRET=یک_کلید تصادفی طولانی برای امضای نشست ادمین
 ```
 
-در Supabase یک Storage bucket عمومی با نام `artistyar-media` بسازید و جدول `media_assets` را طبق migration پروژه ایجاد کنید. بعد از ورود به `/admin`، از منوی **مدیریت محتوا** فایل صوتی، ویدیویی، تصویری یا PDF را آپلود کنید. برای نمونه‌کار هنرجو تأیید رضایت انتشار الزامی است. فایل‌ها در Supabase Storage ذخیره می‌شوند و محتوای منتشرشده در گالری عمومی نمایش داده خواهد شد. پلن رایگان Supabase سقف ۵۰MB برای هر فایل دارد.
+جدول `media_assets` را طبق `supabase/media_assets.sql` بساز (دسته‌ها: `student-work`, `free-training`, `prodby-mehrshad`).
+
+آپلود از خود پنل و از مسیر سرور انجام می‌شود و **Upload Token جداگانه لازم ندارد**؛ `SUPABASE_SECRET_KEY` فقط در env سرور Render قرار می‌گیرد و هرگز به مرورگر ارسال نمی‌شود. bucket باید عمومی باشد تا لینک‌های گالری قابل مشاهده باشند. برای بررسی اتصال واقعی bucket و جدول، از `/admin/system` بخش diagnostics استفاده کن.
+
+اگر ویرایش عنوان/توضیح ذخیره نمی‌شود، اتصال Supabase، نام bucket، اجرای `supabase/media_assets.sql` و مقدار `ARTISTYAR_SESSION_SECRET` را بررسی کن؛ سپس deploy جدید سایت را تأیید کن.
+
+## لایسنس‌های SpotPlayer
+
+خروجی Excel در `src/data/spotplayer-licenses.ts` وارد شده و در `/admin` و `/admin/students` نمایش داده می‌شود.
+
+برای import داخل دیتابیس ربات:
+
+```bash
+python scripts/import_spotplayer_licenses.py path/to/licenses.xlsx --apply
+```
 
 ## اجرا
 ```bash
 npm install
 cp .env.example .env.local
+# ARTISTYAR_ADMIN_* و حداقل یک AI key را در .env.local پر کن
 npm run dev
 ```
-
-دمو: `student/student123` · `admin/admin123`

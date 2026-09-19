@@ -4,10 +4,12 @@ export function SectionHeading({
   eyebrow,
   title,
   subtitle,
+  as: Heading = "h2",
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: string;
+  as?: "h1" | "h2";
 }) {
   return (
     <Reveal className="section-heading max-w-2xl">
@@ -16,7 +18,7 @@ export function SectionHeading({
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="section-title">{title}</h2>
+      <Heading className="section-title">{title}</Heading>
       {subtitle ? <p className="section-sub">{subtitle}</p> : null}
     </Reveal>
   );

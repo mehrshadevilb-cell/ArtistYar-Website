@@ -1,54 +1,95 @@
-import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import { ArrowLeft, Bot, Check, CirclePlay, MessageCircle, Sparkles, Waves } from "lucide-react";
 import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 import { Reveal } from "@/components/Reveal";
+import { DepthScene } from "@/components/DepthScene";
+import { ScrollDepth } from "@/components/ScrollDepth";
+import { HighlightStories } from "@/components/HighlightStories";
+import { HeroActions } from "@/components/HeroActions";
+import { SafeLink } from "@/components/SafeLink";
+import { CommunityLinks } from "@/components/CommunityLinks";
 import { instagramGallery } from "@/data/instagram-gallery";
+import { HeroDifferentiator } from "@/components/HeroDifferentiator";
+import { PracticeEnginePreview } from "@/components/PracticeEnginePreview";
+import { CoreFeatureRail } from "@/components/CoreFeatureRail";
 
 export const metadata: Metadata = {
-  title: "آموزش تنظیم، میکس و مسترینگ با مهرشاد بنائی",
+  title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | مهرشاد بنائی",
   description:
-    "آکادمی راه‌یار و ArtistYar؛ آموزش پروژه‌محور تنظیم، میکس، مسترینگ و تولید موسیقی با کلاس آنلاین، پشتیبانی هنرجو و نمونه‌کارهای واقعی.",
+    "آکادمی راه‌یار و ArtistYar: آموزش پروژه‌محور تنظیم، میکس و مسترینگ با کلاس آنلاین، پشتیبانی هنرجو، نمونه‌کار واقعی و دستیار هوشمند راه‌یار AI.",
   keywords: [
     "آموزش تنظیم",
     "آموزش میکس",
     "آموزش مسترینگ",
     "مهرشاد بنائی",
     "راه‌یار",
+    "راه‌یار AI",
+    "دستیار هوش مصنوعی موسیقی",
     "ArtistYar",
     "تولید موسیقی",
+    "عیب‌یابی میکس",
   ],
+  alternates: { canonical: "/" },
   openGraph: {
-    title: "آموزش تنظیم، میکس و مسترینگ | ArtistYar",
-    description: "یادگیری واقعی تولید موسیقی با مسیر روشن، تمرین پروژه‌محور و همراهی راه‌یار.",
+    title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | ArtistYar",
+    description:
+      "یادگیری واقعی تولید موسیقی با مسیر روشن، تمرین پروژه‌محور و دستیار هوشمند راه‌یار.",
     type: "website",
+    url: "/",
   },
 };
 
-const studentSteps = [
-  "مسیر یا کلاس را انتخاب کن",
-  "درخواستت در راه‌یار بررسی می‌شود",
-  "دسترسی، رزرو و پیشرفتت را دنبال کن",
+const systemPoints = [
+  {
+    title: "تمرین روی پروژه خودت",
+    body: "تکلیف و بازخورد روی کار واقعی‌ات ثبت می‌شود؛ نه فقط تماشای ویدیو.",
+    icon: "check" as const,
+  },
+  {
+    title: "کلاس با رزرو و یادآوری",
+    body: "جلسه را رزرو کن؛ قبل و روز کلاس از مسیر راه‌یار باخبر می‌شوی.",
+    icon: "play" as const,
+  },
+  {
+    title: "پشتیبانی وقتی گیر کردی",
+    body: "سؤال و تیکت در همان مسیر یادگیری ثبت می‌شود تا وسط راه رها نشوی.",
+    icon: "msg" as const,
+  },
+  {
+    title: "راه‌یار AI کنار مسیر",
+    body: "عیب‌یابی میکس، مفاهیم تئوری و راهنمای قدم بعد — از همین سایت.",
+    icon: "bot" as const,
+  },
 ];
 
-const supportItems = [
-  "تکلیف و بازخورد کلاس",
-  "رزرو جلسه و یادآوری‌ها",
-  "پشتیبانی و تیکت",
-  "دستیار هوشمند موسیقی",
+const studentSteps = [
+  {
+    title: "مسیر را انتخاب کن",
+    body: "دوره دیجیتال یا کلاس آنلاین — هر کدام به هدف و سطح فعلی‌ات نزدیک‌تر است.",
+  },
+  {
+    title: "درخواست بررسی می‌شود",
+    body: "پرداخت و هماهنگی از طریق راه‌یار تأیید می‌شود؛ وضعیت قابل پیگیری است.",
+  },
+  {
+    title: "یاد بگیر و جلو برو",
+    body: "دسترسی، رزرو، تکلیف و پیشرفت در یک مسیر مشخص می‌مانند.",
+  },
 ];
 
 const studentProjects = instagramGallery
   .filter((item) => item.tags.includes("نمونه‌کار هنرجو") || item.tags.includes("خروجی آموزشی"))
   .slice(0, 3)
   .map((item, index) => ({
-    code: `IG / 0${index + 1}`,
+    code: `۰${index + 1}`,
     title: item.title,
-    student: item.tags.includes("نمونه‌کار هنرجو") ? "خروجی عمومی هنرجو" : "خروجی آموزش راه‌یار",
+    student: item.tags.includes("نمونه‌کار هنرجو") ? "خروجی هنرجو" : "خروجی آموزش",
     type: item.tags
       .filter((tag) => !["نمونه‌کار هنرجو", "خروجی آموزشی"].includes(tag))
-      .join(" + "),
+      .slice(0, 2)
+      .join(" · "),
     result: item.description,
     tone: index === 0 ? "gold" : "blue",
     href: item.href,
@@ -57,126 +98,196 @@ const studentProjects = instagramGallery
 const studentFeedback = [
   {
     quote:
-      "قبل از این کلاس‌ها هر بار وسط پروژه گیر می‌کردم. حالا می‌دانم باید مشکل را از کجا پیدا کنم و چطور مرحله‌به‌مرحله جلو بروم.",
+      "قبل از این کلاس‌ها هر بار وسط پروژه گیر می‌کردم. حالا می‌دانم مشکل را از کجا پیدا کنم و چطور مرحله‌به‌مرحله جلو بروم.",
     name: "هنرجوی مسیر تنظیم و میکس",
-    detail: "بازخورد ثبت‌شده در مسیر آموزشی",
+    detail: "بازخورد مسیر آموزشی",
   },
   {
     quote:
-      "چیزی که برای من مهم بود این بود که فقط درباره پلاگین‌ها حرف نزدیم؛ روی پروژه خودم کار کردیم و دلیل هر تصمیم را فهمیدم.",
+      "فقط درباره پلاگین حرف نزدیم؛ روی پروژه خودم کار کردیم و دلیل هر تصمیم را فهمیدم.",
     name: "هنرجوی کلاس آنلاین",
-    detail: "بازخورد ثبت‌شده پس از کلاس",
+    detail: "بازخورد پس از کلاس",
   },
   {
     quote:
-      "راه‌یار باعث شد تکلیف‌ها و ادامه مسیرم مشخص باشد. وقتی سؤالی داشتم، لازم نبود یادگیری را رها کنم و از اول شروع کنم.",
+      "راه‌یار تکلیف‌ها و ادامه مسیرم را مشخص کرد. وقتی سؤال داشتم، لازم نبود از صفر شروع کنم.",
     name: "هنرجوی دوره راه‌یار",
-    detail: "بازخورد ثبت‌شده در پنل هنرجو",
+    detail: "بازخورد پنل هنرجو",
   },
 ];
 
 const faqs = [
   {
-    question: "از کدام مسیر آموزشی شروع کنم؟",
+    question: "از کدام مسیر شروع کنم؟",
     answer:
-      "اگر تازه شروع کرده‌ای، راه‌یار مسیر جامع‌تری برایت می‌سازد. اگر فقط می‌خواهی پایه‌هایت را بهتر کنی، تئوری موسیقی انتخاب مناسبی است. برای کار دقیق روی پروژه خودت هم می‌توانی کلاس آنلاین بگیری یا از مشاوره رایگان شروع کنی.",
+      "اگر تازه شروع کرده‌ای، مسیر جامع راه‌یار مناسب‌تر است. برای تقویت پایه، تئوری موسیقی. برای کار روی پروژه خودت، کلاس آنلاین یا مشاوره رایگان.",
   },
   {
-    question: "بعد از پرداخت، دسترسی دوره چطور فعال می‌شود؟",
+    question: "بعد از پرداخت دسترسی چطور فعال می‌شود؟",
     answer:
-      "درخواست و پرداخت از طریق سایت ثبت می‌شود، اما تأیید نهایی توسط تیم راه‌یار انجام می‌شود. بعد از تأیید، دسترسی محصول متناسب با نوع آن فعال می‌شود؛ دوره‌های آموزشی از طریق SpotPlayer و محصول آرتیست‌یار از طریق کانال‌های تلگرام.",
+      "سفارش در سایت ثبت می‌شود و پس از تأیید تیم راه‌یار فعال می‌گردد. دوره‌های آموزشی معمولاً از طریق SpotPlayer و محصولات کانالی از طریق تلگرام.",
   },
   {
-    question: "آیا می‌توانم قبل از خرید راهنمایی بگیرم؟",
+    question: "قبل از خرید می‌توانم راهنمایی بگیرم؟",
     answer:
-      "بله. فرم مشاوره رایگان انتهای همین صفحه را پر کن و بگو روی چه چیزی کار می‌کنی. بر اساس تجربه، هدف و پروژه‌ات برای انتخاب مسیر بهتر راهنمایی‌ات می‌کنیم.",
+      "بله. فرم مشاوره رایگان پایین صفحه را پر کن و بگو روی چه چیزی کار می‌کنی تا مسیر مناسب پیشنهاد شود.",
   },
   {
-    question: "رسید پرداخت را کجا ارسال کنم؟",
+    question: "رسید پرداخت را کجا بفرستم؟",
     answer:
-      "بعد از ثبت سفارش، شماره کارت و فرم ارسال رسید در همین سایت نمایش داده می‌شود. رسید را همان‌جا ارسال کن تا درخواستت برای بررسی در راه‌یار ثبت شود و بتوانی وضعیت سفارش را پیگیری کنی.",
+      "بعد از ثبت سفارش، فرم ارسال رسید در همین سایت نمایش داده می‌شود. همان‌جا بفرست تا وضعیت سفارش قابل پیگیری باشد.",
   },
 ];
+
+const homepageFaqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((faq) => ({
+    "@type": "Question",
+    name: faq.question,
+    acceptedAnswer: { "@type": "Answer", text: faq.answer },
+  })),
+};
+
+const homepageCoursesJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: "مسیرهای آموزشی آکادمی راه‌یار",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "دوره جامع تنظیم، میکس و مسترینگ", url: "/courses" },
+    { "@type": "ListItem", position: 2, name: "دوره تئوری موسیقی", url: "/courses" },
+    { "@type": "ListItem", position: 3, name: "کلاس آنلاین تنظیم، میکس و مسترینگ", url: "/online" },
+    { "@type": "ListItem", position: 4, name: "راهنمای آموزش تنظیم، میکس و مسترینگ", url: "/amoozesh-mix-mastering" },
+  ],
+};
+
+function SystemIcon({ kind }: { kind: "check" | "play" | "msg" | "bot" }) {
+  if (kind === "bot") return <Bot size={18} aria-hidden />;
+  if (kind === "msg") return <MessageCircle size={18} aria-hidden />;
+  if (kind === "play") return <CirclePlay size={18} aria-hidden />;
+  return <Check size={18} aria-hidden />;
+}
 
 export default function HomePage() {
   return (
     <div>
-      {/* Hero — primary focus */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageFaqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
+
       <section className="hero-section container-ay">
         <div className="hero-copy">
           <div className="hero-kicker">
             <span className="status-dot" /> آکادمی راه‌یار · ArtistYar
           </div>
           <h1 className="hero-heading">
-            یادگیری موسیقی،
+            تنظیم، میکس و مسترینگ
             <br />
-            <span className="gold-shimmer">با یک مسیر روشن.</span>
+            <span className="gold-shimmer">با مسیر روشن.</span>
           </h1>
           <p className="hero-lead">
-            دوره‌های دیجیتال، کلاس‌های آنلاین و همراهی راه‌یار برای اینکه تنظیم، میکس و مسترینگ را درست و اصولی یاد
-            بگیری؛ با تمرین واقعی و پیگیری تا رسیدن به نتیجه.
+            دوره دیجیتال، کلاس آنلاین و راه‌یار AI — تمرین واقعی روی پروژه خودت، تا خروجی قابل دفاع.
           </p>
-          <div className="hero-actions">
-            <Link href="/courses" className="btn-primary gap-2">
-              دیدن مسیرهای آموزشی <ArrowLeft size={16} />
-            </Link>
-            <Link href="/assistant" className="btn-ghost gap-2">
-              سؤال از راه‌یار <Bot size={16} />
-            </Link>
-          </div>
+          <HeroActions />
+          <SafeLink
+            href="/amoozesh-mix-mastering"
+            hard
+            className="mt-5 inline-flex text-sm text-ink-400 underline decoration-white/15 underline-offset-8 transition hover:text-gold-300 hover:decoration-gold-400/50"
+          >
+            راهنمای رایگان از پایه تا پروژه ←
+          </SafeLink>
           <div className="hero-trust">
-            <span className="trust-line" /> از انتخاب مسیر تا پیشرفت هنرجو، همه‌چیز یک‌جا
+            <span className="trust-line" />
+            <span>
+              فقط ویدیو نیست — <strong className="font-medium text-gold-400">راه‌یار</strong> تا نتیجه کنارت می‌ماند
+            </span>
+          </div>
+          <HeroDifferentiator />
+          <div className="hero-signal-row" aria-label="تمرکز مسیر">
+            <div className="hero-signal-card">
+              <span className="hero-signal-index">۰۱</span>
+              <strong>یادگیری عملی</strong>
+              <small>پروژه تا خروجی</small>
+            </div>
+            <div className="hero-signal-card hero-signal-card-active">
+              <span className="hero-signal-index">۰۲</span>
+              <strong>همراهی هوشمند</strong>
+              <small>تمرین و پیگیری</small>
+            </div>
           </div>
         </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="hero-orbit orbit-a" />
-          <div className="hero-orbit orbit-b" />
-          <div className="record-disc">
-            <div className="record-groove groove-one" />
-            <div className="record-groove groove-two" />
-            <div className="record-label">
-              <Waves size={22} />
-              <span>RY</span>
+        <ScrollDepth className="hero-scroll-depth" intensity={0.55}>
+          <DepthScene className="hero-art">
+            <div className="hero-photo-stage">
+              <Image
+                src="/artistyar-studio-hero.png"
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 767px) 100vw, (max-width: 1024px) 60vw, 42vw"
+                className="hero-photo"
+              />
             </div>
-          </div>
-          <div className="floating-note note-one">♪</div>
-          <div className="floating-note note-two">♫</div>
-          <div className="now-playing">
-            <div className="play-icon">
-              <CirclePlay size={20} />
+            <div className="hero-orbit orbit-a" />
+            <div className="hero-orbit orbit-b" />
+            <div className="record-disc">
+              <div className="record-groove groove-one" />
+              <div className="record-groove groove-two" />
+              <div className="record-label">
+                <Waves size={20} />
+                <span>RY</span>
+              </div>
             </div>
-            <div>
-              <span className="mini-label">RAHYAR ACADEMY</span>
-              <strong>مسیرت را ادامه بده</strong>
+            <div className="floating-note note-one">♪</div>
+            <div className="floating-note note-two">♫</div>
+            <div className="now-playing">
+              <div className="play-icon">
+                <CirclePlay size={18} />
+              </div>
+              <div>
+                <span className="mini-label">RAHYAR</span>
+                <strong>مسیرت را ادامه بده</strong>
+              </div>
             </div>
-            <div className="waveform">
+            <div className="studio-session">
+              <span>جلسهٔ تمرین / ۰۱</span>
+              <strong>از شنیدن تا ساختن</strong>
+            </div>
+            <div className="studio-meter" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
               <i />
               <i />
               <i />
               <i />
               <i />
             </div>
-          </div>
-          <div className="art-caption">
-            <Sparkles size={15} /> آموزش، تمرین، پیگیری.
-          </div>
-        </div>
+            <div className="art-caption">
+              <Sparkles size={14} /> آموزش · تمرین · پیگیری
+            </div>
+          </DepthScene>
+        </ScrollDepth>
       </section>
 
-      {/* Compact proof strip */}
+      <CoreFeatureRail />
+
+      <PracticeEnginePreview />
+
       <section className="proof-strip border-y border-white/[.06]">
         <div className="container-ay proof-grid">
           <div>
             <strong>دوره دیجیتال</strong>
-            <span>با دسترسی ساختاریافته</span>
+            <span>دسترسی ساختاریافته</span>
           </div>
           <div>
             <strong>کلاس آنلاین</strong>
-            <span>با رزرو و یادآوری جلسه</span>
+            <span>رزرو و یادآوری</span>
           </div>
           <div>
-            <strong>راه‌یار</strong>
-            <span>دستیار و پشتیبانی</span>
+            <strong>راه‌یار AI</strong>
+            <span>پاسخ و پشتیبانی</span>
           </div>
           <div className="proof-note">
             از شروع تا نتیجه، <b>تنها نمی‌مانی.</b>
@@ -184,112 +295,99 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Products first — like bixa showcase */}
-      <div id="courses">
+      <div id="courses" className="scroll-mt-24">
+        <div className="container-ay pt-6 pb-2 sm:hidden">
+          <SafeLink href="/courses" hard className="btn-primary w-full justify-center gap-2">
+            دیدن مسیرهای آموزشی <ArrowLeft size={16} aria-hidden />
+          </SafeLink>
+        </div>
         <HomeLiveCourses />
       </div>
 
-      {/* System value — tighter */}
-      <section id="about" className="container-ay section-space border-t border-white/[.06]">
-        <Reveal>
-          <div className="section-intro">
-            <p className="eyebrow">/ آکادمی راه‌یار</p>
-            <h2 className="section-title">
-              فقط ویدیو نمی‌خری؛
-              <br />
-              <span className="text-gold-400">یک سیستم یادگیری داری.</span>
-            </h2>
-            <p className="section-sub">
-              پرداخت و تأیید، دسترسی محتوا، کلاس آنلاین، رزرو، تکلیف و پشتیبانی — همه در یک مسیر.
-            </p>
-          </div>
-        </Reveal>
-        <div className="benefit-grid">
-          {supportItems.map((item, i) => (
-            <Reveal key={item} delay={i * 70}>
-              <article className="benefit-card">
-                <span className="benefit-icon">
-                  {i === 3 ? (
-                    <Bot size={20} />
-                  ) : i === 2 ? (
-                    <MessageCircle size={20} />
-                  ) : i === 1 ? (
-                    <CirclePlay size={20} />
-                  ) : (
-                    <Check size={20} />
-                  )}
-                </span>
-                <span className="benefit-number">۰{i + 1}</span>
-                <h3>{item}</h3>
-                <p>
-                  {i === 0
-                    ? "برای کلاس‌های آنلاین، تکلیف ثبت می‌شود و مسیر تمرینت قابل پیگیری است."
-                    : i === 1
-                      ? "جلسه‌ها را رزرو کن و یادآوری‌های قبل و روز کلاس را از دست نده."
-                      : i === 2
-                        ? "اگر جایی گیر کردی، از مسیر پشتیبانی درخواستت را ثبت کن."
-                        : "برای سؤال‌های تنظیم، میکس، مسترینگ و تئوری از راه‌یار بپرس."}
-                </p>
-              </article>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* Simple 3-step flow */}
       <section id="flow" className="container-ay section-space border-t border-white/[.06]">
         <Reveal>
           <div className="section-intro">
             <p className="eyebrow">/ مسیر هنرجو</p>
             <h2 className="section-title">
-              شروعش ساده است؛
+              سه قدم مشخص؛
               <br />
-              <span className="text-gold-400">ادامه‌اش با تو و راه‌یار.</span>
+              <span className="text-gold-400">بدون سردرگمی.</span>
             </h2>
           </div>
         </Reveal>
         <div className="benefit-grid">
           {studentSteps.map((step, i) => (
-            <Reveal key={step} delay={i * 80}>
+            <Reveal key={step.title} delay={i * 40}>
               <article className="benefit-card">
                 <span className="benefit-icon">
-                  <span className="text-lg font-medium">۰{i + 1}</span>
+                  <span className="text-sm font-semibold">۰{i + 1}</span>
                 </span>
-                <h3>{step}</h3>
-                <p>
-                  {i === 0
-                    ? "از بین دوره‌های دیجیتال یا کلاس‌های آنلاین، چیزی را انتخاب کن که به کارت نزدیک‌تر است."
-                    : i === 1
-                      ? "درخواستت ثبت می‌شود و تأیید پرداخت یا هماهنگی کلاس از طریق راه‌یار انجام می‌شود."
-                      : "دسترسی محتوا، رزروها، تکلیف‌ها و وضعیت پیشرفتت را دنبال کن."}
-                </p>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
               </article>
             </Reveal>
           ))}
         </div>
       </section>
 
-      {/* Projects — limited to 3 */}
+      <section id="about" className="container-ay section-space border-t border-white/[.06]">
+        <Reveal>
+          <div className="section-intro">
+            <p className="eyebrow">/ سیستم یادگیری</p>
+            <h2 className="section-title">
+              ویدیو به‌تنهایی کافی نیست؛
+              <br />
+              <span className="text-gold-400">مسیر می‌خواهد.</span>
+            </h2>
+            <p className="section-sub">پرداخت، دسترسی، کلاس، تکلیف و پشتیبانی — در یک خط روشن.</p>
+          </div>
+        </Reveal>
+        <div className="benefit-grid">
+          {systemPoints.map((item, i) => (
+            <Reveal key={item.title} delay={i * 35}>
+              <article className="benefit-card">
+                <span className="benefit-icon">
+                  <SystemIcon kind={item.icon} />
+                </span>
+                <span className="benefit-number">۰{i + 1}</span>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+              </article>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
       <section id="projects" className="projects-section border-y border-white/[.06]">
         <div className="container-ay section-space">
           <Reveal>
             <div className="projects-heading">
               <div>
-                <p className="eyebrow">/ پروژه‌های منتخب</p>
+                <p className="eyebrow">/ خروجی</p>
                 <h2 className="section-title mt-4">
-                  یادگیری وقتی واقعی می‌شود
+                  یادگیری وقتی جدی می‌شود
                   <br />
-                  <span className="text-gold-400">که به خروجی برسد.</span>
+                  <span className="text-gold-400">که شنیده شود.</span>
                 </h2>
               </div>
-              <p className="section-sub max-w-md">
-                نمونه‌های عمومی تأییدشده از گالری؛ برای شنیدن به پست اینستاگرام ارجاع می‌دهند.
-              </p>
+              <p className="section-sub max-w-md">نمونه‌های عمومی از گالری؛ جزئیات در پست اینستاگرام.</p>
             </div>
           </Reveal>
-          <div className="projects-grid">
+          <div className="mt-10 rounded-[1.25rem] border border-white/[.07] bg-white/[.02] p-4 sm:p-6">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="eyebrow">/ هایلایت</p>
+                <h3 className="mt-2 text-lg font-medium text-sand-50">لحظه‌هایی از مسیر</h3>
+              </div>
+              <SafeLink href="/gallery" hard className="text-xs text-gold-400 hover:text-gold-300">
+                گالری کامل ←
+              </SafeLink>
+            </div>
+            <HighlightStories items={instagramGallery} />
+          </div>
+          <div className="projects-grid mt-8">
             {studentProjects.map((project, i) => (
-              <Reveal key={project.code} delay={i * 90}>
+              <Reveal key={project.code} delay={i * 40}>
                 <article className={`project-card project-${project.tone}`}>
                   <div className="project-visual">
                     <span className="project-code">{project.code}</span>
@@ -311,10 +409,9 @@ export default function HomePage() {
                     >
                       <CirclePlay size={20} />
                     </a>
-                    <span className="project-wave-label">INSTAGRAM / PUBLIC</span>
                   </div>
                   <div className="project-meta">
-                    <span className="skill-tag">{project.type}</span>
+                    {project.type ? <span className="skill-tag">{project.type}</span> : null}
                     <span className="project-student">{project.student}</span>
                   </div>
                   <h3>{project.title}</h3>
@@ -326,7 +423,7 @@ export default function HomePage() {
                       rel="noreferrer"
                       className="inline-flex items-center gap-2 hover:text-gold-300"
                     >
-                      مشاهده پست اصلی <ArrowLeft size={15} />
+                      پست اصلی <ArrowLeft size={14} />
                     </a>
                   </div>
                 </article>
@@ -336,32 +433,25 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Feedback */}
       <section id="feedback" className="feedback-section container-ay section-space">
         <Reveal>
-          <div className="projects-heading">
-            <div>
-              <p className="eyebrow">/ صدای هنرجوها</p>
-              <h2 className="section-title mt-4">
-                مسیر را از زبان
-                <br />
-                <span className="text-gold-400">خودشان بشنو.</span>
-              </h2>
-            </div>
+          <div className="section-intro">
+            <p className="eyebrow">/ صدای هنرجوها</p>
+            <h2 className="section-title">
+              از زبان کسانی که
+              <br />
+              <span className="text-gold-400">مسیر را رفته‌اند.</span>
+            </h2>
           </div>
         </Reveal>
-        <div className="feedback-grid">
-          {studentFeedback.map((feedback, i) => (
-            <Reveal key={feedback.name} delay={i * 90}>
-              <article className="feedback-card">
-                <div className="feedback-quote">“</div>
-                <p className="feedback-text">{feedback.quote}</p>
-                <div className="feedback-author">
-                  <span className="feedback-avatar">۰{i + 1}</span>
-                  <span>
-                    <strong>{feedback.name}</strong>
-                    <small>{feedback.detail}</small>
-                  </span>
+        <div className="mt-10 grid gap-3 md:grid-cols-3">
+          {studentFeedback.map((item, i) => (
+            <Reveal key={item.name} delay={i * 35}>
+              <article className="benefit-card">
+                <p className="text-sm leading-7 text-ink-300">«{item.quote}»</p>
+                <div className="mt-6">
+                  <strong className="block text-sm text-sand-50">{item.name}</strong>
+                  <span className="mt-1 block text-xs text-ink-500">{item.detail}</span>
                 </div>
               </article>
             </Reveal>
@@ -369,62 +459,60 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FAQ — fewer items */}
-      <section id="faq" className="faq-section container-ay section-space border-t border-white/[.06]">
+      <section id="faq" className="container-ay section-space border-t border-white/[.06]">
         <Reveal>
-          <div className="projects-heading">
-            <div>
-              <p className="eyebrow">/ پرسش‌های متداول</p>
-              <h2 className="section-title mt-4">
-                قبل از شروع،
-                <br />
-                <span className="text-gold-400">جوابت را پیدا کن.</span>
-              </h2>
-            </div>
+          <div className="section-intro">
+            <p className="eyebrow">/ سؤالات متداول</p>
+            <h2 className="section-title">
+              قبل از شروع،
+              <br />
+              <span className="text-gold-400">جواب‌ها روشن.</span>
+            </h2>
           </div>
         </Reveal>
-        <div className="faq-list">
-          {faqs.map((faq, i) => (
-            <Reveal key={faq.question} delay={i * 50}>
-              <details className="faq-item">
-                <summary>
-                  <span className="faq-index">۰{i + 1}</span>
-                  <span>{faq.question}</span>
-                  <span className="faq-plus" aria-hidden="true" />
-                </summary>
-                <p>{faq.answer}</p>
-              </details>
-            </Reveal>
+        <div className="mt-10 grid max-w-3xl gap-2">
+          {faqs.map((faq) => (
+            <details key={faq.question} className="card-ay group p-5 open:border-gold-500/20">
+              <summary className="cursor-pointer list-none text-[0.95rem] font-medium text-sand-50">
+                {faq.question}
+              </summary>
+              <p className="mt-3 text-sm leading-7 text-ink-400">{faq.answer}</p>
+            </details>
           ))}
         </div>
       </section>
 
-      {/* Final CTA */}
+      <section className="container-ay pb-4 pt-2">
+        <CommunityLinks
+          title="بیرون از سایت هم همراهت هستیم"
+          subtitle="کانال پلاگین، گروه پرسش‌وپاسخ و اینستاگرام رسمی مدرس."
+        />
+      </section>
+
       <section id="contact" className="container-ay section-space">
         <Reveal>
           <div className="contact-card">
-            <div className="contact-glow" />
-            <div className="relative">
-              <p className="eyebrow">/ هنوز مطمئن نیستی؟</p>
+            <div className="contact-glow" aria-hidden="true" />
+            <div className="relative z-10 max-w-xl">
+              <p className="eyebrow">/ شروع</p>
               <h2 className="section-title mt-4">
-                سؤالت را از
+                آماده‌ای
                 <br />
-                <span className="text-gold-400">راه‌یار بپرس.</span>
+                <span className="text-gold-400">مسیرت را باز کنی؟</span>
               </h2>
-              <p className="section-sub max-w-lg">
-                برای انتخاب دوره، تنظیم، میکس، مسترینگ یا تئوری موسیقی، دستیار راه‌یار راهنمایی‌ات می‌کند.
+              <p className="section-sub">
+                اگر هنوز مطمئن نیستی از کجا شروع کنی، فرم مشاوره را پر کن یا مستقیم از راه‌یار بپرس.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link href="/assistant" className="btn-primary gap-2">
-                  رفتن به دستیار <Bot size={16} />
-                </Link>
-                <Link href="/contact" className="btn-ghost">
-                  ارتباط با پشتیبانی
-                </Link>
+                <SafeLink href="/courses" hard className="btn-primary gap-2">
+                  مشاهده مسیرها <ArrowLeft size={16} />
+                </SafeLink>
+                <SafeLink href="/assistant" hard className="btn-ghost gap-2">
+                  گفتگو با راه‌یار <Bot size={16} />
+                </SafeLink>
               </div>
             </div>
-            <div className="contact-mark">
-              <Waves size={52} strokeWidth={1} />
+            <div className="contact-mark" aria-hidden="true">
               <span>
                 RAHYAR
                 <br />
@@ -435,7 +523,9 @@ export default function HomePage() {
         </Reveal>
       </section>
 
-      <QuickConsultationForm />
+      <div id="quick-consultation">
+        <QuickConsultationForm />
+      </div>
     </div>
   );
 }

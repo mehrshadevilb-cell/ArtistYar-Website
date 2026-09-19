@@ -17,7 +17,7 @@ export function HomeLiveCourses() {
       .then((r) => r.json())
       .then((data) => {
         setSource(data.source === "rahyar" ? "rahyar" : data.source || "demo");
-        setItems((data.items || []).slice(0, 3));
+        setItems((data.items || []).slice(0, 4));
       })
       .catch(() => setSource("error"));
   }, []);
@@ -47,7 +47,7 @@ export function HomeLiveCourses() {
       </div>
 
       {source === "loading" ? (
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="product-grid mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="card-ay h-72 animate-pulse bg-white/[0.04]" />
           ))}
@@ -55,7 +55,7 @@ export function HomeLiveCourses() {
       ) : items.length === 0 ? (
         <p className="mt-12 text-sm text-ink-400">فعلاً دوره‌ای برای نمایش نیست.</p>
       ) : (
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="product-grid mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((p) => (
             <LiveProductCard key={p.id} product={p} />
           ))}

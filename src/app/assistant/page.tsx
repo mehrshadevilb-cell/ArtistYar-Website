@@ -8,6 +8,7 @@ import {
   Clipboard,
   Lightbulb,
   MessageCircle,
+  Music2,
   Plus,
   RotateCcw,
   Send,
@@ -15,8 +16,8 @@ import {
   Sparkles,
   Wifi,
   WifiOff,
-  X,
 } from "lucide-react";
+import { MarkdownContent } from "@/components/MarkdownContent";
 
 const WELCOME_MESSAGE =
   "سلام، من راه‌یارم. درباره تنظیم، میکس، مسترینگ، ملودی و دوره‌های آرتیست‌یار هر سؤالی داری بپرس؛ با هم قدم‌به‌قدم جلو می‌ریم.";
@@ -25,7 +26,7 @@ const SUGGESTIONS = [
   { label: "شروع میکس", text: "برای شروع میکس از کجا برم؟" },
   { label: "تنظیم یا میکس؟", text: "تفاوت تنظیم و میکس دقیقاً چیه؟" },
   { label: "وکال تمیز", text: "چطور وکال تمیزتری داشته باشم؟" },
-  { label: "سئو + طراحی", text: "برای صفحه اصلی ArtistYar یک پیشنهاد سئو و طراحی حرفه‌ای بده" },
+  { label: "مفاهیم پایه", text: "بیت‌دپت و سمپل‌ریت یعنی چی؟" },
 ];
 
 type Msg = {
@@ -52,8 +53,8 @@ export default function AssistantPage() {
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState("");
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [connection, setConnection] = useState<ConnectionState>("loading");
-  const [connectionNote, setConnectionNote] = useState("");
+  const [connection, setConnection] = useState<ConnectionState>("ready");
+  const [connectionNote, setConnectionNote] = useState("آماده پاسخ‌گویی");
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -68,30 +69,7 @@ export default function AssistantPage() {
     return id;
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    fetch("/api/ai/providers", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((data) => {
-        if (!active) return;
-        const provider = data?.providers?.[0];
-        if (provider?.provider?.configured && provider?.models?.length) {
-          setConnection("ready");
-          setConnectionNote("آماده پاسخ‌گویی");
-        } else {
-          setConnection("offline");
-          setConnectionNote("اتصال در حال آماده‌سازی است");
-        }
-      })
-      .catch(() => {
-        if (!active) return;
-        setConnection("offline");
-        setConnectionNote("اتصال در دسترس نیست");
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  // No blocking provider health-check here: the first answer request should start immediately.\n);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -136,7 +114,18 @@ export default function AssistantPage() {
             .map((item) => ({ role: item.role, content: item.text })),
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      const contentType = res.headers.get("content-type") || "";
+      const raw = await res.text();
+      let data: { reply?: unknown; error?: unknown } = {};
+      if (contentType.includes("application/json")) {
+        try {
+          data = JSON.parse(raw) as typeof data;
+        } catch {
+          data = {};
+        }
+      } else if (raw) {
+        data = { error: raw.slice(0, 300) };
+      }
       const reply = typeof data.reply === "string" ? data.reply : "";
 
       if (res.ok && reply) {
@@ -156,7 +145,7 @@ export default function AssistantPage() {
             role: "assistant",
             error: true,
             retryText: text,
-            text: "در حال حاضر اتصال راه‌یار به مدل هوش مصنوعی آماده نیست. می‌توانی چند لحظه دیگر دوباره امتحان کنی.",
+            text: typeof data.error === "string" && !data.error.includes("<!DOCTYPE") ? `اتصال راه‌یار خطا داد: ${data.error}` : "در حال حاضر اتصال راه‌یار به مدل هوش مصنوعی آماده نیست. می‌توانی چند لحظه دیگر دوباره امتحان کنی.",
           },
         ]);
       }
@@ -192,20 +181,27 @@ export default function AssistantPage() {
         : "آماده‌سازی اتصال";
 
   return (
-    <section className="container-ay relative py-10 sm:py-16">
+    <section className="assistant-stage container-ay relative py-10 sm:py-16">
+      <div className="assistant-stage-lines" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+      </div>
       <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex flex-col gap-6 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
+        <div className="assistant-intro mb-8 flex flex-col gap-6 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold-500/20 bg-gold-500/[0.08] px-3 py-1.5 text-xs text-gold-300">
-              <Sparkles size={14} aria-hidden="true" />
-              <span>دستیار آموزشی و رشد آرتیست‌یار</span>
+              <Music2 size={14} aria-hidden="true" />
+              <span>دستیار آموزشی آرتیست‌یار</span>
             </div>
             <h1 className="text-3xl font-semibold leading-[1.45] tracking-tight text-sand-50 sm:text-5xl">
               سؤالت را بپرس؛
               <span className="gold-shimmer block">با هم حلش می‌کنیم.</span>
             </h1>
             <p className="mt-4 max-w-xl text-sm leading-8 text-ink-300 sm:text-base">
-              از تنظیم و میکس تا مسترینگ، سئو و طراحی تجربه کاربری؛ راه‌یار سؤال بعدی‌ات را به یک قدم عملی تبدیل می‌کند.
+              از تنظیم و میکس تا مسترینگ و مسیر یادگیری، راه‌یار کمک می‌کند سؤال بعدی‌ات را به یک قدم عملی تبدیل کنی.
             </p>
           </div>
           <div className="hidden items-center gap-2 text-xs text-ink-500 sm:flex">
@@ -215,8 +211,8 @@ export default function AssistantPage() {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-          <div className="overflow-hidden rounded-[1.75rem] border border-white/[0.09] bg-[#11110f]/90 shadow-[0_30px_80px_-45px_rgba(0,0,0,.9)] backdrop-blur-xl">
-            <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-4 sm:px-6">
+          <div className="assistant-console overflow-hidden rounded-[1.75rem] border border-white/[0.09] bg-[#11110f]/90 shadow-[0_30px_80px_-45px_rgba(0,0,0,.9)] backdrop-blur-xl">
+            <div className="assistant-console-header flex items-center justify-between border-b border-white/[0.07] px-4 py-4 sm:px-6">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-500 text-ink-950 shadow-[0_10px_25px_-12px_rgba(201,162,39,.9)]">
                   <Bot size={22} aria-hidden="true" />
@@ -225,13 +221,22 @@ export default function AssistantPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h2 className="truncate text-sm font-semibold text-sand-50">راه‌یار AI</h2>
-                    <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-ink-400">۳ متخصص موازی</span>
+                    <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-ink-400">BETA</span>
                   </div>
                   <p className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-500">
                     {connection === "ready" ? <Wifi size={12} aria-hidden="true" /> : <WifiOff size={12} aria-hidden="true" />}
                     {connectionNote || statusLabel}
                   </p>
                 </div>
+              </div>
+              <div className="assistant-audio-meter hidden items-end gap-0.5 sm:flex" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
               </div>
               <button
                 type="button"
@@ -245,15 +250,19 @@ export default function AssistantPage() {
               </button>
             </div>
 
-            <div className="min-h-[22rem] max-h-[35rem] space-y-5 overflow-y-auto px-4 py-6 sm:px-6" aria-live="polite" aria-busy={busy}>
+            <div className="assistant-chat-scroll assistant-console-scroll min-h-[22rem] max-h-[38rem] space-y-6 overflow-y-auto px-4 py-6 sm:px-6" aria-live="polite" aria-busy={busy}>
               {messages.map((message) => (
                 <div key={message.id} className={`group flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}>
                   <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${message.role === "user" ? "bg-white/[0.08] text-ink-300" : message.error ? "bg-red-400/10 text-red-300" : "bg-gold-500/15 text-gold-400"}`}>
                     {message.role === "user" ? <MessageCircle size={15} aria-hidden="true" /> : <Bot size={15} aria-hidden="true" />}
                   </div>
                   <div className={`max-w-[88%] sm:max-w-[78%] ${message.role === "user" ? "items-start" : "items-end"}`}>
-                    <div className={`rounded-2xl px-4 py-3 text-sm leading-8 ${message.role === "user" ? "rounded-tr-md bg-gold-500/[0.14] text-sand-50" : message.error ? "rounded-tl-md border border-red-400/20 bg-red-400/[0.06] text-sand-100" : "rounded-tl-md bg-white/[0.045] text-ink-200"}`}>
-                      {message.text}
+                    <div className={`rounded-2xl px-4 py-3.5 text-sm leading-7 ${message.role === "user" ? "rounded-tr-md bg-gold-500/[0.14] text-sand-50" : message.error ? "rounded-tl-md border border-red-400/20 bg-red-400/[0.06] text-sand-100" : "rounded-tl-md bg-white/[0.045] text-ink-200"}`}>
+                      {message.role === "assistant" && !message.error ? (
+                        <MarkdownContent text={message.text} />
+                      ) : (
+                        <p className="leading-7">{message.text}</p>
+                      )}
                     </div>
                     <div className={`mt-1.5 flex items-center gap-2 px-1 text-[10px] text-ink-600 ${message.role === "user" ? "justify-start" : "justify-end"}`}>
                       <span>{message.role === "user" ? "شما" : "راه‌یار"}</span>

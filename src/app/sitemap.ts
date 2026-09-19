@@ -1,13 +1,47 @@
 import type { MetadataRoute } from "next";
+import { getCatalog } from "@/lib/catalog";
 
-const publicRoutes = ["/", "/about", "/gallery", "/courses", "/free-player", "/online", "/practice", "/assistant", "/contact"];
+const publicRoutes: { path: string; priority: number; changeFrequency: "weekly" | "monthly" | "daily" }[] = [
+  { path: "/", priority: 1, changeFrequency: "weekly" },
+  { path: "/assistant", priority: 0.95, changeFrequency: "weekly" },
+  { path: "/courses", priority: 0.9, changeFrequency: "weekly" },
+  { path: "/amoozesh-tanzim-mix-mastering", priority: 0.98, changeFrequency: "weekly" },
+  { path: "/free-player", priority: 0.9, changeFrequency: "monthly" },
+  { path: "/practice", priority: 0.88, changeFrequency: "weekly" },
+  { path: "/online", priority: 0.85, changeFrequency: "monthly" },
+  { path: "/gallery", priority: 0.8, changeFrequency: "weekly" },
+  { path: "/about", priority: 0.75, changeFrequency: "monthly" },
+  { path: "/contact", priority: 0.7, changeFrequency: "monthly" },
+  { path: "/track", priority: 0.5, changeFrequency: "monthly" },
+];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+function slugify(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/‌/g, "")
+    .replace(/[^\u0600-\u06FF\u0660-\u0669a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
-
-  return publicRoutes.map((route) => ({
-    url: `${baseUrl}${route}`,
-    changeFrequency: route === "/" ? "weekly" : "monthly",
-    priority: route === "/" ? 1 : 0.7,
+  const lastModified = new Date();
+  const catalog = await getCatalog();
+  const packageRoutes = catalog.items.map((item) => ({
+    url: `${baseUrl}/courses/${slugify(item.title)}`,
+    lastModified,
+    changeFrequency: "weekly" as const,
+    priority: 0.92,
   }));
+
+  return [
+    ...publicRoutes.map((route) => ({
+      url: `${baseUrl}${route.path}`,
+      lastModified,
+      changeFrequency: route.changeFrequency,
+      priority: route.priority,
+    })),
+    ...packageRoutes,
+  ];
 }

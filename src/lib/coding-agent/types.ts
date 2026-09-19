@@ -1,0 +1,9 @@
+export type AgentRole = "planner" | "coder" | "reviewer" | "tester" | "lead";
+export type AgentTask = { id:string; title:string; prompt:string; role:AgentRole; dependsOn?:string[]; files?:string[]; metadata?:Record<string,unknown> };
+export type AgentProposal = { agentId:string; provider:string; model:string; changes:Array<{path:string;content:string;reason?:string}>; notes?:string; confidence?:number };
+export type AgentRun = { id:string; role:AgentRole; provider:string; model:string; ok:boolean; output?:string; error?:string; durationMs:number };
+export type AgentSkill = { id:string; name:string; description:string; version:string; roles:AgentRole[]; run(input:SkillInput):Promise<SkillOutput> };
+export type SkillInput = { task:AgentTask; context:string; tools:Record<string,unknown> };
+export type SkillOutput = { ok:boolean; output:string; artifacts?:Record<string,unknown> };
+export type CodingAgentConfig = { maxAgents:number; maxWaves:number; minSuccessfulAgents:number; timeoutMs:number; enableTests:boolean; enableReview:boolean };
+export const DEFAULT_CODING_AGENT_CONFIG:CodingAgentConfig={maxAgents:12,maxWaves:4,minSuccessfulAgents:2,timeoutMs:45000,enableTests:true,enableReview:true};

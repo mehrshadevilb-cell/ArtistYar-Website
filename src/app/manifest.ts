@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "ArtistYar | آکادمی راه‌یار",
     short_name: "ArtistYar",
-    description: "مسیر پروژه‌محور برای یادگیری تنظیم، میکس و مسترینگ.",
+    description: "مسیر پروژه‌محور برای یادگیری تنظیم، میکس، مسترینگ و تولید موسیقی با آکادمی راه‌یار.",
     lang: "fa",
     dir: "rtl",
     start_url: "/",
@@ -13,4 +13,3 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#0b0b0a",
   };
 }
-

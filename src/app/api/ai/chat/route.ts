@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { autoChat, type ChatMessage } from "@/lib/ai-providers";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `تو راه‌یار، دستیار آموزشی آرتیست‌یار هستی.
 درباره تنظیم، میکس، مسترینگ، موسیقی، تئوری موسیقی، تولید موسیقی و دوره‌های آرتیست‌یار پاسخ دقیق، کاربردی و قابل‌فهم بده.
@@ -9,6 +10,34 @@ const SYSTEM_PROMPT = `تو راه‌یار، دستیار آموزشی آرتی
 پاسخ‌ها را به فارسی و با لحن حرفه‌ای و دوستانه بنویس.`;
 
 type NormalizedMessage = ChatMessage;
+
+/** Simple per-IP chat rate limit (in-memory). */
+const chatAttempts = new Map<string, { count: number; resetAt: number }>();
+const CHAT_WINDOW_MS = 60 * 1000;
+const CHAT_MAX_PER_WINDOW = 20;
+const MAX_CHAT_BODY_BYTES = 256 * 1024;
+const MAX_CHAT_RATE_KEYS = 10_000;
+
+function checkChatRateLimit(key: string): { allowed: boolean; retryAfterSec: number } {
+  const now = Date.now();
+  for (const [storedKey, entry] of chatAttempts) {
+    if (entry.resetAt <= now) chatAttempts.delete(storedKey);
+  }
+  if (!chatAttempts.has(key) && chatAttempts.size >= MAX_CHAT_RATE_KEYS) {
+    const oldest = chatAttempts.keys().next().value;
+    if (oldest) chatAttempts.delete(oldest);
+  }
+  const entry = chatAttempts.get(key);
+  if (!entry || entry.resetAt <= now) {
+    chatAttempts.set(key, { count: 1, resetAt: now + CHAT_WINDOW_MS });
+    return { allowed: true, retryAfterSec: 0 };
+  }
+  entry.count += 1;
+  if (entry.count > CHAT_MAX_PER_WINDOW) {
+    return { allowed: false, retryAfterSec: Math.ceil((entry.resetAt - now) / 1000) };
+  }
+  return { allowed: true, retryAfterSec: 0 };
+}
 
 function normalizeMessages(value: unknown): NormalizedMessage[] {
   if (!Array.isArray(value)) return [];
@@ -18,7 +47,8 @@ function normalizeMessages(value: unknown): NormalizedMessage[] {
       const role = message.role === "assistant" ? "assistant" : "user";
       const content = typeof message.content === "string" ? message.content.trim() : "";
       if (!content) return null;
-      return { role, content };
+      // Cap single message size to reduce prompt injection / cost abuse
+      return { role, content: content.slice(0, 8000) };
     })
     .filter((message): message is NormalizedMessage => message !== null)
     .slice(-20);
@@ -33,37 +63,51 @@ function clientIdFromRequest(request: Request): string {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as {
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > MAX_CHAT_BODY_BYTES) {
+      return NextResponse.json({ ok: false, error: "درخواست گفتگو بیش از حد بزرگ است." }, { status: 413 });
+    }
+
+    const clientKey = clientIdFromRequest(request);
+    const limit = checkChatRateLimit(clientKey);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { ok: false, error: "تعداد درخواست‌ها زیاد است. کمی بعد دوباره امتحان کن." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } },
+      );
+    }
+
+    const body = (await request.json()) as {
       message?: unknown;
       messages?: unknown;
       provider?: unknown;
       model?: unknown;
+      client_id?: unknown;
     };
 
     const incoming = normalizeMessages(body.messages);
     const messages: ChatMessage[] = incoming.length
       ? incoming
       : typeof body.message === "string" && body.message.trim()
-        ? [{ role: "user", content: body.message.trim() }]
+        ? [{ role: "user", content: body.message.trim().slice(0, 8000) }]
         : [];
 
     if (!messages.length) {
-      return NextResponse.json(
-        { ok: false, error: "پیام خالی است." },
-        { status: 400 },
-      );
+      return NextResponse.json({ ok: false, error: "پیام خالی است." }, { status: 400 });
     }
 
-    const withSystemPrompt: ChatMessage[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...messages,
-    ];
+    const withSystemPrompt: ChatMessage[] = [{ role: "system", content: SYSTEM_PROMPT }, ...messages];
+
+    const clientId =
+      typeof body.client_id === "string" && body.client_id.trim()
+        ? body.client_id.trim().slice(0, 64)
+        : clientKey;
 
     const result = await autoChat(
       withSystemPrompt,
       typeof body.provider === "string" ? body.provider : undefined,
       typeof body.model === "string" ? body.model : undefined,
-      clientIdFromRequest(request),
+      clientId,
     );
 
     return NextResponse.json({
@@ -73,11 +117,11 @@ export async function POST(request: Request) {
       model: result.model,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "AI provider request failed";
+    console.error("AI chat request failed", error);
     return NextResponse.json(
       {
         ok: false,
-        error: `اتصال به مدل‌های هوش مصنوعی برقرار نشد. ${message}`,
+        error: "اتصال به مدل‌های هوش مصنوعی برقرار نشد. کمی بعد دوباره امتحان کن.",
       },
       { status: 502 },
     );
