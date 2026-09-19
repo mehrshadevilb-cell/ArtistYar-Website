@@ -589,6 +589,7 @@ async function chatOpenAICompatible(
   model: string,
   messages: ChatMessage[],
   clientId = "artistyar-web",
+  signal?: AbortSignal,
 ): Promise<string> {
   const headers: Record<string, string> = {
     ...(authHeaders(provider) as Record<string, string>),
@@ -609,7 +610,7 @@ async function chatOpenAICompatible(
       max_tokens: clientId.includes("coding") ? 12000 : 2048,
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(20_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000),
   });
 
   const data = await readJsonResponse<{
@@ -632,6 +633,7 @@ async function chatAnthropic(
   model: string,
   messages: ChatMessage[],
   clientId = "artistyar-web",
+  signal?: AbortSignal,
 ): Promise<string> {
   const system = messages
     .filter((m) => m.role === "system")
@@ -655,7 +657,7 @@ async function chatAnthropic(
       messages: rest,
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(45_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45_000)]) : AbortSignal.timeout(45_000),
   });
 
   const data = await readJsonResponse<{
@@ -681,6 +683,7 @@ async function chatGoogle(
   model: string,
   messages: ChatMessage[],
   clientId = "artistyar-web",
+  signal?: AbortSignal,
 ): Promise<string> {
   const system = messages
     .filter((m) => m.role === "system")
@@ -730,6 +733,7 @@ async function chatRahYarGateway(
   provider: AIProvider,
   messages: ChatMessage[],
   clientId: string,
+  signal?: AbortSignal,
 ): Promise<string> {
   const lastUserMessage = [...messages]
     .reverse()
@@ -774,13 +778,13 @@ export async function chatWithProvider(
 ): Promise<string> {
   switch (provider.chatStyle) {
     case "openai":
-      return chatOpenAICompatible(provider, model, messages, clientId);
+      return chatOpenAICompatible(provider, model, messages, clientId, signal);
     case "anthropic":
-      return chatAnthropic(provider, model, messages, clientId);
+      return chatAnthropic(provider, model, messages, clientId, signal);
     case "google":
-      return chatGoogle(provider, model, messages, clientId);
+      return chatGoogle(provider, model, messages, clientId, signal);
     case "rahyar":
-      return chatRahYarGateway(provider, messages, clientId);
+      return chatRahYarGateway(provider, messages, clientId, signal);
     default:
       throw new Error(`Unsupported chat style: ${provider.chatStyle}`);
   }
@@ -802,6 +806,7 @@ export async function autoChat(
   preferredProvider?: string,
   preferredModel?: string,
   clientId = "artistyar-web",
+  signal?: AbortSignal,
 ) {
   const providers = getConfiguredProviders();
   if (!providers.length) {
@@ -900,7 +905,24 @@ export async function autoChat(
     const { provider, model } = ordered[i];
     if (skippedProviders.has(provider.id)) continue;
     try {
-      const reply = await chatWithProvider(provider, model, messages, clientId);
+      const maxRetries = 2;
+      let reply = "";
+      let lastError: unknown;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
+        try {
+          reply = await chatWithProvider(provider, model, messages, clientId, signal);
+          lastError = undefined;
+          break;
+        } catch (error) {
+          lastError = error;
+          if (signal?.aborted) throw error;
+          const retryable = !isProviderFatalError(error instanceof Error ? error.message : String(error));
+          if (!retryable || attempt === maxRetries) break;
+          await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+        }
+      }
+      if (lastError && !reply) throw lastError;
       return { reply, provider: provider.id, model };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
