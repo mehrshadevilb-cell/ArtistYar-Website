@@ -9,12 +9,24 @@ const CHUNK = 343980;
 const OVERLAP = 0.25;
 const STEP = Math.floor(CHUNK * (1 - OVERLAP));
 
+// All iOS browsers (Chrome, Firefox, Edge, etc.) are required by Apple to use
+// the WebKit engine underneath — there is no real "Chrome" engine on iOS.
+// WebKit on iOS enforces a much tighter per-tab memory ceiling than desktop
+// or Android Chrome, and multi-threaded WASM (SharedArrayBuffer-based) is a
+// known source of instability/crashes there. When a tab is OOM-killed on
+// iOS it typically shows as a blank/white page that silently reloads — which
+// is exactly this symptom, and it cannot be caught with try/catch.
+const IS_IOS =
+  /iP(hone|od|ad)/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
 // Hard duration caps to avoid the browser tab being OOM-killed (which shows
 // as a blank/white page with no catchable JS error). Full-stem mode keeps up
 // to 4 full-length Float32Array buffers alive at once, so it gets a tighter
-// cap than standard (vocals-only) mode.
-const MAX_DURATION_SECONDS_STANDARD = 8 * 60;
-const MAX_DURATION_SECONDS_FULL = 5 * 60;
+// cap than standard (vocals-only) mode. iOS gets a much tighter cap on top
+// of that because of WebKit's stricter memory limit.
+const MAX_DURATION_SECONDS_STANDARD = IS_IOS ? 3 * 60 : 8 * 60;
+const MAX_DURATION_SECONDS_FULL = IS_IOS ? 2 * 60 : 5 * 60;
 
 function humanError(err) {
   const msg = err instanceof Error ? err.message : String(err || "");
@@ -64,19 +76,22 @@ async function getSession(progress) {
     const ort = await loadOrt();
     ort.env.wasm.wasmPaths =
       "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
-    // Fewer threads = lower peak memory and fewer Aborted crashes on weak devices
-    ort.env.wasm.numThreads = Math.max(
-      1,
-      Math.min(2, navigator.hardwareConcurrency || 2),
-    );
+    // Multi-threaded WASM (SharedArrayBuffer) is unstable/crash-prone on iOS
+    // WebKit, so force single-threaded there regardless of core count. On
+    // other platforms, fewer threads = lower peak memory and fewer Aborted
+    // crashes on weak devices.
+    ort.env.wasm.numThreads = IS_IOS
+      ? 1
+      : Math.max(1, Math.min(2, navigator.hardwareConcurrency || 2));
     ort.env.wasm.simd = true;
 
     progress?.({ phase: "model", loaded: 0, total: 1 });
     const bytes = await loadModelBytes(progress);
 
-    // Prefer WASM first for stability; WebGPU can abort on some GPUs/drivers
+    // Prefer WASM first for stability; WebGPU can abort on some GPUs/drivers,
+    // and WebGPU support on iOS Safari/WebKit is still too unreliable to try.
     const tryProviders = [["wasm"]];
-    if (navigator.gpu) tryProviders.unshift(["webgpu", "wasm"]);
+    if (navigator.gpu && !IS_IOS) tryProviders.unshift(["webgpu", "wasm"]);
 
     let lastErr;
     for (const eps of tryProviders) {
@@ -254,7 +269,9 @@ window.artistYarBrowserSeparate = async function (
       throw new Error(
         "مدت این فایل صوتی برای پردازش در مرورگر خیلی زیاد است (حداکثر " +
           maxMinutes +
-          " دقیقه در این حالت). لطفاً فایل کوتاه‌تری انتخاب کنید یا آن را برش بزنید.",
+          " دقیقه در این حالت" +
+          (IS_IOS ? " روی iOS" : "") +
+          "). لطفاً فایل کوتاه‌تری انتخاب کنید یا آن را برش بزنید.",
       );
     }
 
