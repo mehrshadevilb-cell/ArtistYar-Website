@@ -575,7 +575,7 @@ export async function discoverModels(provider: AIProvider, options: { allowFallb
 export const MODEL_DISCOVERY_CACHE_MS = 60_000;
 let modelDiscoveryCache: { expiresAt: number; value: Awaited<ReturnType<typeof discoverAllModels>> } | null = null;
 
-export async function discoverAllModels() {
+export async function discoverAllModels(options: { allowFallback?: boolean } = {}) {
   const providers = getConfiguredProviders();
   if (!providers.length) {
     return [
@@ -592,7 +592,7 @@ export async function discoverAllModels() {
         name: provider.name,
         configured: Boolean(provider.apiKey),
       },
-      models: await discoverModels(provider),
+      models: await discoverModels(provider, options),
     })),
   );
 }
