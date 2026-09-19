@@ -9,6 +9,14 @@ function db() {
   return supabase;
 }
 
+function sanitizeProviderError(error: unknown): string {
+  return String(error instanceof Error ? error.message : error)
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [redacted]")
+    .replace(/(?:api[_-]?key|token|secret|password)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
+    .replace(/sk-[A-Za-z0-9_-]{12,}/g, "sk-[redacted]")
+    .slice(0, 1000);
+}
+
 export type AdminAiHealth = {
   provider_id: string;
   model_id: string;
@@ -47,7 +55,7 @@ export async function recordAdminAiModelSuccess(providerId: string, modelId: str
 
 export async function recordAdminAiModelFailure(providerId: string, modelId: string, error: unknown) {
   const now = new Date();
-  const message = String(error instanceof Error ? error.message : error).slice(0, 1000);
+  const message = sanitizeProviderError(error);
   const existing = await db().from("admin_ai_model_health").select("consecutive_failures,failure_count")
     .eq("provider_id", providerId).eq("model_id", modelId).maybeSingle();
   if (existing.error) throw existing.error;
