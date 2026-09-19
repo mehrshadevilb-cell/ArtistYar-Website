@@ -2,8 +2,9 @@
 
 ## Current continuation point
 
-Latest application fix:
-`7fd0f427cbfe3b4883347a0c2e1ebce86905b8bf` — explicit provider/model routing now records model health success/failure and respects cancellation.
+Latest application fixes:
+- `7fd0f427cbfe3b4883347a0c2e1ebce86905b8bf` — explicit provider/model routing records health success/failure and respects cancellation.
+- `a236ea36f6704272a372e40c0b197c97f4f9c608` — explicit provider/model selection is now strict; it no longer silently falls back to another model.
 
 Repository: `mehrshadevilb-cell/ArtistYar-Website`
 
