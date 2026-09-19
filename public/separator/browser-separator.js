@@ -137,6 +137,54 @@ function wav(planar, sr) {
   return new Blob([b], { type: "audio/wav" });
 }
 
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+async function zipStored(files) {
+  const encoder = new TextEncoder();
+  const local = [];
+  const central = [];
+  let offset = 0;
+  for (const file of files) {
+    const name = encoder.encode(file.name);
+    const data = new Uint8Array(await file.blob.arrayBuffer());
+    const crc = crc32(data);
+    const header = new ArrayBuffer(30);
+    const h = new DataView(header);
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(8, 0, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true);
+    h.setUint16(26, name.length, true);
+    local.push(new Uint8Array(header), name, data);
+
+    const directory = new ArrayBuffer(46);
+    const d = new DataView(directory);
+    d.setUint32(0, 0x02014b50, true); d.setUint16(4, 20, true); d.setUint16(6, 20, true);
+    d.setUint32(16, crc, true); d.setUint32(20, data.length, true); d.setUint32(24, data.length, true);
+    d.setUint16(28, name.length, true); d.setUint32(42, offset, true);
+    central.push(new Uint8Array(directory), name);
+    offset += 30 + name.length + data.length;
+  }
+  const centralSize = central.reduce((sum, part) => sum + part.length, 0);
+  const end = new ArrayBuffer(22);
+  const e = new DataView(end);
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+  e.setUint32(12, centralSize, true); e.setUint32(16, offset, true);
+  return new Blob([...local, ...central, new Uint8Array(end)], { type: "application/zip" });
+}
+
 async function decode(file) {
   const ac = new OfflineAudioContext(2, 44100, 44100);
   const raw = await file.arrayBuffer();
@@ -255,26 +303,23 @@ window.artistYarBrowserSeparate = async function (
       }
     }
 
-    const zipCtor = window.JSZip;
-    if (!zipCtor) throw new Error("موتور ZIP در دسترس نیست.");
-    const z = new zipCtor();
-
+    const files = [];
     if (needFull) {
-      z.file("vocals.wav", wav(vocals));
-      z.file("drums.wav", wav(drums));
-      z.file("bass.wav", wav(bass));
-      z.file("other.wav", wav(other));
+      files.push({ name: "vocals.wav", blob: wav(vocals) });
+      files.push({ name: "drums.wav", blob: wav(drums) });
+      files.push({ name: "bass.wav", blob: wav(bass) });
+      files.push({ name: "other.wav", blob: wav(other) });
     } else {
       const instrumental = new Float32Array(2 * N);
       for (let i = 0; i < N; i++) {
         instrumental[i] = audio.left[i] - vocals[i];
         instrumental[N + i] = audio.right[i] - vocals[N + i];
       }
-      z.file("vocals.wav", wav(vocals));
-      z.file("instrumental.wav", wav(instrumental));
+      files.push({ name: "vocals.wav", blob: wav(vocals) });
+      files.push({ name: "instrumental.wav", blob: wav(instrumental) });
     }
 
-    return await z.generateAsync({ type: "blob" });
+    return await zipStored(files);
   } catch (err) {
     throw new Error(humanError(err));
   }

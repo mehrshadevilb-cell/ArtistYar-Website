@@ -23,7 +23,7 @@ const presets = [
   {
     id: "demucs_mdx_hq5",
     title: "HQ — وکال / بی‌کلام حرفه‌ای",
-    body: "بهترین کیفیت موجود: اگر سرور UVR فعال باشد هیبرید سروری، وگرنه Demucs حرفه‌ای روی دستگاه شما.",
+    body: "بهترین کیفیت موجود با مدل Demucs روی دستگاه شما؛ فایل صوتی به سرور ارسال نمی‌شود.",
     tag: "HQ",
   },
   {
@@ -48,6 +48,21 @@ type BrowserSeparateFn = (
   mode?: "standard" | "full",
 ) => Promise<Blob>;
 
+async function downloadZip(blob: Blob, filename: string) {
+  if (blob.size <= 22) throw new Error("فایل ZIP خروجی خالی است؛ پردازش را دوباره امتحان کنید.");
+  const signature = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  if (signature[0] !== 0x50 || signature[1] !== 0x4b) throw new Error("فایل ZIP خروجی معتبر نیست.");
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export default function SeparatePage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -56,7 +71,6 @@ export default function SeparatePage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
-  const [serverReady, setServerReady] = useState<boolean | null>(null);
 
   useEffect(() => {
     const load = (src: string) =>
@@ -74,28 +88,9 @@ export default function SeparatePage() {
         document.head.appendChild(script);
       });
 
-    void Promise.all([
-      load("https://cdn.jsdelivr.net/npm/jszip@3.10.2/dist/jszip.min.js"),
-      load("/separator/browser-separator.js?v=20260919-3"),
-    ]).catch(() => {
+    void load("/separator/browser-separator.js?v=20260919-4").catch(() => {
       setError("موتور تفکیک صدا بارگذاری نشد. لطفاً صفحه را دوباره بارگذاری کنید.");
     });
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/separation", { cache: "no-store" });
-        const data = await res.json().catch(() => ({}));
-        if (!cancelled) setServerReady(Boolean(data?.configured));
-      } catch {
-        if (!cancelled) setServerReady(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const size = useMemo(() => {
@@ -166,47 +161,7 @@ export default function SeparatePage() {
       mode,
     );
 
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "artistyar-" + file.name.replace(/\.[^.]+$/, "") + downloadSuffix;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-    setStatus(doneMessage);
-  }
-
-  async function runServer(
-    serverPreset: "vocal_balanced" | "htdemucs_ft",
-    downloadSuffix: string,
-    doneMessage: string,
-  ) {
-    if (!file) throw new Error("فایل انتخاب نشده است.");
-
-    setStatus("در حال آماده‌سازی تفکیک فایل بلند روی سرور…");
-    const form = new FormData();
-    form.append("file", file);
-    form.append("preset", serverPreset);
-    const response = await fetch("/api/separation", {
-      method: "POST",
-      body: form,
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data?.error || "پردازش سروری فایل انجام نشد.");
-    }
-
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "artistyar-" + file.name.replace(/\.[^.]+$/, "") + downloadSuffix;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
+    await downloadZip(blob, "artistyar-" + file.name.replace(/\.[^.]+$/, "") + downloadSuffix);
     setStatus(doneMessage);
   }
 
@@ -220,89 +175,23 @@ export default function SeparatePage() {
       const browser = (window as Window & { artistYarBrowserSeparate?: BrowserSeparateFn })
         .artistYarBrowserSeparate;
 
-      // HQ: try server first if configured, otherwise seamless on-device fallback
-      if (preset === "demucs_mdx_hq5") {
-        if (serverReady) {
-          setStatus("در حال آماده‌سازی تفکیک HQ روی سرور…");
-          const form = new FormData();
-          form.append("file", file);
-          form.append("preset", "demucs_mdx_hq5");
-
-          const response = await fetch("/api/separation", {
-            method: "POST",
-            body: form,
-            cache: "no-store",
-          });
-
-          if (response.ok) {
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            const anchor = document.createElement("a");
-            anchor.href = url;
-            anchor.download =
-              "artistyar-" + file.name.replace(/\.[^.]+$/, "") + "-hq-hybrid.zip";
-            document.body.appendChild(anchor);
-            anchor.click();
-            anchor.remove();
-            URL.revokeObjectURL(url);
-            setStatus("انجام شد — تفکیک HQ سروری با موفقیت کامل شد.");
-            return;
-          }
-
-          setStatus("سرور در دسترس نبود؛ ادامه با Demucs حرفه‌ای روی دستگاه…");
-        } else {
-          setStatus("در حال تفکیک HQ با Demucs حرفه‌ای روی دستگاه شما…");
-        }
-
-        if (!browser) {
-          throw new Error("موتور تفکیک صدا هنوز در حال بارگذاری است. چند لحظه صبر کنید و دوباره تلاش کنید.");
-        }
-
-        await runBrowser(
-          browser,
-          "standard",
-          "-hq-local.zip",
-          "انجام شد — تفکیک HQ روی دستگاه با موفقیت انجام شد (وکال + بی‌کلام).",
-        );
-        return;
-      }
-
       if (!browser) {
         throw new Error("موتور تفکیک صدا هنوز در حال بارگذاری است. چند لحظه صبر کنید و دوباره تلاش کنید.");
       }
 
-      if (preset === "full_stem") {
-        await runBrowser(
-          browser,
-          "full",
-          "-full-stem.zip",
-          "انجام شد — تفکیک کامل با موفقیت انجام شد. وکال، درام، بیس و سایر سازها در فایل خروجی قرار گرفتند.",
-        );
-        return;
-      }
-
       await runBrowser(
         browser,
-        "standard",
-        "-vocal-inst.zip",
-        "انجام شد — تفکیک استاندارد وکال / بی‌کلام با موفقیت انجام شد و فایل‌ها به‌صورت محلی پردازش شدند.",
+        preset === "full_stem" ? "full" : "standard",
+        preset === "full_stem" ? "-full-stem.zip" : preset === "demucs_mdx_hq5" ? "-hq-local.zip" : "-vocal-inst.zip",
+        preset === "full_stem"
+          ? "انجام شد — تفکیک کامل روی دستگاه شما انجام شد. وکال، درام، بیس و سایر سازها در ZIP قرار گرفتند."
+          : preset === "demucs_mdx_hq5"
+            ? "انجام شد — تفکیک HQ روی دستگاه شما انجام شد و ZIP آماده دانلود است."
+            : "انجام شد — تفکیک استاندارد روی دستگاه شما انجام شد و ZIP آماده دانلود است.",
       );
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err || "");
       let msg = raw || "تفکیک صدا با خطا مواجه شد.";
-      const browserMemoryError = /WASM|Aborted|out of memory|OOM|memory|RuntimeError|grow_memory/i.test(raw);
-      if (browserMemoryError && serverReady && preset !== "demucs_mdx_hq5") {
-        try {
-          await runServer(
-            preset === "full_stem" ? "htdemucs_ft" : "vocal_balanced",
-            preset === "full_stem" ? "-full-stem-server.zip" : "-vocal-inst-server.zip",
-            "انجام شد — فایل بلند با موفقیت روی سرور تفکیک شد.",
-          );
-          return;
-        } catch (serverError) {
-          msg = serverError instanceof Error ? serverError.message : String(serverError || msg);
-        }
-      }
       if (/Aborted|out of memory|OOM|memory|RuntimeError|grow_memory/i.test(raw)) {
         msg =
           "حافظه مرورگر برای این فایل کافی نبود. فایل کوتاه‌تر (زیر ۹۰ ثانیه) امتحان کنید، تب‌های دیگر را ببندید، یا حالت HQ را انتخاب کنید.";
@@ -330,7 +219,7 @@ export default function SeparatePage() {
             جداسازی وکال
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">
-            هر سه حالت بدون نیاز به سرور کار می‌کنند. اگر سرور UVR فعال باشد، حالت HQ از آن استفاده می‌کند؛ در غیر این صورت روی دستگاه شما پردازش می‌شود.
+            هر سه موتور مستقیماً روی دستگاه شما پردازش می‌شوند؛ فایل صوتی به سرور ارسال نمی‌شود و خروجی به‌صورت ZIP دانلود می‌شود.
           </p>
         </div>
 
@@ -457,14 +346,9 @@ export default function SeparatePage() {
                     </span>
                   </div>
                   <p className="mt-3 text-xs leading-5 text-white/45">{item.body}</p>
-                  {item.id === "demucs_mdx_hq5" && serverReady === false ? (
+                  {item.id === "demucs_mdx_hq5" ? (
                     <p className="mt-2 text-[11px] leading-5 text-emerald-200/80">
-                      بدون سرور هم کار می‌کند — پردازش روی دستگاه شما.
-                    </p>
-                  ) : null}
-                  {item.id === "demucs_mdx_hq5" && serverReady === true ? (
-                    <p className="mt-2 text-[11px] leading-5 text-emerald-200/80">
-                      سرور UVR فعال است — کیفیت هیبرید سروری.
+                      پردازش کامل روی دستگاه شما انجام می‌شود و فایل صوتی ارسال نمی‌شود.
                     </p>
                   ) : null}
                 </button>

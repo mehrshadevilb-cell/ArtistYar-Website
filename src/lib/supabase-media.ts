@@ -779,7 +779,16 @@ export async function deleteFreeLesson(publicId: string, removeFile = false) {
 
 export async function listFreeTrainingStorageFiles(): Promise<StorageItem[]> {
   if (!supabase) return [];
-  const folders = ["free-training", "free-training-assets/video", ""];
+  // Include the legacy/general media folders too: videos uploaded before the
+  // free-education picker existed must remain selectable without re-uploading.
+  const folders = [
+    "free-training",
+    "free-training-assets/video",
+    "ProdBy Mehrshad",
+    "prodby-mehrshad",
+    "student-work",
+    "",
+  ];
   const results = await Promise.all(folders.map((folder) =>
     supabase!.storage.from(bucket).list(folder, { limit: 500, sortBy: { column: "created_at", order: "desc" } })
   ));
