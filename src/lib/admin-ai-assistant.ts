@@ -102,13 +102,13 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   const assistantInsert = await db().from("admin_ai_messages").insert({
     conversation_id: conversationId,
     role: "assistant",
-    content: result.reply,
-    provider: result.provider,
-    model: result.model
+    content: completedResult.reply,
+    provider: completedResult.provider,
+    model: completedResult.model
   }).select("id,role,content,provider,model,created_at").single();
   if (assistantInsert.error) throw assistantInsert.error;
 
   await db().from("admin_ai_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId).eq("admin_username", adminUsername);
-  await audit(adminUsername, "message_completed", conversationId, { provider: result.provider, model: result.model });
+  await audit(adminUsername, "message_completed", conversationId, { provider: completedResult.provider, model: completedResult.model });
   return assistantInsert.data;
 }
