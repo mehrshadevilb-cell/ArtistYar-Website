@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { USER_SESSION_COOKIE, verifyUserSession } from "@/lib/server-admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -120,7 +122,11 @@ export async function POST(request: Request) {
   const gameId = String(body.gameId || "tone") as GameId;
   if (!["tone","eq","compressor","phase"].includes(gameId)) return NextResponse.json({ok:false,error:"unsupported_game"},{status:400});
   const level = clampLevel(body.level);
-  const userId = String(body.userId || "anonymous").slice(0,120);
+  const session = verifyUserSession((await cookies()).get(USER_SESSION_COOKIE)?.value);
+  if (!session) return NextResponse.json({ ok:false, error:"unauthorized" }, { status:401 });
+  const requestedUserId = String(body.userId || "").trim();
+  if (requestedUserId && requestedUserId !== session.id) return NextResponse.json({ ok:false, error:"unauthorized" }, { status:401 });
+  const userId = session.id;
   const recent = Array.isArray(body.recent) ? body.recent.map(String).slice(-12) : [];
   if (db) { const {data} = await db.from("practice_ai_questions").select("fingerprint").eq("user_id",userId).eq("game_id",gameId).order("created_at",{ascending:false}).limit(12); if (data) recent.push(...data.map(x=>String(x.fingerprint))); }
   let question: GeneratedQuestion | null = null;
