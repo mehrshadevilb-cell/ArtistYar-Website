@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { autoChat, type ChatMessage } from "@/lib/ai-providers";
-import { getAdminAiRoutingPreference } from "@/lib/admin-ai-model-registry";
+import { listAdminAiRoutingCandidates } from "@/lib/admin-ai-model-registry";
+import { listHealthyAdminAiModels, recordAdminAiModelFailure, recordAdminAiModelSuccess } from "@/lib/admin-ai-model-health";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -70,8 +71,28 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   const userInsert = await db().from("admin_ai_messages").insert({ conversation_id: conversationId, role: "user", content: userContent }).select("id").single();
   if (userInsert.error) throw userInsert.error;
 
-  const registryPreference = (!provider && !model) ? await getAdminAiRoutingPreference() : null;
-  const result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider || registryPreference?.provider_id, model || registryPreference?.model_id, "rahyar-admin-assistant", signal);
+  let result: Awaited<ReturnType<typeof autoChat>>;
+  if (provider || model) {
+    result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider, model, "rahyar-admin-assistant", signal);
+  } else {
+    const candidates = await listHealthyAdminAiModels(await listAdminAiRoutingCandidates());
+    if (!candidates.length) throw new Error("admin_ai_no_healthy_model");
+    let lastError: unknown;
+    let completed = false;
+    for (const candidate of candidates) {
+      if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
+      try {
+        result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], candidate.provider_id, candidate.model_id, "rahyar-admin-assistant", signal);
+        await recordAdminAiModelSuccess(candidate.provider_id, candidate.model_id);
+        completed = true;
+        break;
+      } catch (error) {
+        lastError = error;
+        await recordAdminAiModelFailure(candidate.provider_id, candidate.model_id, error);
+      }
+    }
+    if (!completed) throw lastError || new Error("admin_ai_all_models_failed");
+  }
 
   const assistantInsert = await db().from("admin_ai_messages").insert({
     conversation_id: conversationId,
