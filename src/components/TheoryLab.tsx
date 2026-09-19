@@ -70,6 +70,7 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
   const [answer, setAnswer] = useState<string | null>(null);
   const [round, setRound] = useState(0);
   const [xp, setXp] = useState(0);
+  const [played, setPlayed] = useState(false);
   const stageNumber = round + 1;
   const stageLocked = !accessLoading && !pro && stageNumber > stageLimit;
 
@@ -112,6 +113,7 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
   }, [pool, mode, seed]);
 
   const play = () => {
+    setPlayed(true);
     const base = 60 + roots.indexOf(root);
     if (mode === "interval") {
       tone(base);
@@ -158,6 +160,7 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
 
   const next = () => {
     setAnswer(null);
+    setPlayed(false);
     setRound((v) => v + 1);
   };
 
@@ -256,7 +259,7 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
             {optionLabels.map((o) => (
               <button
                 key={o}
-                disabled={!!answer}
+                disabled={!!answer || !played}
                 onClick={() => submit(o)}
                 className={`rounded-xl border p-3 text-sm ${
                   answer
