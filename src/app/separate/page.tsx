@@ -62,28 +62,33 @@ async function downloadZip(blob: Blob, filename: string) {
 }
 
 async function validateZip(blob: Blob, expectedNames: string[]) {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  if (bytes.length <= 22 || bytes[0] !== 0x50 || bytes[1] !== 0x4b || bytes[2] !== 0x03 || bytes[3] !== 0x04) {
+  if (blob.size <= 22) throw new Error("فایل ZIP خروجی خالی است؛ پردازش را دوباره امتحان کنید.");
+  const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  if (head[0] !== 0x50 || head[1] !== 0x4b || head[2] !== 0x03 || head[3] !== 0x04) {
     throw new Error("فایل ZIP خروجی معتبر نیست.");
   }
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const tailStart = Math.max(0, blob.size - 65_557);
+  const tail = new Uint8Array(await blob.slice(tailStart).arrayBuffer());
+  const tailView = new DataView(tail.buffer, tail.byteOffset, tail.byteLength);
   let eocd = -1;
-  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65_557); i -= 1) {
-    if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  for (let i = tail.length - 22; i >= 0; i -= 1) {
+    if (tailView.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
   }
   if (eocd < 0) throw new Error("فایل ZIP فاقد Central Directory است.");
-  const count = view.getUint16(eocd + 10, true);
-  const centralSize = view.getUint32(eocd + 12, true);
-  const centralOffset = view.getUint32(eocd + 16, true);
-  if (count !== expectedNames.length || centralOffset + centralSize > bytes.length) {
+  const count = tailView.getUint16(eocd + 10, true);
+  const centralSize = tailView.getUint32(eocd + 12, true);
+  const centralOffset = tailView.getUint32(eocd + 16, true);
+  if (count !== expectedNames.length || centralOffset + centralSize > blob.size) {
     throw new Error("تعداد فایل‌های ZIP با خروجی مورد انتظار مطابقت ندارد.");
   }
+  const central = new Uint8Array(await blob.slice(centralOffset, centralOffset + centralSize).arrayBuffer());
+  const view = new DataView(central.buffer, central.byteOffset, central.byteLength);
   const names: string[] = [];
-  let cursor = centralOffset;
+  let cursor = 0;
   for (let i = 0; i < count; i += 1) {
     if (view.getUint32(cursor, true) !== 0x02014b50) throw new Error("Central Directory فایل ZIP خراب است.");
     const nameLength = view.getUint16(cursor + 28, true);
-    names.push(new TextDecoder().decode(bytes.slice(cursor + 46, cursor + 46 + nameLength)));
+    names.push(new TextDecoder().decode(central.slice(cursor + 46, cursor + 46 + nameLength)));
     cursor += 46 + nameLength + view.getUint16(cursor + 30, true) + view.getUint16(cursor + 32, true);
   }
   if (expectedNames.some((name) => !names.includes(name))) throw new Error("همه فایل‌های استم داخل ZIP ساخته نشده‌اند.");

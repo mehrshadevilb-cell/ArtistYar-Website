@@ -153,9 +153,19 @@ const CRC_TABLE = (() => {
   return table;
 })();
 
-function crc32(bytes) {
-  let c = 0xffffffff;
+function crc32(bytes, seed = 0xffffffff) {
+  let c = seed;
   for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return c >>> 0;
+}
+
+async function crc32Blob(blob) {
+  let c = 0xffffffff;
+  const chunkSize = 1024 * 1024;
+  for (let offset = 0; offset < blob.size; offset += chunkSize) {
+    c = crc32(new Uint8Array(await blob.slice(offset, Math.min(offset + chunkSize, blob.size)).arrayBuffer()), c);
+    if (offset && offset % (chunkSize * 8) === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+  }
   return (c ^ 0xffffffff) >>> 0;
 }
 
@@ -166,22 +176,23 @@ async function zipStored(files) {
   let offset = 0;
   for (const file of files) {
     const name = encoder.encode(file.name);
-    const data = new Uint8Array(await file.blob.arrayBuffer());
-    const crc = crc32(data);
+    const size = file.blob.size;
+    const crc = await crc32Blob(file.blob);
     const header = new ArrayBuffer(30);
     const h = new DataView(header);
     h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(8, 0, true);
-    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true);
+    h.setUint32(14, crc, true); h.setUint32(18, size, true); h.setUint32(22, size, true);
     h.setUint16(26, name.length, true);
-    local.push(new Uint8Array(header), name, data);
+    // Keep audio as Blob parts instead of copying every WAV into a second full buffer.
+    local.push(new Uint8Array(header), name, file.blob);
 
     const directory = new ArrayBuffer(46);
     const d = new DataView(directory);
     d.setUint32(0, 0x02014b50, true); d.setUint16(4, 20, true); d.setUint16(6, 20, true);
-    d.setUint32(16, crc, true); d.setUint32(20, data.length, true); d.setUint32(24, data.length, true);
+    d.setUint32(16, crc, true); d.setUint32(20, size, true); d.setUint32(24, size, true);
     d.setUint16(28, name.length, true); d.setUint32(42, offset, true);
     central.push(new Uint8Array(directory), name);
-    offset += 30 + name.length + data.length;
+    offset += 30 + name.length + size;
   }
   const centralSize = central.reduce((sum, part) => sum + part.length, 0);
   const end = new ArrayBuffer(22);
