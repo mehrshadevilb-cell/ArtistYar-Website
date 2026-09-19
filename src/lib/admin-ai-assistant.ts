@@ -73,6 +73,11 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
 
   let result: Awaited<ReturnType<typeof autoChat>>;
   if (provider || model) {
+    if (!provider || !model) throw new Error("admin_ai_provider_and_model_must_be_paired");
+    const allowed = await listAdminAiRoutingCandidates();
+    if (!allowed.some((candidate) => candidate.provider_id === provider && candidate.model_id === model)) {
+      throw new Error("admin_ai_model_not_enabled_for_routing");
+    }
     result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider, model, "rahyar-admin-assistant", signal);
   } else {
     const candidates = await listHealthyAdminAiModels(await listAdminAiRoutingCandidates());
