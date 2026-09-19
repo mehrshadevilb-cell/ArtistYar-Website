@@ -56,10 +56,17 @@ function calcSkill(events: EventRow[]) {
   const difficult = events.length ? events.reduce((s, e) => s + clamp(Number(e.difficulty) || 0, 0, 500), 0) / events.length : 0;
   const xp = events.reduce((s, e) => s + Math.max(0, Number(e.xp) || 0), 0);
   const correct = events.filter(e => Boolean(e.correct)).length;
+  const difficultyWeightedAccuracy = attempts
+    ? events.reduce((sum, e) => {
+        const d = clamp(Number(e.difficulty) || 1, 1, 500);
+        const weight = 0.5 + d / 500;
+        return sum + clamp(Number(e.accuracy) || 0, 0, 100) * weight;
+      }, 0) / events.reduce((sum, e) => sum + (0.5 + clamp(Number(e.difficulty) || 1, 1, 500) / 500), 0)
+    : 0;
   // A skill rating is intentionally independent from XP. XP is progression/gamification;
   // rating represents demonstrated listening ability and adapts to recent performance.
   const base = 250 + accuracy * 2.1 + recentAccuracy * 1.2 + consistency * 0.7 + Math.min(80, difficult * 0.16) - (reactionMs ? Math.max(0, reactionMs - 2200) / 120 : 0);
-  const rating = Math.round(clamp(base, 1, 500));
+  const rating = Math.round(clamp(base + (difficultyWeightedAccuracy - accuracy) * 0.55, 1, 500));
   const confidence = Math.round(clamp(35 + attempts * 2 + consistency * 0.35, 0, 100));
   const recommendedDifficulty = Math.round(clamp(
     rating + (recentAccuracy < 68 ? -35 : recentAccuracy > 88 ? 28 : 0) + (attempts < 5 ? -45 : 0),
