@@ -47,6 +47,7 @@ function writeLocalStudent(member: StoredMember) {
 }
 
 export function login(username: string, password: string): SessionUser | null {
+  if (process.env.NODE_ENV === "production") return null;
   const found = readLocalStudents().find(
     (u) => u.username.toLowerCase() === username.trim().toLowerCase() && u.password === password,
   );
@@ -97,6 +98,9 @@ export function registerLocal(input: {
   password: string;
   fullName: string;
 }): SessionUser | { error: string } {
+  if (process.env.NODE_ENV === "production") {
+    return { error: "ثبت‌نام محلی در محیط تولید غیرفعال است. از فرم ثبت‌نام اصلی استفاده کن." };
+  }
   const username = input.username.trim();
   if (username.length < 3) return { error: "نام کاربری حداقل ۳ کاراکتر باشد." };
   if (input.password.length < 6) return { error: "رمز عبور حداقل ۶ کاراکتر باشد." };
@@ -113,36 +117,4 @@ export function registerLocal(input: {
   const { password: _, ...session } = member;
   setStorageItem(STORAGE_KEY, JSON.stringify(session));
   return session;
-}
-
-export async function logout(): Promise<void> {
-  try {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-  } finally {
-    removeStorageItem(STORAGE_KEY);
-  }
-}
-
-export function clearLocalSession(): void {
-  removeStorageItem(STORAGE_KEY);
-}
-
-export function getSession(): SessionUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<SessionUser>;
-    if (!parsed || typeof parsed.id !== "string" || typeof parsed.username !== "string") return null;
-    if (parsed.role !== "admin" && parsed.role !== "student") return null;
-    return parsed as SessionUser;
-  } catch { return null; }
-}
-
-export function saveSession(user: SessionUser): void {
-  setStorageItem(STORAGE_KEY, JSON.stringify(user));
-}
-
-export function listLocalMembers(): SessionUser[] {
-  return readLocalStudents().map(({ password: _, ...rest }) => rest);
 }
