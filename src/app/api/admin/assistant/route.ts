@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     }
     return NextResponse.json({ ok: true, conversations: await listConversations(session.username) });
   } catch (error) {
-    console.error("admin assistant GET failed", error);
+    console.error("admin assistant GET failed", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ ok: false, error: "ذخیره‌سازی دستیار مدیریت در دسترس نیست." }, { status: 503 });
   }
 }
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     if (request.signal.aborted || (error instanceof Error && error.message === "admin_ai_generation_stopped")) {
       return new NextResponse(null, { status: 499 });
     }
-    console.error("admin assistant POST failed", error);
+    console.error("admin assistant POST failed", error instanceof Error ? error.message : "unknown error");
     const code = error instanceof Error ? error.message : "";
     const known: Record<string, { message: string; status: number }> = {
       admin_ai_conversation_not_found: { message: "گفتگو پیدا نشد.", status: 404 },
