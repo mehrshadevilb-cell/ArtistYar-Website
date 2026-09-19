@@ -68,9 +68,6 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   const history: ChatMessage[] = conversation.messages.slice(-30).map((m) => ({ role: m.role, content: m.content }));
   history.push({ role: "user", content: userContent });
 
-  const userInsert = await db().from("admin_ai_messages").insert({ conversation_id: conversationId, role: "user", content: userContent }).select("id").single();
-  if (userInsert.error) throw userInsert.error;
-
   let result: Awaited<ReturnType<typeof autoChat>> | null = null;
   if (provider || model) {
     if (!provider || !model) throw new Error("admin_ai_provider_and_model_must_be_paired");
@@ -101,7 +98,12 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   }
 
   const completedResult = result;
-  if (!completedResult) throw new Error("admin_ai_empty_provider_result");
+  if (!completedResult || typeof completedResult.reply !== "string" || !completedResult.reply.trim()) {
+    throw new Error("admin_ai_empty_provider_result");
+  }
+
+  const userInsert = await db().from("admin_ai_messages").insert({ conversation_id: conversationId, role: "user", content: userContent }).select("id").single();
+  if (userInsert.error) throw userInsert.error;
 
   const assistantInsert = await db().from("admin_ai_messages").insert({
     conversation_id: conversationId,
