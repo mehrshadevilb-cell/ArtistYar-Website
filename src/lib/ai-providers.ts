@@ -442,7 +442,8 @@ const GEMINI_FALLBACK = [
   "gemini-2.5-flash",
 ];
 
-export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
+export async function discoverModels(provider: AIProvider, options: { allowFallback?: boolean } = {}): Promise<AIModel[]> {
+  const allowFallback = options.allowFallback !== false;
   const fallback = (ids: string[]) =>
     ids.map((id) => ({
       id,
@@ -469,7 +470,19 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
     }
 
     if (provider.chatStyle === "anthropic") {
-      return fallback(provider.defaultModels || ANTHROPIC_FALLBACK);
+      const response = await fetch(`${provider.baseUrl}/models`, {
+        method: "GET",
+        headers: authHeaders(provider),
+        cache: "no-store",
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) return allowFallback ? fallback(provider.defaultModels || ANTHROPIC_FALLBACK) : [];
+      const data = await readJsonResponse<{ data?: Array<{ id?: string }> }>(response);
+      const models = (data?.data || [])
+        .map((m) => m.id || "")
+        .filter((id) => id && isChatCapableModelStrict(id))
+        .map((id) => ({ id, provider: provider.id, task: "chat" as const, rank: rankForModel(id) }));
+      return models.length ? models : (allowFallback ? fallback(provider.defaultModels || ANTHROPIC_FALLBACK) : []);
     }
 
     if (provider.chatStyle === "google") {
@@ -482,7 +495,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
         cache: "no-store",
         signal: AbortSignal.timeout(3_500),
       });
-      if (!response.ok) return fallback(provider.defaultModels || GEMINI_FALLBACK);
+      if (!response.ok) return allowFallback ? fallback(provider.defaultModels || GEMINI_FALLBACK) : [];
       const data = await readJsonResponse<{
         models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
       }>(response);
@@ -503,7 +516,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
           .filter((m) => m.id && isChatCapableModelStrict(m.id)) || [];
       return models.length
         ? models.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 25)
-        : fallback(provider.defaultModels || GEMINI_FALLBACK);
+        : (allowFallback ? fallback(provider.defaultModels || GEMINI_FALLBACK) : []);
     }
 
     const response = await fetch(
@@ -516,7 +529,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       },
     );
     if (!response.ok) {
-      return provider.defaultModels ? fallback(provider.defaultModels) : [];
+      return allowFallback && provider.defaultModels ? fallback(provider.defaultModels) : [];
     }
 
     const data = await readJsonResponse<{
@@ -553,7 +566,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
     if (list.length) {
       return list.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 40);
     }
-    return provider.defaultModels ? fallback(provider.defaultModels) : [];
+    return allowFallback && provider.defaultModels ? fallback(provider.defaultModels) : [];
   } catch {
     return provider.defaultModels ? fallback(provider.defaultModels) : [];
   }
