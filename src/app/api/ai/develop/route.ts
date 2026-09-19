@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 
 export async function POST() {
   return NextResponse.json(
-    { ok: false, error: "این مسیر در Admin AI Assistant غیرفعال شده است. از /admin/assistant استفاده کنید." },
+    { ok: false, error: "این مسیر در Admin AI Assistant غیرفعال شده است. از /admin/ai استفاده کنید." },
     { status: 410 },
   );
 }
