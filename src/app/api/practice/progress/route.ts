@@ -50,10 +50,10 @@ async function dailyUsage(userId: string) {
 
 async function authorizedUser(request: Request, requestedId: string) {
   const store = await cookies();
-  if (verifyAdminSession(store.get(ADMIN_SESSION_COOKIE)?.value)) return { id: requestedId, admin: true };
+  if (verifyAdminSession(store.get(ADMIN_SESSION_COOKIE)?.value)) return { id: requestedId, admin: true, username: "admin", fullName: "Admin", telegramId: "" };
   const session = verifyUserSession(store.get(USER_SESSION_COOKIE)?.value);
   if (!session || session.id !== requestedId) return null;
-  return { id: session.id, admin: false };
+  return { id: session.id, admin: false, username: session.username, fullName: session.fullName, telegramId: session.telegramId || "" };
 }
 
 export async function GET(request: Request) {
@@ -76,8 +76,8 @@ export async function POST(request: Request) {
   const auth = await authorizedUser(request, requestedUserId);
   if (!auth) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   try {
-    const userId = requestedUserId;
-    const telegramId = body.telegramId ? String(body.telegramId).slice(0, 50) : "";
+    const userId = auth.id;
+    const telegramId = auth.telegramId;
     const gameId = String(body.gameId || "unknown").slice(0, 80);
     const pro = await isProUser(userId, telegramId);
     let usedToday = 0;
@@ -92,8 +92,8 @@ export async function POST(request: Request) {
     }
     const row = await savePracticeResult({
       user_id: userId,
-      username: String(body.username).slice(0, 120),
-      full_name: String(body.fullName || body.username).slice(0, 160),
+      username: auth.username.slice(0, 120),
+      full_name: auth.fullName.slice(0, 160),
       game_id: gameId,
       score: Number(body.score) || 0,
       accuracy: Number(body.accuracy) || 0,
