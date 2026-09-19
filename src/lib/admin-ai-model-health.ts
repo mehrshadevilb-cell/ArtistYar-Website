@@ -36,9 +36,11 @@ export async function listHealthyAdminAiModels(models: Array<{ provider_id: stri
 
 export async function recordAdminAiModelSuccess(providerId: string, modelId: string) {
   const now = new Date().toISOString();
+  const existing = await db().from("admin_ai_model_health").select("success_count").eq("provider_id", providerId).eq("model_id", modelId).maybeSingle();
+  if (existing.error) throw existing.error;
   const result = await db().from("admin_ai_model_health").upsert({
     provider_id: providerId, model_id: modelId, consecutive_failures: 0,
-    success_count: 1, last_success_at: now, cooldown_until: null, last_error: null, updated_at: now
+    success_count: (existing.data?.success_count || 0) + 1, last_success_at: now, cooldown_until: null, last_error: null, updated_at: now
   }, { onConflict: "provider_id,model_id" });
   if (result.error) throw result.error;
 }
