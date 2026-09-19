@@ -1,8 +1,15 @@
 import type { NextConfig } from "next";
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
-// Enables Cloudflare bindings when running `next dev` / OpenNext preview locally.
-initOpenNextCloudflareForDev();
+// Optional: only for local Worker preview. Never fail a normal `next build`.
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { initOpenNextCloudflareForDev } = require("@opennextjs/cloudflare") as {
+    initOpenNextCloudflareForDev?: () => void;
+  };
+  initOpenNextCloudflareForDev?.();
+} catch {
+  // Package missing or not needed in this environment
+}
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
