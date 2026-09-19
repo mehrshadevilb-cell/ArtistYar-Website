@@ -1,20 +1,6 @@
 # ArtistYar Website — Agent Handoff
 
-## Latest continuation fixes
-
-- 538738e255480b695c3d8d698ce609229bd0b065 — model discovery now supports strict live-only mode.
-- 95fc549bffb637a3c2912e63ad9bd953c4a20781 — registry validation uses strict live discovery instead of static fallback models.
-- 84467c6cc60de22fa5fa483bf78601b42242693c — provider discovery distinguishes provider outage from an invalid/nonexistent model during strict validation.
-- e19bc784412ab9ce67da9ac1abe3202b32c8fc3b — Admin Model Registry API maps validation/routing-state errors to stable HTTP responses.
-- 01905f3e5f4498f54ffb66220fea02e7018c368a — strict discovery failures are no longer swallowed by the fallback catch path.
-
-Validation note: local clone/build could not run because this execution environment cannot resolve github.com. GitHub Actions for the latest prior head failed before any workflow step (steps: null), so no CI green status is claimed.
-
 ## Current continuation point
-
-Latest application fixes:
-- `7fd0f427cbfe3b4883347a0c2e1ebce86905b8bf` — explicit provider/model routing records health success/failure and respects cancellation.
-- `a236ea36f6704272a372e40c0b197c97f4f9c608` — explicit provider/model selection is now strict; it no longer silently falls back to another model.
 
 Repository: `mehrshadevilb-cell/ArtistYar-Website`
 
@@ -26,73 +12,85 @@ Pull Request:
 
 PR status: **open, draft, not merged**
 
-Latest code commit before this handoff:
-`4acc80b3e4fba13b93efb2a50414c9bc459e3c91`
+Current PR head:
+`dac9457ed64ca34a3733d6cc4dd17cbd997afdd6`
 
-The latest handoff commits are:
-- `b9be63aee58567febea7efc572944100f5fd334f` — add `cf:build` to Agent Verify
-- this file — persistent continuation state
+Do **not** merge the PR unless explicitly requested.
 
-## Immediate next task
+## Latest verified CI finding
 
-Continue PR #35 from the current branch.
+The latest `main` verification runs were inspected directly.
 
-Do **not** merge the PR.
+Run `35474465039` (Build) and run `35474465053` (ArtistYar Verify) both executed real workflow steps:
 
-First verify the current branch and inspect the latest workflow runs. Then continue production validation.
+- `npm ci` passed.
+- `npm run typecheck` failed.
+- `npm run build` was skipped because typecheck failed.
 
-## CI / deployment state
+The concrete main-branch TypeScript failure is in `src/app/api/admin/free-education/route.ts`: it imports five functions that were absent from `main`'s `src/lib/supabase-media.ts`:
 
-The project uses Next.js + OpenNext + Cloudflare Workers.
+- `listFreeLessonsAdmin`
+- `listFreeTrainingStorageFiles`
+- `registerFreeLessonFromStorage`
+- `updateFreeLesson`
+- `deleteFreeLesson`
 
-Required validation commands:
+The current PR branch already contains these exports in `src/lib/supabase-media.ts`, so this known main-branch typecheck blocker is covered by the PR changes.
 
-```bash
+Important: do not describe the previous main CI failure as runner/infrastructure failure. The latest inspected logs contain the actual TypeScript errors above.
+
+## Cloudflare deployment
+
+Production deployment must use:
+
+`.github/workflows/deploy-cloudflare.yml`
+
+Production flow:
+
+`main push → npm ci → npm run cf:build → cloudflare/wrangler-action@v4 → Worker deploy`
+
+The hardened deployment workflow exists on the PR branch. It:
+
+- uses Node 22
+- uses `npm ci`
+- runs `npm run cf:build`
+- uses Cloudflare Wrangler Action v4
+- writes `.env.production` only during the build/deploy job
+- removes `.env.production` with `if: always()`
+- only executes the production job when `github.ref == 'refs/heads/main'`
+- logs the deployment URL when provided
+
+Do not claim a production deployment succeeded until the actual Deploy Cloudflare workflow run is observed as successful.
+
+## PR branch CI state
+
+The latest PR-head workflow runs for `dac9457ed64ca34a3733d6cc4dd17cbd997afdd6` were rerun.
+
+GitHub returned completed failures whose jobs had no executable step list/logs available from the connector. This is distinct from the verified main-branch typecheck failure above. Do not invent a build error for these PR-head runs.
+
+## Required validation order
+
+```
 npm ci
 npm run typecheck
 npm run build
 npm run cf:build
 ```
 
-The following workflows are intended to verify these paths:
-- `.github/workflows/build.yml`
-- `.github/workflows/verify-main.yml`
-- `.github/workflows/agent-verify.yml`
+For every code change:
 
-All three should validate the Cloudflare/OpenNext build.
+1. Inspect current state.
+2. Make the smallest safe change.
+3. Typecheck.
+4. Normal build.
+5. Cloudflare/OpenNext build.
+6. Relevant tests.
+7. Security/regression review.
+8. Commit.
+9. Re-check PR and workflow status.
+10. Continue to the next unresolved production issue.
 
-Previous GitHub Actions runs on commit
-`4acc80b3e4fba13b93efb2a50414c9bc459e3c91`
-failed before executing any step. The jobs reported:
-
-```
-status: completed
-conclusion: failure
-steps: []
-```
-
-A failed-job rerun was also attempted and again produced no steps.
-
-Therefore those failures were not evidence of a TypeScript, Next.js, or Cloudflare build error. Do not claim CI is green or that the build is verified until actual workflow steps execute.
-
-If GitHub Actions again fails with zero steps, treat it as a runner/infrastructure issue and do not randomly modify application code to fix it.
-
-## Cloudflare
-
-Important files:
-- `wrangler.jsonc`
-- `open-next.config.ts`
-- `package.json`
-
-Important scripts:
-- `npm run build`
-- `npm run cf:build`
-- `npm run cf:deploy`
-- `npm run preview`
-
-Do not perform a real Cloudflare deployment unless valid deployment credentials/configuration are available and deployment is explicitly required.
-
-Do not invent Cloudflare secrets.
+Never claim a check passed unless it actually ran and passed.
 
 ## Admin AI scope
 
@@ -131,29 +129,7 @@ The Admin Assistant is strictly separate from the User Chat Bot.
 - Practice-game functionality
 - arbitrary tool execution
 
-Files, memory, and dynamic tools are intentionally deferred until explicit least-privilege security boundaries exist.
-
-## Important implementation files
-
-Inspect these before modifying behavior:
-
-```
-src/app/api/admin/assistant/route.ts
-src/lib/admin-ai-assistant.ts
-src/lib/admin-ai-model-registry.ts
-src/lib/admin-ai-model-health.ts
-src/lib/ai-providers.ts
-src/lib/server-admin-auth.ts
-src/app/admin/ai/page.tsx
-```
-
-Migrations:
-
-```
-supabase/migrations/20260920_admin_ai_assistant.sql
-supabase/migrations/20260920_admin_ai_model_registry.sql
-supabase/migrations/20260920_admin_ai_model_health.sql
-```
+Files, memory, and dynamic tools remain deferred until explicit least-privilege security boundaries exist.
 
 ## Security invariants
 
@@ -167,45 +143,10 @@ supabase/migrations/20260920_admin_ai_model_health.sql
 - Never simulate token streaming.
 - Invalid/empty provider responses must not be persisted as successful assistant messages.
 
-## Existing fixes already completed
-
-- Admin-only server authorization
-- Persistent admin-isolated conversations
-- Provider abstraction
-- Model Registry
-- Model discovery/sync
-- Enabled-model routing boundary
-- Provider/model health and cooldown
-- Cancellation-safe generation
-- Empty-response validation
-- Provider error redaction
-- Gemini API key moved out of URL/query parameters
-- Registry state transition validation
-- Routing state preservation during model sync
-- Mobile-first Persian RTL ChatGPT-style Admin UI
-- Cloudflare/OpenNext build checks added to CI
-
-## Working method
-
-For each change:
-
-1. Inspect current state.
-2. Plan the smallest safe change.
-3. Implement.
-4. Run typecheck.
-5. Run normal build.
-6. Run Cloudflare/OpenNext build.
-7. Run relevant tests.
-8. Perform security/regression review.
-9. Commit the change.
-10. Re-check the PR and workflow status.
-11. Continue to the next unresolved production issue.
-
-Never claim a check passed unless it actually ran and passed.
-
 ## Product/UI constraints
 
-Admin AI UI should remain:
+Admin AI UI remains:
+
 - mobile-first
 - Persian RTL
 - simple
@@ -213,19 +154,15 @@ Admin AI UI should remain:
 - ChatGPT-like
 - uncluttered
 
-Do not break existing important features or restructure the application unnecessarily.
+Do not restructure the application unnecessarily or break existing important features.
 
-## Current priority
+## Immediate next task
 
-The next agent should:
-
-1. Verify PR #35 head.
-2. Inspect new workflow runs after the latest commits.
-3. Determine whether GitHub Actions now executes real steps.
-4. If real steps execute, fix actual failures in order:
-   `npm ci` → typecheck → build → cf:build.
-5. If steps remain empty, document the runner/infrastructure failure and continue with static/local validation available through the environment.
-6. Audit remaining Admin AI production issues without expanding scope.
-7. Keep PR #35 open and unmerged.
+1. Keep PR #35 open and unmerged.
+2. Re-check the PR head after the latest workflow reruns.
+3. If GitHub exposes real steps, fix failures in order: `npm ci` → typecheck → build → `cf:build`.
+4. Ensure the PR branch retains the free-education typecheck fix that is missing from current `main`.
+5. Continue production audit of Admin AI without expanding scope.
+6. Production deployment is only through `.github/workflows/deploy-cloudflare.yml` after changes reach `main`.
 
 This file is the source of truth for continuation context.
