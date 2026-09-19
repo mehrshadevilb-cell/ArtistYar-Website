@@ -78,7 +78,7 @@ export default function SeparatePage() {
 
     void Promise.all([
       load("https://cdn.jsdelivr.net/npm/jszip@3.10.2/dist/jszip.min.js"),
-      load("/separator/browser-separator.js?v=20260919-1"),
+      load("/separator/browser-separator.js?v=20260919-2"),
     ]).catch(() => {
       setError("موتور تفکیک صدا بارگذاری نشد. لطفاً صفحه را دوباره بارگذاری کنید.");
     });
