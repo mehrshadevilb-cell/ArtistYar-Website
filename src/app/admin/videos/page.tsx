@@ -10,7 +10,33 @@ import {
   type FreeLessonInput,
 } from "@/lib/rahyar-api";
 
-type UploadResponse = { ok: boolean; item?: { url: string }; error?: string };
+type UploadTicketResponse = { ok: boolean; path?: string; signedUrl?: string; publicUrl?: string; mimeType?: string; error?: string };
+
+
+async function uploadDirectToStorage(file: File, kind: "video" | "thumbnail"): Promise<{ url: string }> {
+  const ticketResponse = await fetch("/api/admin/free-education/upload-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ filename: file.name, mimeType: file.type, kind, size: file.size }),
+  });
+  const ticketText = await ticketResponse.text();
+  let ticket: UploadTicketResponse;
+  try { ticket = JSON.parse(ticketText) as UploadTicketResponse; }
+  catch { throw new Error(ticketText.slice(0, 180) || "ساخت لینک آپلود ناموفق بود (" + ticketResponse.status + ")."); }
+  if (!ticketResponse.ok || !ticket.ok || !ticket.signedUrl || !ticket.publicUrl) {
+    throw new Error(ticket.error || "ساخت لینک آپلود ناموفق بود (" + ticketResponse.status + ").");
+  }
+  const uploadBody = new FormData();
+  uploadBody.append("cacheControl", "31536000");
+  uploadBody.append("", file);
+  const uploadResponse = await fetch(ticket.signedUrl, { method: "PUT", body: uploadBody });
+  if (!uploadResponse.ok) {
+    const detail = await uploadResponse.text().catch(() => "");
+    throw new Error(detail.slice(0, 240) || "آپلود مستقیم به Storage ناموفق بود (" + uploadResponse.status + ").");
+  }
+  return { url: ticket.publicUrl };
+}
 
 const emptyLesson = (): FreeLessonInput => ({
   slug: "",
@@ -23,24 +49,6 @@ const emptyLesson = (): FreeLessonInput => ({
   sort_order: 0,
   is_active: true,
 });
-
-async function readUploadResponse(response: Response): Promise<UploadResponse> {
-  const text = await response.text();
-  try {
-    return JSON.parse(text) as UploadResponse;
-  } catch {
-    if (response.status === 413) {
-      return { ok: false, error: "حجم فایل از محدودیت سرور بیشتر است." };
-    }
-    if (response.status === 401) {
-      return { ok: false, error: "نشست ادمین منقضی شده — دوباره وارد شو." };
-    }
-    return {
-      ok: false,
-      error: `پاسخ نامعتبر از سرور (${response.status}). ${text.slice(0, 120)}`,
-    };
-  }
-}
 
 export default function AdminVideosPage() {
   const [lessons, setLessons] = useState<ApiFreeLesson[]>([]);
@@ -104,23 +112,12 @@ export default function AdminVideosPage() {
       return;
     }
     try {
-      const uploadForm = new FormData();
-      uploadForm.set("file", file);
-      uploadForm.set("kind", "video");
-      const response = await fetch("/api/free-training-assets", {
-        method: "POST",
-        body: uploadForm,
-        credentials: "include",
-      });
-      const data = await readUploadResponse(response);
-      if (!response.ok || !data.ok || !data.item?.url) {
-        throw new Error(data.error || "آپلود ویدیو ناموفق بود.");
-      }
+      const data = await uploadDirectToStorage(file, "video");
       setDraft((current) => ({
         ...current,
         title: current.title || uploadTitle,
         slug: current.slug || `lesson-${Date.now()}`,
-        video_url: data.item!.url,
+        video_url: data.url,
       }));
       setMessage("ویدیو در Supabase آپلود شد و آدرس آن در فرم درس قرار گرفت؛ اطلاعات درس را ذخیره کن.");
       formElement.reset();
@@ -142,19 +139,8 @@ export default function AdminVideosPage() {
       if (kind === "thumbnail" && file.size > 10 * 1024 * 1024) {
         throw new Error("حداکثر حجم thumbnail ۱۰ مگابایت است.");
       }
-      const form = new FormData();
-      form.set("file", file);
-      form.set("kind", kind);
-      const response = await fetch("/api/free-training-assets", {
-        method: "POST",
-        body: form,
-        credentials: "include",
-      });
-      const data = await readUploadResponse(response);
-      if (!response.ok || !data.ok || !data.item?.url) {
-        throw new Error(data.error || "آپلود فایل ناموفق بود.");
-      }
-      updateDraft(kind === "video" ? "video_url" : "thumbnail_url", data.item.url);
+      const data = await uploadDirectToStorage(file, kind);
+      updateDraft(kind === "video" ? "video_url" : "thumbnail_url", data.url);
       setMessage(
         kind === "video"
           ? "ویدیو آپلود شد؛ حالا درس را ذخیره کن."
