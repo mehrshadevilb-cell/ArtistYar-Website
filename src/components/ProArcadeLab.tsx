@@ -390,7 +390,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
 
   const choose = useCallback(
     async (opt: string) => {
-      if (!question || picked) return;
+      if (!question || picked || !played) return;
       setPicked(opt);
       const ok = opt === question.answer;
       const responseTimeMs = startedAt ? Math.max(1, Date.now() - startedAt) : 0;
@@ -588,7 +588,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
               <button
                 key={opt}
                 type="button"
-                disabled={picked !== null}
+                disabled={picked !== null || !played}
                 onClick={() => void choose(opt)}
                 className={`rounded-xl border p-4 text-sm transition ${
                   isCorrect
