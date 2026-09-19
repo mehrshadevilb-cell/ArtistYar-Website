@@ -91,6 +91,7 @@ export async function uploadOrderReceipt(paymentId: number, phone: string, recei
 
 export type ApiLicense = {
   id: number;
+  product_id: number;
   product_title: string;
   status: string;
   license_key: string | null;
