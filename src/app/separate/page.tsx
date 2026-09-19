@@ -50,8 +50,6 @@ type BrowserSeparateFn = (
 
 async function downloadZip(blob: Blob, filename: string) {
   if (blob.size <= 22) throw new Error("فایل ZIP خروجی خالی است؛ پردازش را دوباره امتحان کنید.");
-  const signature = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
-  if (signature[0] !== 0x50 || signature[1] !== 0x4b) throw new Error("فایل ZIP خروجی معتبر نیست.");
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -61,6 +59,34 @@ async function downloadZip(blob: Blob, filename: string) {
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+async function validateZip(blob: Blob, expectedNames: string[]) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  if (bytes.length <= 22 || bytes[0] !== 0x50 || bytes[1] !== 0x4b || bytes[2] !== 0x03 || bytes[3] !== 0x04) {
+    throw new Error("فایل ZIP خروجی معتبر نیست.");
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let eocd = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65_557); i -= 1) {
+    if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("فایل ZIP فاقد Central Directory است.");
+  const count = view.getUint16(eocd + 10, true);
+  const centralSize = view.getUint32(eocd + 12, true);
+  const centralOffset = view.getUint32(eocd + 16, true);
+  if (count !== expectedNames.length || centralOffset + centralSize > bytes.length) {
+    throw new Error("تعداد فایل‌های ZIP با خروجی مورد انتظار مطابقت ندارد.");
+  }
+  const names: string[] = [];
+  let cursor = centralOffset;
+  for (let i = 0; i < count; i += 1) {
+    if (view.getUint32(cursor, true) !== 0x02014b50) throw new Error("Central Directory فایل ZIP خراب است.");
+    const nameLength = view.getUint16(cursor + 28, true);
+    names.push(new TextDecoder().decode(bytes.slice(cursor + 46, cursor + 46 + nameLength)));
+    cursor += 46 + nameLength + view.getUint16(cursor + 30, true) + view.getUint16(cursor + 32, true);
+  }
+  if (expectedNames.some((name) => !names.includes(name))) throw new Error("همه فایل‌های استم داخل ZIP ساخته نشده‌اند.");
 }
 
 export default function SeparatePage() {
@@ -161,6 +187,9 @@ export default function SeparatePage() {
       mode,
     );
 
+    setStatus("در حال ساخت و اعتبارسنجی ZIP خروجی روی دستگاه…");
+    await validateZip(blob, mode === "full" ? ["vocals.wav", "drums.wav", "bass.wav", "other.wav"] : ["vocals.wav", "instrumental.wav"]);
+    setStatus("در حال آماده‌سازی دانلود ZIP…");
     await downloadZip(blob, "artistyar-" + file.name.replace(/\.[^.]+$/, "") + downloadSuffix);
     setStatus(doneMessage);
   }

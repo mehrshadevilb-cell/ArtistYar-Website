@@ -33,6 +33,22 @@ async function loadOrt() {
   return window.ort;
 }
 
+async function loadModelBytes(progress) {
+  const cacheName = "artistyar-separator-model-v1";
+  const cache = "caches" in window ? await window.caches.open(cacheName) : null;
+  let response = cache ? await cache.match(MODEL) : null;
+  if (!response) {
+    response = await fetch(MODEL, { mode: "cors", cache: "force-cache" });
+    if (!response.ok) throw new Error("دانلود مدل Demucs ناموفق بود: " + response.status);
+    if (cache) await cache.put(MODEL, response.clone());
+  }
+  const total = Number(response.headers.get("content-length") || 0);
+  const buffer = await response.arrayBuffer();
+  if (buffer.byteLength < 1024 * 1024) throw new Error("مدل Demucs ناقص یا خالی دریافت شد.");
+  progress?.({ phase: "model", loaded: buffer.byteLength, total: total || buffer.byteLength, cached: Boolean(cache && await cache.match(MODEL)) });
+  return new Uint8Array(buffer);
+}
+
 async function getSession(progress) {
   if (session) return session;
   if (loading) return loading;
@@ -49,17 +65,7 @@ async function getSession(progress) {
     ort.env.wasm.simd = true;
 
     progress?.({ phase: "model", loaded: 0, total: 1 });
-    const res = await fetch(MODEL);
-    if (!res.ok) throw new Error("دانلود مدل Demucs ناموفق بود: " + res.status);
-
-    const total = Number(res.headers.get("content-length") || 0);
-    const buffer = await res.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    progress?.({
-      phase: "model",
-      loaded: bytes.byteLength,
-      total: total || bytes.byteLength,
-    });
+    const bytes = await loadModelBytes(progress);
 
     // Prefer WASM first for stability; WebGPU can abort on some GPUs/drivers
     const tryProviders = [["wasm"]];
