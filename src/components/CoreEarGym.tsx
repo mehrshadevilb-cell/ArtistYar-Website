@@ -135,18 +135,25 @@ async function playQuestion(q: Question) {
     src.stop(now + 1.5);
     scheduled.push(src);
   } else {
-    const merger = c.createChannelMerger(2);
+    // Phase training must expose polarity through an actual sum, not two
+    // independent stereo channels (which would make inversion nearly
+    // indistinguishable in headphones). Two phase-locked copies are mixed
+    // to mono so the inverted version cancels strongly.
     const a = c.createOscillator();
     const b = c.createOscillator();
     const ga = c.createGain();
     const gb = c.createGain();
+    const sum = c.createGain();
+    a.type = "sine";
+    b.type = "sine";
     a.frequency.value = 180;
     b.frequency.value = 180;
-    ga.gain.value = 0.18;
-    gb.gain.value = String(q.audio.phase) === "inverted" ? -0.18 : 0.18;
-    a.connect(ga).connect(merger, 0, 0);
-    b.connect(gb).connect(merger, 0, 1);
-    merger.connect(c.destination);
+    ga.gain.value = 0.14;
+    gb.gain.value = String(q.audio.phase) === "inverted" ? -0.14 : 0.14;
+    sum.gain.value = 0.75;
+    a.connect(ga).connect(sum);
+    b.connect(gb).connect(sum);
+    sum.connect(out);
     a.start(now);
     b.start(now);
     a.stop(now + 1.1);
