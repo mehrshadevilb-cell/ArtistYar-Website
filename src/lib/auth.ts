@@ -24,6 +24,51 @@ function removeStorageItem(key: string): void {
   try { window.localStorage.removeItem(key); } catch { /* Ignore unavailable storage. */ }
 }
 
+export function saveSession(user: SessionUser): void {
+  setStorageItem(STORAGE_KEY, JSON.stringify(user));
+}
+
+export function getSession(): SessionUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const session = JSON.parse(raw) as Partial<SessionUser>;
+    if (
+      typeof session.id !== "string" ||
+      typeof session.username !== "string" ||
+      typeof session.fullName !== "string" ||
+      (session.role !== "student" && session.role !== "admin")
+    ) return null;
+    return {
+      id: session.id,
+      username: session.username,
+      fullName: session.fullName,
+      role: session.role,
+      telegramLinked: Boolean(session.telegramLinked),
+      ...(typeof session.telegramId === "string" ? { telegramId: session.telegramId } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function clearLocalSession(): void {
+  removeStorageItem(STORAGE_KEY);
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    });
+  } finally {
+    clearLocalSession();
+  }
+}
+
 function readLocalStudents(): StoredMember[] {
   if (typeof window === "undefined") return [];
   try {
