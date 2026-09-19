@@ -1,12 +1,21 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_SESSION_COOKIE, USER_SESSION_COOKIE, verifyAdminSession, verifyUserSession } from "@/lib/server-admin-auth";
+import {
+  ADMIN_SESSION_COOKIE,
+  USER_SESSION_COOKIE,
+  verifyAdminSession,
+  verifyUserSession,
+} from "@/lib/server-admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 1800;
+/** Workers hard-cap is much lower; keep declaration for platforms that honor it. */
+export const maxDuration = 60;
 
 const MAX_BYTES = 250 * 1024 * 1024;
+/** Cloudflare / edge-friendly proxy wait (seconds). Long UVR jobs should hit UVR worker directly from the client when possible. */
+const PROXY_TIMEOUT_MS = 55 * 1000;
+
 const ALLOWED_PRESETS = new Set([
   "vocal_balanced",
   "vocal_clean",
@@ -26,7 +35,10 @@ async function isAuthenticated() {
 
 export async function POST(request: NextRequest) {
   if (!(await isAuthenticated())) {
-    return NextResponse.json({ ok: false, error: "برای استفاده از جداسازی وکال ابتدا وارد حساب شوید." }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "برای استفاده از جداسازی وکال ابتدا وارد حساب شوید." },
+      { status: 401 },
+    );
   }
 
   const worker = (process.env.UVR_WORKER_URL || "").replace(/\/$/, "");
@@ -48,9 +60,18 @@ export async function POST(request: NextRequest) {
   const file = form.get("file");
   const preset = String(form.get("preset") || "vocal_balanced");
 
-  if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "فایل صوتی الزامی است." }, { status: 400 });
-  if (file.size <= 0 || file.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "حجم فایل باید بین ۱ بایت تا ۲۵۰ مگابایت باشد." }, { status: 413 });
-  if (!ALLOWED_PRESETS.has(preset)) return NextResponse.json({ ok: false, error: "حالت تفکیک پشتیبانی نمی‌شود." }, { status: 400 });
+  if (!(file instanceof File)) {
+    return NextResponse.json({ ok: false, error: "فایل صوتی الزامی است." }, { status: 400 });
+  }
+  if (file.size <= 0 || file.size > MAX_BYTES) {
+    return NextResponse.json(
+      { ok: false, error: "حجم فایل باید بین ۱ بایت تا ۲۵۰ مگابایت باشد." },
+      { status: 413 },
+    );
+  }
+  if (!ALLOWED_PRESETS.has(preset)) {
+    return NextResponse.json({ ok: false, error: "حالت تفکیک پشتیبانی نمی‌شود." }, { status: 400 });
+  }
 
   const upstream = new FormData();
   upstream.append("file", file, file.name);
@@ -61,13 +82,19 @@ export async function POST(request: NextRequest) {
       method: "POST",
       body: upstream,
       headers: { "X-ArtistYar-Worker-Key": workerSecret },
-      signal: AbortSignal.timeout(30 * 60 * 1000),
+      signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
       cache: "no-store",
     });
 
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
-      return NextResponse.json({ ok: false, error: detail || ("موتور تفکیک خطای HTTP " + response.status + " برگرداند.") }, { status: response.status >= 500 ? 502 : response.status });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: detail || "موتور تفکیک خطای HTTP " + response.status + " برگرداند.",
+        },
+        { status: response.status >= 500 ? 502 : response.status },
+      );
     }
 
     const blob = await response.blob();
@@ -75,13 +102,26 @@ export async function POST(request: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": response.headers.get("content-type") || "application/zip",
-        "Content-Disposition": response.headers.get("content-disposition") || 'attachment; filename="artistyar-stems.zip"',
+        "Content-Disposition":
+          response.headers.get("content-disposition") ||
+          'attachment; filename="artistyar-stems.zip"',
         "Cache-Control": "no-store",
       },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "موتور تفکیک در دسترس نیست.";
-    return NextResponse.json({ ok: false, error: message }, { status: 502 });
+    const timedOut = /abort|timeout/i.test(message);
+    return NextResponse.json(
+      {
+        ok: false,
+        code: timedOut ? "UVR_PROXY_TIMEOUT" : "UVR_PROXY_ERROR",
+        browserAvailable: true,
+        error: timedOut
+          ? "تفکیک سروری بیش از حد طول کشید. از حالت استاندارد روی دستگاه خودتان استفاده کنید یا بعداً دوباره امتحان کنید."
+          : message,
+      },
+      { status: 502 },
+    );
   }
 }
 
