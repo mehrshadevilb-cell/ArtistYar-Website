@@ -9,13 +9,16 @@ import { useAuth } from "./AuthProvider";
 import { ThemeToggle } from "./ThemeToggle";
 import { SafeLink } from "./SafeLink";
 
-const primaryLinks = [
-  { href: "/courses", label: "مسیرهای آموزشی" },
+const coreLinks = [
+  { href: "/practice", label: "تمرین" },
+  { href: "/assistant", label: "ArtistYar AI" },
+  { href: "/music-analyzer", label: "تحلیل موسیقی" },
+  { href: "/courses", label: "مسیر پیشرفت" },
+];
+
+const secondaryLinks = [
   { href: "/online", label: "کلاس آنلاین" },
-  { href: "/assistant", label: "راه‌یار AI" },
   { href: "/free-player", label: "آموزش رایگان" },
-  { href: "/practice", label: "موتور تمرین" },
-  { href: "/music-analyzer", label: "تحلیلگر موسیقی" },
   { href: "/separate", label: "جداسازی وکال" },
   { href: "/gallery", label: "گالری خروجی‌ها" },
 ];
@@ -62,7 +65,7 @@ export function SiteHeader() {
         </Link>
 
         <nav aria-label="ناوبری اصلی" className="hidden items-center gap-0.5 lg:flex">
-          {primaryLinks.map((link) => (
+          {coreLinks.map((link) => (
             <SafeLink
               key={link.href}
               href={link.href}
@@ -73,6 +76,7 @@ export function SiteHeader() {
               {link.label}
             </SafeLink>
           ))}
+          <SafeLink href="/about" className="nav-link">بیشتر</SafeLink>
         </nav>
 
         <div className="hidden items-center gap-2.5 md:flex">
@@ -123,7 +127,7 @@ export function SiteHeader() {
           aria-label="ناوبری موبایل"
           className="container-ay flex max-h-[min(70dvh,32rem)] flex-col gap-0.5 overflow-y-auto overscroll-contain py-4 pb-[max(1rem,var(--tg-safe-bottom))]"
         >
-          {[...primaryLinks, ...moreLinks].map((link) => (
+          {[...coreLinks, ...secondaryLinks, ...moreLinks].map((link) => (
             <SafeLink
               key={link.href}
               href={link.href}

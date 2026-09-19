@@ -13,6 +13,7 @@ import { CommunityLinks } from "@/components/CommunityLinks";
 import { instagramGallery } from "@/data/instagram-gallery";
 import { HeroDifferentiator } from "@/components/HeroDifferentiator";
 import { PracticeEnginePreview } from "@/components/PracticeEnginePreview";
+import { CoreFeatureRail } from "@/components/CoreFeatureRail";
 
 export const metadata: Metadata = {
   title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | مهرشاد بنائی",
@@ -269,6 +270,8 @@ export default function HomePage() {
           </DepthScene>
         </ScrollDepth>
       </section>
+
+      <CoreFeatureRail />
 
       <PracticeEnginePreview />
 
