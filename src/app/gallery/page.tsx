@@ -103,6 +103,8 @@ function MediaCard({ item }: { item: Awaited<ReturnType<typeof listPublishedMedi
         <img
           src={item.coverUrl}
           alt={`کاور ${item.title}`}
+          loading="lazy"
+          decoding="async"
           className="mt-5 aspect-square w-full rounded-2xl border border-white/[.08] object-cover"
         />
       ) : null}

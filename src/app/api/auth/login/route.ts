@@ -20,6 +20,8 @@ const backend = (process.env.RAHYAR_API_URL || "https://rahyar-academy-managemen
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 20;
+const MAX_LOGIN_BODY_BYTES = 16 * 1024;
+const MAX_LOGIN_RATE_KEYS = 10_000;
 
 function clientKey(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
@@ -29,6 +31,13 @@ function clientKey(request: Request): string {
 
 function checkRateLimit(key: string): { allowed: boolean; retryAfterSec: number } {
   const now = Date.now();
+  for (const [storedKey, entry] of loginAttempts) {
+    if (entry.resetAt <= now) loginAttempts.delete(storedKey);
+  }
+  if (!loginAttempts.has(key) && loginAttempts.size >= MAX_LOGIN_RATE_KEYS) {
+    const oldest = loginAttempts.keys().next().value;
+    if (oldest) loginAttempts.delete(oldest);
+  }
   const entry = loginAttempts.get(key);
   if (!entry || entry.resetAt <= now) {
     loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
@@ -49,6 +58,11 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 export async function POST(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > MAX_LOGIN_BODY_BYTES) {
+    return NextResponse.json({ ok: false, error: "درخواست ورود بیش از حد بزرگ است." }, { status: 413 });
+  }
+
   const key = clientKey(request);
   const limit = checkRateLimit(key);
   if (!limit.allowed) {

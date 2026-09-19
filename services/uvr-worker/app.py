@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import zipfile
 import wave
+import hmac
 from pathlib import Path
 
 from audio_separator.separator import Separator
@@ -99,7 +100,9 @@ async def separate(
     preset: str = Form("vocal_balanced"),
     x_artistyar_worker_key: str | None = Header(default=None),
 ):
-    if not WORKER_SECRET or x_artistyar_worker_key != WORKER_SECRET:
+    provided_key = (x_artistyar_worker_key or "").encode()
+    expected_key = WORKER_SECRET.encode()
+    if not WORKER_SECRET or not hmac.compare_digest(provided_key, expected_key):
         raise HTTPException(status_code=401, detail="Unauthorized worker request.")
     if preset not in PRESETS:
         raise HTTPException(status_code=400, detail="Unsupported separation preset.")
@@ -154,8 +157,9 @@ async def separate(
         cleanup(job_dir)
         raise
     except Exception as exc:
+        print("UVR inference failed", repr(exc), flush=True)
         cleanup(job_dir)
-        raise HTTPException(status_code=500, detail="UVR inference failed: " + str(exc)) from exc
+        raise HTTPException(status_code=500, detail="UVR inference failed.") from exc
     finally:
         if acquired:
             job_slots.release()

@@ -15,9 +15,18 @@ type NormalizedMessage = ChatMessage;
 const chatAttempts = new Map<string, { count: number; resetAt: number }>();
 const CHAT_WINDOW_MS = 60 * 1000;
 const CHAT_MAX_PER_WINDOW = 20;
+const MAX_CHAT_BODY_BYTES = 256 * 1024;
+const MAX_CHAT_RATE_KEYS = 10_000;
 
 function checkChatRateLimit(key: string): { allowed: boolean; retryAfterSec: number } {
   const now = Date.now();
+  for (const [storedKey, entry] of chatAttempts) {
+    if (entry.resetAt <= now) chatAttempts.delete(storedKey);
+  }
+  if (!chatAttempts.has(key) && chatAttempts.size >= MAX_CHAT_RATE_KEYS) {
+    const oldest = chatAttempts.keys().next().value;
+    if (oldest) chatAttempts.delete(oldest);
+  }
   const entry = chatAttempts.get(key);
   if (!entry || entry.resetAt <= now) {
     chatAttempts.set(key, { count: 1, resetAt: now + CHAT_WINDOW_MS });
@@ -54,6 +63,11 @@ function clientIdFromRequest(request: Request): string {
 
 export async function POST(request: Request) {
   try {
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > MAX_CHAT_BODY_BYTES) {
+      return NextResponse.json({ ok: false, error: "درخواست گفتگو بیش از حد بزرگ است." }, { status: 413 });
+    }
+
     const clientKey = clientIdFromRequest(request);
     const limit = checkChatRateLimit(clientKey);
     if (!limit.allowed) {
@@ -103,11 +117,11 @@ export async function POST(request: Request) {
       model: result.model,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "AI provider request failed";
+    console.error("AI chat request failed", error);
     return NextResponse.json(
       {
         ok: false,
-        error: `اتصال به مدل‌های هوش مصنوعی برقرار نشد. ${message}`,
+        error: "اتصال به مدل‌های هوش مصنوعی برقرار نشد. کمی بعد دوباره امتحان کن.",
       },
       { status: 502 },
     );

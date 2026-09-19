@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const MAX_BYTES = 250 * 1024 * 1024;
+const MAX_REQUEST_BYTES = MAX_BYTES + 2 * 1024 * 1024;
 /** Cloudflare / edge-friendly proxy wait (seconds). Long UVR jobs should hit UVR worker directly from the client when possible. */
 const PROXY_TIMEOUT_MS = 55 * 1000;
 
@@ -54,6 +55,11 @@ export async function POST(request: NextRequest) {
       },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
+  }
+
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > MAX_REQUEST_BYTES) {
+    return NextResponse.json({ ok: false, error: "حجم درخواست از سقف پشتیبانی‌شده بیشتر است." }, { status: 413 });
   }
 
   const form = await request.formData();
@@ -118,7 +124,7 @@ export async function POST(request: NextRequest) {
         browserAvailable: true,
         error: timedOut
           ? "تفکیک سروری بیش از حد طول کشید. از حالت استاندارد روی دستگاه خودتان استفاده کنید یا بعداً دوباره امتحان کنید."
-          : message,
+          : "موتور تفکیک در دسترس نیست. کمی بعد دوباره امتحان کن.",
       },
       { status: 502 },
     );

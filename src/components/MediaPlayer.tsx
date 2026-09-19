@@ -167,6 +167,7 @@ export function MediaPlayer({
                 <img
                   src={coverUrl!}
                   alt={`کاور ${title}`}
+                  decoding="async"
                   className="h-full w-full object-cover"
                   onError={() => setCoverError(true)}
                   draggable={!protectDownload}
