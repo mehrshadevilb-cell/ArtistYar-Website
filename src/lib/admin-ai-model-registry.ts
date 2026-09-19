@@ -20,6 +20,7 @@ export async function syncAdminAiModels() {
     model_id: model.id,
     display_name: model.id,
     capabilities: { chat: true },
+    enabled: false,
     status: "discovered",
     updated_at: new Date().toISOString(),
   })));
@@ -36,7 +37,7 @@ export async function listAdminAiModels() {
 }
 
 export async function getAdminAiRoutingPreference() {
-  const result = await db().from("admin_ai_model_registry").select("provider_id,model_id").eq("enabled", true).order("preferred", { ascending: false }).order("priority", { ascending: false }).limit(1).maybeSingle();
+  const result = await db().from("admin_ai_model_registry").select("provider_id,model_id").eq("enabled", true).eq("status", "enabled").order("preferred", { ascending: false }).order("priority", { ascending: false }).limit(1).maybeSingle();
   if (result.error) throw result.error;
   return result.data;
 }
