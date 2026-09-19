@@ -178,6 +178,15 @@ export default function ProductPage() {
   );
   const content = contentFor(product?.title || "");
 
+  function track(event_type: string, metadata: Record<string, string> = {}) {
+    void fetch("/api/rahyar/analytics/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event_type, path: window.location.pathname, metadata }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }
+
   async function onOrder(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!product) return;
@@ -190,6 +199,7 @@ export default function ProductPage() {
     setReceiptMsg("");
     const fd = new FormData(e.currentTarget);
     const phone = String(fd.get("phone") || "");
+    track("order_start", { product_id: String(product.id), product_title: product.title });
     try {
       const res = await fetch("/api/rahyar/orders", {
         method: "POST",
@@ -198,6 +208,7 @@ export default function ProductPage() {
       });
       const data = await res.json();
       if (!res.ok || data.ok === false) throw new Error(data.error || data.detail || "ثبت سفارش ناموفق بود.");
+      track("order_created", { product_id: String(product.id), payment_id: String(data.payment_id || "") });
       setMsg(`${data.message || "ثبت شد."}\nشماره پرداخت: ${data.payment_id}\nمبلغ: ${Number(data.amount || 0).toLocaleString("fa-IR")} تومان`);
       setCardNumber(data.card?.number || null);
       setCardHolder(data.card?.holder || null);
