@@ -40,7 +40,7 @@ function normalize(raw: any, level: number): VoicingQuestion | null {
   const answer = String(raw.answer || raw.quality);
   if (options.length < 4 || !options.includes(answer)) return null;
   const notes = raw.notes.map(String).slice(0, 8);
-  if (notes.length < 3 || notes.some((note) => !/^[A-G](?:#|b)?[0-8]$/.test(note))) return null;
+  if (notes.length < 3 || notes.some((note: string) => !/^[A-G](?:#|b)?[0-8]$/.test(note))) return null;
   return { ...fallback(level), ...raw, notes, options:options.slice(0,6), answer, difficulty:level, source:"multi-agent" };
 }
 export async function POST(request: Request) {
