@@ -26,6 +26,7 @@ export default function AdminAssistantPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [creating, setCreating] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   async function open(id: string) {
@@ -54,13 +55,17 @@ export default function AdminAssistantPage() {
   useEffect(() => { void load(); }, []);
 
   async function create() {
+    if (creating) return;
     try {
+      setCreating(true);
       const json = await api({ action: "create" });
       setConversations((items) => [json.conversation, ...items]);
       setActive({ ...json.conversation, messages: [] });
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "خطا");
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -135,7 +140,7 @@ export default function AdminAssistantPage() {
         <form onSubmit={send} className="border-t border-white/10 p-3 sm:p-4">
           <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
             <textarea value={input} onChange={(event) => setInput(event.target.value)} disabled={!active || sending} rows={2} placeholder="پیامت را برای دستیار مدیریتی بنویس…" className="min-h-12 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-sand-50 outline-none placeholder:text-ink-600" />
-            <button type={sending ? "button" : "submit"} onClick={sending ? () => abortRef.current?.abort() : undefined} disabled={!active || (!sending && !input.trim())} className="btn-primary shrink-0 !px-4">{sending ? "توقف" : "ارسال"}</button>
+            <button type={sending ? "button" : "submit"} onClick={sending ? () => abortRef.current?.abort() : undefined} disabled={!active || creating || (!sending && !input.trim())} className="btn-primary shrink-0 !px-4">{sending ? "توقف" : "ارسال"}</button>
           </div>
         </form>
       </section>
