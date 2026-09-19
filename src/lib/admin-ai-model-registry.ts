@@ -74,7 +74,17 @@ export async function updateAdminAiModel(id: string, patch: Partial<Pick<AdminAi
     throw new Error("admin_ai_model_must_be_validated_first");
   }
   if (patch.preferred === true && patch.enabled === false) throw new Error("admin_ai_preferred_model_must_be_enabled");
-  const result = await db().from("admin_ai_model_registry").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id).select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at").maybeSingle();
+  if (patch.preferred === true && patch.enabled === undefined && current.data.enabled !== true) {
+    throw new Error("admin_ai_preferred_model_must_be_enabled");
+  }
+
+  const update = { ...patch, updated_at: new Date().toISOString() } as Record<string, unknown>;
+  if (patch.enabled === true) update.status = "enabled";
+  if (patch.enabled === false && patch.status === undefined) update.status = "disabled";
+  if (patch.status === "enabled") update.enabled = true;
+  if (patch.status === "disabled") update.enabled = false;
+
+  const result = await db().from("admin_ai_model_registry").update(update).eq("id", id).select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at").maybeSingle();
   if (result.error) throw result.error;
   return result.data as AdminAiModel | null;
 }
