@@ -66,6 +66,13 @@ export async function validateAdminAiModel(id: string) {
 }
 
 export async function updateAdminAiModel(id: string, patch: Partial<Pick<AdminAiModel, "enabled" | "priority" | "preferred" | "status">>) {
+  const current = await db().from("admin_ai_model_registry").select("id,status,enabled,preferred").eq("id", id).maybeSingle();
+  if (current.error) throw current.error;
+  if (!current.data) return null;
+  if ((patch.enabled === true || patch.status === "enabled") && current.data.status !== "registered" && current.data.status !== "enabled") {
+    throw new Error("admin_ai_model_must_be_validated_first");
+  }
+  if (patch.preferred === true && patch.enabled === false) throw new Error("admin_ai_preferred_model_must_be_enabled");
   const result = await db().from("admin_ai_model_registry").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id).select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at").maybeSingle();
   if (result.error) throw result.error;
   return result.data as AdminAiModel | null;
