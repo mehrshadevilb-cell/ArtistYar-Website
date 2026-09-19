@@ -28,10 +28,12 @@ export default function AdminAssistantPage() {
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const activeIdRef = useRef<string | null>(null);
 
   async function open(id: string) {
     try {
       const json = await api({ action: "get", conversationId: id });
+      activeIdRef.current = json.conversation.id;
       setActive(json.conversation);
       setError("");
     } catch (e) {
@@ -60,6 +62,7 @@ export default function AdminAssistantPage() {
       setCreating(true);
       const json = await api({ action: "create" });
       setConversations((items) => [json.conversation, ...items]);
+      activeIdRef.current = json.conversation.id;
       setActive({ ...json.conversation, messages: [] });
       setError("");
     } catch (e) {
@@ -81,10 +84,13 @@ export default function AdminAssistantPage() {
     abortRef.current = controller;
     setActive((current) => current ? { ...current, messages: [...(current.messages || []), { role: "user", content: text }] } : current);
 
+    const conversationId = active.id;
     try {
-      const json = await api({ action: "message", conversationId: active.id, content: text }, "", controller.signal);
-      setActive((current) => current ? { ...current, messages: [...(current.messages || []), json.message] } : current);
-      setConversations((items) => items.map((item) => item.id === active.id ? { ...item, updated_at: new Date().toISOString() } : item));
+      const json = await api({ action: "message", conversationId, content: text }, "", controller.signal);
+      if (activeIdRef.current === conversationId) {
+        setActive((current) => current ? { ...current, messages: [...(current.messages || []), json.message] } : current);
+      }
+      setConversations((items) => items.map((item) => item.id === conversationId ? { ...item, updated_at: new Date().toISOString() } : item));
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
       setError(e instanceof Error ? e.message : "ارسال پیام ناموفق بود");
