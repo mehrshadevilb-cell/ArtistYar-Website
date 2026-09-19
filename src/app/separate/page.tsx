@@ -179,6 +179,39 @@ export default function SeparatePage() {
     setStatus(doneMessage);
   }
 
+  async function runServer(
+    serverPreset: "vocal_balanced" | "htdemucs_ft",
+    downloadSuffix: string,
+    doneMessage: string,
+  ) {
+    if (!file) throw new Error("فایل انتخاب نشده است.");
+
+    setStatus("در حال آماده‌سازی تفکیک فایل بلند روی سرور…");
+    const form = new FormData();
+    form.append("file", file);
+    form.append("preset", serverPreset);
+    const response = await fetch("/api/separation", {
+      method: "POST",
+      body: form,
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data?.error || "پردازش سروری فایل انجام نشد.");
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "artistyar-" + file.name.replace(/\.[^.]+$/, "") + downloadSuffix;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setStatus(doneMessage);
+  }
+
   async function separate() {
     if (!file || busy) return;
 
@@ -274,9 +307,25 @@ export default function SeparatePage() {
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err || "");
       let msg = raw || "تفکیک صدا با خطا مواجه شد.";
+      const browserDurationLimit = /بیش از (۹۰|۶۰) ثانیه|WASM|Aborted|out of memory|OOM|memory|RuntimeError|grow_memory/i.test(raw);
+      if (browserDurationLimit && serverReady && preset !== "demucs_mdx_hq5") {
+        try {
+          await runServer(
+            preset === "full_stem" ? "htdemucs_ft" : "vocal_balanced",
+            preset === "full_stem" ? "-full-stem-server.zip" : "-vocal-inst-server.zip",
+            "انجام شد — فایل بلند با موفقیت روی سرور تفکیک شد.",
+          );
+          return;
+        } catch (serverError) {
+          msg = serverError instanceof Error ? serverError.message : String(serverError || msg);
+        }
+      }
       if (/Aborted|out of memory|OOM|memory|RuntimeError|grow_memory/i.test(raw)) {
         msg =
           "حافظه مرورگر برای این فایل کافی نبود. فایل کوتاه‌تر (زیر ۹۰ ثانیه) امتحان کنید، تب‌های دیگر را ببندید، یا حالت HQ را انتخاب کنید.";
+      } else if (/بیش از (۹۰|۶۰) ثانیه/i.test(raw) && !serverReady) {
+        msg =
+          "این فایل برای پردازش مرورگری طولانی است و موتور سروری UVR نیز فعال نیست. حالت HQ سروری را پس از فعال شدن موتور انتخاب کنید یا فایل کوتاه‌تری بارگذاری کنید.";
       }
       setError(msg);
       setStatus("");
