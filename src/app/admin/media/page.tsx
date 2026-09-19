@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Check, CloudUpload, LoaderCircle, Pencil, RefreshCw, ShieldCheck, Trash2, X } from "lucide-react";
 
 type MediaItem = {
@@ -15,6 +15,7 @@ type MediaItem = {
 };
 type StorageItem = { path: string; name: string; mimeType: string; size: number; createdAt: string; url: string };
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+type UploadProgress = { percent: number; speed: string; remaining: string };
 
 function categoryLabel(category: string) {
   if (category === "student-work") return "نمونه‌کار هنرجو";
@@ -49,7 +50,8 @@ const fetchOpts: RequestInit = { cache: "no-store", credentials: "include" };
 async function uploadDirectToStorage(
   file: File,
   category: string,
-  onProgress?: (pct: number) => void,
+  onProgress?: (progress: UploadProgress) => void,
+  signal?: AbortSignal,
 ): Promise<{ path: string; mimeType: string }> {
   if (file.size <= 0 || file.size > MAX_FILE_SIZE_BYTES) {
     throw new Error("حجم فایل باید بین ۱ بایت و ۵۰ مگابایت باشد.");
@@ -75,17 +77,28 @@ async function uploadDirectToStorage(
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", ticket.signedUrl as string);
     xhr.setRequestHeader("Content-Type", file.type || ticket.mimeType || "application/octet-stream");
+    const startedAt = performance.now();
+    const abort = () => xhr.abort();
+    signal?.addEventListener("abort", abort, { once: true });
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
+        const elapsed = Math.max(0.1, (performance.now() - startedAt) / 1000);
+        const bytesPerSecond = event.loaded / elapsed;
+        const remainingSeconds = bytesPerSecond > 0 ? Math.max(0, (event.total - event.loaded) / bytesPerSecond) : 0;
+        onProgress({
+          percent: Math.round((event.loaded / event.total) * 100),
+          speed: `${(bytesPerSecond / 1024 / 1024).toFixed(1)} MB/s`,
+          remaining: remainingSeconds > 0 ? `${Math.ceil(remainingSeconds)}s` : "—",
+        });
       }
     };
     xhr.onload = () => {
+      signal?.removeEventListener("abort", abort);
       if (xhr.status >= 200 && xhr.status < 300) resolve();
       else reject(new Error(`آپلود مستقیم به Storage ناموفق بود (${xhr.status}).`));
     };
-    xhr.onerror = () => reject(new Error("ارتباط مستقیم با Supabase Storage قطع شد."));
-    xhr.onabort = () => reject(new Error("آپلود لغو شد."));
+    xhr.onerror = () => { signal?.removeEventListener("abort", abort); reject(new Error("ارتباط مستقیم با Supabase Storage قطع شد.")); };
+    xhr.onabort = () => { signal?.removeEventListener("abort", abort); reject(new Error("آپلود لغو شد.")); };
     xhr.send(file);
   });
 
@@ -100,6 +113,8 @@ export default function AdminMediaPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<MediaItem | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     void loadItems();
@@ -234,6 +249,13 @@ export default function AdminMediaPage() {
       setBusy(false);
       return;
     }
+    const extension = selectedFile.name.toLowerCase().split(".").pop() || "";
+    const allowedExtension = /^(mp3|wav|flac|m4a|aac|ogg|opus|mp4|webm|mov|mkv|m4v|jpg|jpeg|png|webp|avif|gif|pdf)$/.test(extension);
+    if (!allowedExtension || (!selectedFile.type && !extension)) {
+      setError("فرمت فایل پشتیبانی نمی‌شود.");
+      setBusy(false);
+      return;
+    }
     if (title.length < 3) {
       setError("عنوان محتوا را کامل وارد کنید.");
       setBusy(false);
@@ -247,9 +269,23 @@ export default function AdminMediaPage() {
 
     try {
       setMessage("در حال ساخت لینک آپلود…");
-      const uploaded = await uploadDirectToStorage(selectedFile, category, (pct) => {
-        setMessage(`آپلود مستقیم به Storage… ${pct}%`);
-      });
+      const controller = new AbortController();
+      uploadAbortRef.current = controller;
+      let uploaded: { path: string; mimeType: string } | null = null;
+      let lastError: unknown = null;
+      for (let attempt = 1; attempt <= 2 && !uploaded; attempt += 1) {
+        try {
+          uploaded = await uploadDirectToStorage(selectedFile, category, (progress) => {
+            setUploadProgress(progress);
+            setMessage(`آپلود مستقیم به Storage… ${progress.percent}% · ${progress.speed} · باقی‌مانده ${progress.remaining}`);
+          }, controller.signal);
+        } catch (uploadError) {
+          lastError = uploadError;
+          if (controller.signal.aborted || attempt === 2) throw uploadError;
+          setMessage("آپلود ناموفق بود؛ تلاش دوباره…");
+        }
+      }
+      if (!uploaded) throw lastError instanceof Error ? lastError : new Error("آپلود ناموفق بود.");
 
       setMessage("در حال ثبت در گالری…");
       const response = await fetch("/api/media", {
@@ -289,6 +325,8 @@ export default function AdminMediaPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "آپلود ناموفق بود.");
     } finally {
+      uploadAbortRef.current = null;
+      setUploadProgress(null);
       setBusy(false);
     }
   }
@@ -398,6 +436,13 @@ export default function AdminMediaPage() {
               required
             />
           </label>
+          {uploadProgress ? (
+            <div className="rounded-xl border border-gold-400/20 bg-gold-400/[.05] p-3 text-xs text-gold-100" role="status" aria-live="polite">
+              <div className="flex items-center justify-between gap-3"><span>پیشرفت آپلود</span><strong>{uploadProgress.percent}%</strong></div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gold-400 transition-[width]" style={{ width: `${uploadProgress.percent}%` }} /></div>
+              <p className="mt-2 text-[11px] text-ink-300">سرعت {uploadProgress.speed} · زمان باقی‌مانده {uploadProgress.remaining}</p>
+            </div>
+          ) : null}
           <label className="flex items-start gap-3 rounded-xl border border-white/[.07] bg-white/[.02] p-3 text-xs leading-6 text-ink-400">
             <input className="mt-1 accent-amber-400" name="consent" type="checkbox" />
             <span>
@@ -417,6 +462,11 @@ export default function AdminMediaPage() {
               </>
             )}
           </button>
+          {uploadAbortRef.current ? (
+            <button type="button" className="btn-ghost w-full gap-2 !text-red-200" onClick={() => uploadAbortRef.current?.abort()}>
+              <X size={16} /> لغو آپلود
+            </button>
+          ) : null}
         </form>
 
         <div className="card-ay p-6">

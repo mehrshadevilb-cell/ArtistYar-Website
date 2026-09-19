@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { USER_SESSION_COOKIE, verifyUserSession } from "@/lib/server-admin-auth";
+import { createPracticeQuestionToken } from "@/lib/practice-question-token";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -370,5 +371,13 @@ export async function POST(request: Request) {
     await db
       .from("practice_ai_questions")
       .insert({ user_id: userId, game_id: gameId, level, fingerprint: question.fingerprint, question });
-  return NextResponse.json({ ok: true, question });
+  const verificationToken = createPracticeQuestionToken({
+    userId,
+    gameId,
+    fingerprint: question.fingerprint || "",
+    answer: String(question.answer),
+    difficulty: question.difficulty,
+    issuedAt: Date.now(),
+  });
+  return NextResponse.json({ ok: true, question, verificationToken });
 }

@@ -3,6 +3,7 @@ import { getPracticeProfile, hasPracticeStore, savePracticeResult } from "@/lib/
 import { recordSkillEvent } from "@/lib/practice-skill-engine";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, USER_SESSION_COOKIE, verifyAdminSession, verifyUserSession } from "@/lib/server-admin-auth";
+import { verifyPracticeQuestionToken } from "@/lib/practice-question-token";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,10 +61,17 @@ export async function POST(request: Request) {
     const userId = auth.id;
     const telegramId = auth.telegramId;
     const gameId = String(body.gameId || "unknown").slice(0, 80);
-    const score = Number.isFinite(Number(body.score)) ? Math.max(-8, Math.min(20, Math.round(Number(body.score)))) : 0;
-    const accuracy = Number.isFinite(Number(body.accuracy)) ? Math.max(0, Math.min(100, Number(body.accuracy))) : 0;
-    const streak = Number.isFinite(Number(body.streak)) ? Math.max(0, Math.min(1, Math.round(Number(body.streak)))) : 0;
-    const bestScore = Number.isFinite(Number(body.bestScore)) ? Math.max(0, Math.min(20, Math.round(Number(body.bestScore)))) : 0;
+    const metadata = typeof body.metadata === "object" && body.metadata ? body.metadata as Record<string, unknown> : {};
+    const coreQuestion = metadata.source === "core_ear_gym";
+    const claims = coreQuestion ? verifyPracticeQuestionToken(metadata.verificationToken, userId) : null;
+    if (coreQuestion && (!claims || claims.gameId !== gameId || claims.fingerprint !== String(metadata.itemKey || ""))) {
+      return NextResponse.json({ ok: false, error: "سؤال تمرین معتبر نیست یا منقضی شده است." }, { status: 422 });
+    }
+    const verifiedCorrect = claims ? String(metadata.answer ?? "") === claims.answer : Boolean(metadata.correct);
+    const score = claims ? (verifiedCorrect ? 20 : 0) : Number.isFinite(Number(body.score)) ? Math.max(-8, Math.min(20, Math.round(Number(body.score)))) : 0;
+    const accuracy = claims ? (verifiedCorrect ? 100 : 0) : Number.isFinite(Number(body.accuracy)) ? Math.max(0, Math.min(100, Number(body.accuracy))) : 0;
+    const streak = claims ? (verifiedCorrect ? 1 : 0) : Number.isFinite(Number(body.streak)) ? Math.max(0, Math.min(1, Math.round(Number(body.streak)))) : 0;
+    const bestScore = claims ? score : Number.isFinite(Number(body.bestScore)) ? Math.max(0, Math.min(20, Math.round(Number(body.bestScore)))) : 0;
     const pro = auth.admin || await isProUser(userId, telegramId);
     let usedToday = 0;
     if (!pro) {
@@ -76,10 +84,10 @@ export async function POST(request: Request) {
       full_name: auth.fullName.slice(0, 160),
       game_id: gameId,
       score, accuracy, streak, best_score: bestScore,
-      metadata: { ...(typeof body.metadata === "object" && body.metadata ? body.metadata : {}), ...(telegramId ? { telegramId } : {}) },
+      metadata: { ...metadata, verifiedCorrect, ...(claims ? { difficulty: claims.difficulty } : {}), ...(telegramId ? { telegramId } : {}) },
     });
     try {
-      await recordSkillEvent({ userId, gameId, xp: Math.max(0, score), accuracy, difficulty: Number(body.metadata?.difficulty || 0), correct: accuracy >= 50, metadata: { ...(body.metadata || {}), streak } });
+      await recordSkillEvent({ userId, gameId, xp: Math.max(0, score), accuracy, difficulty: Number(claims?.difficulty || metadata.difficulty || 0), correct: verifiedCorrect, metadata: { ...metadata, verifiedCorrect, streak } });
     } catch {}
     return NextResponse.json({ ok: true, row, pro, unlimited: pro, remaining: pro ? null : Math.max(0, 5 - usedToday - 1) });
   } catch (error) {

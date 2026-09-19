@@ -16,6 +16,7 @@ type Question = {
   difficulty: number;
   fingerprint?: string;
   source?: string;
+  verificationToken?: string;
 };
 
 const META: Record<GameId, { title: string; desc: string }> = {
@@ -258,7 +259,7 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
       }).then((r) => r.json());
 
       if (d?.ok && d.question) {
-        setQ(d.question);
+        setQ({ ...d.question, verificationToken: d.verificationToken });
         setRating(Number(p.overallRating) || null);
         started.current = Date.now();
       } else {
@@ -326,7 +327,9 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
             difficulty: q.difficulty,
             responseTimeMs,
             correct: ok,
+            answer: value,
             itemKey: q.fingerprint || q.prompt,
+            verificationToken: q.verificationToken,
             sessionId: sessionId.current,
           },
         }),

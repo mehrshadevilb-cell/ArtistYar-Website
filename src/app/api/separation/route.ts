@@ -103,8 +103,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const blob = await response.blob();
-    return new NextResponse(blob, {
+    if (!response.body) {
+      return NextResponse.json({ ok: false, error: "موتور تفکیک خروجی معتبری برنگرداند." }, { status: 502 });
+    }
+    return new NextResponse(response.body, {
       status: 200,
       headers: {
         "Content-Type": response.headers.get("content-type") || "application/zip",

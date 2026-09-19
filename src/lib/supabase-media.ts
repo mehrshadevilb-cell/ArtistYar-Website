@@ -468,11 +468,34 @@ export async function registerExistingMedia(input: {
   if (!supabase) throw new Error("supabase_not_configured");
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(input.publicId).data.publicUrl;
   const ext = input.publicId.toLowerCase().split(".").pop() || "bin";
-  const downloaded = await supabase.storage.from(bucket).download(input.publicId);
-  if (downloaded.error) throw new SupabaseOperationError("media_download", downloaded.error);
-  const buffer = Buffer.from(await downloaded.data.arrayBuffer());
   const folder = storageFolderForCategory(input.category);
-  const audio = await inspectAudio(buffer, input.mimeType, folder);
+  const slash = input.publicId.lastIndexOf("/");
+  const objectFolder = slash >= 0 ? input.publicId.slice(0, slash) : "";
+  const objectName = slash >= 0 ? input.publicId.slice(slash + 1) : input.publicId;
+  const listed = await supabase.storage.from(bucket).list(objectFolder, { limit: 100, search: objectName });
+  if (listed.error) throw new SupabaseOperationError("media_exists_check", listed.error);
+  if (!(listed.data || []).some((entry) => entry.name === objectName)) throw new Error("media_object_not_found");
+
+  // Video/image finalize is metadata-only: never download large binary media into
+  // the Next.js process. Audio keeps the existing tag extraction path.
+  const isAudio = input.mimeType.startsWith("audio/");
+  const audio = isAudio
+    ? await (async () => {
+        const downloaded = await supabase!.storage.from(bucket).download(input.publicId);
+        if (downloaded.error) throw new SupabaseOperationError("media_download", downloaded.error);
+        return inspectAudio(Buffer.from(await downloaded.data.arrayBuffer()), input.mimeType, folder);
+      })()
+    : {
+        artist: "",
+        album: "",
+        genre: "",
+        year: null,
+        duration: null,
+        cover_url: null,
+        tag_title: "",
+        cover_data: null,
+        cover_format: "image/jpeg",
+      };
   const finalTitle =
     input.title.trim().length >= 3 ? input.title.trim().slice(0, 200) : audio.tag_title.slice(0, 200) || input.publicId;
 

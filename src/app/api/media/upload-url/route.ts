@@ -93,6 +93,10 @@ export async function POST(request: Request) {
       (mimeTypeRaw && mimeTypeRaw !== "application/octet-stream"
         ? mimeTypeRaw
         : mimeByExt[ext]) || "application/octet-stream";
+    const expectedMime = mimeByExt[ext];
+    if (expectedMime && mimeType !== expectedMime && !(ext === "m4a" && mimeType === "audio/x-m4a")) {
+      return NextResponse.json({ ok: false, error: "نوع فایل با پسوند آن همخوانی ندارد." }, { status: 400 });
+    }
 
     const folder = folderForCategory(category);
     // Unpredictable path — UUID prevents enumeration

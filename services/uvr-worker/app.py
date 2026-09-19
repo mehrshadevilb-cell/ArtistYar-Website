@@ -138,14 +138,20 @@ async def separate(
             separator.load_model()
             output_files = separator.separate(str(source))
             generated = [Path(path) for path in output_files if Path(path).exists()] or list(output_dir.glob("*"))
-        if not generated:
-            raise HTTPException(status_code=500, detail="The separator produced no output stems.")
+        valid_generated = [
+            stem
+            for stem in generated
+            if stem.is_file() and stem.stat().st_size > 0 and stem.suffix.lower() in {".wav", ".flac", ".mp3", ".m4a", ".ogg"}
+        ]
+        if not valid_generated:
+            raise HTTPException(status_code=500, detail="The separator produced no valid output stems.")
 
         zip_path = job_dir / "artistyar-stems.zip"
         with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for stem in generated:
-                if stem.is_file():
-                    archive.write(stem, stem.name)
+            for stem in valid_generated:
+                archive.write(stem, stem.name)
+        if not zip_path.is_file() or zip_path.stat().st_size <= 22:
+            raise HTTPException(status_code=500, detail="The separator produced an invalid ZIP archive.")
 
         return FileResponse(
             zip_path,

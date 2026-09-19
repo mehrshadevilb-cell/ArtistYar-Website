@@ -51,6 +51,10 @@ function resolveMime(file: File): string {
   return mimeByExt[ext] || reported || "application/octet-stream";
 }
 
+function folderForCategory(category: MediaCategory): string {
+  return category === "prodby-mehrshad" ? "ProdBy Mehrshad" : category;
+}
+
 async function authorized(): Promise<boolean> {
   const cookieStore = await cookies();
   const session = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
@@ -174,6 +178,10 @@ export async function PUT(request: Request) {
       if (!category) return NextResponse.json({ ok: false, error: "دسته‌بندی معتبر نیست." }, { status: 400 });
       if (category === "student-work" && !consent)
         return NextResponse.json({ ok: false, error: "برای نمونه‌کار هنرجو، تأیید رضایت لازم است." }, { status: 400 });
+      const expectedPrefix = `${folderForCategory(category)}/`;
+      if (!publicId.startsWith(expectedPrefix) || publicId.includes("..") || publicId.includes("\\")) {
+        return NextResponse.json({ ok: false, error: "مسیر Storage برای این دسته‌بندی معتبر نیست." }, { status: 400 });
+      }
       const item = await registerExistingMedia({
         publicId,
         title,
