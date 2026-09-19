@@ -31,6 +31,7 @@ export default function AdminAssistantPage() {
   const activeIdRef = useRef<string | null>(null);
 
   async function open(id: string) {
+    if (sending) return;
     try {
       const json = await api({ action: "get", conversationId: id });
       activeIdRef.current = json.conversation.id;
@@ -106,7 +107,7 @@ export default function AdminAssistantPage() {
         <button onClick={create} className="btn-primary mb-3 w-full">+ گفتگوی جدید</button>
         <div className="space-y-1 overflow-y-auto">
           {conversations.filter((item) => !item.archived).map((item) => (
-            <button key={item.id} onClick={() => open(item.id)} className={`w-full rounded-xl px-3 py-3 text-right text-xs transition ${active?.id === item.id ? "bg-white/10 text-sand-50" : "text-ink-400 hover:bg-white/5"}`}>
+            <button key={item.id} onClick={() => void open(item.id)} disabled={sending || creating} className={`w-full rounded-xl px-3 py-3 text-right text-xs transition ${active?.id === item.id ? "bg-white/10 text-sand-50" : "text-ink-400 hover:bg-white/5"}`}>
               {item.title}
             </button>
           ))}
