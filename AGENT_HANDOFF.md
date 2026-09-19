@@ -2,6 +2,9 @@
 
 ## Current continuation point
 
+Latest application fix:
+`7fd0f427cbfe3b4883347a0c2e1ebce86905b8bf` — explicit provider/model routing now records model health success/failure and respects cancellation.
+
 Repository: `mehrshadevilb-cell/ArtistYar-Website`
 
 Active branch:
