@@ -21,7 +21,10 @@ async function authorized() {
 }
 
 function jsonError(error: unknown, status = 502) {
-  return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "عملیات ناموفق بود." }, { status });
+  return NextResponse.json(
+    { ok: false, error: error instanceof Error ? error.message : "عملیات ناموفق بود." },
+    { status },
+  );
 }
 
 export async function GET(request: Request) {
@@ -49,9 +52,13 @@ export async function POST(request: Request) {
     let videoPath = String(form.get("videoPath") || "").trim();
     let thumbnailUrl = String(form.get("thumbnailUrl") || "").trim() || null;
 
-    if (mode === "upload") {
+    // Client may already have uploaded via signed URL (direct-to-storage).
+    // Prefer that path; only stream through the server when a File is present.
+    if (mode === "upload" && !videoPath) {
       const video = form.get("video");
-      if (!(video instanceof File) || video.size <= 0) return jsonError(new Error("فایل ویدیو را انتخاب کنید."), 400);
+      if (!(video instanceof File) || video.size <= 0) {
+        return jsonError(new Error("فایل ویدیو را انتخاب کنید."), 400);
+      }
       const videoAsset = await uploadStandaloneAsset({
         buffer: Buffer.from(await video.arrayBuffer()),
         filename: video.name || "lesson.mp4",
@@ -70,6 +77,22 @@ export async function POST(request: Request) {
         });
         thumbnailUrl = imageAsset.url;
       }
+    } else if (mode === "upload" && videoPath) {
+      // Optional server-side thumbnail if client only pre-uploaded the video.
+      const thumbnail = form.get("thumbnail");
+      if (thumbnail instanceof File && thumbnail.size > 0 && !thumbnailUrl) {
+        const imageAsset = await uploadStandaloneAsset({
+          buffer: Buffer.from(await thumbnail.arrayBuffer()),
+          filename: thumbnail.name || "thumbnail.jpg",
+          mimeType: thumbnail.type || "image/jpeg",
+          kind: "thumbnail",
+        });
+        thumbnailUrl = imageAsset.url;
+      }
+    }
+
+    if (mode === "storage" && !videoPath) {
+      return jsonError(new Error("ویدیویی از Storage انتخاب نشده است."), 400);
     }
 
     if (!videoPath) return jsonError(new Error("ویدیوی آموزش انتخاب نشده است."), 400);

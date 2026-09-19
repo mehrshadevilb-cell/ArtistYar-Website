@@ -11,7 +11,35 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const backend = (process.env.RAHYAR_API_URL || "https://rahyar-academy-management-system-v14.onrender.com").replace(/\/$/, "");
+const backend = (process.env.RAHYAR_API_URL || "https://rahyar-academy-management-system-v14.onrender.com").replace(
+  /\/$/,
+  "",
+);
+
+/** Simple per-IP rate limit (in-memory; resets on process restart). */
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 20;
+
+function clientKey(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  return forwarded || realIp || "unknown";
+}
+
+function checkRateLimit(key: string): { allowed: boolean; retryAfterSec: number } {
+  const now = Date.now();
+  const entry = loginAttempts.get(key);
+  if (!entry || entry.resetAt <= now) {
+    loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+    return { allowed: true, retryAfterSec: 0 };
+  }
+  entry.count += 1;
+  if (entry.count > LOGIN_MAX_ATTEMPTS) {
+    return { allowed: false, retryAfterSec: Math.ceil((entry.resetAt - now) / 1000) };
+  }
+  return { allowed: true, retryAfterSec: 0 };
+}
 
 function safeEqual(a: string, b: string): boolean {
   const ba = Buffer.from(a);
@@ -21,6 +49,15 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 export async function POST(request: Request) {
+  const key = clientKey(request);
+  const limit = checkRateLimit(key);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { ok: false, error: "تعداد تلاش‌های ورود زیاد است. چند دقیقه بعد دوباره امتحان کن." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } },
+    );
+  }
+
   const body = await request.json().catch(() => ({}));
   const username = String(body.username || "").trim();
   const password = String(body.password || "");
@@ -57,12 +94,7 @@ export async function POST(request: Request) {
         },
       });
 
-      // The admin session is an HttpOnly cookie. No secret is returned to JS.
-      response.cookies.set(
-        ADMIN_SESSION_COOKIE,
-        createAdminSession(adminUser),
-        adminSessionCookieOptions,
-      );
+      response.cookies.set(ADMIN_SESSION_COOKIE, createAdminSession(adminUser), adminSessionCookieOptions);
       return response;
     } catch {
       return NextResponse.json(
@@ -87,7 +119,12 @@ export async function POST(request: Request) {
         username: String(u.username ?? u.phone ?? username),
         fullName: String(u.fullName ?? u.full_name ?? u.name ?? username),
         role: "student" as const,
-        telegramId: u.telegramId != null ? String(u.telegramId) : u.telegram_id != null ? String(u.telegram_id) : undefined,
+        telegramId:
+          u.telegramId != null
+            ? String(u.telegramId)
+            : u.telegram_id != null
+              ? String(u.telegram_id)
+              : undefined,
       };
       const responseOut = NextResponse.json({ ...data, user: { ...data.user, ...normalized } });
       responseOut.cookies.set(USER_SESSION_COOKIE, createUserSession(normalized), userSessionCookieOptions);

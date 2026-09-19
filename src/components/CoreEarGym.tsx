@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Headphones, Play, RotateCcw } from "lucide-react";
+import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 
 type GameId = "tone" | "eq" | "compressor" | "phase";
@@ -14,6 +15,7 @@ type Question = {
   audio: Record<string, number | string>;
   difficulty: number;
   fingerprint?: string;
+  source?: string;
 };
 
 const META: Record<GameId, { title: string; desc: string }> = {
@@ -21,6 +23,49 @@ const META: Record<GameId, { title: string; desc: string }> = {
   eq: { title: "EQ", desc: "ناحیه‌ی تغییر EQ را تشخیص بده" },
   compressor: { title: "Compression", desc: "رفتار کمپرسور را از transient بشنو" },
   phase: { title: "Phase", desc: "پایداری مرکز و low-end را تشخیص بده" },
+};
+
+const STARTERS: Record<GameId, Question> = {
+  tone: {
+    gameId: "tone",
+    prompt: "نمونه را گوش کن و نزدیک‌ترین فرکانس را انتخاب کن.",
+    hint: "اول محدوده را پیدا کن، بعد فاصلهٔ نسبی را بسنج.",
+    answer: 440,
+    options: [220, 330, 440, 660],
+    audio: { frequency: 440 },
+    difficulty: 1,
+    source: "starter",
+  },
+  eq: {
+    gameId: "eq",
+    prompt: "نمونهٔ EQ را بشنو و ناحیهٔ اصلی تقویت‌شده را انتخاب کن.",
+    hint: "به محل انرژی تغییر توجه کن، نه بلندی کلی.",
+    answer: "حدود ۱kHz",
+    options: ["زیر ۱۰۰Hz", "حدود ۲۵۰Hz", "حدود ۱kHz", "حدود ۸kHz"],
+    audio: { frequency: 1000, gain: 6 },
+    difficulty: 1,
+    source: "starter",
+  },
+  compressor: {
+    gameId: "compressor",
+    prompt: "رفتار کمپرسور را از روی نمونهٔ صوتی تشخیص بده.",
+    hint: "به transient و سرعت بازگشت توجه کن.",
+    answer: "Attack سریع",
+    options: ["Attack سریع", "Attack آهسته", "Release سریع", "Ratio پایین"],
+    audio: { attack: 0.003, release: 0.18, ratio: 8, threshold: -30 },
+    difficulty: 1,
+    source: "starter",
+  },
+  phase: {
+    gameId: "phase",
+    prompt: "به نمونه گوش کن و polarity را تشخیص بده.",
+    hint: "روی مرکز تصویر و استحکام low-end تمرکز کن.",
+    answer: "normal",
+    options: ["normal", "inverted"],
+    audio: { frequency: 120, phase: "normal" },
+    difficulty: 1,
+    source: "starter",
+  },
 };
 
 function makeNoise(c: AudioContext, seconds: number) {
@@ -107,22 +152,32 @@ function learningFeedback(q: Question, ok: boolean) {
 }
 
 export function CoreEarGym({ onBack }: { onBack?: () => void }) {
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
   const [game, setGame] = useState<GameId>("tone");
   const [q, setQ] = useState<Question | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; correct: string; responseTimeMs: number } | null>(null);
   const [rating, setRating] = useState<number | null>(null);
+  const [guestMode, setGuestMode] = useState(false);
   const started = useRef(0);
   const sessionId = useRef("");
 
   const loadAdaptive = useCallback(async () => {
-    if (!user?.id) return;
     setLoading(true);
     setAnswer(null);
     setResult(null);
     sessionId.current ||= globalThis.crypto?.randomUUID?.() || String(Date.now());
+
+    if (!user?.id) {
+      setGuestMode(true);
+      setQ(STARTERS[game]);
+      started.current = Date.now();
+      setLoading(false);
+      return;
+    }
+
+    setGuestMode(false);
     try {
       const p = await fetch("/api/practice/adaptive?userId=" + encodeURIComponent(user.id), {
         cache: "no-store",
@@ -137,21 +192,26 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
         body: JSON.stringify({ gameId: game, level, userId: user.id }),
       }).then((r) => r.json());
 
-      if (d?.ok) {
+      if (d?.ok && d.question) {
         setQ(d.question);
         setRating(Number(p.overallRating) || null);
         started.current = Date.now();
+      } else {
+        setQ(STARTERS[game]);
+        started.current = Date.now();
       }
     } catch {
-      // The UI stays usable even when the optional adaptive service is unavailable.
+      setQ(STARTERS[game]);
+      started.current = Date.now();
     } finally {
       setLoading(false);
     }
   }, [user?.id, game]);
 
   useEffect(() => {
+    if (!ready) return;
     void loadAdaptive();
-  }, [loadAdaptive]);
+  }, [loadAdaptive, ready]);
 
   const choose = async (value: string) => {
     if (!q || answer) return;
@@ -198,13 +258,36 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
           <div>
             <p className="eyebrow text-cyan-200">CORE EAR GYM · ADAPTIVE</p>
             <h2 className="mt-2 text-xl font-semibold text-sand-50">تمرین واقعی گوش</h2>
-            <p className="mt-1 text-xs leading-6 text-ink-500">هر پاسخ فقط سختی را تعیین نمی‌کند؛ بخشی از پروفایل مهارت شنیداری توست.</p>
+            <p className="mt-1 text-xs leading-6 text-ink-500">
+              هر پاسخ فقط سختی را تعیین نمی‌کند؛ بخشی از پروفایل مهارت شنیداری توست.
+            </p>
           </div>
-          {rating ? <span className="rounded-full border border-gold-400/20 bg-gold-400/[.06] px-3 py-1.5 text-[11px] text-gold-200">Ear Rating {rating}</span> : null}
+          {rating ? (
+            <span className="rounded-full border border-gold-400/20 bg-gold-400/[.06] px-3 py-1.5 text-[11px] text-gold-200">
+              Ear Rating {rating}
+            </span>
+          ) : null}
         </div>
+        {guestMode ? (
+          <p className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/[.06] p-3 text-xs leading-6 text-amber-100">
+            در حال تمرین آفلاین هستی. برای ذخیره پیشرفت و سختی تطبیقی{" "}
+            <Link href="/login" className="text-gold-300 underline-offset-2 hover:underline">
+              وارد حساب شو
+            </Link>
+            .
+          </p>
+        ) : null}
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {(Object.keys(META) as GameId[]).map((id) => (
-            <button key={id} type="button" onClick={() => setGame(id)} className={"rounded-xl border px-3 py-3 text-right transition " + (game === id ? "border-gold-400/40 bg-gold-400/[.08]" : "border-white/[.07] bg-white/[.02]")}>
+            <button
+              key={id}
+              type="button"
+              onClick={() => setGame(id)}
+              className={
+                "rounded-xl border px-3 py-3 text-right transition " +
+                (game === id ? "border-gold-400/40 bg-gold-400/[.08]" : "border-white/[.07] bg-white/[.02]")
+              }
+            >
               <strong className="block text-xs text-sand-100">{META[id].title}</strong>
               <span className="mt-1 block text-[10px] text-ink-500">{META[id].desc}</span>
             </button>
@@ -238,7 +321,14 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
                     key={s}
                     disabled={!!answer}
                     onClick={() => void choose(s)}
-                    className={"rounded-xl border p-3 text-sm transition " + (correct ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200" : picked ? "border-red-400/40 bg-red-400/10 text-red-200" : "border-white/10 text-ink-200 hover:border-gold-400/40")}
+                    className={
+                      "rounded-xl border p-3 text-sm transition " +
+                      (correct
+                        ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200"
+                        : picked
+                          ? "border-red-400/40 bg-red-400/10 text-red-200"
+                          : "border-white/10 text-ink-200 hover:border-gold-400/40")
+                    }
                   >
                     {s}
                   </button>
@@ -247,7 +337,12 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
             </div>
 
             {result ? (
-              <div className={"mt-5 rounded-xl border p-4 " + (result.ok ? "border-emerald-400/20 bg-emerald-400/[.06]" : "border-red-400/20 bg-red-400/[.05]")}>
+              <div
+                className={
+                  "mt-5 rounded-xl border p-4 " +
+                  (result.ok ? "border-emerald-400/20 bg-emerald-400/[.06]" : "border-red-400/20 bg-red-400/[.05]")
+                }
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <strong className={result.ok ? "text-emerald-200" : "text-red-200"}>
                     {result.ok ? "درست · مهارت ثبت شد" : "نادرست · پاسخ صحیح: " + result.correct}
@@ -260,7 +355,9 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
                 </button>
               </div>
             ) : (
-              <p className="mt-4 flex items-center gap-2 text-[11px] text-ink-500"><Headphones size={13} /> با هدفون گوش بده؛ هدف تمرین، تصمیمی است که در میکس واقعی می‌گیری.</p>
+              <p className="mt-4 flex items-center gap-2 text-[11px] text-ink-500">
+                <Headphones size={13} /> با هدفون گوش بده؛ هدف تمرین، تصمیمی است که در میکس واقعی می‌گیری.
+              </p>
             )}
           </>
         )}

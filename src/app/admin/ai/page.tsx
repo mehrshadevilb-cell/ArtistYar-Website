@@ -97,6 +97,7 @@ export default function AdminAiPage() {
       const response = await fetch("/api/ai/develop", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ task: task.trim(), maxAgents: agentCount, execute: true }),
       });
       const json = await response.json();
@@ -112,7 +113,9 @@ export default function AdminAiPage() {
     setRunning(true); setAgentError(null); setAgentRun(null);
     try {
       const response = await fetch("/api/ai/agent", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ task: task.trim(), maxAgents: agentCount }),
       });
       const json = await response.json();
@@ -125,7 +128,7 @@ export default function AdminAiPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    fetch("/api/rahyar/ai-status")
+    fetch("/api/rahyar/ai-status", { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
       .then((json) => {
         setData(json);
@@ -139,7 +142,6 @@ export default function AdminAiPage() {
     load();
   }, [load]);
 
-  // Live monitoring: advance stages while agents are running
   useEffect(() => {
     const active = devRunning || running;
     if (!active) {
@@ -157,7 +159,6 @@ export default function AdminAiPage() {
     liveTimer.current = setInterval(() => {
       const sec = Math.floor((Date.now() - started) / 1000);
       setLiveElapsed(sec);
-      // Cycle stages every ~12s so user sees progress
       setLiveStage(Math.min(3, Math.floor(sec / 12)));
     }, 1000);
     return () => {
@@ -207,7 +208,7 @@ export default function AdminAiPage() {
         </div>
       </div>
 
-      <section id="development-agent" className="card-ay space-y-5 p-5 border border-emerald-400/20 scroll-mt-24">
+      <section id="development-agent" className="card-ay space-y-5 border border-emerald-400/20 p-5 scroll-mt-24">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-medium text-sand-50">🤖 AI Development Center · Multi-Agent + Coding</h3>
@@ -254,7 +255,11 @@ export default function AdminAiPage() {
               onChange={(e) => setAgentCount(Number(e.target.value))}
               className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sand-50"
             >
-              {[4, 8, 12, 16, 20, 24].map((n) => <option key={n} value={n}>{n}</option>)}
+              {[4, 8, 12, 16, 20, 24].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -277,7 +282,11 @@ export default function AdminAiPage() {
 
           <button
             type="button"
-            onClick={() => { setTask(""); setDevRun(null); setDevError(null); }}
+            onClick={() => {
+              setTask("");
+              setDevRun(null);
+              setDevError(null);
+            }}
             disabled={devRunning}
             className="btn-ghost !py-2.5 text-xs"
           >
@@ -285,14 +294,22 @@ export default function AdminAiPage() {
           </button>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-4 text-[11px]">
-          <div className={`rounded-xl border p-3 ${(devRunning || running) && liveStage === 0 ? "border-emerald-400/40 text-emerald-400 bg-emerald-400/5" : "border-white/10 text-ink-500"}`}><b className="text-sand-50">۱</b> تحلیل کل پروژه</div>
-          <div className={`rounded-xl border p-3 ${(devRunning || running) && liveStage === 1 ? "border-emerald-400/40 text-emerald-400 bg-emerald-400/5" : "border-white/10 text-ink-500"}`}><b className="text-sand-50">۲</b> کدنویسی موازی</div>
-          <div className={`rounded-xl border p-3 ${(devRunning || running) && liveStage === 2 ? "border-emerald-400/40 text-emerald-400 bg-emerald-400/5" : "border-white/10 text-ink-500"}`}><b className="text-sand-50">۳</b> Review و انتخاب</div>
-          <div className={`rounded-xl border p-3 ${(devRunning || running) && liveStage === 3 ? "border-emerald-400/40 text-emerald-400 bg-emerald-400/5" : "border-white/10 text-ink-500"}`}><b className="text-sand-50">۴</b> Apply + Draft PR</div>
+        <div className="grid gap-2 text-[11px] sm:grid-cols-4">
+          <div className={`rounded-xl border p-3 ${(devRunning || running) && liveStage === 0 ? "border-emerald-400/40 bg-emerald-400/5 text-emerald-400" : "border-white/10 text-ink-500"}`}>
+            <b className="text-sand-50">۱</b> تحلیل کل پروژه
+          </div>
+          <div className={`rounded-xl border p-3 ${(devRunning || running) && liveStage === 1 ? "border-emerald-400/40 bg-emerald-400/5 text-emerald-400" : "border-white/10 text-ink-500"}`}>
+            <b className="text-sand-50">۲</b> کدنویسی موازی
+          </div>
+          <div className={`rounded-xl border p-3 ${(devRunning || running) && liveStage === 2 ? "border-emerald-400/40 bg-emerald-400/5 text-emerald-400" : "border-white/10 text-ink-500"}`}>
+            <b className="text-sand-50">۳</b> Review و انتخاب
+          </div>
+          <div className={`rounded-xl border p-3 ${(devRunning || running) && liveStage === 3 ? "border-emerald-400/40 bg-emerald-400/5 text-emerald-400" : "border-white/10 text-ink-500"}`}>
+            <b className="text-sand-50">۴</b> Apply + Draft PR
+          </div>
         </div>
 
-        {(devRunning || running) ? (
+        {devRunning || running ? (
           <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -305,17 +322,23 @@ export default function AdminAiPage() {
                     {devRunning ? "تیم AI در حال کدنویسی و اعمال تغییرات" : "Multi-Agent در حال تحلیل"}
                   </p>
                   <p className="mt-0.5 text-[11px] text-ink-500">
-                    مرحله فعال: {[
-                      "تحلیل کل پروژه و ساخت plan",
-                      "کدنویسی موازی توسط Agentها",
-                      "Review و انتخاب بهترین پیشنهاد",
-                      "اعمال روی branch + ساخت Draft PR",
-                    ][liveStage]}
+                    مرحله فعال:{" "}
+                    {
+                      [
+                        "تحلیل کل پروژه و ساخت plan",
+                        "کدنویسی موازی توسط Agentها",
+                        "Review و انتخاب بهترین پیشنهاد",
+                        "اعمال روی branch + ساخت Draft PR",
+                      ][liveStage]
+                    }
                   </p>
                 </div>
               </div>
               <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] tabular-nums text-ink-400">
-                {Math.floor(liveElapsed / 60).toString().padStart(2, "0")}:{(liveElapsed % 60).toString().padStart(2, "0")}
+                {Math.floor(liveElapsed / 60)
+                  .toString()
+                  .padStart(2, "0")}
+                :{(liveElapsed % 60).toString().padStart(2, "0")}
               </div>
             </div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-black/30">
@@ -327,14 +350,24 @@ export default function AdminAiPage() {
           </div>
         ) : null}
 
-        {devError ? <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs leading-6 text-red-400">{devError}</div> : null}
-        {agentError ? <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs leading-6 text-red-400">{agentError}</div> : null}
+        {devError ? (
+          <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs leading-6 text-red-400">{devError}</div>
+        ) : null}
+        {agentError ? (
+          <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs leading-6 text-red-400">{agentError}</div>
+        ) : null}
         {agentRun ? (
           <div className="rounded-2xl border border-gold-400/20 bg-black/10 p-4">
-            <div className="grid gap-2 sm:grid-cols-3 text-xs">
-              <div className="rounded-xl border border-white/10 p-3 text-ink-400">Agentها: <b className="text-sand-50">{agentRun.totalAgents}</b></div>
-              <div className="rounded-xl border border-white/10 p-3 text-ink-400">پاسخ موفق: <b className="text-emerald-400">{agentRun.successfulAgents}</b></div>
-              <div className="rounded-xl border border-white/10 p-3 text-ink-400">Lead: <b className="text-gold-400">{agentRun.synthesis?.model || "—"}</b></div>
+            <div className="grid gap-2 text-xs sm:grid-cols-3">
+              <div className="rounded-xl border border-white/10 p-3 text-ink-400">
+                Agentها: <b className="text-sand-50">{agentRun.totalAgents}</b>
+              </div>
+              <div className="rounded-xl border border-white/10 p-3 text-ink-400">
+                پاسخ موفق: <b className="text-emerald-400">{agentRun.successfulAgents}</b>
+              </div>
+              <div className="rounded-xl border border-white/10 p-3 text-ink-400">
+                Lead: <b className="text-gold-400">{agentRun.synthesis?.model || "—"}</b>
+              </div>
             </div>
             <pre className="mt-3 whitespace-pre-wrap text-xs leading-7 text-ink-300">{agentRun.synthesis?.reply || "—"}</pre>
           </div>
@@ -358,8 +391,7 @@ export default function AdminAiPage() {
 
             {devRun.appliedChanges?.length ? (
               <div className="rounded-xl border border-white/10 p-3 text-xs leading-6 text-ink-400">
-                <span className="text-sand-50">فایل‌های اعمال‌شده:</span>{" "}
-                {devRun.appliedChanges.join("، ")}
+                <span className="text-sand-50">فایل‌های اعمال‌شده:</span> {devRun.appliedChanges.join("، ")}
               </div>
             ) : null}
 
@@ -368,7 +400,9 @@ export default function AdminAiPage() {
                 <summary className="cursor-pointer text-xs text-sand-50">مشاهده Review Agentها</summary>
                 <div className="mt-3 space-y-2">
                   {devRun.reviews.map((review: string, i: number) => (
-                    <pre key={i} className="whitespace-pre-wrap text-[11px] leading-6 text-ink-400">{review}</pre>
+                    <pre key={i} className="whitespace-pre-wrap text-[11px] leading-6 text-ink-400">
+                      {review}
+                    </pre>
                   ))}
                 </div>
               </details>
@@ -381,87 +415,46 @@ export default function AdminAiPage() {
         <div>
           <h3 className="text-base font-medium text-sand-50">Agentهای پیشنهادی برای توسعه</h3>
           <p className="mt-1 text-xs leading-6 text-ink-500">
-            این بخش «کدام Agent را برای چه کاری استفاده کنم؟» را مشخص می‌کند. وضعیت این Agentهای
-            خارجی از داخل سایت به‌صورت زنده verify نمی‌شود؛ دسترسی GitHub و حساب هر سرویس باید جداگانه تنظیم شود.
+            این بخش «کدام Agent را برای چه کاری استفاده کنم؟» را مشخص می‌کند. دسترسی GitHub و حساب هر سرویس باید
+            جداگانه روی همان پلتفرم برقرار باشد.
           </p>
         </div>
-
         <div className="grid gap-3 lg:grid-cols-2">
           {agents.map((agent) => (
             <article key={agent.name} className="rounded-2xl border border-white/10 bg-black/10 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h4 className="text-sm font-medium text-sand-50">{agent.name}</h4>
-                  <p className="mt-1 text-xs text-gold-400">{agent.role}</p>
+                  <h4 className="font-medium text-sand-50">{agent.name}</h4>
+                  <p className="mt-1 text-xs text-ink-500">{agent.role}</p>
                 </div>
-                <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-ink-400">
-                  {agent.status === "recommended" ? "پیشنهاد اصلی" : "قابل استفاده"}
+                <span
+                  className={`rounded-full px-2 py-1 text-[10px] ${
+                    agent.status === "recommended"
+                      ? "bg-emerald-400/10 text-emerald-300"
+                      : "bg-white/5 text-ink-400"
+                  }`}
+                >
+                  {agent.status === "recommended" ? "پیشنهادی" : "قابل استفاده"}
                 </span>
               </div>
               <p className="mt-3 text-xs leading-6 text-ink-400">{agent.mode}</p>
-              <p className="mt-2 text-xs leading-6 text-ink-500">
-                <span className="text-ink-300">مناسب برای:</span> {agent.tasks}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <a
-                  href={agent.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-ghost !py-2 text-[11px]"
-                >
-                  باز کردن Agent
-                </a>
-                <button
-                  type="button"
-                  className="btn-ghost !py-2 text-[11px]"
-                  onClick={() => copyText(agent.handoff)}
-                >
-                  کپی دستور شروع
+              <p className="mt-2 text-xs leading-6 text-ink-500">{agent.tasks}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" className="btn-ghost !px-3 !py-1.5 text-[11px]" onClick={() => copyText(agent.handoff)}>
+                  کپی دستور
                 </button>
+                <a href={agent.url} target="_blank" rel="noreferrer" className="btn-ghost !px-3 !py-1.5 text-[11px]">
+                  باز کردن
+                </a>
               </div>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="card-ay space-y-4 p-5">
-        <div>
-          <h3 className="text-base font-medium text-sand-50">قانون ادامه توسعه</h3>
-          <p className="mt-1 text-xs leading-6 text-ink-500">
-            برای جلوگیری از تداخل چند Agent، هر task باید یک owner، یک branch و یک خروجی مشخص داشته باشد.
-          </p>
-        </div>
-        <div className="grid gap-2 text-xs leading-6 text-ink-400 md:grid-cols-4">
-          <div className="rounded-xl border border-white/10 p-3"><b className="text-sand-50">۱.</b> Repository را بخوان</div>
-          <div className="rounded-xl border border-white/10 p-3"><b className="text-sand-50">۲.</b> Plan و impact را مشخص کن</div>
-          <div className="rounded-xl border border-white/10 p-3"><b className="text-sand-50">۳.</b> روی branch جدا تغییر بده</div>
-          <div className="rounded-xl border border-white/10 p-3"><b className="text-sand-50">۴.</b> Test → Review → PR</div>
-        </div>
-      </section>
-
-      <div className="card-ay space-y-3 p-5 text-sm">
-        {data?.note ? <p className="text-xs text-ink-500">{data.note}</p> : null}
-        {data?.error ? <p className="text-xs text-red-400">{data.error}</p> : null}
+      <div className="rounded-2xl border border-amber-400/20 bg-amber-400/[.05] p-4 text-xs leading-6 text-ink-400">
+        قبل از هر تغییر مهم، branch جدا بساز و از اجرای هم‌زمان چند Agent روی یک branch جلوگیری کن.
       </div>
-
-      <div className="card-ay p-5">
-        <h3 className="text-sm font-medium text-sand-50">Self-Check</h3>
-        <pre className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap text-xs leading-6 text-ink-400">
-          {loading ? "در حال بارگذاری…" : data?.self_check || "—"}
-        </pre>
-      </div>
-
-      <div className="card-ay p-5">
-        <h3 className="text-sm font-medium text-sand-50">Agent Status · Telegram Bridge</h3>
-        <pre className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap text-xs leading-6 text-ink-400">
-          {loading ? "در حال بارگذاری…" : data?.agent_status || "—"}
-        </pre>
-      </div>
-
-      <p className="text-xs leading-6 text-ink-500">
-        Taskهای write مانند Fix / Feature / PR از مسیر امن توسعه اجرا شوند. قبل از هر تغییر مهم، branch و backup
-        داشته باش و از اجرای هم‌زمان چند Agent روی یک branch جلوگیری کن.
-      </p>
     </div>
   );
 }
