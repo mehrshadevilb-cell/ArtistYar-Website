@@ -11,6 +11,4 @@
   "observability": {
     "enabled": true
   }
-  // Secrets & vars: set in Cloudflare Dashboard → Workers → artistyar-website → Settings → Variables
-  // Same names as Render: SUPABASE_*, ARTISTYAR_*, OPENAI_*, RAHYAR_API_URL, etc.
 }
