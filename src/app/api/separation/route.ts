@@ -9,13 +9,12 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-/** Workers hard-cap is much lower; keep declaration for platforms that honor it. */
-export const maxDuration = 60;
+/** Keep the API request alive long enough for a five-minute audio job on Node hosts. */
+export const maxDuration = 300;
 
 const MAX_BYTES = 250 * 1024 * 1024;
 const MAX_REQUEST_BYTES = MAX_BYTES + 2 * 1024 * 1024;
-/** Cloudflare / edge-friendly proxy wait (seconds). Long UVR jobs should hit UVR worker directly from the client when possible. */
-const PROXY_TIMEOUT_MS = 55 * 1000;
+const PROXY_TIMEOUT_MS = 300 * 1000;
 
 const ALLOWED_PRESETS = new Set([
   "vocal_balanced",
@@ -50,8 +49,7 @@ export async function POST(request: NextRequest) {
         ok: false,
         code: "UVR_WORKER_NOT_CONFIGURED",
         browserAvailable: true,
-        error:
-          "موتور سرور UVR فعال نیست. از حالت استاندارد یا تفکیک کامل روی صفحه جداسازی وکال استفاده کنید — این دو حالت روی دستگاه شما کار می‌کنند و نیازی به سرور ندارند.",
+        error: "موتور سرور UVR فعال نیست. از حالت استاندارد یا تفکیک کامل روی صفحه جداسازی وکال استفاده کنید — این دو حالت روی دستگاه شما کار می‌کنند و نیازی به سرور ندارند.",
       },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
@@ -65,19 +63,9 @@ export async function POST(request: NextRequest) {
   const form = await request.formData();
   const file = form.get("file");
   const preset = String(form.get("preset") || "vocal_balanced");
-
-  if (!(file instanceof File)) {
-    return NextResponse.json({ ok: false, error: "فایل صوتی الزامی است." }, { status: 400 });
-  }
-  if (file.size <= 0 || file.size > MAX_BYTES) {
-    return NextResponse.json(
-      { ok: false, error: "حجم فایل باید بین ۱ بایت تا ۲۵۰ مگابایت باشد." },
-      { status: 413 },
-    );
-  }
-  if (!ALLOWED_PRESETS.has(preset)) {
-    return NextResponse.json({ ok: false, error: "حالت تفکیک پشتیبانی نمی‌شود." }, { status: 400 });
-  }
+  if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "فایل صوتی الزامی است." }, { status: 400 });
+  if (file.size <= 0 || file.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "حجم فایل باید بین ۱ بایت تا ۲۵۰ مگابایت باشد." }, { status: 413 });
+  if (!ALLOWED_PRESETS.has(preset)) return NextResponse.json({ ok: false, error: "حالت تفکیک پشتیبانی نمی‌شود." }, { status: 400 });
 
   const upstream = new FormData();
   upstream.append("file", file, file.name);
@@ -91,53 +79,33 @@ export async function POST(request: NextRequest) {
       signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
       cache: "no-store",
     });
-
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
-      return NextResponse.json(
-        {
-          ok: false,
-          error: detail || "موتور تفکیک خطای HTTP " + response.status + " برگرداند.",
-        },
-        { status: response.status >= 500 ? 502 : response.status },
-      );
+      return NextResponse.json({ ok: false, error: detail || "موتور تفکیک خطای HTTP " + response.status + " برگرداند." }, { status: response.status >= 500 ? 502 : response.status });
     }
-
-    if (!response.body) {
-      return NextResponse.json({ ok: false, error: "موتور تفکیک خروجی معتبری برنگرداند." }, { status: 502 });
-    }
+    if (!response.body) return NextResponse.json({ ok: false, error: "موتور تفکیک خروجی معتبری برنگرداند." }, { status: 502 });
     return new NextResponse(response.body, {
       status: 200,
       headers: {
         "Content-Type": response.headers.get("content-type") || "application/zip",
-        "Content-Disposition":
-          response.headers.get("content-disposition") ||
-          'attachment; filename="artistyar-stems.zip"',
-        "Cache-Control": "no-store",
+        "Content-Disposition": response.headers.get("content-disposition") || 'attachment; filename="artistyar-stems.zip"',
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "موتور تفکیک در دسترس نیست.";
     const timedOut = /abort|timeout/i.test(message);
-    return NextResponse.json(
-      {
-        ok: false,
-        code: timedOut ? "UVR_PROXY_TIMEOUT" : "UVR_PROXY_ERROR",
-        browserAvailable: true,
-        error: timedOut
-          ? "تفکیک سروری بیش از حد طول کشید. از حالت استاندارد روی دستگاه خودتان استفاده کنید یا بعداً دوباره امتحان کنید."
-          : "موتور تفکیک در دسترس نیست. کمی بعد دوباره امتحان کن.",
-      },
-      { status: 502 },
-    );
+    return NextResponse.json({
+      ok: false,
+      code: timedOut ? "UVR_PROXY_TIMEOUT" : "UVR_PROXY_ERROR",
+      browserAvailable: true,
+      error: timedOut ? "تفکیک سروری بیش از پنج دقیقه طول کشید. فایل کوتاه‌تر یا حالت استاندارد را امتحان کنید." : "موتور تفکیک در دسترس نیست. کمی بعد دوباره امتحان کن.",
+    }, { status: 502 });
   }
 }
 
 export async function GET() {
   const worker = (process.env.UVR_WORKER_URL || "").replace(/\/$/, "");
-  return NextResponse.json({
-    ok: true,
-    configured: Boolean(worker && process.env.UVR_WORKER_SECRET),
-    service: "artistyar-uvr-gateway",
-  });
+  return NextResponse.json({ ok: true, configured: Boolean(worker && process.env.UVR_WORKER_SECRET), service: "artistyar-uvr-gateway", maxDurationSeconds: 300 });
 }
