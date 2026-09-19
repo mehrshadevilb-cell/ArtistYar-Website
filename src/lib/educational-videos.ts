@@ -157,3 +157,17 @@ export async function listEducationStorageVideos() {
   return Array.from(new Map(found.map(item => [item.path, item])).values());
 }
 
+/**
+ * Creates a short-lived signed URL for a private educational video stored in
+ * Supabase Storage, so the browser never receives the bucket path or service
+ * key directly.
+ */
+export async function signEducationVideo(video: EducationVideo, expiresInSeconds = 300) {
+  const db = requireClient();
+  const bucket = video.storage_bucket || EDUCATION_BUCKET;
+  const result = await db.storage.from(bucket).createSignedUrl(video.storage_path, expiresInSeconds);
+  if (result.error || !result.data?.signedUrl) {
+    throw new Error(result.error?.message || "signed_url_unavailable");
+  }
+  return result.data.signedUrl;
+}
