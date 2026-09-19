@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "artistyar-website",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-19",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+  // Secrets & vars: set in Cloudflare Dashboard → Workers → artistyar-website → Settings → Variables
+  // Same names as Render: SUPABASE_*, ARTISTYAR_*, OPENAI_*, RAHYAR_API_URL, etc.
+}
