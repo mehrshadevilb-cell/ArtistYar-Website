@@ -80,10 +80,14 @@ export async function POST(request: Request) {
       id,
       content,
       typeof body.provider === "string" ? body.provider : undefined,
-      typeof body.model === "string" ? body.model : undefined
+      typeof body.model === "string" ? body.model : undefined,
+      request.signal
     );
     return NextResponse.json({ ok: true, message });
   } catch (error) {
+    if (request.signal.aborted || (error instanceof Error && error.message === "admin_ai_generation_stopped")) {
+      return new NextResponse(null, { status: 499 });
+    }
     console.error("admin assistant POST failed", error);
     return NextResponse.json({ ok: false, error: "اجرای درخواست دستیار مدیریت ناموفق بود." }, { status: 502 });
   }
