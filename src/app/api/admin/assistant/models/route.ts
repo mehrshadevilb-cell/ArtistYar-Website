@@ -42,6 +42,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, model: await updateAdminAiModel(body.id, patch) });
   } catch (error) {
     console.error("admin model registry POST failed", error instanceof Error ? error.message : "unknown error");
+    const code = error instanceof Error ? error.message : "";
+    if (code === "admin_ai_model_must_be_validated_first") {
+      return NextResponse.json({ ok: false, error: "مدل باید ابتدا اعتبارسنجی شود." }, { status: 409 });
+    }
+    if (code.startsWith("model_discovery_failed:")) {
+      return NextResponse.json({ ok: false, error: "اعتبارسنجی مدل در حال حاضر ممکن نیست؛ سرویس ارائه‌دهنده پاسخ نداد." }, { status: 503 });
+    }
     return NextResponse.json({ ok: false, error: "تغییر Model Registry ناموفق بود." }, { status: 502 });
   }
 }
