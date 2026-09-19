@@ -10,32 +10,73 @@ import {
   type FreeLessonInput,
 } from "@/lib/rahyar-api";
 
-type UploadTicketResponse = { ok: boolean; path?: string; signedUrl?: string; publicUrl?: string; mimeType?: string; error?: string };
+type UploadTicketResponse = {
+  ok: boolean;
+  path?: string;
+  signedUrl?: string;
+  publicUrl?: string;
+  mimeType?: string;
+  error?: string;
+};
 
+const MAX_VIDEO_BYTES = 1024 * 1024 * 1024;
+const MAX_THUMB_BYTES = 10 * 1024 * 1024;
 
-async function uploadDirectToStorage(file: File, kind: "video" | "thumbnail"): Promise<{ url: string }> {
+async function uploadDirectToStorage(
+  file: File,
+  kind: "video" | "thumbnail",
+  onProgress?: (pct: number) => void,
+): Promise<{ url: string; path: string }> {
+  const maxSize = kind === "video" ? MAX_VIDEO_BYTES : MAX_THUMB_BYTES;
+  if (file.size <= 0 || file.size > maxSize) {
+    throw new Error(
+      kind === "video"
+        ? "حداکثر حجم ویدیو ۱ گیگابایت است."
+        : "حداکثر حجم thumbnail ۱۰ مگابایت است.",
+    );
+  }
+
   const ticketResponse = await fetch("/api/admin/free-education/upload-url", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ filename: file.name, mimeType: file.type, kind, size: file.size }),
+    body: JSON.stringify({
+      filename: file.name,
+      mimeType: file.type || (kind === "video" ? "video/mp4" : "image/jpeg"),
+      kind,
+      size: file.size,
+    }),
   });
   const ticketText = await ticketResponse.text();
   let ticket: UploadTicketResponse;
-  try { ticket = JSON.parse(ticketText) as UploadTicketResponse; }
-  catch { throw new Error(ticketText.slice(0, 180) || "ساخت لینک آپلود ناموفق بود (" + ticketResponse.status + ")."); }
+  try {
+    ticket = JSON.parse(ticketText) as UploadTicketResponse;
+  } catch {
+    throw new Error(ticketText.slice(0, 180) || "ساخت لینک آپلود ناموفق بود (" + ticketResponse.status + ").");
+  }
   if (!ticketResponse.ok || !ticket.ok || !ticket.signedUrl || !ticket.publicUrl) {
     throw new Error(ticket.error || "ساخت لینک آپلود ناموفق بود (" + ticketResponse.status + ").");
   }
-  const uploadBody = new FormData();
-  uploadBody.append("cacheControl", "31536000");
-  uploadBody.append("", file);
-  const uploadResponse = await fetch(ticket.signedUrl, { method: "PUT", body: uploadBody });
-  if (!uploadResponse.ok) {
-    const detail = await uploadResponse.text().catch(() => "");
-    throw new Error(detail.slice(0, 240) || "آپلود مستقیم به Storage ناموفق بود (" + uploadResponse.status + ").");
-  }
-  return { url: ticket.publicUrl };
+
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", ticket.signedUrl!);
+    xhr.setRequestHeader("Content-Type", file.type || ticket.mimeType || "application/octet-stream");
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`آپلود مستقیم به Storage ناموفق بود (${xhr.status}).`));
+    };
+    xhr.onerror = () => reject(new Error("ارتباط مستقیم با Supabase Storage قطع شد."));
+    xhr.onabort = () => reject(new Error("آپلود لغو شد."));
+    xhr.send(file);
+  });
+
+  return { url: ticket.publicUrl, path: ticket.path || "" };
 }
 
 const emptyLesson = (): FreeLessonInput => ({
@@ -106,13 +147,11 @@ export default function AdminVideosPage() {
       setUploading(false);
       return;
     }
-    if (file.size > 1024 * 1024 * 1024) {
-      setError("حداکثر حجم ویدیو ۱ گیگابایت است.");
-      setUploading(false);
-      return;
-    }
     try {
-      const data = await uploadDirectToStorage(file, "video");
+      setMessage("در حال آپلود مستقیم ویدیو…");
+      const data = await uploadDirectToStorage(file, "video", (pct) => {
+        setMessage(`در حال آپلود ویدیو… ${pct}%`);
+      });
       setDraft((current) => ({
         ...current,
         title: current.title || uploadTitle,
@@ -133,13 +172,9 @@ export default function AdminVideosPage() {
     setError("");
     setMessage("");
     try {
-      if (kind === "video" && file.size > 1024 * 1024 * 1024) {
-        throw new Error("حداکثر حجم ویدیو ۱ گیگابایت است.");
-      }
-      if (kind === "thumbnail" && file.size > 10 * 1024 * 1024) {
-        throw new Error("حداکثر حجم thumbnail ۱۰ مگابایت است.");
-      }
-      const data = await uploadDirectToStorage(file, kind);
+      const data = await uploadDirectToStorage(file, kind, (pct) => {
+        setMessage(`در حال آپلود ${kind === "video" ? "ویدیو" : "thumbnail"}… ${pct}%`);
+      });
       updateDraft(kind === "video" ? "video_url" : "thumbnail_url", data.url);
       setMessage(
         kind === "video"
@@ -215,7 +250,7 @@ export default function AdminVideosPage() {
           <CloudUpload className="text-gold-400" size={21} />
           <div>
             <h3 className="font-medium text-sand-50">۱. آپلود ویدیو به Supabase</h3>
-            <p className="mt-1 text-xs text-ink-500">حداکثر ۱ گیگابایت؛ فایل فقط در دسته آموزش رایگان ثبت می‌شود.</p>
+            <p className="mt-1 text-xs text-ink-500">حداکثر ۱ گیگابایت؛ آپلود مستقیم به Storage بدون عبور از سرور Node.</p>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
