@@ -190,6 +190,7 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
   const [guestMode, setGuestMode] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [lastPlayed, setLastPlayed] = useState(false);
   const started = useRef(0);
   const sessionId = useRef("");
 
@@ -197,6 +198,7 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
     setLoading(true);
     setAnswer(null);
     setResult(null);
+    setLastPlayed(false);
     sessionId.current ||= globalThis.crypto?.randomUUID?.() || String(Date.now());
 
     if (!user?.id) {
@@ -251,6 +253,7 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
     if (!q || playing) return;
     setAudioError(null);
     setPlaying(true);
+    setLastPlayed(true);
     try {
       await playQuestion(q);
       window.setTimeout(() => setPlaying(false), 1900);
@@ -261,7 +264,7 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
   };
 
   const choose = async (value: string) => {
-    if (!q || answer) return;
+    if (!q || answer || !lastPlayed) return;
     setAnswer(value);
     const ok = String(q.answer) === value;
     const responseTimeMs = started.current ? Math.max(1, Date.now() - started.current) : 0;
@@ -367,7 +370,7 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
                 return (
                   <button
                     key={s}
-                    disabled={!!answer}
+                    disabled={!!answer || !lastPlayed}
                     onClick={() => void choose(s)}
                     className={
                       "rounded-xl border p-3 text-sm transition " +
