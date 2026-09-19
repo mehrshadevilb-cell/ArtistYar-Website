@@ -473,7 +473,10 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
     }
 
     if (provider.chatStyle === "google") {
-      const url = `${provider.baseUrl}/models`;
+      // The Generative Language API requires the key on every request,
+      // including model listing — without it this always 400s and we'd
+      // silently fall back to the static list on every call.
+      const url = `${provider.baseUrl}/models?key=${encodeURIComponent(provider.apiKey || "")}`;
       const response = await fetch(url, {
         method: "GET",
         cache: "no-store",
@@ -839,20 +842,13 @@ export async function autoChat(
     }
   }
 
-  if (preferredProvider || preferredModel) {
-    const preferred = candidates
-      .filter((c) => {
-        if (preferredProvider && c.provider.id !== preferredProvider) return false;
-        if (preferredModel && c.model !== preferredModel) return false;
-        return true;
-      })
-      .sort((a, b) => b.rank - a.rank);
-    candidates.unshift(...preferred);
-  }
-
+  // Build the base failover order: best model from each provider first, then
+  // round-robin deeper into each provider's list. This runs regardless of
+  // preferredProvider/preferredModel — those are applied as a re-ordering
+  // step below, not by mutating `candidates` before this dedupe.
   const seen = new Set<string>();
   const byProvider = new Map<string, Candidate[]>();
-  for (const c of candidates.sort((a, b) => b.rank - a.rank)) {
+  for (const c of [...candidates].sort((a, b) => b.rank - a.rank)) {
     const key = `${c.provider.id}::${c.model}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -861,18 +857,35 @@ export async function autoChat(
     byProvider.set(c.provider.id, list);
   }
 
-  const ordered: Candidate[] = [];
-  let depth = 0;
-  let added = true;
-  while (added && ordered.length < 30) {
-    added = false;
-    for (const list of byProvider.values()) {
-      if (depth < list.length) {
-        ordered.push(list[depth]);
-        added = true;
+  let ordered: Candidate[] = [];
+  {
+    let depth = 0;
+    let added = true;
+    while (added && ordered.length < 30) {
+      added = false;
+      for (const list of byProvider.values()) {
+        if (depth < list.length) {
+          ordered.push(list[depth]);
+          added = true;
+        }
       }
+      depth += 1;
     }
-    depth += 1;
+  }
+
+  if (preferredProvider || preferredModel) {
+    // Previously this filtered+sorted a "preferred" list and unshifted it
+    // onto `candidates`, but the very next step re-sorted everything by rank
+    // — discarding the unshift and making an explicit provider/model choice
+    // (e.g. from /api/ai/chat's body.provider / body.model) have no actual
+    // effect on ordering. Move matches to the front of the already-ordered
+    // failover list instead, so an explicit choice is really tried first.
+    const matches = (c: Candidate) =>
+      (!preferredProvider || c.provider.id === preferredProvider) &&
+      (!preferredModel || c.model === preferredModel);
+    const preferred = ordered.filter(matches);
+    const rest = ordered.filter((c) => !matches(c));
+    ordered = [...preferred, ...rest];
   }
 
   if (!ordered.length) {
