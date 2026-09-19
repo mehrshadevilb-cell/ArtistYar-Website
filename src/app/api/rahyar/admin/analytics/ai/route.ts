@@ -12,10 +12,10 @@ export async function GET(request: Request) {
   if (!key) return NextResponse.json({ error: "web_admin_api_key_not_configured" }, { status: 503 });
 
   const url = new URL(request.url);
-  const days = Math.min(365, Math.max(1, Number(url.searchParams.get("days") || 30)));
+  const rawDays = Number(url.searchParams.get("days") || 30);\n  const days = Number.isFinite(rawDays) ? Math.min(365, Math.max(1, Math.floor(rawDays))) : 30;
   try {
     const response = await fetch(`${backend}/api/v1/admin/analytics/ai?days=${days}`, {
-      headers: { "X-Admin-Key": key },
+      headers: { "X-Admin-Key": key, Accept: "application/json" },\n      signal: AbortSignal.timeout(60_000),
       cache: "no-store",
     });
     const body = await response.json();
