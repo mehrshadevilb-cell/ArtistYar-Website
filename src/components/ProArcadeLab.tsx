@@ -113,20 +113,20 @@ const MASK_BANK: ProQuestion[] = [
 
 const TRANS_BANK: ProQuestion[] = [
   // tier 0 — واضح
-  { skill: "transient", tier: 0, prompt: "شکل attack را تشخیص بده.", hint: "قلهٔ اول چقدر تند است؟", answer: "Attack تند", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.0015, sustain: 0.28, hits: 3, shape: "click" } },
+  { skill: "transient", tier: 0, prompt: "شکل attack را تشخیص بده.", hint: "قلهٔ اول چقدر تند است؟", answer: "Attack تند", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.0015, sustain: 0.18, release: 0.16, hits: 3, shape: "click" } },
   { skill: "transient", tier: 0, prompt: "ورود تدریجی = کدام؟", hint: "اگر صدا آرام بالا می‌آید = نرم.", answer: "Attack نرم", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.14, sustain: 0.45, hits: 2, shape: "soft" } },
   // tier 1
-  { skill: "transient", tier: 1, prompt: "بدنهٔ صدا بعد از attack چطور است؟", hint: "اگر نت طولانی می‌ماند = sustain بلند.", answer: "Sustain بلند", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.008, sustain: 1.15, hits: 1, shape: "pad" } },
-  { skill: "transient", tier: 1, prompt: "قطع شدن سریع صدا را بشنو.", hint: "دم خیلی کوتاه = release سریع.", answer: "Release سریع", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.006, sustain: 0.12, hits: 3, shape: "click" } },
+  { skill: "transient", tier: 1, prompt: "بدنهٔ صدا بعد از attack چطور است؟", hint: "اگر نت طولانی می‌ماند = sustain بلند.", answer: "Sustain بلند", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.008, sustain: 1.15, release: 0.25, hits: 1, shape: "pad" } },
+  { skill: "transient", tier: 1, prompt: "قطع شدن سریع صدا را بشنو.", hint: "بعد از نگه‌داشتن کوتاه، صدا خیلی سریع قطع می‌شود.", answer: "Release سریع", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.006, sustain: 0.2, release: 0.025, hits: 3, shape: "click" } },
   { skill: "transient", tier: 1, prompt: "Punch قوی (attack تند + sustain کوتاه).", hint: "مثل snare کوتاه و محکم.", answer: "Attack تند", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.002, sustain: 0.18, hits: 4, shape: "punch" } },
   // tier 2
-  { skill: "transient", tier: 2, prompt: "Soft pad با attack خیلی نرم.", hint: "ورود آرام و بدنه‌دار.", answer: "Attack نرم", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.22, sustain: 0.9, hits: 1, shape: "pad" } },
-  { skill: "transient", tier: 2, prompt: "چند ضربهٔ سریع با attack تند.", hint: "به قله‌های اول هر ضربه گوش کن.", answer: "Attack تند", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.0025, sustain: 0.14, hits: 5, shape: "click" } },
-  { skill: "transient", tier: 2, prompt: "Sustain خیلی بلند (pad).", hint: "صدا مدت طولانی نگه داشته می‌شود.", answer: "Sustain بلند", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.04, sustain: 1.6, hits: 1, shape: "pad" } },
+  { skill: "transient", tier: 2, prompt: "Soft pad با attack خیلی نرم.", hint: "ورود آرام و بدنه‌دار.", answer: "Attack نرم", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.22, sustain: 0.65, release: 0.3, hits: 1, shape: "pad" } },
+  { skill: "transient", tier: 2, prompt: "چند ضربهٔ سریع با attack تند.", hint: "به قله‌های اول هر ضربه گوش کن.", answer: "Attack تند", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.0025, sustain: 0.12, release: 0.08, hits: 5, shape: "click" } },
+  { skill: "transient", tier: 2, prompt: "Sustain خیلی بلند (pad).", hint: "صدا مدت طولانی نگه داشته می‌شود.", answer: "Sustain بلند", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.04, sustain: 1.35, release: 0.3, hits: 1, shape: "pad" } },
   // tier 3 — ظریف
-  { skill: "transient", tier: 3, prompt: "تفاوت ظریف attack متوسط vs نرم.", hint: "attack حدود ۶۰ms هنوز نسبتاً نرم است.", answer: "Attack نرم", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.06, sustain: 0.5, hits: 2, shape: "soft" } },
-  { skill: "transient", tier: 3, prompt: "Release خیلی سریع بعد از قله.", hint: "قله تند ولی دم تقریباً صفر.", answer: "Release سریع", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.003, sustain: 0.08, hits: 4, shape: "click" } },
-  { skill: "transient", tier: 3, prompt: "Punch با sustain کمی بلندتر.", hint: "قله تند + بدنهٔ کوتاه ولی نه خیلی کوتاه.", answer: "Attack تند", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.002, sustain: 0.32, hits: 3, shape: "punch" } },
+  { skill: "transient", tier: 3, prompt: "تفاوت ظریف attack متوسط vs نرم.", hint: "attack حدود ۶۰ms هنوز نسبتاً نرم است.", answer: "Attack نرم", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.06, sustain: 0.45, release: 0.22, hits: 2, shape: "soft" } },
+  { skill: "transient", tier: 3, prompt: "Release خیلی سریع بعد از قله.", hint: "قله تند، سپس افت بسیار سریع.", answer: "Release سریع", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.003, sustain: 0.14, release: 0.018, hits: 4, shape: "click" } },
+  { skill: "transient", tier: 3, prompt: "Punch با sustain کمی بلندتر.", hint: "قله تند + بدنهٔ کوتاه ولی نه خیلی کوتاه.", answer: "Attack تند", options: ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"], audio: { attack: 0.002, sustain: 0.27, release: 0.12, hits: 3, shape: "punch" } },
 ];
 
 function pickQuestion(skill: SkillId, tier: number, seed: number): ProQuestion {
@@ -296,14 +296,15 @@ async function playPro(q: ProQuestion) {
   }
 
   // Transient — multiple hits for clarity
-  const attack = Number(q.audio.attack) || 0.01;
-  const sustain = Number(q.audio.sustain) || 0.35;
+  const attack = Math.max(0.0015, Number(q.audio.attack) || 0.01);
+  const sustain = Math.max(0.02, Number(q.audio.sustain) || 0.35);
+  const release = Math.max(0.008, Number(q.audio.release) || Math.min(0.18, sustain * 0.45));
   const hits = Math.max(1, Math.min(6, Number(q.audio.hits) || 1));
   const shape = String(q.audio.shape || "click");
   const gap = shape === "pad" ? 0 : 0.22;
 
   for (let h = 0; h < hits; h++) {
-    const t0 = now + h * (attack + sustain + gap + 0.05);
+    const t0 = now + h * (attack + sustain + release + gap + 0.05);
     const osc = c.createOscillator();
     const noiseBuf = c.createBuffer(1, Math.floor(c.sampleRate * 0.08), c.sampleRate);
     const nd = noiseBuf.getChannelData(0);
@@ -318,10 +319,14 @@ async function playPro(q: ProQuestion) {
     osc.type = shape === "pad" ? "triangle" : "square";
     osc.frequency.value = shape === "pad" ? 110 : 95;
 
-    // Tone envelope
+    // ADSR-like envelope: attack -> sustain -> explicit release.
+    const peak = 0.2;
+    const sustainLevel = shape === "pad" ? 0.15 : 0.12;
     toneGain.gain.setValueAtTime(0.0001, t0);
-    toneGain.gain.exponentialRampToValueAtTime(0.2, t0 + Math.max(0.0015, attack));
-    toneGain.gain.exponentialRampToValueAtTime(0.0001, t0 + Math.max(0.04, attack) + sustain);
+    toneGain.gain.exponentialRampToValueAtTime(peak, t0 + attack);
+    toneGain.gain.exponentialRampToValueAtTime(sustainLevel, t0 + attack + 0.025);
+    toneGain.gain.setValueAtTime(sustainLevel, t0 + attack + sustain);
+    toneGain.gain.exponentialRampToValueAtTime(0.0001, t0 + attack + sustain + release);
 
     // Click/noise for punch (short)
     if (shape === "click" || shape === "punch") {
@@ -339,7 +344,7 @@ async function playPro(q: ProQuestion) {
     out.connect(c.destination);
     activeSources.push(osc);
     osc.start(t0);
-    osc.stop(t0 + attack + sustain + 0.06);
+    osc.stop(t0 + attack + sustain + release + 0.06);
   }
 }
 
