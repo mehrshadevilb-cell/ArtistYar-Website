@@ -51,7 +51,8 @@ export async function getAdminAiRoutingPreference() {
 export async function validateAdminAiModel(id: string) {
   const current = await db().from("admin_ai_model_registry").select("id,provider_id,model_id").eq("id", id).maybeSingle();
   if (current.error) throw current.error;
-  if (!current.data) return null;
+  const currentModel = current.data;
+  if (!currentModel) return null;
   const discovered = await discoverAllModels();
   const provider = discovered.find((entry) => entry.provider.id === currentModel.provider_id);
   const valid = Boolean(provider?.models.some((model) => model.id === currentModel.model_id));
