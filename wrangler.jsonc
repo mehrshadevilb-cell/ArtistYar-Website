@@ -10,5 +10,9 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "routes": [
+    { "pattern": "artistyaar.ir", "custom_domain": true },
+    { "pattern": "www.artistyaar.ir", "custom_domain": true }
+  ]
 }
