@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { USER_SESSION_COOKIE, verifyUserSession, type WebUserSession } from "@/lib/server-admin-auth";
 
 const backend = (process.env.RAHYAR_API_URL || "https://rahyar-academy-management-system-v14.onrender.com").replace(/\/$/, "");
-const bridgeSecret = (process.env.WEB_STUDENT_BRIDGE_SECRET || process.env.RAHYAR_AI_BRIDGE_SECRET || "").trim();
+const bridgeSecret = (process.env.WEB_STUDENT_BRIDGE_SECRET || process.env.WEB_ADMIN_API_KEY || process.env.RAHYAR_AI_BRIDGE_SECRET || "").trim();
 
 export async function getStudentSession(): Promise<WebUserSession | null> {
   return verifyUserSession((await cookies()).get(USER_SESSION_COOKIE)?.value);
