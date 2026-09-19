@@ -51,7 +51,7 @@ export async function validateAdminAiModel(id: string) {
   if (current.error) throw current.error;
   const currentModel = current.data;
   if (!currentModel) return null;
-  const discovered = await discoverAllModels();
+  const discovered = await discoverAllModels({ allowFallback: false });
   const provider = discovered.find((entry) => entry.provider.id === currentModel.provider_id);
   const valid = Boolean(provider?.models.some((model) => model.id === currentModel.model_id));
   const result = await db().from("admin_ai_model_registry").update({
