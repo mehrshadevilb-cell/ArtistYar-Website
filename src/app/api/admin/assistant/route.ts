@@ -41,6 +41,9 @@ export async function POST(request: Request) {
       title?: unknown; provider?: unknown; model?: unknown;
     };
     const action = typeof body.action === "string" ? body.action : "message";
+    if (request.headers.get("content-length") && Number(request.headers.get("content-length")) > 128_000) {
+      return NextResponse.json({ ok: false, error: "درخواست بیش از حد مجاز است." }, { status: 413 });
+    }
 
     if (action === "create") {
       return NextResponse.json({ ok: true, conversation: await createConversation(session.username) });
@@ -58,7 +61,9 @@ export async function POST(request: Request) {
 
     if (action === "rename") {
       const title = typeof body.title === "string" ? body.title : "";
-      if (!title.trim()) return NextResponse.json({ ok: false, error: "عنوان لازم است." }, { status: 400 });
+      const normalizedTitle = title.trim();
+      if (!normalizedTitle) return NextResponse.json({ ok: false, error: "عنوان لازم است." }, { status: 400 });
+      if (normalizedTitle.length > 120) return NextResponse.json({ ok: false, error: "عنوان بیش از حد طولانی است." }, { status: 400 });
       const conversation = await renameConversation(session.username, id, title);
       return conversation
         ? NextResponse.json({ ok: true, conversation })
