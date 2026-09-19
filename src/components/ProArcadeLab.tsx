@@ -147,6 +147,16 @@ function pickQuestion(skill: SkillId, tier: number, seed: number): ProQuestion {
 /* ─── Audio engine ─── */
 
 let sharedCtx: AudioContext | null = null;
+let activeSources: AudioScheduledSourceNode[] = [];
+
+function stopActiveSources() {
+  for (const source of activeSources) {
+    try { source.stop(); } catch { /* already stopped */ }
+    try { source.disconnect(); } catch { /* already disconnected */ }
+  }
+  activeSources = [];
+}
+
 async function getCtx() {
   if (typeof window === "undefined") return null;
   const AC =
@@ -159,6 +169,7 @@ async function getCtx() {
 }
 
 async function playPro(q: ProQuestion) {
+  stopActiveSources();
   const c = await getCtx();
   if (!c) return;
   const now = c.currentTime;
@@ -222,6 +233,7 @@ async function playPro(q: ProQuestion) {
     }
 
     master.connect(c.destination);
+    activeSources.push(osc);
     osc.start(now);
     osc.stop(now + 0.48);
     return;
@@ -244,6 +256,7 @@ async function playPro(q: ProQuestion) {
     gain.gain.exponentialRampToValueAtTime(0.22, now + 0.04);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.15);
     osc.connect(shaper).connect(gain).connect(c.destination);
+    activeSources.push(osc);
     osc.start(now);
     osc.stop(now + 1.2);
     return;
@@ -276,6 +289,7 @@ async function playPro(q: ProQuestion) {
     filter.gain.value = g;
     out.gain.value = 0.38;
     srcNode.connect(filter).connect(out).connect(c.destination);
+    activeSources.push(srcNode);
     srcNode.start(now);
     srcNode.stop(now + 1.55);
     return;
@@ -315,6 +329,7 @@ async function playPro(q: ProQuestion) {
       noiseGain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.002);
       noiseGain.gain.exponentialRampToValueAtTime(0.0001, t0 + Math.max(0.02, attack * 2));
       noiseSrc.connect(noiseGain).connect(out);
+      activeSources.push(noiseSrc);
       noiseSrc.start(t0);
       noiseSrc.stop(t0 + 0.09);
     }
@@ -322,6 +337,7 @@ async function playPro(q: ProQuestion) {
     out.gain.value = 0.9;
     osc.connect(toneGain).connect(out);
     out.connect(c.destination);
+    activeSources.push(osc);
     osc.start(t0);
     osc.stop(t0 + attack + sustain + 0.06);
   }

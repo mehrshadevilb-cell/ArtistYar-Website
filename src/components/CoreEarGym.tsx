@@ -75,12 +75,27 @@ function makeNoise(c: AudioContext, seconds: number) {
   return b;
 }
 
+let coreAudioContext: AudioContext | null = null;
+let corePlaybackStop: (() => void) | null = null;
+
 async function playQuestion(q: Question) {
   const A = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!A) return;
-  const c = new A();
-  await c.resume().catch(() => undefined);
+  corePlaybackStop?.();
+  coreAudioContext ||= new A();
+  const c = coreAudioContext;
+  if (c.state === "suspended") await c.resume();
+  if (c.state !== "running") throw new Error("audio_context_unavailable");
   const now = c.currentTime + 0.03;
+  const scheduled: Array<OscillatorNode | AudioBufferSourceNode> = [];
+  corePlaybackStop = () => {
+    for (const source of scheduled) {
+      try { source.stop(); } catch { /* already stopped */ }
+      try { source.disconnect(); } catch { /* already disconnected */ }
+    }
+    scheduled.length = 0;
+    corePlaybackStop = null;
+  };
   const out = c.createGain();
   out.gain.value = 0.18;
   out.connect(c.destination);
@@ -94,6 +109,7 @@ async function playQuestion(q: Question) {
     o.connect(g).connect(out);
     o.start(now);
     o.stop(now + 1.25);
+    scheduled.push(o);
   } else if (q.gameId === "eq") {
     const src = c.createBufferSource();
     const f = c.createBiquadFilter();
@@ -105,6 +121,7 @@ async function playQuestion(q: Question) {
     src.connect(f).connect(out);
     src.start(now);
     src.stop(now + 1.5);
+    scheduled.push(src);
   } else if (q.gameId === "compressor") {
     const src = c.createBufferSource();
     const comp = c.createDynamicsCompressor();
@@ -116,6 +133,7 @@ async function playQuestion(q: Question) {
     src.connect(comp).connect(out);
     src.start(now);
     src.stop(now + 1.5);
+    scheduled.push(src);
   } else {
     const merger = c.createChannelMerger(2);
     const a = c.createOscillator();
@@ -133,9 +151,12 @@ async function playQuestion(q: Question) {
     b.start(now);
     a.stop(now + 1.1);
     b.stop(now + 1.1);
+    scheduled.push(a, b);
   }
 
-  window.setTimeout(() => void c.close(), 1900);
+  window.setTimeout(() => {
+    if (corePlaybackStop) corePlaybackStop();
+  }, 1900);
 }
 
 function learningFeedback(q: Question, ok: boolean) {
@@ -160,6 +181,8 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
   const [result, setResult] = useState<{ ok: boolean; correct: string; responseTimeMs: number } | null>(null);
   const [rating, setRating] = useState<number | null>(null);
   const [guestMode, setGuestMode] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const started = useRef(0);
   const sessionId = useRef("");
 
@@ -212,6 +235,23 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
     if (!ready) return;
     void loadAdaptive();
   }, [loadAdaptive, ready]);
+
+  useEffect(() => () => {
+    corePlaybackStop?.();
+  }, []);
+
+  const play = async () => {
+    if (!q || playing) return;
+    setAudioError(null);
+    setPlaying(true);
+    try {
+      await playQuestion(q);
+      window.setTimeout(() => setPlaying(false), 1900);
+    } catch {
+      setPlaying(false);
+      setAudioError("پخش صوت شروع نشد؛ یک بار دیگر روی پخش بزن و مطمئن شو مرورگر اجازهٔ صدا دارد.");
+    }
+  };
 
   const choose = async (value: string) => {
     if (!q || answer) return;
@@ -306,10 +346,11 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
                 <h3 className="mt-2 text-lg text-sand-50">{q.prompt}</h3>
                 <p className="mt-1 text-xs text-ink-500">{q.hint}</p>
               </div>
-              <button type="button" className="btn-primary !px-4 !py-2 text-xs" onClick={() => void playQuestion(q)}>
+              <button type="button" className="btn-primary !px-4 !py-2 text-xs" onClick={() => void play()} disabled={playing}>
                 <Play size={14} fill="currentColor" /> پخش
               </button>
             </div>
+            {audioError ? <p className="mt-3 text-xs text-red-300">{audioError}</p> : null}
 
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               {q.options.map((o) => {

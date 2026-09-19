@@ -50,7 +50,8 @@ async function dailyUsage(userId: string) {
 
 async function authorizedUser(request: Request, requestedId: string) {
   const store = await cookies();
-  if (verifyAdminSession(store.get(ADMIN_SESSION_COOKIE)?.value)) return { id: requestedId, admin: true, username: "admin", fullName: "Admin", telegramId: "" };
+  const admin = verifyAdminSession(store.get(ADMIN_SESSION_COOKIE)?.value);
+  if (admin) return { id: requestedId, admin: true, username: admin.username, fullName: admin.username, telegramId: "" };
   const session = verifyUserSession(store.get(USER_SESSION_COOKIE)?.value);
   if (!session || session.id !== requestedId) return null;
   return { id: session.id, admin: false, username: session.username, fullName: session.fullName, telegramId: session.telegramId || "" };
@@ -79,6 +80,17 @@ export async function POST(request: Request) {
     const userId = auth.id;
     const telegramId = auth.telegramId;
     const gameId = String(body.gameId || "unknown").slice(0, 80);
+    const requestedScore = Number(body.score);
+    const requestedAccuracy = Number(body.accuracy);
+    const requestedStreak = Number(body.streak);
+    const requestedBestScore = Number(body.bestScore);
+    // A POST represents one answer, not an entire session. Keep the stored
+    // values bounded even when a browser is tampered with. Session totals are
+    // still aggregated from these bounded records in practice-progress.ts.
+    const score = Number.isFinite(requestedScore) ? Math.max(-8, Math.min(20, Math.round(requestedScore))) : 0;
+    const accuracy = Number.isFinite(requestedAccuracy) ? Math.max(0, Math.min(100, requestedAccuracy)) : 0;
+    const streak = Number.isFinite(requestedStreak) ? Math.max(0, Math.min(1, Math.round(requestedStreak))) : 0;
+    const bestScore = Number.isFinite(requestedBestScore) ? Math.max(0, Math.min(20, Math.round(requestedBestScore))) : 0;
     const pro = await isProUser(userId, telegramId);
     let usedToday = 0;
     if (!pro) {
@@ -95,10 +107,10 @@ export async function POST(request: Request) {
       username: auth.username.slice(0, 120),
       full_name: auth.fullName.slice(0, 160),
       game_id: gameId,
-      score: Number(body.score) || 0,
-      accuracy: Number(body.accuracy) || 0,
-      streak: Number(body.streak) || 0,
-      best_score: Number(body.bestScore) || 0,
+      score,
+      accuracy,
+      streak,
+      best_score: bestScore,
       metadata: {
         ...(typeof body.metadata === "object" && body.metadata ? body.metadata : {}),
         ...(telegramId ? { telegramId } : {}),
@@ -108,10 +120,10 @@ export async function POST(request: Request) {
       await recordSkillEvent({
         userId,
         gameId,
-        xp: Math.max(0, Number(body.score) || 0),
-        accuracy: Number(body.accuracy) || 0,
+        xp: Math.max(0, score),
+        accuracy,
         difficulty: Number(body.metadata?.difficulty || 0),
-        correct: Number(body.accuracy) >= 50,
+        correct: accuracy >= 50,
         metadata: { ...(body.metadata || {}), streak: Number(body.streak) || 0 },
       });
     } catch {
