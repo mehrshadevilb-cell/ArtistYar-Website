@@ -6,20 +6,35 @@ const CHUNK = 343980;
 const OVERLAP = 0.25;
 const STEP = Math.floor(CHUNK * (1 - OVERLAP));
 
-// Every iOS browser uses WebKit. Keep its peak memory deliberately low:
-// decoded PCM and model tensors are much larger than the uploaded file.
-const IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+// The uploaded file size is not the memory cost: decoding creates large PCM
+// buffers and ONNX creates more tensors. Use conservative, platform-aware
+// budgets before decoding so every browser gets a useful error instead of an
+// uncatchable tab reload.
+const UA = navigator.userAgent || "";
+const IS_IOS = /iP(hone|od|ad)/i.test(UA) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const IOS_MAX_BYTES = 18 * 1024 * 1024;
-const MAX_DURATION_STANDARD = IS_IOS ? 120 : 480;
-const MAX_DURATION_FULL = IS_IOS ? 90 : 300;
+const IS_ANDROID = /Android/i.test(UA);
+const IS_MOBILE = IS_IOS || IS_ANDROID || /Mobi|Mobile/i.test(UA);
+const IS_SAFARI = /Safari/i.test(UA) && !/Chrome|Chromium|CriOS|Edg|Firefox|FxiOS|Android/i.test(UA);
+const IS_FIREFOX = /Firefox|FxiOS/i.test(UA);
+const IS_LOW_MEMORY = IS_MOBILE || IS_SAFARI || IS_FIREFOX;
+const PROFILE = IS_IOS ? "ios" : IS_ANDROID ? "android" : IS_SAFARI ? "safari" : IS_FIREFOX ? "firefox" : "desktop";
+
+const LIMITS = {
+  ios: { bytes: 18 * 1024 * 1024, standardSeconds: 120, fullSeconds: 90 },
+  android: { bytes: 28 * 1024 * 1024, standardSeconds: 180, fullSeconds: 120 },
+  safari: { bytes: 36 * 1024 * 1024, standardSeconds: 240, fullSeconds: 150 },
+  firefox: { bytes: 48 * 1024 * 1024, standardSeconds: 300, fullSeconds: 180 },
+  desktop: { bytes: 60 * 1024 * 1024, standardSeconds: 600, fullSeconds: 360 },
+};
+const limits = LIMITS[PROFILE];
 
 function humanError(error) {
   const message = error instanceof Error ? error.message : String(error || "");
   if (/abort|out of memory|oom|memory|grow_memory|runtimeerror/i.test(message)) {
-    return "حافظه مرورگر برای پردازش این فایل کافی نبود. در iOS فایل کوتاه‌تری انتخاب کنید و تب‌های دیگر را ببندید.";
+    return "حافظه مرورگر برای پردازش این فایل کافی نبود. فایل کوتاه‌تری انتخاب کنید و تب‌های دیگر را ببندید.";
   }
-  if (/webgpu|gpu/i.test(message)) return "پردازنده گرافیکی مرورگر سازگار نبود؛ پردازش با CPU انجام نشد.";
+  if (/webgpu|gpu/i.test(message)) return "پردازنده گرافیکی مرورگر سازگار نبود؛ پردازش پایدار با WASM انجام نشد.";
   return message || "تفکیک صدا با خطا مواجه شد.";
 }
 
@@ -37,13 +52,12 @@ async function loadOrt() {
 }
 
 async function loadModel(progress) {
-  const url = MODEL;
   const cache = "caches" in window ? await caches.open("artistyar-separator-model-v1") : null;
-  let response = cache && await cache.match(url);
+  let response = cache && await cache.match(MODEL);
   if (!response) {
-    response = await fetch(url, { mode: "cors", cache: "force-cache" });
+    response = await fetch(MODEL, { mode: "cors", cache: "force-cache" });
     if (!response.ok) throw new Error("دانلود مدل Demucs ناموفق بود: " + response.status);
-    if (cache) await cache.put(url, response.clone());
+    if (cache) await cache.put(MODEL, response.clone());
   }
   const buffer = await response.arrayBuffer();
   if (buffer.byteLength < 1024 * 1024) throw new Error("مدل Demucs ناقص یا خالی دریافت شد.");
@@ -57,8 +71,10 @@ async function getSession(progress) {
   loading = (async () => {
     const ort = await loadOrt();
     ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
-    // Never use SharedArrayBuffer/multi-threaded WASM on WebKit.
-    ort.env.wasm.numThreads = IS_IOS ? 1 : Math.max(1, Math.min(2, navigator.hardwareConcurrency || 2));
+    // Threaded WASM requires cross-origin isolation and SharedArrayBuffer.
+    // Mobile WebKit, Safari and Firefox stay single-threaded for stability.
+    const threaded = !IS_LOW_MEMORY && Boolean(window.crossOriginIsolated) && typeof SharedArrayBuffer !== "undefined";
+    ort.env.wasm.numThreads = threaded ? Math.max(1, Math.min(2, navigator.hardwareConcurrency || 2)) : 1;
     ort.env.wasm.simd = true;
     const bytes = await loadModel(progress);
     try {
@@ -80,8 +96,8 @@ function stereoPlanar(audio, n, start) {
   return out;
 }
 
-function wav(planar) {
-  const n = planar.length / 2;
+function wavFromChannels(left, right) {
+  const n = left.length;
   const buffer = new ArrayBuffer(44 + n * 4);
   const view = new DataView(buffer);
   let p = 0;
@@ -89,7 +105,10 @@ function wav(planar) {
   const u16 = value => { view.setUint16(p, value, true); p += 2; };
   const u32 = value => { view.setUint32(p, value, true); p += 4; };
   text("RIFF"); u32(36 + n * 4); text("WAVEfmt "); u32(16); u16(1); u16(2); u32(SR); u32(SR * 4); u16(4); u16(16); text("data"); u32(n * 4);
-  for (let i = 0; i < n; i++) { view.setInt16(p, Math.max(-1, Math.min(1, planar[i])) * 32767, true); p += 2; view.setInt16(p, Math.max(-1, Math.min(1, planar[n + i])) * 32767, true); p += 2; }
+  for (let i = 0; i < n; i++) {
+    view.setInt16(p, Math.max(-1, Math.min(1, left[i])) * 32767, true); p += 2;
+    view.setInt16(p, Math.max(-1, Math.min(1, right[i])) * 32767, true); p += 2;
+  }
   return new Blob([buffer], { type: "audio/wav" });
 }
 
@@ -129,17 +148,21 @@ async function decode(file) {
 }
 
 window.artistYarBrowserSeparate = async function (file, onProgress, mode = "standard") {
+  let audio = null;
+  let vocals = null;
   try {
-    if (IS_IOS && file.size > IOS_MAX_BYTES) throw new Error("حجم فایل روی iOS باید کمتر از ۱۸ مگابایت باشد. لطفاً فایل را کوتاه‌تر یا فشرده‌تر کنید.");
-    if (mode === "full" && IS_IOS) throw new Error("حالت تفکیک کامل چهاراستمی روی iOS برای جلوگیری از سفیدشدن صفحه غیرفعال است؛ حالت استاندارد را انتخاب کنید.");
-    const audio = await decode(file);
-    const N = audio.left.length, duration = N / SR, limit = mode === "full" ? MAX_DURATION_FULL : MAX_DURATION_STANDARD;
-    if (duration > limit) throw new Error("مدت فایل برای پردازش مرورگری زیاد است؛ حداکثر " + Math.round(limit / 60) + " دقیقه" + (IS_IOS ? " روی iOS" : "") + ".");
+    if (file.size > limits.bytes) throw new Error("حجم فایل برای این دستگاه و مرورگر زیاد است؛ لطفاً فایل کوتاه‌تر یا کم‌حجم‌تری انتخاب کنید.");
+    if (mode === "full" && IS_MOBILE) throw new Error("حالت چهاراستمی روی موبایل برای پایداری غیرفعال است؛ حالت استاندارد را انتخاب کنید.");
+    audio = await decode(file);
+    const N = audio.left.length, duration = N / SR, limit = mode === "full" ? limits.fullSeconds : limits.standardSeconds;
+    if (duration > limit) throw new Error("مدت فایل برای پردازش مرورگری زیاد است؛ حداکثر " + Math.round(limit / 60) + " دقیقه در این دستگاه.");
     const s = await getSession(onProgress), ort = window.ort, total = Math.max(1, Math.ceil(Math.max(1, N - CHUNK) / STEP) + 1), full = mode === "full";
-    const vocals = new Float32Array(2 * N), drums = full ? new Float32Array(2 * N) : null, bass = full ? new Float32Array(2 * N) : null, other = full ? new Float32Array(2 * N) : null, norm = new Float32Array(N);
+    vocals = new Float32Array(2 * N);
+    const drums = full ? new Float32Array(2 * N) : null, bass = full ? new Float32Array(2 * N) : null, other = full ? new Float32Array(2 * N) : null, norm = new Float32Array(N);
     for (let segment = 0; segment < total; segment++) {
       const start = segment * STEP, input = new ort.Tensor("float32", stereoPlanar(audio, CHUNK, start), [1, 2, CHUNK]);
-      let result; try { result = await s.run({ mix: input }); } finally { input.dispose?.(); }
+      let result;
+      try { result = await s.run({ mix: input }); } finally { input.dispose?.(); }
       const out = result.sources.data, shape = result.sources.dims, samples = shape[3], fade = new Float32Array(samples);
       for (let i = 0; i < samples; i++) { let weight = 1; if (segment && i < CHUNK * OVERLAP) weight = i / (CHUNK * OVERLAP); if (segment < total - 1 && i > CHUNK * (1 - OVERLAP)) weight = Math.min(weight, (CHUNK - i) / (CHUNK * OVERLAP)); fade[i] = weight; if (start + i < N) norm[start + i] += weight; }
       const write = (stem, target) => { if (!target) return; const base = stem * 2 * samples; for (let i = 0; i < samples && start + i < N; i++) { const w = fade[i]; target[start + i] += out[base + i] * w; target[N + start + i] += out[base + samples + i] * w; } };
@@ -150,8 +173,13 @@ window.artistYarBrowserSeparate = async function (file, onProgress, mode = "stan
     }
     for (let i = 0; i < N; i++) { const w = norm[i] || 1; vocals[i] /= w; vocals[N + i] /= w; if (full) { drums[i] /= w; drums[N + i] /= w; bass[i] /= w; bass[N + i] /= w; other[i] /= w; other[N + i] /= w; } }
     const files = [];
-    if (full) files.push({ name: "vocals.wav", blob: wav(vocals) }, { name: "drums.wav", blob: wav(drums) }, { name: "bass.wav", blob: wav(bass) }, { name: "other.wav", blob: wav(other) });
-    else { const instrumental = new Float32Array(2 * N); for (let i = 0; i < N; i++) { instrumental[i] = audio.left[i] - vocals[i]; instrumental[N + i] = audio.right[i] - vocals[N + i]; } files.push({ name: "vocals.wav", blob: wav(vocals) }, { name: "instrumental.wav", blob: wav(instrumental) }); }
+    if (full) files.push({ name: "vocals.wav", blob: wavFromChannels(vocals.subarray(0, N), vocals.subarray(N),) }, { name: "drums.wav", blob: wavFromChannels(drums.subarray(0, N), drums.subarray(N)) }, { name: "bass.wav", blob: wavFromChannels(bass.subarray(0, N), bass.subarray(N)) }, { name: "other.wav", blob: wavFromChannels(other.subarray(0, N), other.subarray(N)) });
+    else {
+      const vocalsBlob = wavFromChannels(vocals.subarray(0, N), vocals.subarray(N));
+      for (let i = 0; i < N; i++) { audio.left[i] -= vocals[i]; audio.right[i] -= vocals[N + i]; }
+      files.push({ name: "vocals.wav", blob: vocalsBlob }, { name: "instrumental.wav", blob: wavFromChannels(audio.left, audio.right) });
+    }
     return await zipStored(files);
   } catch (error) { throw new Error(humanError(error)); }
+  finally { audio = null; vocals = null; }
 };
