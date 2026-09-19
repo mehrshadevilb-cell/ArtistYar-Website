@@ -9,6 +9,13 @@ const CHUNK = 343980;
 const OVERLAP = 0.25;
 const STEP = Math.floor(CHUNK * (1 - OVERLAP));
 
+// Hard duration caps to avoid the browser tab being OOM-killed (which shows
+// as a blank/white page with no catchable JS error). Full-stem mode keeps up
+// to 4 full-length Float32Array buffers alive at once, so it gets a tighter
+// cap than standard (vocals-only) mode.
+const MAX_DURATION_SECONDS_STANDARD = 8 * 60;
+const MAX_DURATION_SECONDS_FULL = 5 * 60;
+
 function humanError(err) {
   const msg = err instanceof Error ? err.message : String(err || "");
   if (/Aborted|out of memory|OOM|memory|grow_memory|RuntimeError/i.test(msg)) {
@@ -236,13 +243,27 @@ window.artistYarBrowserSeparate = async function (
     const audio = await decode(file);
     let N = audio.left.length;
 
+    // Guard against the tab being silently OOM-killed (shows as a blank/white
+    // page with no catchable error) on long files: compressed file size is a
+    // poor proxy for decoded PCM size, so check the actual duration instead.
+    const needFull = mode === "full";
+    const durationSeconds = N / SR;
+    const maxDuration = needFull ? MAX_DURATION_SECONDS_FULL : MAX_DURATION_SECONDS_STANDARD;
+    if (durationSeconds > maxDuration) {
+      const maxMinutes = Math.round(maxDuration / 60);
+      throw new Error(
+        "مدت این فایل صوتی برای پردازش در مرورگر خیلی زیاد است (حداکثر " +
+          maxMinutes +
+          " دقیقه در این حالت). لطفاً فایل کوتاه‌تری انتخاب کنید یا آن را برش بزنید.",
+      );
+    }
+
     const s = await getSession(onProgress);
     const ort = window.ort;
     const total = Math.max(1, Math.ceil(Math.max(1, N - CHUNK) / STEP) + 1);
 
     // Memory: standard mode only needs vocals accumulation (stem index 3).
     // Full mode needs all 4 stems.
-    const needFull = mode === "full";
     const vocals = new Float32Array(2 * N);
     const drums = needFull ? new Float32Array(2 * N) : null;
     const bass = needFull ? new Float32Array(2 * N) : null;
