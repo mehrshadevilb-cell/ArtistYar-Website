@@ -12,6 +12,8 @@ type Lesson = {
 type StorageFile = { path: string; name: string; mimeType: string; size: number; createdAt: string; url: string };
 
 const opts: RequestInit = { cache: "no-store", credentials: "include" };
+const MAX_VIDEO_BYTES = 1024 * 1024 * 1024;
+const MAX_THUMB_BYTES = 10 * 1024 * 1024;
 
 async function api(path: string, init?: RequestInit) {
   const r = await fetch(path, { ...opts, ...init });
@@ -23,24 +25,39 @@ async function api(path: string, init?: RequestInit) {
 }
 
 async function uploadDirect(file: File, kind: "video" | "thumbnail", onProgress?: (value: number) => void) {
+  const maxSize = kind === "video" ? MAX_VIDEO_BYTES : MAX_THUMB_BYTES;
+  if (file.size <= 0 || file.size > maxSize) {
+    throw new Error(
+      kind === "video"
+        ? "حجم ویدیو باید بین ۱ بایت و ۱ گیگابایت باشد."
+        : "حجم thumbnail باید بین ۱ بایت و ۱۰ مگابایت باشد.",
+    );
+  }
+
   const ticket = await api("/api/admin/free-education/upload-url", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filename: file.name, mimeType: file.type, kind }),
+    body: JSON.stringify({
+      filename: file.name,
+      mimeType: file.type || (kind === "video" ? "video/mp4" : "image/jpeg"),
+      kind,
+      size: file.size,
+    }),
   });
 
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", ticket.signedUrl);
-    xhr.setRequestHeader("Content-Type", file.type || ticket.mimeType);
+    xhr.setRequestHeader("Content-Type", file.type || ticket.mimeType || "application/octet-stream");
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100));
     };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error("آپلود مستقیم به Storage ناموفق بود."));
+      else reject(new Error(`آپلود مستقیم به Storage ناموفق بود (${xhr.status}).`));
     };
     xhr.onerror = () => reject(new Error("ارتباط مستقیم با Supabase Storage قطع شد."));
+    xhr.onabort = () => reject(new Error("آپلود لغو شد."));
     xhr.send(file);
   });
 
@@ -111,6 +128,7 @@ export default function FreeEducationAdminPage() {
         }
       }
 
+      setMessage("در حال ثبت متادیتا…");
       const data = await api("/api/admin/free-education", { method: "POST", body: form });
       setMessage(data.message || "آموزش ثبت شد.");
       event.currentTarget.reset();
@@ -205,8 +223,8 @@ export default function FreeEducationAdminPage() {
             <label className="block"><span className="mb-2 block text-xs text-ink-300">توضیحات</span><textarea className="input-ay min-h-24" name="description" /></label>
             {mode === "upload" ? (
               <>
-                <label className="block"><span className="mb-2 block text-xs text-ink-300">ویدیو</span><input className="block w-full rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-ink-300" name="video" type="file" accept="video/*,.mp4,.webm,.mov,.mkv" required /></label>
-                <label className="block"><span className="mb-2 block text-xs text-ink-300">کاور (اختیاری)</span><input className="block w-full rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-ink-300" name="thumbnail" type="file" accept="image/*" /></label>
+                <label className="block"><span className="mb-2 block text-xs text-ink-300">ویدیو (حداکثر ۱ گیگابایت)</span><input className="block w-full rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-ink-300" name="video" type="file" accept="video/*,.mp4,.webm,.mov,.mkv" required /></label>
+                <label className="block"><span className="mb-2 block text-xs text-ink-300">کاور (اختیاری، حداکثر ۱۰ مگابایت)</span><input className="block w-full rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-ink-300" name="thumbnail" type="file" accept="image/*" /></label>
               </>
             ) : (
               <p className="rounded-xl border border-gold-400/20 bg-gold-400/[.05] p-3 text-xs leading-6 text-gold-200">یک ویدیو را از لیست بالا انتخاب کن.</p>
