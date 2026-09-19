@@ -17,7 +17,7 @@ export async function GET() {
   try {
     return NextResponse.json({ ok: true, models: await listAdminAiModels() });
   } catch (error) {
-    console.error("admin model registry GET failed", error);
+    console.error("admin model registry GET failed", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ ok: false, error: "Model Registry در دسترس نیست." }, { status: 503 });
   }
 }
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     if (!Object.keys(patch).length) return NextResponse.json({ ok: false, error: "تغییری ارسال نشده است." }, { status: 400 });
     return NextResponse.json({ ok: true, model: await updateAdminAiModel(body.id, patch) });
   } catch (error) {
-    console.error("admin model registry POST failed", error);
+    console.error("admin model registry POST failed", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ ok: false, error: "تغییر Model Registry ناموفق بود." }, { status: 502 });
   }
 }
