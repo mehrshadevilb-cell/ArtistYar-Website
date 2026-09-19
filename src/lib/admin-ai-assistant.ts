@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { autoChat, type ChatMessage } from "@/lib/ai-providers";
+import { getAdminAiRoutingPreference } from "@/lib/admin-ai-model-registry";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -69,7 +70,8 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   const userInsert = await db().from("admin_ai_messages").insert({ conversation_id: conversationId, role: "user", content: userContent }).select("id").single();
   if (userInsert.error) throw userInsert.error;
 
-  const result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider, model, "rahyar-admin-assistant");
+  const registryPreference = (!provider && !model) ? await getAdminAiRoutingPreference() : null;
+  const result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider || registryPreference?.provider_id, model || registryPreference?.model_id, "rahyar-admin-assistant");
 
   const assistantInsert = await db().from("admin_ai_messages").insert({
     conversation_id: conversationId,
