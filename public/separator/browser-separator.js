@@ -8,41 +8,11 @@ const SR = 44100;
 const CHUNK = 343980;
 const OVERLAP = 0.25;
 const STEP = Math.floor(CHUNK * (1 - OVERLAP));
-// Local browser hard caps to avoid WASM Aborted() from memory pressure
-const MAX_SAMPLES_STANDARD = SR * 90; // 90s
-const MAX_SAMPLES_FULL = SR * 60; // 60s (4 full stem buffers)
-
-function readDuration(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const audio = document.createElement("audio");
-    const cleanup = () => {
-      audio.removeAttribute("src");
-      audio.load();
-      URL.revokeObjectURL(url);
-    };
-    audio.preload = "metadata";
-    audio.onloadedmetadata = () => {
-      const duration = audio.duration;
-      cleanup();
-      if (!Number.isFinite(duration) || duration <= 0) {
-        reject(new Error("مدت فایل صوتی قابل تشخیص نیست."));
-        return;
-      }
-      resolve(duration);
-    };
-    audio.onerror = () => {
-      cleanup();
-      reject(new Error("مدت فایل صوتی قابل تشخیص نیست."));
-    };
-    audio.src = url;
-  });
-}
 
 function humanError(err) {
   const msg = err instanceof Error ? err.message : String(err || "");
   if (/Aborted|out of memory|OOM|memory|grow_memory|RuntimeError/i.test(msg)) {
-    return "حافظه مرورگر برای این فایل کافی نبود (خطای WASM). فایل کوتاه‌تر (زیر ۹۰ ثانیه) امتحان کنید، تب‌های دیگر را ببندید، یا حالت HQ سروری را انتخاب کنید.";
+    return "حافظه مرورگر برای پردازش این فایل کافی نبود (خطای WASM). تب‌های دیگر را ببندید و دوباره امتحان کنید؛ در صورت تکرار، فایل کوتاه‌تر یا کم‌حجم‌تر انتخاب کنید.";
   }
   if (/WebGPU|gpu/i.test(msg)) {
     return "پردازنده گرافیکی مرورگر با موتور تفکیک سازگار نبود. دوباره تلاش کنید تا روی پردازنده مرکزی اجرا شود.";
@@ -198,31 +168,8 @@ window.artistYarBrowserSeparate = async function (
 ) {
   mode = mode || "standard";
   try {
-    const maxSeconds = mode === "full" ? 60 : 90;
-    const duration = await readDuration(file);
-    if (duration > maxSeconds) {
-      throw new Error(
-        mode === "full"
-          ? "پردازش کامل روی مرورگر برای فایل‌های بیش از ۶۰ ثانیه مناسب نیست. برای این فایل حالت HQ سروری یا یک فایل کوتاه‌تر را انتخاب کنید."
-          : "پردازش روی مرورگر برای فایل‌های بیش از ۹۰ ثانیه مناسب نیست. برای این فایل حالت HQ سروری یا یک فایل کوتاه‌تر را انتخاب کنید.",
-      );
-    }
-
     const audio = await decode(file);
     let N = audio.left.length;
-    const maxN = mode === "full" ? MAX_SAMPLES_FULL : MAX_SAMPLES_STANDARD;
-
-    if (N > maxN) {
-      // Soft-trim instead of hard fail — keeps UX working
-      N = maxN;
-      audio.left = audio.left.subarray(0, N);
-      audio.right = audio.right.subarray(0, N);
-      onProgress?.({
-        phase: "trim",
-        segment: 0,
-        totalSegments: 1,
-      });
-    }
 
     const s = await getSession(onProgress);
     const ort = window.ort;

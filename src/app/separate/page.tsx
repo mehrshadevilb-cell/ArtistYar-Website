@@ -13,8 +13,6 @@ import {
   Waves,
 } from "lucide-react";
 
-const LOCAL_MAX_BYTES = 30 * 1024 * 1024;
-
 const presets = [
   {
     id: "standard_vocal_inst",
@@ -78,7 +76,7 @@ export default function SeparatePage() {
 
     void Promise.all([
       load("https://cdn.jsdelivr.net/npm/jszip@3.10.2/dist/jszip.min.js"),
-      load("/separator/browser-separator.js?v=20260919-2"),
+      load("/separator/browser-separator.js?v=20260919-3"),
     ]).catch(() => {
       setError("موتور تفکیک صدا بارگذاری نشد. لطفاً صفحه را دوباره بارگذاری کنید.");
     });
@@ -219,18 +217,6 @@ export default function SeparatePage() {
     setError("");
 
     try {
-      // Browser Demucs expands compressed audio to large Float32 PCM buffers and
-      // keeps multiple stem buffers alive while creating the ZIP. Large uploads
-      // therefore can exhaust browser memory and surface as opaque AbortError/
-      // WASM failures. Keep large files on the server path instead of crashing
-      // the tab.
-      if (file.size > LOCAL_MAX_BYTES && preset !== "demucs_mdx_hq5") {
-        throw new Error("این فایل برای پردازش محلی بزرگ است. برای فایل‌های بالای ۳۰ مگابایت، حالت HQ سروری را انتخاب کنید.");
-      }
-
-      if (file.size > LOCAL_MAX_BYTES && preset === "demucs_mdx_hq5" && !serverReady) {
-        throw new Error("فایل بزرگ است و موتور سروری UVR در دسترس نیست. برای جلوگیری از خطای حافظه، فایل را به زیر ۳۰ مگابایت کاهش دهید یا بعداً دوباره امتحان کنید.");
-      }
       const browser = (window as Window & { artistYarBrowserSeparate?: BrowserSeparateFn })
         .artistYarBrowserSeparate;
 
@@ -263,9 +249,6 @@ export default function SeparatePage() {
             return;
           }
 
-          if (file.size > LOCAL_MAX_BYTES) {
-            throw new Error("پردازش سروری ناموفق بود و فایل برای پردازش محلی بزرگ است. لطفاً بعداً دوباره تلاش کنید یا فایل را به زیر ۳۰ مگابایت کاهش دهید.");
-          }
           setStatus("سرور در دسترس نبود؛ ادامه با Demucs حرفه‌ای روی دستگاه…");
         } else {
           setStatus("در حال تفکیک HQ با Demucs حرفه‌ای روی دستگاه شما…");
@@ -307,8 +290,8 @@ export default function SeparatePage() {
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err || "");
       let msg = raw || "تفکیک صدا با خطا مواجه شد.";
-      const browserDurationLimit = /بیش از (۹۰|۶۰) ثانیه|WASM|Aborted|out of memory|OOM|memory|RuntimeError|grow_memory/i.test(raw);
-      if (browserDurationLimit && serverReady && preset !== "demucs_mdx_hq5") {
+      const browserMemoryError = /WASM|Aborted|out of memory|OOM|memory|RuntimeError|grow_memory/i.test(raw);
+      if (browserMemoryError && serverReady && preset !== "demucs_mdx_hq5") {
         try {
           await runServer(
             preset === "full_stem" ? "htdemucs_ft" : "vocal_balanced",
@@ -323,9 +306,6 @@ export default function SeparatePage() {
       if (/Aborted|out of memory|OOM|memory|RuntimeError|grow_memory/i.test(raw)) {
         msg =
           "حافظه مرورگر برای این فایل کافی نبود. فایل کوتاه‌تر (زیر ۹۰ ثانیه) امتحان کنید، تب‌های دیگر را ببندید، یا حالت HQ را انتخاب کنید.";
-      } else if (/بیش از (۹۰|۶۰) ثانیه/i.test(raw) && !serverReady) {
-        msg =
-          "این فایل برای پردازش مرورگری طولانی است و موتور سروری UVR نیز فعال نیست. حالت HQ سروری را پس از فعال شدن موتور انتخاب کنید یا فایل کوتاه‌تری بارگذاری کنید.";
       }
       setError(msg);
       setStatus("");
