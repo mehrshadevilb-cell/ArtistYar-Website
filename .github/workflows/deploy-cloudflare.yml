@@ -22,14 +22,20 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Prepare environment
+        env:
+          ARTISTYAR_ENV_FILE: ${{ secrets.ARTISTYAR_ENV_FILE }}
+        run: |
+          test -n "$ARTISTYAR_ENV_FILE"
+          printf '%s' "$ARTISTYAR_ENV_FILE" > .env.production
+          chmod 600 .env.production
+
       # package-lock.json predates @opennextjs/cloudflare + wrangler — npm ci fails.
       - name: Install
         run: npm install
 
       - name: OpenNext build
         run: npx opennextjs-cloudflare build
-        env:
-          NEXT_PUBLIC_SITE_URL: https://artistyaar.ir
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
@@ -37,3 +43,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
+
+      - name: Remove environment file
+        if: always()
+        run: rm -f .env.production
