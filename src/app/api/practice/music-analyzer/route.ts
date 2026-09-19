@@ -1,4 +1,6 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { ADMIN_SESSION_COOKIE, USER_SESSION_COOKIE, verifyAdminSession, verifyUserSession } from "@/lib/server-admin-auth";
 import { createClient } from "@supabase/supabase-js";
 import { autoChat } from "@/lib/ai-providers";
 
@@ -18,6 +20,14 @@ const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken:
 function startOfDay() {
   const d = new Date();
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
+}
+
+async function currentIdentity(): Promise<{ id: string; telegramId?: string; admin: boolean } | null> {
+  const jar = await cookies();
+  const admin = verifyAdminSession(jar.get(ADMIN_SESSION_COOKIE)?.value);
+  if (admin) return { id: "admin", admin: true };
+  const user = verifyUserSession(jar.get(USER_SESSION_COOKIE)?.value);
+  return user ? { id: user.id, telegramId: user.telegramId, admin: false } : null;
 }
 
 async function isPro(ids: string[]) {
@@ -253,9 +263,10 @@ function tierLabel(isAdmin: boolean, pro: boolean, course: boolean) {
 }
 
 export async function GET(request: Request) {
-  const p = new URL(request.url).searchParams;
-  const ids = Array.from(new Set([p.get("userId") || "", p.get("telegramId") || ""].filter(Boolean)));
-  const isAdmin = p.get("role") === "admin";
+  const identity = await currentIdentity();
+  if (!identity) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
+  const ids = identity.admin ? [] : Array.from(new Set([identity.id, identity.telegramId || ""].filter(Boolean)));
+  const isAdmin = identity.admin;
   if (isAdmin) {
     return NextResponse.json({ ok: true, limit: ADMIN_LIMIT, used: 0, remaining: ADMIN_LIMIT, pro: true, course: true, admin: true, tier: "admin" });
   }
@@ -272,10 +283,11 @@ export async function POST(request: Request) {
   if (!form) return NextResponse.json({ ok: false, error: "invalid_form" }, { status: 400 });
 
   const file = form.get("file");
-  const userId = String(form.get("userId") || "").trim();
-  const telegramId = String(form.get("telegramId") || "").trim();
-  const role = String(form.get("role") || "").trim().toLowerCase();
-  const isAdmin = role === "admin";
+  const identity = await currentIdentity();
+  if (!identity) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
+  const userId = identity.admin ? "" : identity.id;
+  const telegramId = identity.admin ? "" : (identity.telegramId || "");
+  const isAdmin = identity.admin;
   const genre = String(form.get("genre") || "عمومی").slice(0, 80);
   const focus = String(form.get("focus") || "فول میکس").slice(0, 80);
   const notes = String(form.get("notes") || "").slice(0, 800);
@@ -288,7 +300,6 @@ export async function POST(request: Request) {
 
   if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "audio_file_required" }, { status: 400 });
   if (!m) return NextResponse.json({ ok: false, error: "audio_metrics_required" }, { status: 400 });
-  if (!userId && !telegramId && !isAdmin) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
   if (file.size <= 0 || file.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "file_too_large_or_empty" }, { status: 413 });
 
   const ids = Array.from(new Set([userId, telegramId].filter(Boolean)));
