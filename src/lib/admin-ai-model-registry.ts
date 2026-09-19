@@ -36,7 +36,13 @@ export async function listAdminAiModels() {
   return (result.data || []) as AdminAiModel[];
 }
 
-export async function listAdminAiRoutingCandidates() {\n  const result = await db().from("admin_ai_model_registry").select("provider_id,model_id,priority,preferred").eq("enabled", true).eq("status", "enabled").order("preferred", { ascending: false }).order("priority", { ascending: false });\n  if (result.error) throw result.error;\n  return result.data || [];\n}\n\nexport async function getAdminAiRoutingPreference() {
+export async function listAdminAiRoutingCandidates() {
+  const result = await db().from("admin_ai_model_registry").select("provider_id,model_id,priority,preferred").eq("enabled", true).eq("status", "enabled").order("preferred", { ascending: false }).order("priority", { ascending: false });
+  if (result.error) throw result.error;
+  return result.data || [];
+}
+
+export async function getAdminAiRoutingPreference() {
   const result = await db().from("admin_ai_model_registry").select("provider_id,model_id").eq("enabled", true).eq("status", "enabled").order("preferred", { ascending: false }).order("priority", { ascending: false }).limit(1).maybeSingle();
   if (result.error) throw result.error;
   return result.data;
