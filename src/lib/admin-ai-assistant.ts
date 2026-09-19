@@ -58,7 +58,7 @@ export async function archiveConversation(adminUsername: string, id: string) {
   return result.data;
 }
 
-export async function sendAdminMessage(adminUsername: string, conversationId: string, content: string, provider?: string, model?: string) {
+export async function sendAdminMessage(adminUsername: string, conversationId: string, content: string, provider?: string, model?: string, signal?: AbortSignal) {
   const conversation = await getConversation(adminUsername, conversationId);
   if (!conversation) throw new Error("admin_ai_conversation_not_found");
   const userContent = content.trim().slice(0, 16000);
@@ -71,7 +71,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   if (userInsert.error) throw userInsert.error;
 
   const registryPreference = (!provider && !model) ? await getAdminAiRoutingPreference() : null;
-  const result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider || registryPreference?.provider_id, model || registryPreference?.model_id, "rahyar-admin-assistant");
+  const result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider || registryPreference?.provider_id, model || registryPreference?.model_id, "rahyar-admin-assistant", signal);
 
   const assistantInsert = await db().from("admin_ai_messages").insert({
     conversation_id: conversationId,
