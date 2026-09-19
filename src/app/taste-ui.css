@@ -132,6 +132,82 @@ a.card-ay:hover {
   background: rgba(255, 255, 255, 0.04) !important;
 }
 
+/* FAQ: make the disclosure state visible without relying on the browser marker. */
+.faq-item {
+  overflow: hidden;
+  transition:
+    border-color 220ms var(--p-ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    background 220ms ease,
+    box-shadow 220ms ease !important;
+}
+
+.faq-item[open] {
+  border-color: rgba(201, 162, 39, 0.3) !important;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.09), rgba(255, 255, 255, 0.025)) !important;
+  box-shadow: 0 18px 44px -32px rgba(201, 162, 39, 0.42) !important;
+}
+
+.faq-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 0.75rem;
+  transition: color 180ms ease;
+}
+
+.faq-summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-summary:focus-visible {
+  outline: 2px solid var(--color-focus-ring, rgba(240, 194, 92, 0.7));
+  outline-offset: 5px;
+}
+
+.faq-summary:hover {
+  color: var(--color-accent-hover, #d4af37) !important;
+}
+
+.faq-summary-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(201, 162, 39, 0.2);
+  border-radius: 9999px;
+  color: var(--color-accent, #c9a227);
+  background: rgba(201, 162, 39, 0.08);
+  transition: transform 220ms var(--p-ease-out, cubic-bezier(0.22, 1, 0.36, 1)), background 180ms ease;
+}
+
+.faq-item[open] .faq-summary-icon {
+  transform: rotate(180deg);
+  background: rgba(201, 162, 39, 0.16);
+}
+
+.faq-answer {
+  max-width: 44rem;
+  color: var(--color-fg-muted, #8f8a80) !important;
+}
+
+html.light .faq-item[open] {
+  border-color: rgba(154, 122, 24, 0.3) !important;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.1), rgba(255, 255, 255, 0.84)) !important;
+  box-shadow: 0 18px 44px -32px rgba(80, 55, 15, 0.24) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-item,
+  .faq-summary,
+  .faq-summary-icon {
+    transition: none !important;
+  }
+}
+
 /* Kill generic gold shimmer text effect on marketing — solid accent is cleaner */
 .gold-shimmer {
   background: none !important;

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import type { Metadata } from "next";
-import { ArrowLeft, Bot, Check, CirclePlay, MessageCircle, Sparkles, Waves } from "lucide-react";
+import { ArrowLeft, Bot, Check, ChevronDown, CirclePlay, MessageCircle, Sparkles, Waves } from "lucide-react";
 import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 import { Reveal } from "@/components/Reveal";
@@ -472,11 +472,14 @@ export default function HomePage() {
         </Reveal>
         <div className="mt-10 grid max-w-3xl gap-2">
           {faqs.map((faq) => (
-            <details key={faq.question} className="card-ay group p-5 open:border-gold-500/20">
-              <summary className="cursor-pointer list-none text-[0.95rem] font-medium text-sand-50">
-                {faq.question}
+            <details key={faq.question} className="faq-item card-ay group p-5">
+              <summary className="faq-summary text-[0.95rem] font-medium text-sand-50">
+                <span>{faq.question}</span>
+                <span className="faq-summary-icon" aria-hidden="true">
+                  <ChevronDown size={16} strokeWidth={2.2} />
+                </span>
               </summary>
-              <p className="mt-3 text-sm leading-7 text-ink-400">{faq.answer}</p>
+              <p className="faq-answer mt-3 text-sm leading-7 text-ink-400">{faq.answer}</p>
             </details>
           ))}
         </div>
