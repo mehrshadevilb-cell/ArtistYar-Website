@@ -13,6 +13,8 @@ import {
   Waves,
 } from "lucide-react";
 
+const LOCAL_MAX_BYTES = 30 * 1024 * 1024;
+
 const presets = [
   {
     id: "standard_vocal_inst",
@@ -184,6 +186,18 @@ export default function SeparatePage() {
     setError("");
 
     try {
+      // Browser Demucs expands compressed audio to large Float32 PCM buffers and
+      // keeps multiple stem buffers alive while creating the ZIP. Large uploads
+      // therefore can exhaust browser memory and surface as opaque AbortError/
+      // WASM failures. Keep large files on the server path instead of crashing
+      // the tab.
+      if (file.size > LOCAL_MAX_BYTES && preset !== "demucs_mdx_hq5") {
+        throw new Error("این فایل برای پردازش محلی بزرگ است. برای فایل‌های بالای ۳۰ مگابایت، حالت HQ سروری را انتخاب کنید.");
+      }
+
+      if (file.size > LOCAL_MAX_BYTES && preset === "demucs_mdx_hq5" && !serverReady) {
+        throw new Error("فایل بزرگ است و موتور سروری UVR در دسترس نیست. برای جلوگیری از خطای حافظه، فایل را به زیر ۳۰ مگابایت کاهش دهید یا بعداً دوباره امتحان کنید.");
+      }
       const browser = (window as Window & { artistYarBrowserSeparate?: BrowserSeparateFn })
         .artistYarBrowserSeparate;
 
