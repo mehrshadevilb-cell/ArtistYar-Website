@@ -23,6 +23,11 @@ export async function POST(request: Request) {
     const filename = String(body.filename || "").trim();
     const mimeType = String(body.mimeType || "").trim().toLowerCase();
     const kind = body.kind === "thumbnail" ? "thumbnail" : "video";
+    const size = Number(body.size || 0);
+    const maxSize = kind === "video" ? 1024 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (!Number.isFinite(size) || size <= 0 || size > maxSize) {
+      return NextResponse.json({ ok: false, error: kind === "video" ? "حجم ویدیو باید بین ۱ بایت و ۱ گیگابایت باشد." : "حجم thumbnail باید بین ۱ بایت و ۱۰ مگابایت باشد." }, { status: 413 });
+    }
     const ext = filename.toLowerCase().split(".").pop() || "";
 
     if (!filename || !ext) {
