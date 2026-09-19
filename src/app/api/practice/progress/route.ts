@@ -72,7 +72,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   if (!hasPracticeStore()) return NextResponse.json({ ok: false, error: "ذخیره‌سازی تمرین تنظیم نشده است." }, { status: 503 });
   const body = await request.json().catch(() => ({}));
-  if (!body.userId || !body.username) return NextResponse.json({ ok: false, error: "اطلاعات کاربر ناقص است." }, { status: 400 });
+  if (!body.userId) return NextResponse.json({ ok: false, error: "شناسه کاربر لازم است." }, { status: 400 });
   const requestedUserId = String(body.userId).slice(0, 120);
   const auth = await authorizedUser(request, requestedUserId);
   if (!auth) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
