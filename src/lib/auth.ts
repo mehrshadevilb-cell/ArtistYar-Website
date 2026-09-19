@@ -70,20 +70,24 @@ export async function loginViaApi(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok || !data.user) {
-      try {
-        const local = login(username, password);
-        if (local) return { ok: true, user: local };
-      } catch { /* Fall through to a normal login error. */ }
+      if (process.env.NODE_ENV !== "production") {
+        try {
+          const local = login(username, password);
+          if (local) return { ok: true, user: local };
+        } catch { /* Fall through to a normal login error. */ }
+      }
       return { ok: false, error: data.error || "نام کاربری یا رمز عبور نادرست است." };
     }
     const user = data.user as SessionUser;
     setStorageItem(STORAGE_KEY, JSON.stringify(user));
     return { ok: true, user };
   } catch {
-    try {
-      const local = login(username, password);
-      if (local) return { ok: true, user: local };
-    } catch { /* Storage errors must not crash the panel. */ }
+    if (process.env.NODE_ENV !== "production") {
+      try {
+        const local = login(username, password);
+        if (local) return { ok: true, user: local };
+      } catch { /* Storage errors must not crash the panel. */ }
+    }
     return { ok: false, error: "ارتباط با سرور ورود برقرار نشد." };
   }
 }
