@@ -20,8 +20,6 @@ export async function syncAdminAiModels() {
     model_id: model.id,
     display_name: model.id,
     capabilities: { chat: true },
-    enabled: false,
-    status: "discovered",
     updated_at: new Date().toISOString(),
   })));
   if (!rows.length) return [];
@@ -59,6 +57,7 @@ export async function validateAdminAiModel(id: string) {
   const result = await db().from("admin_ai_model_registry").update({
     status: valid ? "registered" : "disabled",
     enabled: false,
+    preferred: false,
     last_validated_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }).eq("id", id).select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at").maybeSingle();
