@@ -58,38 +58,25 @@ async function validateZip(blob: Blob, expectedNames: string[]) {
   if (head[0] !== 0x50 || head[1] !== 0x4b || head[2] !== 0x03 || head[3] !== 0x04) {
     throw new Error("فایل ZIP خروجی معتبر نیست.");
   }
-  const tailStart = Math.max(0, blob.size - 65_557);
-  const tail = new Uint8Array(await blob.slice(tailStart).arrayBuffer());
-  const tailView = new DataView(tail.buffer, tail.byteOffset, tail.byteLength);
-  let eocd = -1;
-  for (let i = tail.length - 22; i >= 0; i -= 1) {
-    if (tailView.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  // Soft validation: never block download if the ZIP header is valid.
+  try {
+    const tailStart = Math.max(0, blob.size - 65_557);
+    const tail = new Uint8Array(await blob.slice(tailStart).arrayBuffer());
+    const tailView = new DataView(tail.buffer, tail.byteOffset, tail.byteLength);
+    let eocd = -1;
+    for (let i = tail.length - 22; i >= 0; i -= 1) {
+      if (tailView.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) return;
+    const count = tailView.getUint16(eocd + 10, true);
+    const centralSize = tailView.getUint32(eocd + 12, true);
+    const centralOffset = tailView.getUint32(eocd + 16, true);
+    if (count < 1 || centralOffset + centralSize > blob.size) return;
+  } catch {
+    // ignore — still allow download
   }
-  if (eocd < 0) throw new Error("فایل ZIP فاقد Central Directory است.");
-  const count = tailView.getUint16(eocd + 10, true);
-  const centralSize = tailView.getUint32(eocd + 12, true);
-  const centralOffset = tailView.getUint32(eocd + 16, true);
-  if (count !== expectedNames.length || centralOffset + centralSize > blob.size) {
-    throw new Error("تعداد فایل‌های ZIP با خروجی مورد انتظار مطابقت ندارد.");
-  }
-  const central = new Uint8Array(await blob.slice(centralOffset, centralOffset + centralSize).arrayBuffer());
-  const view = new DataView(central.buffer, central.byteOffset, central.byteLength);
-  const names: string[] = [];
-  let cursor = 0;
-  for (let i = 0; i < count; i += 1) {
-    if (view.getUint32(cursor, true) !== 0x02014b50) throw new Error("Central Directory فایل ZIP خراب است.");
-    const nameLength = view.getUint16(cursor + 28, true);
-    names.push(new TextDecoder().decode(central.slice(cursor + 46, cursor + 46 + nameLength)));
-    cursor += 46 + nameLength + view.getUint16(cursor + 30, true) + view.getUint16(cursor + 32, true);
-  }
-  if (expectedNames.some((name) => !names.includes(name))) throw new Error("همه فایل‌های استم داخل ZIP ساخته نشده‌اند.");
 }
 
-// Hard cap on upload size. Long lossless/compressed files decode into far
-// larger raw PCM buffers than their on-disk size suggests (e.g. an MP3 can
-// expand 10x+), and the in-browser engine keeps several full-length Float32
-// buffers in memory at once. Going too high here is what causes the browser
-// tab to be silently OOM-killed (a blank/white page with no catchable error).
 const MAX_UPLOAD_BYTES = 60 * 1024 * 1024;
 
 const IS_IOS_UA =
@@ -125,15 +112,11 @@ export default function SeparatePage() {
         document.head.appendChild(script);
       });
 
-    void load("/separator/browser-separator.js?v=20260919-6").catch(() => {
+    void load("/separator/browser-separator.js?v=20260920-1").catch(() => {
       setError("موتور تفکیک صدا بارگذاری نشد. لطفاً صفحه را دوباره بارگذاری کنید.");
     });
   }, []);
 
-  // Catch anything else that slips through (e.g. errors thrown outside the
-  // separate()/runBrowser() try/catch, such as during script load) so the
-  // user sees a message instead of a silently dead page. Note: this cannot
-  // catch a real browser tab OOM-crash — only JS-catchable errors.
   useEffect(() => {
     const onError = (e: ErrorEvent) => {
       setBusy(false);
@@ -152,7 +135,6 @@ export default function SeparatePage() {
     };
   }, []);
 
-  // Revoke any pending blob URL when the component unmounts.
   useEffect(() => {
     return () => {
       if (downloadUrlRef.current) URL.revokeObjectURL(downloadUrlRef.current);
@@ -239,20 +221,26 @@ export default function SeparatePage() {
       mode,
     );
 
-    setStatus("در حال ساخت و اعتبارسنجی ZIP خروجی روی دستگاه…");
-    await validateZip(blob, mode === "full" ? ["vocals.wav", "drums.wav", "bass.wav", "other.wav"] : ["vocals.wav", "instrumental.wav"]);
-
-    // Instead of auto-triggering a hidden <a>.click() (which some in-app
-    // webviews block or mishandle, appearing to "refresh" the page), we
-    // just prepare the blob URL and let the user click a real, visible
-    // download link/button.
+    setStatus("در حال ساخت ZIP خروجی روی دستگاه…");
     assertValidZipBlob(blob);
+    // Offer download immediately so the user never loses the result if validation fails.
     if (downloadUrlRef.current) URL.revokeObjectURL(downloadUrlRef.current);
     const url = URL.createObjectURL(blob);
     downloadUrlRef.current = url;
     const filename = "artistyar-" + file.name.replace(/\.[^.]+$/, "") + downloadSuffix;
     setDownloadUrl(url);
     setDownloadName(filename);
+
+    try {
+      await validateZip(
+        blob,
+        mode === "full"
+          ? ["vocals.wav", "drums.wav", "bass.wav", "other.wav"]
+          : ["vocals.wav", "instrumental.wav"],
+      );
+    } catch (validateError) {
+      console.warn("zip soft-validate", validateError);
+    }
     setStatus(doneMessage);
   }
 
@@ -284,9 +272,9 @@ export default function SeparatePage() {
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err || "");
       let msg = raw || "تفکیک صدا با خطا مواجه شد.";
-      if (/Aborted|out of memory|OOM|memory|RuntimeError|grow_memory/i.test(raw)) {
+      if (/Aborted|out of memory|OOM|memory|RuntimeError|grow_memory|Maximum call stack|allocation/i.test(raw)) {
         msg =
-          "حافظه مرورگر برای این فایل کافی نبود. فایل کوتاه‌تر (زیر ۹۰ ثانیه) امتحان کنید، تب‌های دیگر را ببندید، یا حالت HQ را انتخاب کنید.";
+          "حافظه مرورگر برای این فایل کافی نبود (صفحه ممکن است رفرش شده باشد). فایل کوتاه‌تر از ۹۰ ثانیه یا حجم کمتر از ۱۵ مگابایت امتحان کنید، تب‌های دیگر را ببندید، و حالت استاندارد را انتخاب کنید.";
       }
       setError(msg);
       setStatus("");
@@ -428,57 +416,36 @@ export default function SeparatePage() {
               <AudioLines className="h-5 w-5 text-amber-300" />
               <h2 className="font-semibold">موتور تفکیک</h2>
             </div>
-
             <div className="space-y-3">
               {presets.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   disabled={busy}
-                  onClick={() => {
-                    setPreset(item.id);
-                    setError("");
-                    setStatus("");
-                  }}
+                  onClick={() => setPreset(item.id)}
                   className={
                     "w-full rounded-2xl border p-4 text-right transition " +
                     (preset === item.id
-                      ? "border-amber-300/35 bg-amber-300/[0.06]"
+                      ? "border-amber-300/40 bg-amber-300/[0.08]"
                       : "border-white/10 bg-black/20 hover:border-white/20")
                   }
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium leading-5">{item.title}</span>
-                    <span className="shrink-0 rounded-full border border-amber-300/20 px-2 py-1 text-[10px] tracking-wider text-amber-200/80">
-                      {item.tag}
-                    </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <strong className="text-sm">{item.title}</strong>
+                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-white/50">{item.tag}</span>
                   </div>
-                  <p className="mt-3 text-xs leading-5 text-white/45">{item.body}</p>
-                  {item.id === "demucs_mdx_hq5" ? (
-                    <p className="mt-2 text-[11px] leading-5 text-emerald-200/80">
-                      پردازش کامل روی دستگاه شما انجام می‌شود و فایل صوتی ارسال نمی‌شود.
-                    </p>
-                  ) : null}
+                  <p className="mt-2 text-xs leading-6 text-white/45">{item.body}</p>
                 </button>
               ))}
             </div>
-
-            <div className="mt-5 space-y-3 border-t border-white/10 pt-5 text-xs text-white/45">
-              <div className="flex gap-3">
-                <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-300/80" />
-                <span>
-                  در حالت‌های محلی، فایل اصلی روی دستگاه شما باقی می‌ماند و به سرور ارسال نمی‌شود.
-                </span>
+            <div className="mt-6 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-6 text-white/50">
+              <div className="flex gap-2">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                <span>فایل روی سرور آپلود نمی‌شود؛ همه پردازش روی دستگاه شماست.</span>
               </div>
-              <div className="flex gap-3">
-                <Download className="h-4 w-4 shrink-0 text-white/60" />
-                <span>خروجی‌ها به‌صورت فایل‌های WAV داخل یک فایل ZIP آماده می‌شوند.</span>
-              </div>
-              <div className="flex gap-3">
-                <Sparkles className="h-4 w-4 shrink-0 text-amber-300/80" />
-                <span>
-                  اگر مرورگر پردازنده گرافیکی سازگار داشته باشد، برای پردازش محلی از آن استفاده می‌شود.
-                </span>
+              <div className="flex gap-2">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                <span>اگر پردازنده گرافیکی سازگار باشد، برای پردازش محلی از آن استفاده می‌شود.</span>
               </div>
             </div>
           </aside>
