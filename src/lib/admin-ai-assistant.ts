@@ -71,7 +71,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   const userInsert = await db().from("admin_ai_messages").insert({ conversation_id: conversationId, role: "user", content: userContent }).select("id").single();
   if (userInsert.error) throw userInsert.error;
 
-  let result: Awaited<ReturnType<typeof autoChat>>;
+  let result: Awaited<ReturnType<typeof autoChat>> | null = null;
   if (provider || model) {
     if (!provider || !model) throw new Error("admin_ai_provider_and_model_must_be_paired");
     const allowed = await listAdminAiRoutingCandidates();
