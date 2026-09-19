@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { fetchLicenses, type ApiLicense } from "@/lib/rahyar-api";
 import { CommunityLinks } from "@/components/CommunityLinks";
 
@@ -91,7 +92,7 @@ export default function PanelCoursesPage() {
             </div>
             {license.payment_id ? <span className="text-xs text-ink-500">پرداخت #{license.payment_id}</span> : null}
           </div>
-          {license.license_key ? (
+          <Link href={"/panel/courses/"+license.id} className="btn-primary mt-4 inline-flex text-xs">مشاهده محتوای آموزشی</Link>\n          {license.license_key ? (
             <div className="mt-5 rounded-xl border border-gold-500/20 bg-gold-500/[.06] p-4">
               <p className="text-xs text-ink-400">کلید دسترسی</p>
               <code className="mt-2 block break-all text-sm text-gold-300">{license.license_key}</code>
