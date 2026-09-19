@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>ArtistYar</title>
+  <rect width="64" height="64" rx="18" fill="#0b0b0a"/>
+  <circle cx="32" cy="29" r="12" fill="#d4af37"/>
+  <path d="M20 46h24" stroke="#c9a227" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="32" cy="29" r="4" fill="#0b0b0a"/>
+</svg>

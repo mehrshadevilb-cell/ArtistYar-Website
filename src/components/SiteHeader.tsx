@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X, ArrowUpLeft, Bot } from "lucide-react";
 import { BrandMark } from "./BrandMark";
@@ -36,6 +36,7 @@ const moreLinks = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
   const { user, ready } = useAuth();
   const panelHref = user?.role === "admin" ? "/admin" : "/panel";
@@ -48,8 +49,15 @@ export function SiteHeader() {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    document.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
 
@@ -107,6 +115,7 @@ export function SiteHeader() {
           <ThemeToggle />
           <button
             type="button"
+            ref={menuButtonRef}
             aria-label={open ? "بستن منو" : "باز کردن منو"}
             aria-expanded={open}
             aria-controls="mobile-navigation"
@@ -133,17 +142,18 @@ export function SiteHeader() {
               href={link.href}
               hard={link.href === "/courses" || link.href === "/assistant"}
               onClick={() => setOpen(false)}
+              tabIndex={open ? 0 : -1}
               className="mobile-nav-link"
             >
               {link.label}
             </SafeLink>
           ))}
           {ready && user ? (
-            <Link href={panelHref} onClick={() => setOpen(false)} className="mobile-nav-link">
+            <Link href={panelHref} onClick={() => setOpen(false)} tabIndex={open ? 0 : -1} className="mobile-nav-link">
               پنل من
             </Link>
           ) : (
-            <Link href="/login" onClick={() => setOpen(false)} className="mobile-nav-link">
+            <Link href="/login" onClick={() => setOpen(false)} tabIndex={open ? 0 : -1} className="mobile-nav-link">
               ورود هنرجو
             </Link>
           )}
@@ -151,6 +161,7 @@ export function SiteHeader() {
             href="/assistant"
             hard
             onClick={() => setOpen(false)}
+            tabIndex={open ? 0 : -1}
             className="btn-primary mt-3 flex items-center justify-center gap-2 text-center"
           >
             <Bot size={16} aria-hidden />
