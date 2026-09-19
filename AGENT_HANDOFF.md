@@ -1,5 +1,15 @@
 # ArtistYar Website — Agent Handoff
 
+## Latest continuation fixes
+
+- 538738e255480b695c3d8d698ce609229bd0b065 — model discovery now supports strict live-only mode.
+- 95fc549bffb637a3c2912e63ad9bd953c4a20781 — registry validation uses strict live discovery instead of static fallback models.
+- 84467c6cc60de22fa5fa483bf78601b42242693c — provider discovery distinguishes provider outage from an invalid/nonexistent model during strict validation.
+- e19bc784412ab9ce67da9ac1abe3202b32c8fc3b — Admin Model Registry API maps validation/routing-state errors to stable HTTP responses.
+- 01905f3e5f4498f54ffb66220fea02e7018c368a — strict discovery failures are no longer swallowed by the fallback catch path.
+
+Validation note: local clone/build could not run because this execution environment cannot resolve github.com. GitHub Actions for the latest prior head failed before any workflow step (steps: null), so no CI green status is claimed.
+
 ## Current continuation point
 
 Latest application fixes:
