@@ -85,6 +85,13 @@ async function validateZip(blob: Blob, expectedNames: string[]) {
   if (expectedNames.some((name) => !names.includes(name))) throw new Error("همه فایل‌های استم داخل ZIP ساخته نشده‌اند.");
 }
 
+// Hard cap on upload size. Long lossless/compressed files decode into far
+// larger raw PCM buffers than their on-disk size suggests (e.g. an MP3 can
+// expand 10x+), and the in-browser engine keeps several full-length Float32
+// buffers in memory at once. Going too high here is what causes the browser
+// tab to be silently OOM-killed (a blank/white page with no catchable error).
+const MAX_UPLOAD_BYTES = 60 * 1024 * 1024;
+
 export default function SeparatePage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -113,9 +120,31 @@ export default function SeparatePage() {
         document.head.appendChild(script);
       });
 
-    void load("/separator/browser-separator.js?v=20260919-4").catch(() => {
+    void load("/separator/browser-separator.js?v=20260919-5").catch(() => {
       setError("موتور تفکیک صدا بارگذاری نشد. لطفاً صفحه را دوباره بارگذاری کنید.");
     });
+  }, []);
+
+  // Catch anything else that slips through (e.g. errors thrown outside the
+  // separate()/runBrowser() try/catch, such as during script load) so the
+  // user sees a message instead of a silently dead page. Note: this cannot
+  // catch a real browser tab OOM-crash — only JS-catchable errors.
+  useEffect(() => {
+    const onError = (e: ErrorEvent) => {
+      setBusy(false);
+      setError((prev) => prev || e.message || "خطای غیرمنتظره‌ای رخ داد. صفحه را دوباره بارگذاری کنید.");
+    };
+    const onRejection = (e: PromiseRejectionEvent) => {
+      setBusy(false);
+      const msg = e.reason instanceof Error ? e.reason.message : String(e.reason || "");
+      setError((prev) => prev || msg || "خطای غیرمنتظره‌ای رخ داد. صفحه را دوباره بارگذاری کنید.");
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
   }, []);
 
   // Revoke any pending blob URL when the component unmounts.
@@ -154,8 +183,10 @@ export default function SeparatePage() {
       return;
     }
 
-    if (next.size > 250 * 1024 * 1024) {
-      setError("حداکثر حجم فایل ۲۵۰ مگابایت است.");
+    if (next.size > MAX_UPLOAD_BYTES) {
+      setError(
+        "حداکثر حجم فایل ۶۰ مگابایت است (پردازش در مرورگر خودتان انجام می‌شود و فایل‌های بزرگ‌تر باعث کرش مرورگر می‌شوند). فایل کوتاه‌تر یا با کیفیت پایین‌تر انتخاب کنید.",
+      );
       return;
     }
 
@@ -325,7 +356,7 @@ export default function SeparatePage() {
                   <Upload className="mb-5 h-12 w-12 text-white/70" />
                   <p className="text-lg font-medium">فایل صوتی را اینجا رها کنید</p>
                   <p className="mt-2 text-sm text-white/45">
-                    WAV، MP3، FLAC، M4A، AAC، OGG یا OPUS · حداکثر ۲۵۰ مگابایت
+                    WAV، MP3، FLAC، M4A، AAC، OGG یا OPUS · حداکثر ۶۰ مگابایت و ۸ دقیقه
                   </p>
                   <span className="mt-5 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/65">
                     انتخاب فایل صوتی
