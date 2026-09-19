@@ -1,16 +1,17 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 type Message = { role: "user" | "assistant"; content: string; provider?: string | null; model?: string | null };
 type Conversation = { id: string; title: string; archived: boolean; created_at: string; updated_at: string; messages?: Message[] };
 
-async function api(body?: Record<string, unknown>, query = "") {
+async function api(body?: Record<string, unknown>, query = "", signal?: AbortSignal) {
   const response = await fetch(`/api/admin/assistant${query}`, {
     method: body ? "POST" : "GET",
     headers: body ? { "Content-Type": "application/json" } : undefined,
     credentials: "include",
     cache: "no-store",
+    signal,
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const json = await response.json().catch(() => ({}));
@@ -25,6 +26,7 @@ export default function AdminAssistantPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
 
   async function open(id: string) {
     try {
@@ -70,15 +72,19 @@ export default function AdminAssistantPage() {
     setInput("");
     setSending(true);
     setError("");
+    const controller = new AbortController();
+    abortRef.current = controller;
     setActive((current) => current ? { ...current, messages: [...(current.messages || []), { role: "user", content: text }] } : current);
 
     try {
-      const json = await api({ action: "message", conversationId: active.id, content: text });
+      const json = await api({ action: "message", conversationId: active.id, content: text }, "", controller.signal);
       setActive((current) => current ? { ...current, messages: [...(current.messages || []), json.message] } : current);
       setConversations((items) => items.map((item) => item.id === active.id ? { ...item, updated_at: new Date().toISOString() } : item));
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setError(e instanceof Error ? e.message : "ارسال پیام ناموفق بود");
     } finally {
+      abortRef.current = null;
       setSending(false);
     }
   }
@@ -129,7 +135,7 @@ export default function AdminAssistantPage() {
         <form onSubmit={send} className="border-t border-white/10 p-3 sm:p-4">
           <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
             <textarea value={input} onChange={(event) => setInput(event.target.value)} disabled={!active || sending} rows={2} placeholder="پیامت را برای دستیار مدیریتی بنویس…" className="min-h-12 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-sand-50 outline-none placeholder:text-ink-600" />
-            <button disabled={!active || sending || !input.trim()} className="btn-primary shrink-0 !px-4">{sending ? "…" : "ارسال"}</button>
+            <button type={sending ? "button" : "submit"} onClick={sending ? () => abortRef.current?.abort() : undefined} disabled={!active || (!sending && !input.trim())} className="btn-primary shrink-0 !px-4">{sending ? "توقف" : "ارسال"}</button>
           </div>
         </form>
       </section>
