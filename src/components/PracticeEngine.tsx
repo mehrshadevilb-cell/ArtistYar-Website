@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  FileAudio,
   Gamepad2,
   Sparkles,
 } from "lucide-react";
@@ -16,7 +15,7 @@ import { DailyVoicingLab } from "@/components/DailyVoicingLab";
 import { CoreEarGym } from "@/components/CoreEarGym";
 import { AudioWaveform } from "lucide-react";
 
-type GameId = "hub" | "core-ear" | "theory" | "pro-arcade" | "voicing" | "personal";
+type GameId = "hub" | "core-ear" | "theory" | "pro-arcade" | "voicing";
 
 export default function PracticeEngine() {
   const [active, setActive] = useState<GameId>("hub");
@@ -76,6 +75,7 @@ export default function PracticeEngine() {
                 <span className="text-xs text-ink-500">۵ مرحله رایگان · Pro: بدون محدودیت تا پایان اشتراک</span>
               </span>
             </button>
+
             <button type="button" className="card-ay flex items-center gap-4 p-5 text-right" onClick={() => setActive("theory")}>
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-400/10 text-violet-300">
                 <Sparkles size={22} />
@@ -85,6 +85,7 @@ export default function PracticeEngine() {
                 <strong className="mt-1 block text-sand-50">آزمایشگاه تئوری</strong>
               </span>
             </button>
+
             <button
               type="button"
               className="card-ay flex items-center gap-4 border-gold-400/15 p-5 text-right"
@@ -98,15 +99,6 @@ export default function PracticeEngine() {
                 <strong className="mt-1 block text-sand-50">Voicing روزانه</strong>
               </span>
             </button>
-            <button type="button" className="card-ay flex items-center gap-4 p-5 text-right" onClick={() => setActive("personal")}>
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
-                <FileAudio size={22} />
-              </span>
-              <span className="flex-1">
-                <span className="eyebrow">A/B</span>
-                <strong className="mt-1 block text-sand-50">تمرین شخصی</strong>
-              </span>
-            </button>
           </div>
 
           <PracticeProgressPanel />
@@ -117,18 +109,6 @@ export default function PracticeEngine() {
       {active === "theory" && <TheoryLab onBack={() => setActive("hub")} />}
       {active === "voicing" && <DailyVoicingLab onBack={() => setActive("hub")} />}
       {active === "pro-arcade" && <ProArcadeLab onBack={() => setActive("hub")} />}
-      {active === "personal" && (
-        <section className="mt-10">
-          <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={() => setActive("hub")}>
-            بازگشت
-          </button>
-          <div className="card-ay mt-5 p-8 text-center">
-            <FileAudio className="mx-auto text-emerald-300" size={34} />
-            <h2 className="mt-4 text-xl text-sand-50">تمرین شخصی A/B</h2>
-            <p className="mt-3 text-sm leading-8 text-ink-400">آپلود فایل برای مقایسه قبل/بعد به‌زودی کامل می‌شود.</p>
-          </div>
-        </section>
-      )}
     </main>
   );
 }
