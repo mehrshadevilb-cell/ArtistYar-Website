@@ -748,7 +748,7 @@ async function chatRahYarGateway(
       client_id: clientId.slice(0, 64),
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(45_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45_000)]) : AbortSignal.timeout(45_000),
   });
 
   const data = await readJsonResponse<{
