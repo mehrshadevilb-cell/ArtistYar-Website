@@ -43,3 +43,11 @@ Repository audit focused on production-critical authentication, practice APIs, b
 ## Audit status
 
 **Not production-complete yet.** The fixes above address confirmed security and browser-memory issues, but the remaining asynchronous media-processing and verification gaps prevent a claim that the full project-wide production goal has been reached.
+
+
+## Follow-up fixes — 2026-09-19
+
+- Practice identity is now bound to the signed user session for progress, status/limits, and AI question generation. Client-supplied user IDs can no longer redirect XP, daily usage, subscription checks, or generated-question history to another account.
+- Admin free-training video/thumbnail uploads no longer send the binary through the Next.js request body. The admin requests a short-lived Supabase signed upload URL and uploads the file directly to Storage from the browser, avoiding the previous 1 GB Node multipart-buffering path that could surface as HTTP 502.
+- The signed-upload ticket validates the declared client file size before issuing the upload URL.
+- GitHub Actions verification is running against the latest main commit; the result must be observed before calling the change fully verified.
