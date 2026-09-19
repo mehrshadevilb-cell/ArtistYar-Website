@@ -21,16 +21,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
 
+      # package-lock.json predates @opennextjs/cloudflare + wrangler — npm ci fails.
       - name: Install
-        run: npm ci
+        run: npm install
 
       - name: OpenNext build
         run: npx opennextjs-cloudflare build
         env:
-          # Public / non-secret build hints (runtime secrets still live on the Worker)
-          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://artistyaar.ir' }}
+          NEXT_PUBLIC_SITE_URL: https://artistyaar.ir
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
@@ -38,4 +37,3 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
-          # wrangler.jsonc already points at .open-next/worker.js after OpenNext build
