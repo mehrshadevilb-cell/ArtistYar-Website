@@ -20,6 +20,7 @@ function headers(): HeadersInit {
 }
 
 async function github<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method || "GET";
   const response = await fetch(`${GITHUB_API}${path}`, {
     ...init,
     headers: { ...headers(), ...(init?.headers || {}) },
@@ -28,7 +29,10 @@ async function github<T>(path: string, init?: RequestInit): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = typeof data?.message === "string" ? data.message : `GitHub API ${response.status}`;
-    throw new Error(message);
+    const permissionHint = response.status === 401 || response.status === 403
+      ? " بررسی کنید GITHUB_TOKEN معتبر است، به همین repository دسترسی دارد و برای Fine-grained token مجوزهای Metadata: Read، Contents: Read and write و Pull requests: Read and write فعال شده‌اند."
+      : "";
+    throw new Error(`GitHub API ${response.status} در ${method} ${path}: ${message}.${permissionHint}`);
   }
   return data as T;
 }
