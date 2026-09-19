@@ -75,7 +75,14 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
     if (!allowed.some((candidate) => candidate.provider_id === provider && candidate.model_id === model)) {
       throw new Error("admin_ai_model_not_enabled_for_routing");
     }
-    result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider, model, "rahyar-admin-assistant", signal);
+    try {
+      result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider, model, "rahyar-admin-assistant", signal);
+      await recordAdminAiModelSuccess(provider, model);
+    } catch (error) {
+      if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
+      await recordAdminAiModelFailure(provider, model, error);
+      throw error;
+    }
   } else {
     const candidates = await listHealthyAdminAiModels(await listAdminAiRoutingCandidates());
     if (!candidates.length) throw new Error("admin_ai_no_healthy_model");
