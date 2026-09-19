@@ -92,12 +92,16 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
         completed = true;
         break;
       } catch (error) {
+        if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
         lastError = error;
         await recordAdminAiModelFailure(candidate.provider_id, candidate.model_id, error);
       }
     }
     if (!completed) throw lastError || new Error("admin_ai_all_models_failed");
   }
+
+  const completedResult = result;
+  if (!completedResult) throw new Error("admin_ai_empty_provider_result");
 
   const assistantInsert = await db().from("admin_ai_messages").insert({
     conversation_id: conversationId,
