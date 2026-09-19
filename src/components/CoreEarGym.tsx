@@ -42,7 +42,7 @@ const STARTERS: Record<GameId, Question> = {
     hint: "به محل انرژی تغییر توجه کن، نه بلندی کلی.",
     answer: "حدود ۱kHz",
     options: ["زیر ۱۰۰Hz", "حدود ۲۵۰Hz", "حدود ۱kHz", "حدود ۸kHz"],
-    audio: { frequency: 1000, gain: 6 },
+    audio: { frequency: 1000, gain: 10 },
     difficulty: 1,
     source: "starter",
   },
@@ -78,6 +78,27 @@ function makeNoise(c: AudioContext, seconds: number) {
 let coreAudioContext: AudioContext | null = null;
 let corePlaybackStop: (() => void) | null = null;
 
+/** Practice Audio Master Bus: source → DSP → safety limiter → master gain → destination */
+function createMasterBus(c: AudioContext) {
+  const master = c.createGain();
+  // Consistent audible level without clipping (~-6 dBFS peak target)
+  master.gain.value = 0.55;
+
+  const limiter = c.createDynamicsCompressor();
+  limiter.threshold.value = -6;
+  limiter.knee.value = 4;
+  limiter.ratio.value = 12;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.12;
+
+  limiter.connect(master);
+  master.connect(c.destination);
+  return { input: limiter as AudioNode, master, disconnect: () => {
+    try { limiter.disconnect(); } catch { /* */ }
+    try { master.disconnect(); } catch { /* */ }
+  } };
+}
+
 async function playQuestion(q: Question) {
   const A = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!A) return;
@@ -88,72 +109,84 @@ async function playQuestion(q: Question) {
   if (c.state !== "running") throw new Error("audio_context_unavailable");
   const now = c.currentTime + 0.03;
   const scheduled: Array<OscillatorNode | AudioBufferSourceNode> = [];
+  const bus = createMasterBus(c);
+
   corePlaybackStop = () => {
     for (const source of scheduled) {
-      try { source.stop(); } catch { /* already stopped */ }
-      try { source.disconnect(); } catch { /* already disconnected */ }
+      try {
+        source.stop();
+      } catch {
+        /* already stopped */
+      }
+      try {
+        source.disconnect();
+      } catch {
+        /* already disconnected */
+      }
     }
     scheduled.length = 0;
+    bus.disconnect();
     corePlaybackStop = null;
   };
-  const out = c.createGain();
-  out.gain.value = 0.18;
-  out.connect(c.destination);
 
   if (q.gameId === "tone") {
     const o = c.createOscillator();
     const g = c.createGain();
     o.type = "sine";
     o.frequency.value = Number(q.audio.frequency);
-    g.gain.value = 0.16;
-    o.connect(g).connect(out);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.35, now + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+    o.connect(g).connect(bus.input);
     o.start(now);
     o.stop(now + 1.25);
     scheduled.push(o);
   } else if (q.gameId === "eq") {
     const src = c.createBufferSource();
     const f = c.createBiquadFilter();
+    const g = c.createGain();
     src.buffer = makeNoise(c, 1.5);
     f.type = "peaking";
     f.frequency.value = Number(q.audio.frequency);
     f.Q.value = 1.1;
     f.gain.value = Number(q.audio.gain) || 6;
-    src.connect(f).connect(out);
+    g.gain.value = 0.28;
+    src.connect(f).connect(g).connect(bus.input);
     src.start(now);
     src.stop(now + 1.5);
     scheduled.push(src);
   } else if (q.gameId === "compressor") {
     const src = c.createBufferSource();
     const comp = c.createDynamicsCompressor();
+    const g = c.createGain();
     src.buffer = makeNoise(c, 1.5);
     comp.attack.value = Number(q.audio.attack) || 0.02;
     comp.release.value = Number(q.audio.release) || 0.2;
     comp.ratio.value = Number(q.audio.ratio) || 4;
     comp.threshold.value = Number(q.audio.threshold) || -24;
-    src.connect(comp).connect(out);
+    g.gain.value = 0.4;
+    src.connect(comp).connect(g).connect(bus.input);
     src.start(now);
     src.stop(now + 1.5);
     scheduled.push(src);
   } else {
-    // Phase training must expose polarity through an actual sum, not two
-    // independent stereo channels (which would make inversion nearly
-    // indistinguishable in headphones). Two phase-locked copies are mixed
-    // to mono so the inverted version cancels strongly.
     const a = c.createOscillator();
     const b = c.createOscillator();
     const ga = c.createGain();
     const gb = c.createGain();
     const sum = c.createGain();
+    const depth = Number(q.audio.cancelDepth);
+    const cancel = Number.isFinite(depth) ? Math.max(0.35, Math.min(1, depth)) : 1;
     a.type = "sine";
     b.type = "sine";
     a.frequency.value = 180;
     b.frequency.value = 180;
-    ga.gain.value = 0.14;
-    gb.gain.value = String(q.audio.phase) === "inverted" ? -0.14 : 0.14;
-    sum.gain.value = 0.75;
+    ga.gain.value = 0.22;
+    gb.gain.value = String(q.audio.phase) === "inverted" ? -0.22 * cancel : 0.22 * cancel;
+    sum.gain.value = 0.9;
     a.connect(ga).connect(sum);
     b.connect(gb).connect(sum);
-    sum.connect(out);
+    sum.connect(bus.input);
     a.start(now);
     b.start(now);
     a.stop(now + 1.1);
@@ -245,9 +278,12 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
     void loadAdaptive();
   }, [loadAdaptive, ready]);
 
-  useEffect(() => () => {
-    corePlaybackStop?.();
-  }, []);
+  useEffect(
+    () => () => {
+      corePlaybackStop?.();
+    },
+    [],
+  );
 
   const play = async () => {
     if (!q || playing) return;
@@ -407,7 +443,7 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
               </div>
             ) : (
               <p className="mt-4 flex items-center gap-2 text-[11px] text-ink-500">
-                <Headphones size={13} /> با هدفون گوش بده؛ هدف تمرین، تصمیمی است که در میکس واقعی می‌گیری.
+                <Headphones size={13} /> با هدفون گوش بده؛ هدف تمرین، تصمیمی است که در میکس واقعی می‌گیری. ابتدا پخش کن.
               </p>
             )}
           </>
