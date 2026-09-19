@@ -463,7 +463,10 @@ export async function discoverModels(provider: AIProvider, options: { allowFallb
       const data = await readJsonResponse<{
         agent_status?: string;
       }>(response);
-      if (!response.ok) return [];
+      if (!response.ok) {
+        if (!allowFallback) throw new Error(`model_discovery_failed:${provider.id}:${response.status}`);
+        return [];
+      }
       return data?.agent_status
         ? [{ id: "centralized-router", provider: provider.id, task: "chat", rank: 70 }]
         : [];
@@ -574,7 +577,8 @@ export async function discoverModels(provider: AIProvider, options: { allowFallb
       return list.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 40);
     }
     return allowFallback && provider.defaultModels ? fallback(provider.defaultModels) : [];
-  } catch {
+  } catch (error) {
+    if (!allowFallback) throw error;
     return provider.defaultModels ? fallback(provider.defaultModels) : [];
   }
 }
