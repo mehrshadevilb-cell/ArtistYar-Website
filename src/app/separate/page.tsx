@@ -92,6 +92,11 @@ async function validateZip(blob: Blob, expectedNames: string[]) {
 // tab to be silently OOM-killed (a blank/white page with no catchable error).
 const MAX_UPLOAD_BYTES = 60 * 1024 * 1024;
 
+const IS_IOS_UA =
+  typeof navigator !== "undefined" &&
+  (/iP(hone|od|ad)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+
 export default function SeparatePage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -120,7 +125,7 @@ export default function SeparatePage() {
         document.head.appendChild(script);
       });
 
-    void load("/separator/browser-separator.js?v=20260919-5").catch(() => {
+    void load("/separator/browser-separator.js?v=20260919-6").catch(() => {
       setError("موتور تفکیک صدا بارگذاری نشد. لطفاً صفحه را دوباره بارگذاری کنید.");
     });
   }, []);
@@ -308,6 +313,11 @@ export default function SeparatePage() {
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">
             هر سه موتور مستقیماً روی دستگاه شما پردازش می‌شوند؛ فایل صوتی به سرور ارسال نمی‌شود و خروجی به‌صورت ZIP دانلود می‌شود.
           </p>
+          {IS_IOS_UA && (
+            <p className="mx-auto mt-3 max-w-xl rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-2 text-xs leading-6 text-amber-200/80">
+              روی iOS (سافاری/کروم/هر مرورگری) به‌دلیل محدودیت حافظه سیستم‌عامل اپل، فایل‌های کوتاه‌تر (ترجیحاً زیر ۲ تا ۳ دقیقه) نتیجه پایدارتری دارند.
+            </p>
+          )}
         </div>
 
         <section className="grid gap-6 lg:grid-cols-[1.35fr_.65fr]">
@@ -356,7 +366,7 @@ export default function SeparatePage() {
                   <Upload className="mb-5 h-12 w-12 text-white/70" />
                   <p className="text-lg font-medium">فایل صوتی را اینجا رها کنید</p>
                   <p className="mt-2 text-sm text-white/45">
-                    WAV، MP3، FLAC، M4A، AAC، OGG یا OPUS · حداکثر ۶۰ مگابایت و ۸ دقیقه
+                    WAV، MP3، FLAC، M4A، AAC، OGG یا OPUS · حداکثر ۶۰ مگابایت
                   </p>
                   <span className="mt-5 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/65">
                     انتخاب فایل صوتی
