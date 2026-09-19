@@ -48,6 +48,23 @@ export async function getAdminAiRoutingPreference() {
   return result.data;
 }
 
+export async function validateAdminAiModel(id: string) {
+  const current = await db().from("admin_ai_model_registry").select("id,provider_id,model_id").eq("id", id).maybeSingle();
+  if (current.error) throw current.error;
+  if (!current.data) return null;
+  const discovered = await discoverAllModels();
+  const provider = discovered.find((entry) => entry.provider.id === current.data.provider_id);
+  const valid = Boolean(provider?.models.some((model) => model.id === current.data.model_id));
+  const result = await db().from("admin_ai_model_registry").update({
+    status: valid ? "registered" : "disabled",
+    enabled: false,
+    last_validated_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq("id", id).select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at").maybeSingle();
+  if (result.error) throw result.error;
+  return result.data as AdminAiModel | null;
+}
+
 export async function updateAdminAiModel(id: string, patch: Partial<Pick<AdminAiModel, "enabled" | "priority" | "preferred" | "status">>) {
   const result = await db().from("admin_ai_model_registry").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id).select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at").maybeSingle();
   if (result.error) throw result.error;
