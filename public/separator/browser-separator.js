@@ -15,9 +15,13 @@ async function getSession(progress){
     ort.env.wasm.numThreads=Math.max(1,Math.min(8,navigator.hardwareConcurrency||4));
     progress?.({phase:'model',loaded:0,total:1});
     const res=await fetch(MODEL); if(!res.ok)throw new Error('Demucs browser model download failed: '+res.status);
-    const reader=res.body?.getReader(); const chunks=[]; let loaded=0; const total=Number(res.headers.get('content-length')||0);
-    if(reader){for(;;){const x=await reader.read();if(x.done)break;chunks.push(x.value);loaded+=x.value.byteLength;progress?.({phase:'model',loaded,total})}}
-    const bytes=reader?(()=>{const b=new Uint8Array(loaded);let p=0;for(const x of chunks){b.set(x,p);p+=x.byteLength}return b})():new Uint8Array(await res.arrayBuffer());
+    // Avoid retaining every streamed chunk plus a second combined model buffer.
+    // The old implementation could temporarily hold ~2x the model size and trigger
+    // browser memory pressure before ONNX Runtime even initialized.
+    const total=Number(res.headers.get('content-length')||0);
+    const buffer=await res.arrayBuffer();
+    const bytes=new Uint8Array(buffer);
+    progress?.({phase:'model',loaded:bytes.byteLength,total:total||bytes.byteLength});
     const eps=navigator.gpu?['webgpu','wasm']:['wasm'];
     return await ort.InferenceSession.create(bytes,{executionProviders:eps,graphOptimizationLevel:'all'});
   })();
