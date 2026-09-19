@@ -1,4 +1,6 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { ADMIN_SESSION_COOKIE, USER_SESSION_COOKIE, verifyAdminSession, verifyUserSession } from "@/lib/server-admin-auth";
 import { autoChat, type ChatMessage } from "@/lib/ai-providers";
 import { createClient } from "@supabase/supabase-js";
 
@@ -13,6 +15,14 @@ const MIX_PRO_DAILY_LIMIT = 40;
 function mixDayStart() {
   const d = new Date();
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
+}
+
+async function currentIdentity(): Promise<{ id: string; admin: boolean } | null> {
+  const jar = await cookies();
+  const admin = verifyAdminSession(jar.get(ADMIN_SESSION_COOKIE)?.value);
+  if (admin) return { id: "admin", admin: true };
+  const user = verifyUserSession(jar.get(USER_SESSION_COOKIE)?.value);
+  return user ? { id: user.id, admin: false } : null;
 }
 
 async function mixQuota(userId: string) {
@@ -346,8 +356,9 @@ function normalizeAi(raw: Partial<MixAnalysis>, body: AnalyzeBody): MixAnalysis 
 }
 
 export async function GET(request: Request) {
-  const userId = new URL(request.url).searchParams.get("userId")?.trim() || "";
-  const quota = await mixQuota(userId);
+  const identity = await currentIdentity();
+  if (!identity) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
+  const quota = await mixQuota(identity.admin ? "" : identity.id);
   return NextResponse.json({ ok: true, dailyLimit: quota.limit, used: quota.used, remaining: Math.max(0, quota.limit - quota.used), pro: quota.pro });
 }
 
@@ -358,7 +369,9 @@ export async function POST(request: Request) {
   const problems = String(body.problems || "").slice(0, 500);
   const stage = String(body.stage || "میکس").slice(0, 40);
   const notes = String(body.notes || "").slice(0, 800);
-  const userId = String(body.userId || "").trim();
+  const identity = await currentIdentity();
+  if (!identity) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
+  const userId = identity.admin ? "" : identity.id;
   const quota = await mixQuota(userId);
   if (quota.used >= quota.limit) {
     return NextResponse.json({ ok: false, code: "daily_limit_reached", dailyLimit: quota.limit, used: quota.used, remaining: 0, pro: quota.pro }, { status: 429 });
