@@ -709,7 +709,7 @@ async function chatGoogle(
       generationConfig: { temperature: 0.6, maxOutputTokens: clientId.includes("coding") ? 12000 : 2048 },
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(45_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45_000)]) : AbortSignal.timeout(45_000),
   });
 
   const data = await readJsonResponse<{
@@ -775,6 +775,7 @@ export async function chatWithProvider(
   model: string,
   messages: ChatMessage[],
   clientId = "artistyar-web",
+  signal?: AbortSignal,
 ): Promise<string> {
   switch (provider.chatStyle) {
     case "openai":
