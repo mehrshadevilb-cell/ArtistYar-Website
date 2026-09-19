@@ -89,6 +89,19 @@ export async function POST(request: Request) {
       return new NextResponse(null, { status: 499 });
     }
     console.error("admin assistant POST failed", error);
-    return NextResponse.json({ ok: false, error: "اجرای درخواست دستیار مدیریت ناموفق بود." }, { status: 502 });
+    const code = error instanceof Error ? error.message : "";
+    const known: Record<string, { message: string; status: number }> = {
+      admin_ai_conversation_not_found: { message: "گفتگو پیدا نشد.", status: 404 },
+      admin_ai_empty_message: { message: "پیام خالی است.", status: 400 },
+      admin_ai_provider_and_model_must_be_paired: { message: "Provider و Model باید با هم انتخاب شوند.", status: 400 },
+      admin_ai_model_not_enabled_for_routing: { message: "این مدل برای مسیریابی فعال نیست.", status: 403 },
+      admin_ai_no_healthy_model: { message: "در حال حاضر هیچ مدل سالم و فعال برای دستیار وجود ندارد.", status: 503 },
+      admin_ai_all_models_failed: { message: "مدل‌های فعال در حال حاضر پاسخ‌گو نیستند.", status: 503 },
+      admin_ai_empty_provider_result: { message: "پاسخ معتبری از مدل دریافت نشد.", status: 502 },
+    };
+    const mapped = known[code];
+    return mapped
+      ? NextResponse.json({ ok: false, error: mapped.message }, { status: mapped.status })
+      : NextResponse.json({ ok: false, error: "اجرای درخواست دستیار مدیریت ناموفق بود." }, { status: 502 });
   }
 }
