@@ -391,7 +391,7 @@ async function readJsonResponse<T>(response: Response): Promise<T | null> {
     return JSON.parse(raw) as T;
   } catch {
     const contentType = response.headers.get("content-type") || "";
-    const preview = raw.replace(/\\s+/g, " ").slice(0, 220);
+    const preview = raw.replace(/\s+/g, " ").slice(0, 220);
     throw new Error(
       contentType.includes("text/html")
         ? `Provider returned HTML instead of JSON (HTTP ${response.status}): ${preview}`
@@ -476,9 +476,9 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       // The Generative Language API requires the key on every request,
       // including model listing — without it this always 400s and we'd
       // silently fall back to the static list on every call.
-      const url = `${provider.baseUrl}/models?key=${encodeURIComponent(provider.apiKey || "")}`;
-      const response = await fetch(url, {
+      const response = await fetch(`${provider.baseUrl}/models`, {
         method: "GET",
+        headers: { "x-goog-api-key": provider.apiKey || "" },
         cache: "no-store",
         signal: AbortSignal.timeout(3_500),
       });
@@ -696,7 +696,7 @@ async function chatGoogle(
       parts: [{ text: m.content }],
     }));
 
-  const url = `${provider.baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(provider.apiKey || "")}`;
+  const url = `${provider.baseUrl}/models/${encodeURIComponent(model)}:generateContent`;
   const response = await fetch(url, {
     method: "POST",
     headers: {
