@@ -48,21 +48,12 @@ type BrowserSeparateFn = (
   mode?: "standard" | "full",
 ) => Promise<Blob>;
 
-async function downloadZip(blob: Blob, filename: string) {
+function assertValidZipBlob(blob: Blob) {
   if (blob.size <= 22) throw new Error("فایل ZIP خروجی خالی است؛ پردازش را دوباره امتحان کنید.");
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.style.display = "none";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 async function validateZip(blob: Blob, expectedNames: string[]) {
-  if (blob.size <= 22) throw new Error("فایل ZIP خروجی خالی است؛ پردازش را دوباره امتحان کنید.");
+  assertValidZipBlob(blob);
   const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
   if (head[0] !== 0x50 || head[1] !== 0x4b || head[2] !== 0x03 || head[3] !== 0x04) {
     throw new Error("فایل ZIP خروجی معتبر نیست.");
@@ -102,6 +93,9 @@ export default function SeparatePage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [downloadName, setDownloadName] = useState("");
+  const downloadUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     const load = (src: string) =>
@@ -124,15 +118,32 @@ export default function SeparatePage() {
     });
   }, []);
 
+  // Revoke any pending blob URL when the component unmounts.
+  useEffect(() => {
+    return () => {
+      if (downloadUrlRef.current) URL.revokeObjectURL(downloadUrlRef.current);
+    };
+  }, []);
+
   const size = useMemo(() => {
     if (!file) return "";
     const mb = file.size / 1024 / 1024;
     return (mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)) + " مگابایت";
   }, [file]);
 
+  function clearDownload() {
+    if (downloadUrlRef.current) {
+      URL.revokeObjectURL(downloadUrlRef.current);
+      downloadUrlRef.current = null;
+    }
+    setDownloadUrl(null);
+    setDownloadName("");
+  }
+
   function chooseFile(next: File | null) {
     setError("");
     setStatus("");
+    clearDownload();
     if (!next) return;
 
     if (
@@ -194,8 +205,18 @@ export default function SeparatePage() {
 
     setStatus("در حال ساخت و اعتبارسنجی ZIP خروجی روی دستگاه…");
     await validateZip(blob, mode === "full" ? ["vocals.wav", "drums.wav", "bass.wav", "other.wav"] : ["vocals.wav", "instrumental.wav"]);
-    setStatus("در حال آماده‌سازی دانلود ZIP…");
-    await downloadZip(blob, "artistyar-" + file.name.replace(/\.[^.]+$/, "") + downloadSuffix);
+
+    // Instead of auto-triggering a hidden <a>.click() (which some in-app
+    // webviews block or mishandle, appearing to "refresh" the page), we
+    // just prepare the blob URL and let the user click a real, visible
+    // download link/button.
+    assertValidZipBlob(blob);
+    if (downloadUrlRef.current) URL.revokeObjectURL(downloadUrlRef.current);
+    const url = URL.createObjectURL(blob);
+    downloadUrlRef.current = url;
+    const filename = "artistyar-" + file.name.replace(/\.[^.]+$/, "") + downloadSuffix;
+    setDownloadUrl(url);
+    setDownloadName(filename);
     setStatus(doneMessage);
   }
 
@@ -204,6 +225,7 @@ export default function SeparatePage() {
 
     setBusy(true);
     setError("");
+    clearDownload();
 
     try {
       const browser = (window as Window & { artistYarBrowserSeparate?: BrowserSeparateFn })
@@ -218,10 +240,10 @@ export default function SeparatePage() {
         preset === "full_stem" ? "full" : "standard",
         preset === "full_stem" ? "-full-stem.zip" : preset === "demucs_mdx_hq5" ? "-hq-local.zip" : "-vocal-inst.zip",
         preset === "full_stem"
-          ? "انجام شد — تفکیک کامل روی دستگاه شما انجام شد. وکال، درام، بیس و سایر سازها در ZIP قرار گرفتند."
+          ? "انجام شد — تفکیک کامل روی دستگاه شما انجام شد. فایل ZIP آماده است، روی دکمه دانلود بزنید."
           : preset === "demucs_mdx_hq5"
-            ? "انجام شد — تفکیک HQ روی دستگاه شما انجام شد و ZIP آماده دانلود است."
-            : "انجام شد — تفکیک استاندارد روی دستگاه شما انجام شد و ZIP آماده دانلود است.",
+            ? "انجام شد — تفکیک HQ روی دستگاه شما انجام شد. فایل ZIP آماده است، روی دکمه دانلود بزنید."
+            : "انجام شد — تفکیک استاندارد روی دستگاه شما انجام شد. فایل ZIP آماده است، روی دکمه دانلود بزنید.",
       );
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err || "");
@@ -327,6 +349,17 @@ export default function SeparatePage() {
                 )}
                 <span>{status}</span>
               </div>
+            )}
+
+            {downloadUrl && (
+              <a
+                href={downloadUrl}
+                download={downloadName}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-400/[0.1] px-5 py-4 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/[0.18]"
+              >
+                <Download className="h-4 w-4" />
+                دانلود فایل ZIP
+              </a>
             )}
 
             <button
