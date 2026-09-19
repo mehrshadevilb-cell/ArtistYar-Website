@@ -5,11 +5,22 @@ const SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
 
 type SessionPayload = { username: string; issuedAt: number };
 
+let warnedFallbackSecret = false;
+
 function secret(): string {
-  // Keep existing deployments working during the one-time migration to the
-  // dedicated session secret. Once ARTISTYAR_SESSION_SECRET is configured,
-  // new sessions use it and operators can rotate the admin password safely.
-  return process.env.ARTISTYAR_SESSION_SECRET || process.env.ARTISTYAR_ADMIN_PASSWORD || "";
+  // Prefer a dedicated session secret so rotating the admin password does not
+  // invalidate (or re-bind) HMAC sessions. Fallback keeps older deploys alive.
+  const dedicated = (process.env.ARTISTYAR_SESSION_SECRET || "").trim();
+  if (dedicated) return dedicated;
+
+  const fallback = (process.env.ARTISTYAR_ADMIN_PASSWORD || "").trim();
+  if (fallback && !warnedFallbackSecret && process.env.NODE_ENV === "production") {
+    warnedFallbackSecret = true;
+    console.warn(
+      "[artistyar-auth] ARTISTYAR_SESSION_SECRET is unset; falling back to ARTISTYAR_ADMIN_PASSWORD for session HMAC. Set a dedicated secret on Render.",
+    );
+  }
+  return fallback;
 }
 
 function signature(payload: string): string {
@@ -58,7 +69,6 @@ export const adminSessionCookieOptions = {
   maxAge: SESSION_MAX_AGE_SECONDS,
 };
 
-
 export type WebUserSession = {
   id: string;
   username: string;
@@ -91,7 +101,14 @@ export function verifyUserSession(value: string | undefined): WebUserSession | n
     const b = Buffer.from(expected);
     if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
     const parsed = JSON.parse(payload) as Partial<WebUserSession> & { issuedAt?: number };
-    if (parsed.role !== "student" || typeof parsed.id !== "string" || typeof parsed.username !== "string" || !Number.isFinite(parsed.issuedAt)) return null;
+    if (
+      parsed.role !== "student" ||
+      typeof parsed.id !== "string" ||
+      typeof parsed.username !== "string" ||
+      !Number.isFinite(parsed.issuedAt)
+    ) {
+      return null;
+    }
     const age = Math.floor((Date.now() - Number(parsed.issuedAt)) / 1000);
     if (age < 0 || age > USER_SESSION_MAX_AGE_SECONDS) return null;
     return {
