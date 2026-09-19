@@ -476,7 +476,10 @@ export async function discoverModels(provider: AIProvider, options: { allowFallb
         cache: "no-store",
         signal: AbortSignal.timeout(8_000),
       });
-      if (!response.ok) return allowFallback ? fallback(provider.defaultModels || ANTHROPIC_FALLBACK) : [];
+      if (!response.ok) {
+        if (!allowFallback) throw new Error(`model_discovery_failed:${provider.id}:${response.status}`);
+        return fallback(provider.defaultModels || ANTHROPIC_FALLBACK);
+      }
       const data = await readJsonResponse<{ data?: Array<{ id?: string }> }>(response);
       const models = (data?.data || [])
         .map((m) => m.id || "")
@@ -495,7 +498,10 @@ export async function discoverModels(provider: AIProvider, options: { allowFallb
         cache: "no-store",
         signal: AbortSignal.timeout(3_500),
       });
-      if (!response.ok) return allowFallback ? fallback(provider.defaultModels || GEMINI_FALLBACK) : [];
+      if (!response.ok) {
+        if (!allowFallback) throw new Error(`model_discovery_failed:${provider.id}:${response.status}`);
+        return fallback(provider.defaultModels || GEMINI_FALLBACK);
+      }
       const data = await readJsonResponse<{
         models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
       }>(response);
@@ -529,7 +535,8 @@ export async function discoverModels(provider: AIProvider, options: { allowFallb
       },
     );
     if (!response.ok) {
-      return allowFallback && provider.defaultModels ? fallback(provider.defaultModels) : [];
+      if (!allowFallback) throw new Error(`model_discovery_failed:${provider.id}:${response.status}`);
+      return provider.defaultModels ? fallback(provider.defaultModels) : [];
     }
 
     const data = await readJsonResponse<{
