@@ -125,35 +125,35 @@ export async function deleteEducationVideo(id: string) {
 
 export async function listEducationStorageVideos() {
   const db = requireClient();
-  const folders = ["", "free-training", "free-training-assets", "educational-videos", "courses"];
-  const results = await Promise.all(folders.map(folder =>
-    db.storage.from(EDUCATION_BUCKET).list(folder, {
+  const roots = ["", "free-training", "free-training-assets", "educational-videos", "courses"];
+  const found: { path:string; name:string; size:number; mimeType:string; createdAt:string }[] = [];
+  async function walk(folder:string, depth:number): Promise<void> {
+    if (depth > 4) return;
+    const result = await db.storage.from(EDUCATION_BUCKET).list(folder, {
       limit: 1000,
       sortBy: { column: "created_at", order: "desc" },
-    }),
-  ));
-  return results.flatMap((result, i) => {
-    if (result.error) return [];
-    const folder = folders[i];
-    return (result.data || [])
-      .filter((x) => x.name && x.name !== ".emptyFolderPlaceholder" && !x.id?.endsWith("/"))
-      .filter((x) => {
-        const name = x.name.toLowerCase();
-        return [".mp4",".webm",".mov",".m4v"].some(ext => name.endsWith(ext));
-      })
-      .map((x) => ({
-        path: folder ? folder + "/" + x.name : x.name,
-        name: x.name,
-        size: Number(x.metadata?.size || 0),
-        mimeType: String(x.metadata?.mimetype || "video/mp4"),
-        createdAt: String(x.created_at || ""),
-      }));
-  });
+    });
+    if (result.error) return;
+    for (const item of result.data || []) {
+      if (!item.name || item.name === ".emptyFolderPlaceholder") continue;
+      const path = folder ? folder + "/" + item.name : item.name;
+      const mime = String(item.metadata?.mimetype || "");
+      const lower = item.name.toLowerCase();
+      const isVideo = mime.startsWith("video/") || [".mp4",".webm",".mov",".m4v"].some(ext => lower.endsWith(ext));
+      if (isVideo && item.metadata) {
+        found.push({
+          path,
+          name: item.name,
+          size: Number(item.metadata.size || 0),
+          mimeType: mime || "video/mp4",
+          createdAt: String(item.created_at || ""),
+        });
+      } else if (!item.metadata && !item.id?.endsWith("/")) {
+        await walk(path, depth + 1);
+      }
+    }
+  }
+  await Promise.all(roots.map(root => walk(root, 0)));
+  return Array.from(new Map(found.map(item => [item.path, item])).values());
 }
 
-export async function signEducationVideo(video: EducationVideo, expiresIn = 300) {
-  const db = requireClient();
-  const result = await db.storage.from(video.storage_bucket).createSignedUrl(video.storage_path, expiresIn);
-  if (result.error) throw new Error(result.error.message);
-  return result.data.signedUrl;
-}
