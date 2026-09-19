@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-auth";
-import { listAdminAiModels, syncAdminAiModels, updateAdminAiModel } from "@/lib/admin-ai-model-registry";
+import { listAdminAiModels, syncAdminAiModels, updateAdminAiModel, validateAdminAiModel } from "@/lib/admin-ai-model-registry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +28,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as { action?: unknown; id?: unknown; enabled?: unknown; priority?: unknown; preferred?: unknown; status?: unknown };
     if (body.action === "sync") return NextResponse.json({ ok: true, models: await syncAdminAiModels() });
+    if (body.action === "validate") {
+      if (typeof body.id !== "string") return NextResponse.json({ ok: false, error: "شناسه مدل لازم است." }, { status: 400 });
+      return NextResponse.json({ ok: true, model: await validateAdminAiModel(body.id) });
+    }
     if (typeof body.id !== "string") return NextResponse.json({ ok: false, error: "شناسه مدل لازم است." }, { status: 400 });
     const patch: Record<string, unknown> = {};
     if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
