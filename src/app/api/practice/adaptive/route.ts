@@ -7,10 +7,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const userId = new URL(request.url).searchParams.get("userId")?.trim();
-  if (!userId) return NextResponse.json({ ok: false, error: "شناسه کاربر لازم است." }, { status: 400 });
+  const requestedUserId = new URL(request.url).searchParams.get("userId")?.trim();
   const session = verifyUserSession((await cookies()).get(USER_SESSION_COOKIE)?.value);
-  if (!session || session.id !== userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!session) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (requestedUserId && requestedUserId !== session.id) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  const userId = session.id;
   if (!hasSkillStore()) return NextResponse.json({ ok: false, error: "Skill Engine تنظیم نشده است." }, { status: 503 });
   try { return NextResponse.json({ ok: true, ...(await getAdaptivePlan(userId)) }); }
   catch (error) { return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "خطای Adaptive Engine" }, { status: 503 }); }
