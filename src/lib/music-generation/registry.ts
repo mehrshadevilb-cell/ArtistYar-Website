@@ -5,6 +5,7 @@
 
 import type { MusicGenerationProvider } from "./types";
 import { StubMusicProvider } from "./providers/stub";
+import { ElevenMusicProvider } from "./providers/elevenlabs";
 
 const providers: MusicGenerationProvider[] = [];
 let initialized = false;
@@ -13,13 +14,11 @@ function ensureInit() {
   if (initialized) return;
   initialized = true;
 
-  // Always register stub so architecture + UI + jobs can be exercised offline.
-  providers.push(new StubMusicProvider());
+  // Paid / real provider first when configured
+  providers.push(new ElevenMusicProvider());
 
-  // Real providers are registered only when their env keys exist.
-  // Example (Phase 2):
-  // if (process.env.ELEVENLABS_API_KEY) providers.push(new ElevenMusicProvider());
-  // if (process.env.STABILITY_API_KEY) providers.push(new StableAudioProvider());
+  // Stub only for architecture/dev (disabled in production unless MUSIC_GEN_ALLOW_STUB=1)
+  providers.push(new StubMusicProvider());
 }
 
 export function getMusicProviders(): MusicGenerationProvider[] {
