@@ -91,7 +91,7 @@ function toItem(row: Record<string, unknown>): MediaItem {
   const ext = String(row.file_ext || "").toLowerCase();
   const kind = mime.startsWith("image/") ? "image" : mime.startsWith("video/") ? "video" : mime.startsWith("audio/") || ["mp3", "wav", "m4a", "ogg", "flac", "aac"].includes(ext) ? "audio" : "raw";
   const resourceType = kind === "image" ? "image" : kind === "video" ? "video" : "raw";
-  return { id: String(row.id), publicId: String(row.storage_path), title: clean(row.title), description: clean(row.description), category: normalizeCategory(row.category) || "student-work", kind, format: ext, resourceType, url: String(row.public_url), createdAt: String(row.created_at || ""), artist: clean(row.artist), album: clean(row.album), genre: clean(row.genre), year: row.year ? Number(row.year) : null, duration: row.duration ? Number(row.duration) : null, coverUrl: row.cover_url ? String(row.cover_url) : null, isActive: row.is_active !== false };
+  return { id: String(row.id), publicId: String(row.storage_path), title: clean(row.title), description: clean(row.description), category: normalizeCategory(row.category) || "student-work", kind, format: ext, resourceType: resourceType, url: String(row.public_url), createdAt: String(row.created_at || ""), artist: clean(row.artist), album: clean(row.album), genre: clean(row.genre), year: row.year ? Number(row.year) : null, duration: row.duration ? Number(row.duration) : null, coverUrl: row.cover_url ? String(row.cover_url) : null, isActive: row.is_active !== false };
 }
 
 export async function listPublishedMedia(): Promise<MediaItem[]> {
@@ -360,9 +360,14 @@ export async function listFreeTrainingStorageFiles(): Promise<StorageItem[]> {
   if (!supabase) return [];
   const folders = ["free-training", "free-training-assets/video", "free-training-assets", ""];
   const videoExt = [".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi", ".mpeg", ".mpg", ".ogv"];
-  const results = await Promise.all(folders.map((folder) =>
-    supabase!.storage.from(bucket).list(folder, { limit: 500, sortBy: { column: "created_at", order: "desc" })
-  ));
+  const results = await Promise.all(
+    folders.map((folder) =>
+      supabase!.storage.from(bucket).list(folder, {
+        limit: 500,
+        sortBy: { column: "created_at", order: "desc" },
+      }),
+    ),
+  );
   const seen = new Set<string>();
   return results.flatMap((result, index) => {
     if (result.error) return [];
@@ -379,8 +384,11 @@ export async function listFreeTrainingStorageFiles(): Promise<StorageItem[]> {
         if (seen.has(path)) return null;
         seen.add(path);
         return {
-          path, name: file.name, mimeType: String(file.metadata?.mimetype || "video/mp4"),
-          size: Number(file.metadata?.size || 0), createdAt: String(file.created_at || ""),
+          path,
+          name: file.name,
+          mimeType: String(file.metadata?.mimetype || "video/mp4"),
+          size: Number(file.metadata?.size || 0),
+          createdAt: String(file.created_at || ""),
           url: supabase!.storage.from(bucket).getPublicUrl(path).data.publicUrl,
         };
       })
