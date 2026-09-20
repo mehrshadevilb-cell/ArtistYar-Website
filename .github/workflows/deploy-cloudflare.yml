@@ -9,8 +9,12 @@ concurrency:
   group: deploy-cloudflare-main
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -21,28 +25,39 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
 
       - name: Prepare environment
         env:
           ARTISTYAR_ENV_FILE: ${{ secrets.ARTISTYAR_ENV_FILE }}
         run: |
-          test -n "$ARTISTYAR_ENV_FILE"
           printf '%s' "$ARTISTYAR_ENV_FILE" > .env.production
           chmod 600 .env.production
 
-      # package-lock.json predates @opennextjs/cloudflare + wrangler — npm ci fails.
-      - name: Install
-        run: npm install
+      - name: Install dependencies
+        run: npm ci
 
       - name: OpenNext build
-        run: npx opennextjs-cloudflare build
+        run: npm run cf:build
 
       - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
+
+      - name: Report deployment
+        if: success()
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          if [ -n "$DEPLOYMENT_URL" ]; then
+            echo "Cloudflare deployment: $DEPLOYMENT_URL"
+          else
+            echo "Cloudflare deployment completed."
+          fi
 
       - name: Remove environment file
         if: always()
