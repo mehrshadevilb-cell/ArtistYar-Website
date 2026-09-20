@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, BarChart3, Bot, Gamepad2, Sparkles, Trophy, Wand2, Zap } from "lucide-react";
+import { ArrowLeft, BarChart3, Bot, Gamepad2, Trophy, Wand2, Zap } from "lucide-react";
 import { SafeLink } from "@/components/SafeLink";
 
 const signals = [
@@ -30,7 +30,7 @@ const signals = [
   },
   {
     label: "AI Music Generator",
-    detail: "به زودی",
+    detail: "به‌زودی",
     icon: Wand2,
     href: "#",
     accent: "violet",
@@ -40,14 +40,7 @@ const signals = [
 
 export function HeroDifferentiator() {
   return (
-    <div className="hero-differentiator" aria-label="ویژگی‌های اصلی ArtistYar">
-      <div className="hero-differentiator-head">
-        <span className="hero-differentiator-live">
-          <i /> LIVE SYSTEM
-        </span>
-        <span className="hero-differentiator-label">ویژگی‌های اصلی · اولین نگاه</span>
-      </div>
-
+    <div className="hero-differentiator hero-differentiator-fill" aria-label="ویژگی‌های اصلی ArtistYar">
       <div className="hero-differentiator-grid hero-differentiator-grid-4">
         {signals.map(({ label, detail, icon: Icon, href, accent, soon }, index) =>
           soon ? (
@@ -57,7 +50,7 @@ export function HeroDifferentiator() {
               aria-disabled="true"
             >
               <span className="hero-feature-icon">
-                <Icon size={17} />
+                <Icon size={18} />
               </span>
               <span className="hero-feature-copy">
                 <strong>{label}</strong>
@@ -74,7 +67,7 @@ export function HeroDifferentiator() {
               className={`hero-feature-card hero-feature-${accent}`}
             >
               <span className="hero-feature-icon">
-                <Icon size={17} />
+                <Icon size={18} />
               </span>
               <span className="hero-feature-copy">
                 <strong>{label}</strong>
@@ -100,9 +93,6 @@ export function HeroDifferentiator() {
           <Trophy size={13} />
           <span>رکورد · پیشرفت · چالش روزانه</span>
         </div>
-        <span className="hero-differentiator-spark">
-          <Sparkles size={13} /> built for producers
-        </span>
       </div>
     </div>
   );
