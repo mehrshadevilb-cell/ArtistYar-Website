@@ -909,3 +909,98 @@ html.light .faq-item[open] {
     min-height: 8.65rem;
   }
 }
+
+
+/* ========== Day mode finishing pass ========== */
+/* This block intentionally lives last: the redesign layer above uses !important
+   for the night palette, so the day palette must win at the same cascade level. */
+html.light .site-header {
+  background: rgba(247, 241, 232, 0.88) !important;
+  border-bottom-color: rgba(45, 40, 30, 0.12) !important;
+  box-shadow: 0 8px 28px -24px rgba(73, 59, 28, 0.24) !important;
+}
+html.light .nav-link {
+  color: #5f5b53 !important;
+}
+html.light .nav-link:hover,
+html.light .nav-link-active {
+  background: rgba(45, 40, 30, 0.06) !important;
+  color: #28251f !important;
+}
+html.light .header-contact {
+  color: #9a7a18 !important;
+}
+html.light .header-contact:hover {
+  color: #7b5f12 !important;
+}
+html.light .mobile-menu {
+  background: rgba(255, 253, 248, 0.98) !important;
+  border-top-color: rgba(45, 40, 30, 0.1) !important;
+}
+html.light .mobile-nav-link {
+  color: #3d392f !important;
+}
+html.light .mobile-nav-link:hover {
+  background: rgba(45, 40, 30, 0.06) !important;
+  color: #7b5f12 !important;
+}
+html.light .hero-signal-card {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-color: rgba(45, 40, 30, 0.13) !important;
+}
+html.light .hero-signal-card-active {
+  background: rgba(201, 162, 39, 0.14) !important;
+  border-color: rgba(154, 122, 24, 0.32) !important;
+}
+html.light .hero-signal-card strong,
+html.light .hero-signal-card small {
+  color: #3d392f !important;
+}
+html.light .hero-signal-index,
+html.light .hero-trust {
+  color: #716b5f !important;
+}
+html.light .now-playing {
+  background: rgba(255, 253, 248, 0.94) !important;
+  border-color: rgba(45, 40, 30, 0.14) !important;
+  box-shadow: 0 16px 30px rgba(73, 59, 28, 0.14) !important;
+}
+html.light .btn-ghost {
+  color: #3d392f !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  border-color: rgba(45, 40, 30, 0.16) !important;
+}
+html.light .btn-ghost:hover {
+  background: rgba(45, 40, 30, 0.06) !important;
+  border-color: rgba(154, 122, 24, 0.35) !important;
+}
+html.light .card-ay,
+html.light .benefit-card,
+html.light .project-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(255, 252, 244, 0.82)) !important;
+  border-color: rgba(45, 40, 30, 0.13) !important;
+  box-shadow: 0 18px 45px -34px rgba(73, 59, 28, 0.28) !important;
+}
+html.light .card-ay:hover,
+html.light .benefit-card:hover,
+html.light .project-card:hover {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(154, 122, 24, 0.3) !important;
+}
+html.light .benefit-number {
+  color: rgba(45, 40, 30, 0.28) !important;
+}
+html.light .proof-strip {
+  border-color: rgba(45, 40, 30, 0.1) !important;
+}
+html.light .input-ay {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(45, 40, 30, 0.14) !important;
+  color: #28251f !important;
+}
+html.light .input-ay::placeholder {
+  color: #8f8a80 !important;
+}
+html.light .contact-card {
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.13), rgba(255, 255, 255, 0.72) 55%, transparent) !important;
+}

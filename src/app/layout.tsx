@@ -178,9 +178,8 @@ const themeInitScript = `
   try {
     var k = 'artistyar-theme';
     var t = localStorage.getItem(k);
-    if (t !== 'light' && t !== 'dark') {
-      t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-    }
+    if (t !== 'light' && t !== 'dark') t = 'dark';
+    document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(t);
     document.documentElement.style.colorScheme = t;
     document.documentElement.setAttribute('data-theme', t);
@@ -196,7 +195,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fa" dir="rtl" className={`${vazirmatn.variable} dark`} suppressHydrationWarning>
+    <html lang="fa" dir="rtl" className={vazirmatn.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script src="https://telegram.org/js/telegram-web-app.js" async />
