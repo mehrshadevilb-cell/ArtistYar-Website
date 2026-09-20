@@ -34,7 +34,7 @@
     "postcss": "8.5.28",
     "tailwindcss": "3.4.17",
     "typescript": "5.9.2",
-    "wrangler": "^4.34.0"
+    "wrangler": "^4.135.0"
   },
   "overrides": {
     "sharp": "0.35.4",
