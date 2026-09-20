@@ -16,6 +16,59 @@ async function requireAdmin() {
   return verifyAdminSession((await cookies()).get(ADMIN_SESSION_COOKIE)?.value);
 }
 
+/** Map internal error codes / messages to Persian UI-friendly text. */
+function mapPlatformError(error: unknown): { status: number; message: string } {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : error && typeof error === "object" && "message" in error
+          ? String((error as { message: unknown }).message)
+          : "";
+
+  const code = raw.trim();
+
+  if (code === "github_not_configured") {
+    return { status: 503, message: "GITHUB_TOKEN در secrets تنظیم نشده است. در Render / Cloudflare Worker Secrets بگذار." };
+  }
+  if (code === "admin_ai_no_healthy_model") {
+    return { status: 503, message: "هیچ مدل سالمی فعال نیست. برو تب «مدل‌ها» و Sync بزن (حداقل یک API key مثل OPENAI یا ANTHROPIC لازم است)." };
+  }
+  if (code === "admin_ai_all_models_failed") {
+    return { status: 502, message: "همه مدل‌های فعال خطا دادند. کلید API یا وضعیت provider را در تب اتصال‌ها چک کن." };
+  }
+  if (code === "admin_ai_storage_not_configured") {
+    return {
+      status: 503,
+      message: "Supabase برای Admin AI تنظیم نشده (SUPABASE_URL + SUPABASE_SECRET_KEY). جدول admin_ai_model_registry هم لازم است.",
+    };
+  }
+  if (code === "empty_task") {
+    return { status: 400, message: "متن وظیفه خالی است." };
+  }
+  if (code === "no_files_to_commit" || code === "invalid_path") {
+    return { status: 400, message: "فایل معتبری برای Draft PR پیشنهاد نشد." };
+  }
+  if (/relation .* does not exist|Could not find the table|PGRST/i.test(code)) {
+    return {
+      status: 503,
+      message: "جدول Supabase برای Admin AI وجود ندارد (مثلاً admin_ai_model_registry یا حافظه). migration را اجرا کن.",
+    };
+  }
+  if (/github_search_failed|github_read_failed|github_list_failed|base_ref_failed|create_branch_failed|create_pr_failed|write_failed/i.test(code)) {
+    return { status: 502, message: `خطای GitHub: ${code}` };
+  }
+  if (/توکن GitHub نامعتبر|GITHUB_TOKEN/i.test(code)) {
+    return { status: 503, message: code };
+  }
+  // Surface short provider/network errors instead of the generic message
+  if (code && code.length < 280 && !/^Error$/i.test(code)) {
+    return { status: 502, message: code };
+  }
+  return { status: 502, message: "اجرای درخواست پلتفرم ناموفق بود." };
+}
+
 export async function GET(request: Request) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ ok: false, error: "دسترسی مدیریت لازم است." }, { status: 401 });
@@ -37,8 +90,22 @@ export async function GET(request: Request) {
       });
     }
     if (section === "skills") return NextResponse.json({ ok: true, skills: BUILTIN_SKILLS });
-    if (section === "models") return NextResponse.json({ ok: true, models: await listAdminAiModels() });
-    if (section === "memory") return NextResponse.json({ ok: true, memory: await listMemory(session.username) });
+    if (section === "models") {
+      try {
+        return NextResponse.json({ ok: true, models: await listAdminAiModels() });
+      } catch (e) {
+        const mapped = mapPlatformError(e);
+        return NextResponse.json({ ok: false, error: mapped.message, models: [] }, { status: mapped.status });
+      }
+    }
+    if (section === "memory") {
+      try {
+        return NextResponse.json({ ok: true, memory: await listMemory(session.username) });
+      } catch (e) {
+        const mapped = mapPlatformError(e);
+        return NextResponse.json({ ok: false, error: mapped.message, memory: [] }, { status: mapped.status });
+      }
+    }
     if (section === "connectors") {
       const gh = await githubStatus().catch((e) => ({
         ok: false,
@@ -59,14 +126,16 @@ export async function GET(request: Request) {
             hint:
               ghStatus === "connected"
                 ? "Dev Agent و Draft PR از این اتصال استفاده می‌کنند."
-                : "توکن را فقط در Cloudflare Worker Secrets بگذار (هرگز commit نکن).",
+                : "توکن را فقط در Render / Cloudflare Worker Secrets بگذار (هرگز commit نکن).",
           },
           {
             id: "supabase",
             name: "Supabase",
-            status: has(["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]) ? "connected" : "missing",
+            status: has(["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]) && has(["SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"])
+              ? "connected"
+              : "missing",
             envKeys: ["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SECRET_KEY"],
-            hint: "حافظه و usage Admin AI به Supabase وابسته است.",
+            hint: "حافظه، usage و registry مدل‌های Admin AI به Supabase وابسته است.",
           },
           {
             id: "cloudflare",
@@ -92,18 +161,26 @@ export async function GET(request: Request) {
           {
             id: "google",
             name: "Google / Gemini",
-            status: has(["GOOGLE_API_KEY", "GEMINI_API_KEY"]) ? "connected" : "missing",
+            status: has(["GOOGLE_API_KEY", "GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"]) ? "connected" : "missing",
             envKeys: ["GOOGLE_API_KEY", "GEMINI_API_KEY"],
             hint: "Gemini — provider جایگزین در مدل‌ها.",
           },
         ],
       });
     }
-    if (section === "cost") return NextResponse.json({ ok: true, usage: await usageSummary(session.username) });
+    if (section === "cost") {
+      try {
+        return NextResponse.json({ ok: true, usage: await usageSummary(session.username) });
+      } catch (e) {
+        const mapped = mapPlatformError(e);
+        return NextResponse.json({ ok: false, error: mapped.message, usage: null }, { status: mapped.status });
+      }
+    }
     return NextResponse.json({ ok: false, error: "section نامعتبر است." }, { status: 400 });
   } catch (error) {
     console.error("platform GET failed", error instanceof Error ? error.message : error);
-    return NextResponse.json({ ok: false, error: "پلتفرم در دسترس نیست." }, { status: 503 });
+    const mapped = mapPlatformError(error);
+    return NextResponse.json({ ok: false, error: mapped.message }, { status: mapped.status });
   }
 }
 
@@ -163,20 +240,18 @@ export async function POST(request: Request) {
         paths: Array.isArray(body.paths) ? body.paths.filter((p): p is string => typeof p === "string").slice(0, 8) : undefined,
         signal: request.signal,
       });
-      return NextResponse.json({ ok: result.ok, result, error: result.error });
+      return NextResponse.json({
+        ok: result.ok,
+        result,
+        error: result.error || (result.ok ? undefined : "Dev Agent ناموفق بود."),
+      });
     }
 
     return NextResponse.json({ ok: false, error: "action نامعتبر است." }, { status: 400 });
   } catch (error) {
     if (request.signal.aborted) return new NextResponse(null, { status: 499 });
     console.error("platform POST failed", error instanceof Error ? error.message : error);
-    const code = error instanceof Error ? error.message : "";
-    if (code === "github_not_configured") {
-      return NextResponse.json({ ok: false, error: "GITHUB_TOKEN در secrets تنظیم نشده است." }, { status: 503 });
-    }
-    if (code === "admin_ai_no_healthy_model") {
-      return NextResponse.json({ ok: false, error: "هیچ مدل سالمی فعال نیست. ابتدا Models را Sync کن." }, { status: 503 });
-    }
-    return NextResponse.json({ ok: false, error: "اجرای درخواست پلتفرم ناموفق بود." }, { status: 502 });
+    const mapped = mapPlatformError(error);
+    return NextResponse.json({ ok: false, error: mapped.message }, { status: mapped.status });
   }
 }
