@@ -6,7 +6,7 @@ import { githubStatus, listTree, readFile, searchCode } from "@/lib/admin-ai-git
 import { runDevAgent } from "@/lib/admin-ai-dev-agent";
 import { deleteMemory, listMemory, upsertMemory } from "@/lib/admin-ai-memory";
 import { usageSummary } from "@/lib/admin-ai-usage";
-import { listAdminAiModels, syncAdminAiModels } from "@/lib/admin-ai-model-registry";
+import { listAdminAiModels, syncAdminAiModels, type AdminAiModel } from "@/lib/admin-ai-model-registry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,8 +76,8 @@ export async function GET(request: Request) {
   try {
     if (section === "overview") {
       const gh = await githubStatus().catch((e) => ({ ok: false, error: e instanceof Error ? e.message : "github_error" }));
-      const models = await listAdminAiModels().catch(() => []);
-      const enabled = models.filter((m) => m.enabled && m.status === "enabled");
+      const models: AdminAiModel[] = await listAdminAiModels().catch((): AdminAiModel[] => []);
+      const enabled = models.filter((m: AdminAiModel) => m.enabled && m.status === "enabled");
       return NextResponse.json({
         ok: true,
         overview: {
