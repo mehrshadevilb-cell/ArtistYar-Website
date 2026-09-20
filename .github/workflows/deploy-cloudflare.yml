@@ -1,10 +1,8 @@
 name: Deploy Cloudflare Workers
 
+# Production target is Render (auto-deploy from main).
+# Cloudflare deploy is manual only via workflow_dispatch.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -15,7 +13,6 @@ permissions:
   contents: read
 
 jobs:
-  # ─── Always: install + typecheck + build + OpenNext ─────────────────
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -41,10 +38,8 @@ jobs:
       - name: OpenNext (Cloudflare) build
         run: npm run cf:build
 
-  # ─── Only main: deploy Worker ───────────────────────────────────────
   deploy:
     needs: build
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
