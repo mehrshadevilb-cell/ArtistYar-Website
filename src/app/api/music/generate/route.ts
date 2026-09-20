@@ -11,7 +11,14 @@ import {
   runGenerationJob,
   publicJobView,
 } from "@/lib/music-generation/job-service";
+import {
+  chargeCredits,
+  refundCredits,
+  estimateGenerationCredits,
+  getBalance,
+} from "@/lib/music-generation/credits";
 import type { GenerationSpec } from "@/lib/music-generation/types";
+import { PERSIAN_ERROR_MESSAGES } from "@/lib/music-generation/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,9 +74,34 @@ export async function POST(request: Request) {
   if (typeof body.meter === "string") partialSpec.meter = body.meter.slice(0, 8);
 
   const idempotencyKey =
-    typeof body.idempotencyKey === "string" ? body.idempotencyKey.trim().slice(0, 120) : undefined;
+    typeof body.idempotencyKey === "string"
+      ? body.idempotencyKey.trim().slice(0, 120)
+      : `gen:${user.id}:${Date.now()}`;
 
   try {
+    const creditCost = estimateGenerationCredits(
+      partialSpec.bars && partialSpec.bpm
+        ? Math.round((partialSpec.bars * 4 * 60_000) / partialSpec.bpm)
+        : undefined,
+    );
+
+    const charge = await chargeCredits({
+      userId: user.id,
+      amount: creditCost,
+      idempotencyKey: `charge:${idempotencyKey}`,
+    });
+    if (!charge.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "InsufficientCredits",
+          error: PERSIAN_ERROR_MESSAGES.InsufficientCredits,
+          balance: charge.balance,
+        },
+        { status: 402 },
+      );
+    }
+
     const job = await createGenerationJob({
       userId: user.id,
       prompt,
@@ -77,12 +109,21 @@ export async function POST(request: Request) {
       idempotencyKey,
     });
 
-    // Process in this request (Cloudflare-friendly for short stub/real short clips).
-    // Status is persisted so client can poll GET if the connection drops.
     const finished = await runGenerationJob(job.id);
 
+    if (finished.status === "failed" || finished.status === "cancelled") {
+      await refundCredits({
+        userId: user.id,
+        amount: charge.charged,
+        jobId: job.id,
+        idempotencyKey: `refund:${idempotencyKey}`,
+      });
+    }
+
+    const balance = await getBalance(user.id);
+
     return NextResponse.json(
-      { ok: true, job: publicJobView(finished) },
+      { ok: true, job: publicJobView(finished), credits: { charged: charge.charged, balance } },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (err) {
