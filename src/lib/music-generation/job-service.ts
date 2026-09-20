@@ -7,7 +7,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSpec } from "./intent-parser";
 import { selectBestProvider } from "./provider";
-import { getMusicProviders, getMusicProvider } from "./registry";
+import { getMusicProviders } from "./registry";
 import { validateGeneratedAudio } from "./validate-audio";
 import type {
   GenerationJobRecord,
@@ -15,7 +15,6 @@ import type {
   GenerationSpec,
   GenerationErrorCode,
   ValidationResult,
-  PERSIAN_ERROR_MESSAGES,
 } from "./types";
 import { PERSIAN_ERROR_MESSAGES as ERRORS } from "./types";
 
@@ -192,10 +191,6 @@ function failCode(err: unknown): { code: GenerationErrorCode; message: string } 
   return { code: "InternalError", message: ERRORS.InternalError };
 }
 
-/**
- * Execute one generation attempt for a job.
- * Safe to call from API after create, or from a worker.
- */
 export async function runGenerationJob(jobId: string): Promise<GenerationJobRecord> {
   const client = db();
   const loaded = await client.from("ai_music_generation_jobs").select("*").eq("id", jobId).maybeSingle();
@@ -230,7 +225,7 @@ export async function runGenerationJob(jobId: string): Promise<GenerationJobReco
       });
     }
 
-    const { provider, capability } = selection;
+    const { provider } = selection;
     const plan = await provider.plan(job.spec);
     job = await updateJob(client, jobId, {
       status: "generating",
@@ -272,7 +267,6 @@ export async function runGenerationJob(jobId: string): Promise<GenerationJobReco
               completed_at: new Date().toISOString(),
             });
           }
-          // retry same provider with same spec for now
           continue;
         }
 
