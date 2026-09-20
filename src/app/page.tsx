@@ -9,7 +9,7 @@ import { ScrollDepth } from "@/components/ScrollDepth";
 import { HeroActions } from "@/components/HeroActions";
 import { SafeLink } from "@/components/SafeLink";
 import { CommunityLinks } from "@/components/CommunityLinks";
-import { instagramGallery } from "@/data/instagram-gallery";
+import { HeroDifferentiator } from "@/components/HeroDifferentiator";
 import { CoreFeatureRail } from "@/components/CoreFeatureRail";
 
 export const metadata: Metadata = {
@@ -38,47 +38,64 @@ export const metadata: Metadata = {
   },
 };
 
-const studentProjects = instagramGallery
-  .filter((item) => item.tags.includes("نمونه‌کار هنرجو") || item.tags.includes("خروجی آموزشی"))
-  .slice(0, 3)
-  .map((item, index) => ({
-    code: `۰${index + 1}`,
-    title: item.title,
-    student: item.tags.includes("نمونه‌کار هنرجو") ? "خروجی هنرجو" : "خروجی آموزش",
-    type: item.tags
-      .filter((tag) => !["نمونه‌کار هنرجو", "خروجی آموزشی"].includes(tag))
-      .slice(0, 2)
-      .join(" · "),
-    result: item.description,
-    tone: index === 0 ? "gold" : "blue",
-    href: item.href,
-  }));
+/** نمونه‌کار هنرجو — بدون لینک اینستاگرام؛ جزئیات کامل در گالری */
+const studentProjects = [
+  {
+    code: "۰۱",
+    title: "میکس تنظیم هنرجو",
+    student: "خروجی هنرجو",
+    type: "میکس · تنظیم",
+    result: "کار روی میکس و بالانس پروژه هنرجو تا رسیدن به خروجی قابل ارائه.",
+    tone: "gold",
+  },
+  {
+    code: "۰۲",
+    title: "خروجی مسیر راه‌یار",
+    student: "خروجی آموزش",
+    type: "تنظیم · میکس",
+    result: "نمونه عمومی از خروجی آموزش پروژه‌محور در مسیر راه‌یار.",
+    tone: "blue",
+  },
+  {
+    code: "۰۳",
+    title: "Dige Naya — Nimaan",
+    student: "پروژه کامل",
+    type: "تنظیم · میکس و مسترینگ",
+    result: "تنظیم، میکس و مسترینگ کامل یک ترک تا مرحله انتشار.",
+    tone: "gold",
+  },
+  {
+    code: "۰۴",
+    title: "تمرین شنیداری · کیک و فرکانس",
+    student: "خروجی تمرین",
+    type: "شنوایی · ساخت صدا",
+    result: "تمرین تشخیص فرکانس و ساخت کیک در مسیر آموزشی.",
+    tone: "blue",
+  },
+] as const;
 
 const studentFeedback = [
   {
-    quote:
-      "قبل از این کلاس‌ها هر بار وسط پروژه گیر می‌کردم. حالا می‌دانم مشکل را از کجا پیدا کنم و چطور مرحله‌به‌مرحله جلو بروم.",
+    quote: "وسط پروژه گیر نمی‌کنم؛ مشکل را پیدا می‌کنم و مرحله‌به‌مرحله جلو می‌روم.",
     name: "هنرجوی مسیر تنظیم و میکس",
-    detail: "بازخورد مسیر آموزشی",
+    detail: "مسیر آموزشی",
   },
   {
-    quote:
-      "فقط درباره پلاگین حرف نزدیم؛ روی پروژه خودم کار کردیم و دلیل هر تصمیم را فهمیدم.",
+    quote: "روی پروژه خودم کار کردیم و دلیل هر تصمیم را فهمیدم.",
     name: "هنرجوی کلاس آنلاین",
-    detail: "بازخورد پس از کلاس",
+    detail: "کلاس آنلاین",
   },
   {
-    quote:
-      "راه‌یار تکلیف‌ها و ادامه مسیرم را مشخص کرد. وقتی سؤال داشتم، لازم نبود از صفر شروع کنم.",
+    quote: "راه‌یار تکلیف و ادامه مسیرم را مشخص کرد؛ لازم نبود از صفر شروع کنم.",
     name: "هنرجوی دوره راه‌یار",
-    detail: "بازخورد پنل هنرجو",
+    detail: "پنل هنرجو",
   },
 ];
 
 const homepageCoursesJsonLd = {
   "@context": "https://schema.org",
   "@type": "ItemList",
-  name: "مسیرهای آموزشی آکادمی راه‌یار",
+  name: "پکیج‌های آموزشی آکادمی راه‌یار",
   itemListElement: [
     { "@type": "ListItem", position: 1, name: "دوره جامع تنظیم، میکس و مسترینگ", url: "/courses" },
     { "@type": "ListItem", position: 2, name: "دوره تئوری موسیقی", url: "/courses" },
@@ -104,14 +121,11 @@ export default function HomePage() {
           </h1>
           <div className="hero-cta-stack">
             <HeroActions />
-            <SafeLink
-              href="/amoozesh-mix-mastering"
-              hard
-              className="hero-secondary-link"
-            >
+            <SafeLink href="/amoozesh-mix-mastering" hard className="hero-secondary-link">
               راهنمای رایگان از پایه تا پروژه ←
             </SafeLink>
           </div>
+          <HeroDifferentiator />
           <div className="hero-trust">
             <span className="trust-line" />
             <span>
@@ -200,7 +214,7 @@ export default function HomePage() {
       <div id="courses" className="scroll-mt-24">
         <div className="container-ay pt-6 pb-2 sm:hidden">
           <SafeLink href="/courses" hard className="btn-primary w-full justify-center gap-2">
-            دیدن مسیرهای آموزشی <ArrowLeft size={16} aria-hidden />
+            دیدن پکیج‌های آموزشی <ArrowLeft size={16} aria-hidden />
           </SafeLink>
         </div>
         <HomeLiveCourses />
@@ -211,22 +225,20 @@ export default function HomePage() {
           <Reveal>
             <div className="projects-heading">
               <div>
-                <p className="eyebrow">/ نمونه‌کار هنرجوها</p>
+                <p className="eyebrow">/ پروژه‌ها و خروجی هنرجوها</p>
                 <h2 className="section-title mt-4">
                   یادگیری وقتی جدی می‌شود
                   <br />
                   <span className="text-gold-400">که شنیده شود.</span>
                 </h2>
               </div>
-              <p className="section-sub max-w-md">
-                نمونه‌کارهای واقعی هنرجویان آکادمی راه‌یار.
-              </p>
+              <p className="section-sub max-w-md">نمونه‌کار و خروجی واقعی هنرجویان آکادمی راه‌یار.</p>
             </div>
           </Reveal>
-          <div className="projects-grid mt-8">
+          <div className="projects-grid mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {studentProjects.map((project, i) => (
               <Reveal key={project.code} delay={i * 40}>
-                <article className={`project-card project-${project.tone}`}>
+                <article className={`project-card project-${project.tone} h-full`}>
                   <div className="project-visual">
                     <span className="project-code">{project.code}</span>
                     <div className="project-bars">
@@ -238,15 +250,6 @@ export default function HomePage() {
                       <i />
                       <i />
                     </div>
-                    <a
-                      href={project.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`مشاهده ${project.title}`}
-                      className="project-play"
-                    >
-                      <CirclePlay size={20} />
-                    </a>
                   </div>
                   <div className="project-meta">
                     {project.type ? <span className="skill-tag">{project.type}</span> : null}
@@ -259,58 +262,37 @@ export default function HomePage() {
             ))}
           </div>
           <div className="mt-8 text-center">
-            <SafeLink href="/gallery" hard className="text-sm text-gold-400 hover:text-gold-300">
-              گالری کامل ←
+            <SafeLink href="/gallery" hard className="btn-ghost inline-flex gap-2 text-sm">
+              مشاهده کامل پروژه‌ها و خروجی‌ها <ArrowLeft size={14} aria-hidden />
             </SafeLink>
           </div>
         </div>
       </section>
 
-      <section id="feedback" className="feedback-section container-ay section-space">
+      <section id="feedback" className="feedback-section container-ay py-12 sm:py-14">
         <Reveal>
-          <div className="section-intro">
-            <p className="eyebrow">/ بازخورد</p>
-            <h2 className="section-title">
-              صدای هنرجو،
-              <br />
-              <span className="text-gold-400">نه شعار.</span>
-            </h2>
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="eyebrow">/ بازخورد</p>
+              <h2 className="mt-2 text-xl font-medium text-sand-50 sm:text-2xl">
+                صدای هنرجو <span className="text-gold-400">· کوتاه و واقعی</span>
+              </h2>
+            </div>
           </div>
         </Reveal>
-        <div className="feedback-grid">
+        <div className="grid gap-3 sm:grid-cols-3">
           {studentFeedback.map((item, i) => (
-            <Reveal key={item.name} delay={i * 40}>
-              <blockquote className="feedback-card">
-                <p>«{item.quote}»</p>
-                <footer>
-                  <strong>{item.name}</strong>
-                  <span>{item.detail}</span>
+            <Reveal key={item.name} delay={i * 30}>
+              <blockquote className="feedback-card feedback-card-compact rounded-xl border border-white/[.08] bg-white/[.03] p-4">
+                <p className="text-[13px] leading-6 text-ink-300">«{item.quote}»</p>
+                <footer className="mt-3 flex items-center gap-2 border-t border-white/[.06] pt-3">
+                  <strong className="text-xs font-medium text-sand-50">{item.name}</strong>
+                  <span className="text-[10px] text-ink-500">{item.detail}</span>
                 </footer>
               </blockquote>
             </Reveal>
           ))}
         </div>
-      </section>
-
-      <section className="container-ay section-space border-t border-white/[.06]">
-        <Reveal>
-          <div className="section-intro text-center">
-            <p className="eyebrow">/ پرسش‌های متداول</p>
-            <h2 className="section-title">
-              جواب‌ها در
-              <br />
-              <span className="text-gold-400">صفحهٔ جدا.</span>
-            </h2>
-            <p className="section-sub mx-auto mt-4 max-w-md">
-              سؤالات رایج درباره شروع مسیر، پرداخت و پشتیبانی را در صفحهٔ FAQ ببین.
-            </p>
-            <div className="mt-6">
-              <SafeLink href="/faq" hard className="btn-primary gap-2 inline-flex">
-                رفتن به پرسش‌های متداول <ArrowLeft size={16} aria-hidden />
-              </SafeLink>
-            </div>
-          </div>
-        </Reveal>
       </section>
 
       <section className="container-ay pb-4 pt-2">
