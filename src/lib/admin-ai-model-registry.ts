@@ -61,7 +61,22 @@ async function discoverAsAdminModels(autoEnable = true): Promise<AdminAiModel[]>
   return rows.sort((a, b) => b.priority - a.priority || a.provider_id.localeCompare(b.provider_id));
 }
 
-export async function syncAdminAiModels(options: { autoEnable?: boolean } = {}) {
+/** Read registry rows only (no bootstrap / no call into sync). */
+async function readRegistryRows(): Promise<AdminAiModel[]> {
+  if (!hasDb()) return [];
+  const result = await db()
+    .from("admin_ai_model_registry")
+    .select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at")
+    .order("priority", { ascending: false })
+    .order("provider_id", { ascending: true });
+  if (result.error) {
+    console.error("readRegistryRows failed", result.error.message);
+    return [];
+  }
+  return (result.data || []) as AdminAiModel[];
+}
+
+export async function syncAdminAiModels(options: { autoEnable?: boolean } = {}): Promise<AdminAiModel[]> {
   const autoEnable = options.autoEnable !== false;
   const discovered = await discoverAllModels();
   const rows = discovered
@@ -101,25 +116,19 @@ export async function syncAdminAiModels(options: { autoEnable?: boolean } = {}) 
     console.error("admin_ai_model_registry upsert failed", result.error.message);
     return discoverAsAdminModels(autoEnable);
   }
-  return listAdminAiModels();
+
+  const fromDb = await readRegistryRows();
+  return fromDb.length ? fromDb : discoverAsAdminModels(autoEnable);
 }
 
-export async function listAdminAiModels() {
+export async function listAdminAiModels(): Promise<AdminAiModel[]> {
   if (!hasDb()) {
     return discoverAsAdminModels(true);
   }
   try {
-    const result = await db()
-      .from("admin_ai_model_registry")
-      .select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at")
-      .order("priority", { ascending: false })
-      .order("provider_id", { ascending: true });
-    if (result.error) {
-      console.error("listAdminAiModels failed", result.error.message);
-      return discoverAsAdminModels(true);
-    }
-    const data = (result.data || []) as AdminAiModel[];
+    const data = await readRegistryRows();
     if (data.length) return data;
+    // Empty registry → one-shot sync (returns typed AdminAiModel[])
     return syncAdminAiModels({ autoEnable: true });
   } catch (e) {
     console.error("listAdminAiModels exception", e instanceof Error ? e.message : e);
@@ -127,7 +136,9 @@ export async function listAdminAiModels() {
   }
 }
 
-export async function listAdminAiRoutingCandidates() {
+export async function listAdminAiRoutingCandidates(): Promise<
+  Array<{ provider_id: string; model_id: string; priority: number; preferred: boolean }>
+> {
   if (hasDb()) {
     try {
       const result = await db()
@@ -172,7 +183,7 @@ export async function getAdminAiRoutingPreference() {
   return candidates[0] || null;
 }
 
-export async function validateAdminAiModel(id: string) {
+export async function validateAdminAiModel(id: string): Promise<AdminAiModel | null> {
   if (!hasDb()) return null;
   const current = await db().from("admin_ai_model_registry").select("id,provider_id,model_id").eq("id", id).maybeSingle();
   if (current.error) throw current.error;
@@ -200,7 +211,7 @@ export async function validateAdminAiModel(id: string) {
 export async function updateAdminAiModel(
   id: string,
   patch: Partial<Pick<AdminAiModel, "enabled" | "priority" | "preferred" | "status">>,
-) {
+): Promise<AdminAiModel | null> {
   if (!hasDb() || id.startsWith("ephemeral:")) {
     throw new Error("تغییر مدل ephemeral بدون Supabase ممکن نیست؛ اول جدول admin_ai_model_registry را بساز.");
   }
