@@ -89,7 +89,6 @@ export default function HomePage() {
               راهنمای رایگان از پایه تا پروژه ←
             </SafeLink>
           </div>
-          <HeroDifferentiator />
           <div className="hero-trust">
             <span className="trust-line" />
             <span>
@@ -152,6 +151,11 @@ export default function HomePage() {
           </DepthScene>
         </ScrollDepth>
       </section>
+
+      {/* Full-width feature cards under the 3D disk / hero */}
+      <div className="container-ay hero-features-under-disk">
+        <HeroDifferentiator />
+      </div>
 
       <section className="proof-strip border-y border-white/[.06]">
         <div className="container-ay proof-grid">
