@@ -1,6 +1,6 @@
 import Image from "next/image";
 import type { Metadata } from "next";
-import { ArrowLeft, ChevronDown, CirclePlay, Sparkles, Waves } from "lucide-react";
+import { ArrowLeft, CirclePlay, Sparkles, Waves } from "lucide-react";
 import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 import { Reveal } from "@/components/Reveal";
@@ -10,8 +10,6 @@ import { HeroActions } from "@/components/HeroActions";
 import { SafeLink } from "@/components/SafeLink";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { instagramGallery } from "@/data/instagram-gallery";
-import { HeroDifferentiator } from "@/components/HeroDifferentiator";
-import { PracticeEnginePreview } from "@/components/PracticeEnginePreview";
 import { CoreFeatureRail } from "@/components/CoreFeatureRail";
 
 export const metadata: Metadata = {
@@ -77,39 +75,6 @@ const studentFeedback = [
   },
 ];
 
-const faqs = [
-  {
-    question: "از کدام مسیر شروع کنم؟",
-    answer:
-      "اگر تازه شروع کرده‌ای، مسیر جامع راه‌یار مناسب‌تر است. برای تقویت پایه، تئوری موسیقی. برای کار روی پروژه خودت، کلاس آنلاین یا مشاوره رایگان.",
-  },
-  {
-    question: "بعد از پرداخت دسترسی چطور فعال می‌شود؟",
-    answer:
-      "سفارش در سایت ثبت می‌شود و پس از تأیید تیم راه‌یار فعال می‌گردد. دوره‌های آموزشی معمولاً از طریق SpotPlayer و محصولات کانالی از طریق تلگرام.",
-  },
-  {
-    question: "قبل از خرید می‌توانم راهنمایی بگیرم؟",
-    answer:
-      "بله. فرم مشاوره رایگان پایین صفحه را پر کن و بگو روی چه چیزی کار می‌کنی تا مسیر مناسب پیشنهاد شود.",
-  },
-  {
-    question: "رسید پرداخت را کجا بفرستم؟",
-    answer:
-      "بعد از ثبت سفارش، فرم ارسال رسید در همین سایت نمایش داده می‌شود. همان‌جا بفرست تا وضعیت سفارش قابل پیگیری باشد.",
-  },
-];
-
-const homepageFaqJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: faqs.map((faq) => ({
-    "@type": "Question",
-    name: faq.question,
-    acceptedAnswer: { "@type": "Answer", text: faq.answer },
-  })),
-};
-
 const homepageCoursesJsonLd = {
   "@context": "https://schema.org",
   "@type": "ItemList",
@@ -125,7 +90,6 @@ const homepageCoursesJsonLd = {
 export default function HomePage() {
   return (
     <div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageFaqJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
 
       <section className="hero-section container-ay">
@@ -138,9 +102,6 @@ export default function HomePage() {
             <br />
             <span className="gold-shimmer">با مسیر روشن.</span>
           </h1>
-          <p className="hero-lead">
-            دوره دیجیتال، کلاس آنلاین و راه‌یار AI — تمرین واقعی روی پروژه خودت، تا خروجی قابل دفاع.
-          </p>
           <div className="hero-cta-stack">
             <HeroActions />
             <SafeLink
@@ -151,7 +112,6 @@ export default function HomePage() {
               راهنمای رایگان از پایه تا پروژه ←
             </SafeLink>
           </div>
-          <HeroDifferentiator />
           <div className="hero-trust">
             <span className="trust-line" />
             <span>
@@ -217,8 +177,6 @@ export default function HomePage() {
 
       <CoreFeatureRail />
 
-      <PracticeEnginePreview />
-
       <section className="proof-strip border-y border-white/[.06]">
         <div className="container-ay proof-grid">
           <div>
@@ -253,14 +211,16 @@ export default function HomePage() {
           <Reveal>
             <div className="projects-heading">
               <div>
-                <p className="eyebrow">/ خروجی</p>
+                <p className="eyebrow">/ نمونه‌کار هنرجوها</p>
                 <h2 className="section-title mt-4">
                   یادگیری وقتی جدی می‌شود
                   <br />
                   <span className="text-gold-400">که شنیده شود.</span>
                 </h2>
               </div>
-              <p className="section-sub max-w-md">نمونه‌های عمومی از گالری؛ جزئیات در پست اینستاگرام.</p>
+              <p className="section-sub max-w-md">
+                نمونه‌کارهای واقعی هنرجویان آکادمی راه‌یار.
+              </p>
             </div>
           </Reveal>
           <div className="projects-grid mt-8">
@@ -294,16 +254,6 @@ export default function HomePage() {
                   </div>
                   <h3>{project.title}</h3>
                   <p>{project.result}</p>
-                  <div className="project-footer">
-                    <a
-                      href={project.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 hover:text-gold-300"
-                    >
-                      پست اصلی <ArrowLeft size={14} />
-                    </a>
-                  </div>
                 </article>
               </Reveal>
             ))}
@@ -342,30 +292,25 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="faq" className="container-ay section-space border-t border-white/[.06]">
+      <section className="container-ay section-space border-t border-white/[.06]">
         <Reveal>
-          <div className="section-intro">
+          <div className="section-intro text-center">
             <p className="eyebrow">/ پرسش‌های متداول</p>
             <h2 className="section-title">
-              قبل از شروع،
+              جواب‌ها در
               <br />
-              <span className="text-gold-400">جواب‌ها روشن.</span>
+              <span className="text-gold-400">صفحهٔ جدا.</span>
             </h2>
+            <p className="section-sub mx-auto mt-4 max-w-md">
+              سؤالات رایج درباره شروع مسیر، پرداخت و پشتیبانی را در صفحهٔ FAQ ببین.
+            </p>
+            <div className="mt-6">
+              <SafeLink href="/faq" hard className="btn-primary gap-2 inline-flex">
+                رفتن به پرسش‌های متداول <ArrowLeft size={16} aria-hidden />
+              </SafeLink>
+            </div>
           </div>
         </Reveal>
-        <div className="mt-10 grid max-w-3xl gap-2">
-          {faqs.map((faq) => (
-            <details key={faq.question} className="faq-item card-ay group p-5">
-              <summary className="faq-summary text-[0.95rem] font-medium text-sand-50">
-                <span>{faq.question}</span>
-                <span className="faq-summary-icon" aria-hidden="true">
-                  <ChevronDown size={16} strokeWidth={2.2} />
-                </span>
-              </summary>
-              <p className="faq-answer mt-3 text-sm leading-7 text-ink-400">{faq.answer}</p>
-            </details>
-          ))}
-        </div>
       </section>
 
       <section className="container-ay pb-4 pt-2">
