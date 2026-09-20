@@ -29,22 +29,32 @@ export async function POST(request: Request) {
     const body = await request.json() as { action?: unknown; id?: unknown; enabled?: unknown; priority?: unknown; preferred?: unknown; status?: unknown };
     if (body.action === "sync") return NextResponse.json({ ok: true, models: await syncAdminAiModels() });
     if (body.action === "validate") {
-      if (typeof body.id !== "string") return NextResponse.json({ ok: false, error: "شناسه مدل لازم است." }, { status: 400 });
-      return NextResponse.json({ ok: true, model: await validateAdminAiModel(body.id) });
+      if (typeof body.id !== "string" || !body.id.trim()) return NextResponse.json({ ok: false, error: "شناسه مدل لازم است." }, { status: 400 });
+      const model = await validateAdminAiModel(body.id.trim());
+      if (!model) return NextResponse.json({ ok: false, error: "مدل پیدا نشد." }, { status: 404 });
+      return NextResponse.json({ ok: true, model });
     }
-    if (typeof body.id !== "string") return NextResponse.json({ ok: false, error: "شناسه مدل لازم است." }, { status: 400 });
+    if (typeof body.id !== "string" || !body.id.trim()) return NextResponse.json({ ok: false, error: "شناسه مدل لازم است." }, { status: 400 });
     const patch: Record<string, unknown> = {};
     if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
     if (typeof body.priority === "number" && Number.isInteger(body.priority)) patch.priority = Math.max(0, Math.min(1000, body.priority));
     if (typeof body.preferred === "boolean") patch.preferred = body.preferred;
     if (typeof body.status === "string" && ["discovered", "registered", "enabled", "disabled", "deprecated"].includes(body.status)) patch.status = body.status;
     if (!Object.keys(patch).length) return NextResponse.json({ ok: false, error: "تغییری ارسال نشده است." }, { status: 400 });
-    return NextResponse.json({ ok: true, model: await updateAdminAiModel(body.id, patch) });
+    const model = await updateAdminAiModel(body.id.trim(), patch);
+    if (!model) return NextResponse.json({ ok: false, error: "مدل پیدا نشد." }, { status: 404 });
+    return NextResponse.json({ ok: true, model });
   } catch (error) {
     console.error("admin model registry POST failed", error instanceof Error ? error.message : "unknown error");
     const code = error instanceof Error ? error.message : "";
     if (code === "admin_ai_model_must_be_validated_first") {
       return NextResponse.json({ ok: false, error: "مدل باید ابتدا اعتبارسنجی شود." }, { status: 409 });
+    }
+    if (code === "admin_ai_enabled_status_conflicts_with_disabled") {
+      return NextResponse.json({ ok: false, error: "وضعیت enabled با disabled سازگار نیست." }, { status: 400 });
+    }
+    if (code === "admin_ai_preferred_model_must_be_enabled") {
+      return NextResponse.json({ ok: false, error: "مدل ترجیحی باید فعال باشد." }, { status: 400 });
     }
     if (code.startsWith("model_discovery_failed:")) {
       return NextResponse.json({ ok: false, error: "اعتبارسنجی مدل در حال حاضر ممکن نیست؛ سرویس ارائه‌دهنده پاسخ نداد." }, { status: 503 });
