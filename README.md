@@ -2,6 +2,12 @@
 
 پلتفرم وب **آرتیست‌یار** — متصل به ربات راه‌یار (دیتابیس + AI).
 
+## User AI Music Generator
+
+قابلیت تولید قطعه‌های هدفمند موسیقی از Admin AI جداست و مسیرهای آن زیر `/ai-music` و `/api/music/*` قرار دارند. هستهٔ parser، provider registry، job lifecycle، credit ledger، validation و migration دیتابیس در repository آماده است. برای راه‌اندازی provider واقعی، migration و قرارداد adapter به [مستند User AI Music Generator](docs/user-ai-music-generator.md) مراجعه کنید.
+
+بدون کلید provider پولی، Stub فقط در development محلی فعال می‌شود و در production غیرفعال می‌ماند. اجرای کامل providerهای طولانی نیز به worker/queue پایدار نیاز دارد؛ بنابراین تا زمان تنظیم provider و migration، این قابلیت به‌عنوان milestone در نظر گرفته می‌شود نه production launch نهایی.
+
 ## ورود ادمین
 
 حساب‌های دمو (`admin/admin123` و `student/student123`) حذف شده‌اند.
