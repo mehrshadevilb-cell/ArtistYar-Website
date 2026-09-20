@@ -10,7 +10,6 @@ import { HeroActions } from "@/components/HeroActions";
 import { SafeLink } from "@/components/SafeLink";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { HeroDifferentiator } from "@/components/HeroDifferentiator";
-import { CoreFeatureRail } from "@/components/CoreFeatureRail";
 
 export const metadata: Metadata = {
   title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | مهرشاد بنائی",
@@ -38,14 +37,14 @@ export const metadata: Metadata = {
   },
 };
 
-/** نمونه‌کار هنرجو — بدون لینک اینستاگرام؛ جزئیات کامل در گالری */
+/** نمونه‌کار هنرجو — فقط نمایش؛ بدون لینک خارجی / اینستاگرام */
 const studentProjects = [
   {
     code: "۰۱",
     title: "میکس تنظیم هنرجو",
     student: "خروجی هنرجو",
     type: "میکس · تنظیم",
-    result: "کار روی میکس و بالانس پروژه هنرجو تا رسیدن به خروجی قابل ارائه.",
+    result: "بالانس و میکس پروژه هنرجو تا خروجی قابل ارائه.",
     tone: "gold",
   },
   {
@@ -53,7 +52,7 @@ const studentProjects = [
     title: "خروجی مسیر راه‌یار",
     student: "خروجی آموزش",
     type: "تنظیم · میکس",
-    result: "نمونه عمومی از خروجی آموزش پروژه‌محور در مسیر راه‌یار.",
+    result: "نمونه خروجی آموزش پروژه‌محور در مسیر راه‌یار.",
     tone: "blue",
   },
   {
@@ -61,12 +60,12 @@ const studentProjects = [
     title: "Dige Naya — Nimaan",
     student: "پروژه کامل",
     type: "تنظیم · میکس و مسترینگ",
-    result: "تنظیم، میکس و مسترینگ کامل یک ترک تا مرحله انتشار.",
+    result: "از تنظیم تا میکس و مسترینگ یک ترک تا انتشار.",
     tone: "gold",
   },
   {
     code: "۰۴",
-    title: "تمرین شنیداری · کیک و فرکانس",
+    title: "تمرین شنیداری · کیک",
     student: "خروجی تمرین",
     type: "شنوایی · ساخت صدا",
     result: "تمرین تشخیص فرکانس و ساخت کیک در مسیر آموزشی.",
@@ -189,8 +188,6 @@ export default function HomePage() {
         </ScrollDepth>
       </section>
 
-      <CoreFeatureRail />
-
       <section className="proof-strip border-y border-white/[.06]">
         <div className="container-ay proof-grid">
           <div>
@@ -227,67 +224,56 @@ export default function HomePage() {
               <div>
                 <p className="eyebrow">/ پروژه‌ها و خروجی هنرجوها</p>
                 <h2 className="section-title mt-4">
-                  یادگیری وقتی جدی می‌شود
+                  نمونه‌کار هنرجو
                   <br />
-                  <span className="text-gold-400">که شنیده شود.</span>
+                  <span className="text-gold-400">بدون شعار.</span>
                 </h2>
               </div>
-              <p className="section-sub max-w-md">نمونه‌کار و خروجی واقعی هنرجویان آکادمی راه‌یار.</p>
+              <p className="section-sub max-w-md">چهار نمونه از خروجی واقعی مسیر آموزش. جزئیات کامل در گالری.</p>
             </div>
           </Reveal>
-          <div className="projects-grid mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {studentProjects.map((project, i) => (
-              <Reveal key={project.code} delay={i * 40}>
-                <article className={`project-card project-${project.tone} h-full`}>
-                  <div className="project-visual">
-                    <span className="project-code">{project.code}</span>
-                    <div className="project-bars">
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                    </div>
-                  </div>
-                  <div className="project-meta">
-                    {project.type ? <span className="skill-tag">{project.type}</span> : null}
-                    <span className="project-student">{project.student}</span>
+              <Reveal key={project.code} delay={i * 35}>
+                <article className={`student-work-card student-work-${project.tone}`}>
+                  <div className="student-work-top">
+                    <span className="student-work-code">{project.code}</span>
+                    <span className="student-work-badge">{project.student}</span>
                   </div>
                   <h3>{project.title}</h3>
-                  <p>{project.result}</p>
+                  <p className="student-work-type">{project.type}</p>
+                  <p className="student-work-body">{project.result}</p>
                 </article>
               </Reveal>
             ))}
           </div>
-          <div className="mt-8 text-center">
+
+          <div className="mt-7 text-center">
             <SafeLink href="/gallery" hard className="btn-ghost inline-flex gap-2 text-sm">
-              مشاهده کامل پروژه‌ها و خروجی‌ها <ArrowLeft size={14} aria-hidden />
+              مشاهده کامل نمونه‌کارها در گالری <ArrowLeft size={14} aria-hidden />
             </SafeLink>
           </div>
         </div>
       </section>
 
-      <section id="feedback" className="feedback-section container-ay py-12 sm:py-14">
+      <section id="feedback" className="container-ay py-10 sm:py-12">
         <Reveal>
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="eyebrow">/ بازخورد</p>
-              <h2 className="mt-2 text-xl font-medium text-sand-50 sm:text-2xl">
-                صدای هنرجو <span className="text-gold-400">· کوتاه و واقعی</span>
-              </h2>
-            </div>
+          <div className="mb-5">
+            <p className="eyebrow">/ بازخورد</p>
+            <h2 className="mt-2 text-lg font-medium text-sand-50 sm:text-xl">
+              صدای هنرجو <span className="text-gold-400">· کوتاه</span>
+            </h2>
           </div>
         </Reveal>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-2.5 sm:grid-cols-3">
           {studentFeedback.map((item, i) => (
-            <Reveal key={item.name} delay={i * 30}>
-              <blockquote className="feedback-card feedback-card-compact rounded-xl border border-white/[.08] bg-white/[.03] p-4">
-                <p className="text-[13px] leading-6 text-ink-300">«{item.quote}»</p>
-                <footer className="mt-3 flex items-center gap-2 border-t border-white/[.06] pt-3">
-                  <strong className="text-xs font-medium text-sand-50">{item.name}</strong>
-                  <span className="text-[10px] text-ink-500">{item.detail}</span>
+            <Reveal key={item.name} delay={i * 25}>
+              <blockquote className="comment-card">
+                <p>«{item.quote}»</p>
+                <footer>
+                  <strong>{item.name}</strong>
+                  <span>{item.detail}</span>
                 </footer>
               </blockquote>
             </Reveal>
