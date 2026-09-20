@@ -138,7 +138,6 @@ export default function HomePage() {
         </ScrollDepth>
       </ScrollStage>
 
-      {/* Hero cards: sharp + glow on first screen (no enter/exit blur) */}
       <ScrollStage
         className="container-ay hero-features-under-disk"
         intensity="calm"
@@ -182,7 +181,8 @@ export default function HomePage() {
         </div>
       </ScrollStage>
 
-      <ScrollStage id="courses" className="scroll-mt-24" intensity="calm">
+      {/* Package cards: sharp while browsing */}
+      <ScrollStage id="courses" className="scroll-mt-24" intensity="calm" exitBlur={false}>
         <div className="container-ay pt-6 pb-2 sm:hidden">
           <SafeLink href="/courses" hard className="btn-primary w-full justify-center gap-2">
             دیدن پکیج‌های آموزشی <ArrowLeft size={16} aria-hidden />
@@ -191,7 +191,6 @@ export default function HomePage() {
         <HomeLiveCourses />
       </ScrollStage>
 
-      {/* Tall MP3 grid: no exit blur while user is still browsing the list */}
       <ScrollStage intensity="calm" exitBlur={false}>
         <HomeStudentWorks />
       </ScrollStage>
