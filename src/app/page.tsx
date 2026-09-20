@@ -191,7 +191,8 @@ export default function HomePage() {
         <HomeLiveCourses />
       </ScrollStage>
 
-      <ScrollStage intensity="calm">
+      {/* Tall MP3 grid: no exit blur while user is still browsing the list */}
+      <ScrollStage intensity="calm" exitBlur={false}>
         <HomeStudentWorks />
       </ScrollStage>
 
