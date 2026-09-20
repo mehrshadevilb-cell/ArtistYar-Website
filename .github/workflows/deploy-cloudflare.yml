@@ -31,7 +31,6 @@ jobs:
         env:
           ARTISTYAR_ENV_FILE: ${{ secrets.ARTISTYAR_ENV_FILE }}
         run: |
-          test -n "$ARTISTYAR_ENV_FILE"
           printf '%s' "$ARTISTYAR_ENV_FILE" > .env.production
           chmod 600 .env.production
 

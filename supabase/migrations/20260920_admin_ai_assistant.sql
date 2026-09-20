@@ -32,3 +32,4 @@ create index if not exists admin_ai_audit_logs_admin_created_idx on public.admin
 alter table public.admin_ai_conversations enable row level security;
 alter table public.admin_ai_messages enable row level security;
 alter table public.admin_ai_audit_logs enable row level security;
+alter table public.admin_ai_audit_logs enable row level security;
