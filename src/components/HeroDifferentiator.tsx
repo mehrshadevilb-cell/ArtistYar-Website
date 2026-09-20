@@ -1,45 +1,108 @@
 "use client";
 
-import { ArrowLeft, Bot, Headphones, Sparkles, Trophy, Zap } from "lucide-react";
+import { ArrowLeft, BarChart3, Bot, Gamepad2, Sparkles, Trophy, Wand2, Zap } from "lucide-react";
 import { SafeLink } from "@/components/SafeLink";
 
 const signals = [
-  { label: "RAHYAR AI", detail: "دستیار تخصصی تولید موسیقی", icon: Bot, href: "/assistant", accent: "gold" },
-  { label: "PRACTICE ENGINE", detail: "Ear Training + Professional Audio Skills", icon: Headphones, href: "/practice", accent: "cyan" },
-];
+  {
+    label: "ArtistYar AI",
+    detail: "دستیار تخصصی تولید موسیقی",
+    icon: Bot,
+    href: "/assistant",
+    accent: "gold",
+    soon: false,
+  },
+  {
+    label: "Practice Arcade",
+    detail: "تمرین شنیداری + مهارت صدا",
+    icon: Gamepad2,
+    href: "/practice",
+    accent: "cyan",
+    soon: false,
+  },
+  {
+    label: "Analyze Music",
+    detail: "تحلیل میکس و فرکانس",
+    icon: BarChart3,
+    href: "/music-analyzer",
+    accent: "blue",
+    soon: false,
+  },
+  {
+    label: "AI Music Generator",
+    detail: "به زودی",
+    icon: Wand2,
+    href: "#",
+    accent: "violet",
+    soon: true,
+  },
+] as const;
 
 export function HeroDifferentiator() {
   return (
-    <div className="hero-differentiator" aria-label="ویژگی‌های اختصاصی ArtistYar">
+    <div className="hero-differentiator" aria-label="ویژگی‌های اصلی ArtistYar">
       <div className="hero-differentiator-head">
-        <span className="hero-differentiator-live"><i /> LIVE SYSTEM</span>
-        <span className="hero-differentiator-label">فراتر از یک سایت آموزشی</span>
+        <span className="hero-differentiator-live">
+          <i /> LIVE SYSTEM
+        </span>
+        <span className="hero-differentiator-label">ویژگی‌های اصلی · اولین نگاه</span>
       </div>
 
-      <div className="hero-differentiator-grid">
-        {signals.map(({ label, detail, icon: Icon, href, accent }, index) => (
-          <SafeLink key={label} href={href} hard className={"hero-feature-card hero-feature-" + accent}>
-            <span className="hero-feature-icon"><Icon size={17} /></span>
-            <span className="hero-feature-copy">
-              <strong>{label}</strong>
-              <small>{detail}</small>
-            </span>
-            <ArrowLeft className="hero-feature-arrow" size={15} />
-            <span className="hero-feature-index">۰{index + 1}</span>
-          </SafeLink>
-        ))}
+      <div className="hero-differentiator-grid hero-differentiator-grid-4">
+        {signals.map(({ label, detail, icon: Icon, href, accent, soon }, index) =>
+          soon ? (
+            <div
+              key={label}
+              className={`hero-feature-card hero-feature-${accent} hero-feature-soon`}
+              aria-disabled="true"
+            >
+              <span className="hero-feature-icon">
+                <Icon size={17} />
+              </span>
+              <span className="hero-feature-copy">
+                <strong>{label}</strong>
+                <small>{detail}</small>
+              </span>
+              <span className="hero-feature-soon-badge">به‌زودی</span>
+              <span className="hero-feature-index">۰{index + 1}</span>
+            </div>
+          ) : (
+            <SafeLink
+              key={label}
+              href={href}
+              hard
+              className={`hero-feature-card hero-feature-${accent}`}
+            >
+              <span className="hero-feature-icon">
+                <Icon size={17} />
+              </span>
+              <span className="hero-feature-copy">
+                <strong>{label}</strong>
+                <small>{detail}</small>
+              </span>
+              <ArrowLeft className="hero-feature-arrow" size={15} />
+              <span className="hero-feature-index">۰{index + 1}</span>
+            </SafeLink>
+          ),
+        )}
       </div>
 
       <div className="hero-differentiator-bottom">
         <div className="hero-xp">
-          <span className="hero-xp-icon"><Zap size={13} /></span>
-          <span><b>XP</b> · تمرینت ثبت می‌شود</span>
+          <span className="hero-xp-icon">
+            <Zap size={13} />
+          </span>
+          <span>
+            <b>XP</b> · تمرینت ثبت می‌شود
+          </span>
         </div>
         <div className="hero-xp">
           <Trophy size={13} />
           <span>رکورد · پیشرفت · چالش روزانه</span>
         </div>
-        <span className="hero-differentiator-spark"><Sparkles size={13} /> built for producers</span>
+        <span className="hero-differentiator-spark">
+          <Sparkles size={13} /> built for producers
+        </span>
       </div>
     </div>
   );
