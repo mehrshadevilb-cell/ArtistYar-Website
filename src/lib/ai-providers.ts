@@ -391,7 +391,7 @@ async function readJsonResponse<T>(response: Response): Promise<T | null> {
     return JSON.parse(raw) as T;
   } catch {
     const contentType = response.headers.get("content-type") || "";
-    const preview = raw.replace(/\\s+/g, " ").slice(0, 220);
+    const preview = raw.replace(/\s+/g, " ").slice(0, 220);
     throw new Error(
       contentType.includes("text/html")
         ? `Provider returned HTML instead of JSON (HTTP ${response.status}): ${preview}`
@@ -442,7 +442,8 @@ const GEMINI_FALLBACK = [
   "gemini-2.5-flash",
 ];
 
-export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
+export async function discoverModels(provider: AIProvider, options: { allowFallback?: boolean } = {}): Promise<AIModel[]> {
+  const allowFallback = options.allowFallback !== false;
   const fallback = (ids: string[]) =>
     ids.map((id) => ({
       id,
@@ -462,27 +463,48 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       const data = await readJsonResponse<{
         agent_status?: string;
       }>(response);
-      if (!response.ok) return [];
+      if (!response.ok) {
+        if (!allowFallback) throw new Error(`model_discovery_failed:${provider.id}:${response.status}`);
+        return [];
+      }
       return data?.agent_status
         ? [{ id: "centralized-router", provider: provider.id, task: "chat", rank: 70 }]
         : [];
     }
 
     if (provider.chatStyle === "anthropic") {
-      return fallback(provider.defaultModels || ANTHROPIC_FALLBACK);
+      const response = await fetch(`${provider.baseUrl}/models`, {
+        method: "GET",
+        headers: authHeaders(provider),
+        cache: "no-store",
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) {
+        if (!allowFallback) throw new Error(`model_discovery_failed:${provider.id}:${response.status}`);
+        return fallback(provider.defaultModels || ANTHROPIC_FALLBACK);
+      }
+      const data = await readJsonResponse<{ data?: Array<{ id?: string }> }>(response);
+      const models = (data?.data || [])
+        .map((m) => m.id || "")
+        .filter((id) => id && isChatCapableModelStrict(id))
+        .map((id) => ({ id, provider: provider.id, task: "chat" as const, rank: rankForModel(id) }));
+      return models.length ? models : (allowFallback ? fallback(provider.defaultModels || ANTHROPIC_FALLBACK) : []);
     }
 
     if (provider.chatStyle === "google") {
       // The Generative Language API requires the key on every request,
       // including model listing — without it this always 400s and we'd
       // silently fall back to the static list on every call.
-      const url = `${provider.baseUrl}/models?key=${encodeURIComponent(provider.apiKey || "")}`;
-      const response = await fetch(url, {
+      const response = await fetch(`${provider.baseUrl}/models`, {
         method: "GET",
+        headers: { "x-goog-api-key": provider.apiKey || "" },
         cache: "no-store",
         signal: AbortSignal.timeout(3_500),
       });
-      if (!response.ok) return fallback(provider.defaultModels || GEMINI_FALLBACK);
+      if (!response.ok) {
+        if (!allowFallback) throw new Error(`model_discovery_failed:${provider.id}:${response.status}`);
+        return fallback(provider.defaultModels || GEMINI_FALLBACK);
+      }
       const data = await readJsonResponse<{
         models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
       }>(response);
@@ -503,7 +525,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
           .filter((m) => m.id && isChatCapableModelStrict(m.id)) || [];
       return models.length
         ? models.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 25)
-        : fallback(provider.defaultModels || GEMINI_FALLBACK);
+        : (allowFallback ? fallback(provider.defaultModels || GEMINI_FALLBACK) : []);
     }
 
     const response = await fetch(
@@ -516,6 +538,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
       },
     );
     if (!response.ok) {
+      if (!allowFallback) throw new Error(`model_discovery_failed:${provider.id}:${response.status}`);
       return provider.defaultModels ? fallback(provider.defaultModels) : [];
     }
 
@@ -553,8 +576,9 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
     if (list.length) {
       return list.sort((a, b) => (b.rank || 0) - (a.rank || 0)).slice(0, 40);
     }
-    return provider.defaultModels ? fallback(provider.defaultModels) : [];
-  } catch {
+    return allowFallback && provider.defaultModels ? fallback(provider.defaultModels) : [];
+  } catch (error) {
+    if (!allowFallback) throw error;
     return provider.defaultModels ? fallback(provider.defaultModels) : [];
   }
 }
@@ -562,7 +586,7 @@ export async function discoverModels(provider: AIProvider): Promise<AIModel[]> {
 export const MODEL_DISCOVERY_CACHE_MS = 60_000;
 let modelDiscoveryCache: { expiresAt: number; value: Awaited<ReturnType<typeof discoverAllModels>> } | null = null;
 
-export async function discoverAllModels() {
+export async function discoverAllModels(options: { allowFallback?: boolean } = {}) {
   const providers = getConfiguredProviders();
   if (!providers.length) {
     return [
@@ -579,7 +603,7 @@ export async function discoverAllModels() {
         name: provider.name,
         configured: Boolean(provider.apiKey),
       },
-      models: await discoverModels(provider),
+      models: await discoverModels(provider, options),
     })),
   );
 }
@@ -589,6 +613,7 @@ async function chatOpenAICompatible(
   model: string,
   messages: ChatMessage[],
   clientId = "artistyar-web",
+  signal?: AbortSignal,
 ): Promise<string> {
   const headers: Record<string, string> = {
     ...(authHeaders(provider) as Record<string, string>),
@@ -609,7 +634,7 @@ async function chatOpenAICompatible(
       max_tokens: clientId.includes("coding") ? 12000 : 2048,
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(20_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000),
   });
 
   const data = await readJsonResponse<{
@@ -632,6 +657,7 @@ async function chatAnthropic(
   model: string,
   messages: ChatMessage[],
   clientId = "artistyar-web",
+  signal?: AbortSignal,
 ): Promise<string> {
   const system = messages
     .filter((m) => m.role === "system")
@@ -655,7 +681,7 @@ async function chatAnthropic(
       messages: rest,
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(45_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45_000)]) : AbortSignal.timeout(45_000),
   });
 
   const data = await readJsonResponse<{
@@ -681,6 +707,7 @@ async function chatGoogle(
   model: string,
   messages: ChatMessage[],
   clientId = "artistyar-web",
+  signal?: AbortSignal,
 ): Promise<string> {
   const system = messages
     .filter((m) => m.role === "system")
@@ -693,7 +720,7 @@ async function chatGoogle(
       parts: [{ text: m.content }],
     }));
 
-  const url = `${provider.baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(provider.apiKey || "")}`;
+  const url = `${provider.baseUrl}/models/${encodeURIComponent(model)}:generateContent`;
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -706,7 +733,7 @@ async function chatGoogle(
       generationConfig: { temperature: 0.6, maxOutputTokens: clientId.includes("coding") ? 12000 : 2048 },
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(45_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45_000)]) : AbortSignal.timeout(45_000),
   });
 
   const data = await readJsonResponse<{
@@ -730,6 +757,7 @@ async function chatRahYarGateway(
   provider: AIProvider,
   messages: ChatMessage[],
   clientId: string,
+  signal?: AbortSignal,
 ): Promise<string> {
   const lastUserMessage = [...messages]
     .reverse()
@@ -744,7 +772,7 @@ async function chatRahYarGateway(
       client_id: clientId.slice(0, 64),
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(45_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45_000)]) : AbortSignal.timeout(45_000),
   });
 
   const data = await readJsonResponse<{
@@ -771,16 +799,17 @@ export async function chatWithProvider(
   model: string,
   messages: ChatMessage[],
   clientId = "artistyar-web",
+  signal?: AbortSignal,
 ): Promise<string> {
   switch (provider.chatStyle) {
     case "openai":
-      return chatOpenAICompatible(provider, model, messages, clientId);
+      return chatOpenAICompatible(provider, model, messages, clientId, signal);
     case "anthropic":
-      return chatAnthropic(provider, model, messages, clientId);
+      return chatAnthropic(provider, model, messages, clientId, signal);
     case "google":
-      return chatGoogle(provider, model, messages, clientId);
+      return chatGoogle(provider, model, messages, clientId, signal);
     case "rahyar":
-      return chatRahYarGateway(provider, messages, clientId);
+      return chatRahYarGateway(provider, messages, clientId, signal);
     default:
       throw new Error(`Unsupported chat style: ${provider.chatStyle}`);
   }
@@ -797,11 +826,28 @@ function isProviderFatalError(message: string): boolean {
   );
 }
 
+export async function chatExactProviderModel(
+  messages: ChatMessage[],
+  providerId: string,
+  modelId: string,
+  clientId = "artistyar-web",
+  signal?: AbortSignal,
+) {
+  const provider = getConfiguredProviders().find((item) => item.id === providerId);
+  if (!provider) throw new Error("provider_not_configured");
+  return {
+    reply: await chatWithProvider(provider, modelId, messages, clientId, signal),
+    provider: provider.id,
+    model: modelId,
+  };
+}
+
 export async function autoChat(
   messages: ChatMessage[],
   preferredProvider?: string,
   preferredModel?: string,
   clientId = "artistyar-web",
+  signal?: AbortSignal,
 ) {
   const providers = getConfiguredProviders();
   if (!providers.length) {
@@ -900,7 +946,24 @@ export async function autoChat(
     const { provider, model } = ordered[i];
     if (skippedProviders.has(provider.id)) continue;
     try {
-      const reply = await chatWithProvider(provider, model, messages, clientId);
+      const maxRetries = 2;
+      let reply = "";
+      let lastError: unknown;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
+        try {
+          reply = await chatWithProvider(provider, model, messages, clientId, signal);
+          lastError = undefined;
+          break;
+        } catch (error) {
+          lastError = error;
+          if (signal?.aborted) throw error;
+          const retryable = !isProviderFatalError(error instanceof Error ? error.message : String(error));
+          if (!retryable || attempt === maxRetries) break;
+          await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+        }
+      }
+      if (lastError && !reply) throw lastError;
       return { reply, provider: provider.id, model };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

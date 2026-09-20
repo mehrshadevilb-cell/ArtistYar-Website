@@ -9,417 +9,148 @@ export const dynamic = "force-dynamic";
 
 const FREE_LIMIT = 1;
 const COURSE_LIMIT = 5;
-const PRO_LIMIT = 9999;
-const ADMIN_LIMIT = 9999;
+const UNLIMITED = 9999;
 const MAX_BYTES = 50 * 1024 * 1024;
+const ALLOWED_AUDIO = /\.(mp3|wav|m4a|flac|ogg|opus|aac)$/i;
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
-function startOfDay() {
-  const d = new Date();
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
+type Identity = { id: string; telegramId?: string; admin: boolean };
+
+function dayStart() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
 }
 
-async function currentIdentity(): Promise<{ id: string; telegramId?: string; admin: boolean } | null> {
+async function identity(): Promise<Identity | null> {
   const jar = await cookies();
-  const admin = verifyAdminSession(jar.get(ADMIN_SESSION_COOKIE)?.value);
-  if (admin) return { id: "admin", admin: true };
+  if (verifyAdminSession(jar.get(ADMIN_SESSION_COOKIE)?.value)) return { id: "admin", admin: true };
   const user = verifyUserSession(jar.get(USER_SESSION_COOKIE)?.value);
   return user ? { id: user.id, telegramId: user.telegramId, admin: false } : null;
 }
 
-async function isPro(ids: string[]) {
-  if (!db || !ids.length) return false;
-  const q = await db.from("practice_subscriptions").select("id").in("user_id", ids).eq("status", "active").gt("expires_at", new Date().toISOString()).limit(1);
-  return Boolean(q.data && q.data.length);
-}
-
-async function hasActiveCourse(ids: string[]): Promise<boolean> {
-  if (!ids.length) return false;
-  const key = (process.env.WEB_ADMIN_API_KEY || "").trim();
-  if (!key) return false;
-  try {
-    const base = (process.env.RAHYAR_API_URL || "https://rahyar-academy-management-system-v14.onrender.com").replace(/\/$/, "");
-    for (const id of ids) {
-      const qs = new URLSearchParams({ q: id, limit: "30" });
-      const res = await fetch(`${base}/api/v1/admin/students?${qs}`, {
-        headers: { "X-Admin-Key": key }, cache: "no-store", signal: AbortSignal.timeout(10_000),
-      });
-      if (!res.ok) continue;
-      const data = await res.json().catch(() => null);
-      const rows = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : Array.isArray(data?.students) ? data.students : [];
-      const hit = rows.find((x: any) => String(x.telegram_id || "") === id || String(x.id || "") === id);
-      if (hit?.id) return true;
-    }
-  } catch { /* ignore */ }
-  return false;
+function idsOf(user: Identity) {
+  return Array.from(new Set([user.id, user.telegramId].filter(Boolean))) as string[];
 }
 
 async function countUsed(ids: string[]) {
   if (!db || !ids.length) return 0;
-  const q = await db.from("practice_records").select("id").in("user_id", ids).eq("game_id", "music-analyzer").gte("played_at", startOfDay());
-  return q.data ? q.data.length : 0;
+  const result = await db.from("practice_records").select("id").in("user_id", ids).eq("game_id", "music-analyzer").gte("played_at", dayStart());
+  return result.data?.length || 0;
 }
+
+async function hasActiveCourse(ids: string[]) {
+  const key = (process.env.WEB_ADMIN_API_KEY || "").trim();
+  if (!key || !ids.length) return false;
+  const base = (process.env.RAHYAR_API_URL || "https://rahyar-academy-management-system-v14.onrender.com").replace(/\/$/, "");
+  try {
+    for (const id of ids) {
+      const response = await fetch(`${base}/api/v1/admin/students?${new URLSearchParams({ q: id, limit: "30" })}`, { headers: { "X-Admin-Key": key }, cache: "no-store", signal: AbortSignal.timeout(8000) });
+      if (!response.ok) continue;
+      const payload = await response.json().catch(() => null);
+      const rows = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : Array.isArray(payload?.students) ? payload.students : [];
+      if (rows.some((row: any) => String(row?.id || "") === id || String(row?.telegram_id || "") === id)) return true;
+    }
+  } catch { /* fall back to free tier when entitlement service is unavailable */ }
+  return false;
+}
+
+async function isPro(ids: string[]) {
+  if (!db || !ids.length) return false;
+  const result = await db.from("practice_subscriptions").select("id").in("user_id", ids).eq("status", "active").gt("expires_at", new Date().toISOString()).limit(1);
+  return Boolean(result.data?.length);
+}
+
+function limits(admin: boolean, pro: boolean, course: boolean) {
+  if (admin || pro) return UNLIMITED;
+  return course ? COURSE_LIMIT : FREE_LIMIT;
+}
+
+function number(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function clamp(value: number, min: number, max: number) { return Math.max(min, Math.min(max, value)); }
 
 function metricsOf(input: any) {
   if (!input || typeof input !== "object") return null;
-  const n = (k: string, fallback = 0) => (Number.isFinite(Number(input[k])) ? Number(input[k]) : fallback);
-  const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-  const be = input.bandEnergy && typeof input.bandEnergy === "object" ? input.bandEnergy : null;
+  const bands = input.bandEnergy && typeof input.bandEnergy === "object" ? input.bandEnergy : null;
   return {
-    durationSec: clamp(n("durationSec"), 0, 3600),
-    sampleRate: clamp(n("sampleRate"), 8000, 384000),
-    channels: clamp(Math.round(n("channels", 2)), 1, 8),
-    peakDbfs: clamp(n("peakDbfs"), -120, 6),
-    truePeakDbfs: input.truePeakDbfs == null ? null : clamp(n("truePeakDbfs"), -120, 6),
-    rmsDbfs: clamp(n("rmsDbfs"), -120, 6),
-    crestFactorDb: clamp(n("crestFactorDb"), 0, 60),
-    stereoCorrelation: input.stereoCorrelation == null ? null : clamp(n("stereoCorrelation"), -1, 1),
-    stereoWidth: input.stereoWidth == null ? null : clamp(n("stereoWidth"), 0, 1),
-    spectralCentroidHz: input.spectralCentroidHz == null ? null : clamp(n("spectralCentroidHz"), 20, 22000),
-    lowEnergyPct: input.lowEnergyPct == null ? null : clamp(n("lowEnergyPct"), 0, 100),
-    midEnergyPct: input.midEnergyPct == null ? null : clamp(n("midEnergyPct"), 0, 100),
-    highEnergyPct: input.highEnergyPct == null ? null : clamp(n("highEnergyPct"), 0, 100),
-    clipPct: input.clipPct == null ? null : clamp(n("clipPct"), 0, 100),
-    bandEnergy: be ? {
-      sub: clamp(Number(be.sub) || 0, 0, 100),
-      low: clamp(Number(be.low) || 0, 0, 100),
-      lowMid: clamp(Number(be.lowMid) || 0, 0, 100),
-      mid: clamp(Number(be.mid) || 0, 0, 100),
-      presence: clamp(Number(be.presence) || 0, 0, 100),
-      high: clamp(Number(be.high) || 0, 0, 100),
-      air: clamp(Number(be.air) || 0, 0, 100),
-    } : null,
-    approxLufs: input.approxLufs == null ? null : clamp(n("approxLufs"), -60, 0),
-    loudnessRangeProxy: input.loudnessRangeProxy == null ? null : clamp(n("loudnessRangeProxy"), 0, 40),
+    durationSec: clamp(number(input.durationSec), 0, 3600),
+    sampleRate: clamp(number(input.sampleRate, 44100), 8000, 384000),
+    channels: clamp(Math.round(number(input.channels, 2)), 1, 8),
+    peakDbfs: clamp(number(input.peakDbfs, -120), -120, 6),
+    truePeakDbfs: input.truePeakDbfs == null ? null : clamp(number(input.truePeakDbfs), -120, 6),
+    rmsDbfs: clamp(number(input.rmsDbfs, -120), -120, 6),
+    crestFactorDb: clamp(number(input.crestFactorDb), 0, 60),
+    stereoCorrelation: input.stereoCorrelation == null ? null : clamp(number(input.stereoCorrelation), -1, 1),
+    stereoWidth: input.stereoWidth == null ? null : clamp(number(input.stereoWidth), 0, 1),
+    spectralCentroidHz: input.spectralCentroidHz == null ? null : clamp(number(input.spectralCentroidHz), 20, 22000),
+    lowEnergyPct: input.lowEnergyPct == null ? null : clamp(number(input.lowEnergyPct), 0, 100),
+    midEnergyPct: input.midEnergyPct == null ? null : clamp(number(input.midEnergyPct), 0, 100),
+    highEnergyPct: input.highEnergyPct == null ? null : clamp(number(input.highEnergyPct), 0, 100),
+    clipPct: input.clipPct == null ? null : clamp(number(input.clipPct), 0, 100),
+    bandEnergy: bands ? Object.fromEntries(["sub", "low", "lowMid", "mid", "presence", "high", "air"].map((key) => [key, clamp(number(bands[key]), 0, 100)])) : null,
+    approxLufs: input.approxLufs == null ? null : clamp(number(input.approxLufs), -60, 0),
+    loudnessRangeProxy: input.loudnessRangeProxy == null ? null : clamp(number(input.loudnessRangeProxy), 0, 40),
   };
 }
 
-function strictScore(m: any, genre: string, ref: any | null) {
-  if (ref) {
-    let score = 88;
-    const dPeak = Math.abs((m.peakDbfs ?? 0) - (ref.peakDbfs ?? 0));
-    const dRms = Math.abs((m.rmsDbfs ?? 0) - (ref.rmsDbfs ?? 0));
-    const dCrest = Math.abs((m.crestFactorDb ?? 0) - (ref.crestFactorDb ?? 0));
-    const dLow = Math.abs((m.lowEnergyPct ?? 33) - (ref.lowEnergyPct ?? 33));
-    const dHigh = Math.abs((m.highEnergyPct ?? 33) - (ref.highEnergyPct ?? 33));
-    if (dPeak > 3) score -= 14; else if (dPeak > 1.5) score -= 7;
-    if (dRms > 4) score -= 16; else if (dRms > 2) score -= 8;
-    if (dCrest > 4) score -= 10; else if (dCrest > 2) score -= 5;
-    if (dLow > 15) score -= 12; else if (dLow > 8) score -= 6;
-    if (dHigh > 15) score -= 10; else if (dHigh > 8) score -= 5;
-    if (m.peakDbfs > -0.3) score -= 10;
-    if (m.clipPct && m.clipPct > 0.3) score -= 8;
-    return Math.max(22, Math.min(96, Math.round(score)));
-  }
-  let score = 82;
-  if (m.peakDbfs > -0.3) score -= 20;
-  else if (m.peakDbfs > -1) score -= 12;
-  else if (m.peakDbfs > -1.5) score -= 5;
-  if (m.crestFactorDb < 5) score -= 16;
-  else if (m.crestFactorDb < 7) score -= 9;
-  else if (m.crestFactorDb > 16) score -= 4;
-  const low = m.lowEnergyPct ?? 33;
-  if (low > 48 || low < 18) score -= 12;
-  else if (low > 42 || low < 22) score -= 6;
-  if (m.clipPct && m.clipPct > 0.5) score -= 15;
-  else if (m.clipPct && m.clipPct > 0.1) score -= 6;
-  if (m.stereoCorrelation != null && m.stereoCorrelation < 0.15) score -= 5;
-  if (/edm|trap|hip/i.test(genre) && m.crestFactorDb > 12) score -= 4;
-  return Math.max(25, Math.min(94, Math.round(score)));
+function score(m: any, genre: string, ref: any) {
+  const differences = ref ? [[m.peakDbfs, ref.peakDbfs, 14, 1.5, 3], [m.rmsDbfs, ref.rmsDbfs, 16, 2, 4], [m.crestFactorDb, ref.crestFactorDb, 10, 2, 4], [m.lowEnergyPct ?? 33, ref.lowEnergyPct ?? 33, 12, 8, 15], [m.highEnergyPct ?? 33, ref.highEnergyPct ?? 33, 10, 8, 15]] : [];
+  let result = ref ? 88 : 82;
+  for (const [a, b, penalty, soft, hard] of differences) { const delta = Math.abs(number(a) - number(b)); if (delta > hard) result -= penalty; else if (delta > soft) result -= penalty / 2; }
+  if (!ref) { if (m.peakDbfs > -0.3) result -= 20; else if (m.peakDbfs > -1) result -= 12; else if (m.peakDbfs > -1.5) result -= 5; if (m.crestFactorDb < 5) result -= 16; else if (m.crestFactorDb < 7) result -= 9; if ((m.lowEnergyPct ?? 33) > 48 || (m.lowEnergyPct ?? 33) < 18) result -= 12; if (/edm|trap|hip/i.test(genre) && m.crestFactorDb > 12) result -= 4; }
+  if (m.clipPct != null && m.clipPct > 0.1) result -= m.clipPct > 0.5 ? 15 : 6;
+  if (m.stereoCorrelation != null && m.stereoCorrelation < 0.15) result -= 5;
+  return clamp(Math.round(result), ref ? 22 : 25, ref ? 96 : 94);
 }
 
-function arrangementFallback(m: any, genre: string, focus: string, af: any | null) {
-  const sections = Array.isArray(af?.sectionCandidates) ? af.sectionCandidates.map((s: any) => ({
-    label: String(s.label || "بخش"),
-    startSec: Number(s.startSec) || 0,
-    endSec: Number(s.endSec) || 0,
-    note: "برچسب از تغییر انرژی — احتمالی",
-    confidence: 0.45,
-  })) : [];
-  const bpm = af?.bpmEstimate != null ? Number(af.bpmEstimate) : null;
-  const bpmConf = Number(af?.bpmConfidence) || 0;
-  const variance = Number(af?.energyVariance) || 0;
-  return {
-    fileSummary: `تحلیل تنظیم «${genre}» · تمرکز «${focus}» · ${Number(m.durationSec || 0).toFixed(1)}s` + (bpm ? ` · BPM≈${bpm}` : ""),
-    matchScore: Math.max(40, Math.min(88, 70 + (variance > 8 ? 8 : -5) + (sections.length >= 3 ? 5 : 0))),
-    structureSummary: sections.length
-      ? `حدود ${sections.length} بخش کاندید از منحنی انرژی. برچسب‌ها احتمالی‌اند.`
-      : "بخش‌بندی محدود؛ با گوش تأیید کن.",
-    sections,
-    rhythm: {
-      bpm,
-      confidence: bpmConf,
-      advice: bpm == null ? "BPM قابل‌اعتماد استخراج نشد." : bpmConf < 0.35
-        ? `BPM≈${bpm} با اطمینان پایین.`
-        : `BPM حدود ${bpm}؛ با کلیک‌ترک چک کن.`,
-    },
-    density: [
-      m.lowEnergyPct != null && m.lowEnergyPct > 40 ? "لایه بم پر است — در بخش‌های خلوت کم کن." : "فضای بم مناسب لایه‌بندی.",
-      "تراکم ورس و کورس را عمداً فرق بده.",
-    ],
-    energyNarrative: variance > 12
-      ? "کنتراست انرژی خوب است."
-      : variance > 5
-        ? "کنتراست متوسط — می‌توان قوی‌تر کرد."
-        : "انرژی یکنواخت — خطر flat بودن تنظیم.",
-    arrangementTips: [
-      "در ورس لایه کمتر، در کورس بیشتر.",
-      "یک hook امضا تکرار شود.",
-      "ورود/خروج سازها را زمان‌بندی کن.",
-      "سکوت عمدی بگذار.",
-    ],
-    roadmap: [
-      "منحنی انرژی و اوج/فرود را علامت بزن.",
-      "تعداد لایه ورس/کورس را فرق بده.",
-      "BPM را قفل کن.",
-      "با رفرنس فقط از نظر ساختار A/B کن.",
-    ],
-    learnCards: [{
-      what: "کنتراست تراکم لایه‌ها",
-      where: "ورس در برابر کورس",
-      why: "بدون کنتراست ساختار شنیده نمی‌شود.",
-      learn: "Arrangement density",
-      practice: "ورس با نصف لایه‌های کورس.",
-      confidence: 0.7,
-    }],
-    source: "arrangement-metrics-fallback",
-  };
-}
-
-function fallback(m: any, genre: string, focus: string, ref: any | null) {
-  const low = m.lowEnergyPct ?? 33;
-  const mid = m.midEnergyPct ?? 34;
-  const high = m.highEnergyPct ?? 33;
-  const corr = m.stereoCorrelation;
+function deterministicAnalysis(m: any, genre: string, focus: string, ref: any) {
+  const low = m.lowEnergyPct ?? 33, mid = m.midEnergyPct ?? 34, high = m.highEnergyPct ?? 33, corr = m.stereoCorrelation;
   const eq: string[] = [];
   if (ref) {
-    const dRms = (m.rmsDbfs ?? 0) - (ref.rmsDbfs ?? 0);
-    const dLow = (m.lowEnergyPct ?? 33) - (ref.lowEnergyPct ?? 33);
-    const dHigh = (m.highEnergyPct ?? 33) - (ref.highEnergyPct ?? 33);
-    const dCrest = (m.crestFactorDb ?? 0) - (ref.crestFactorDb ?? 0);
-    if (dRms > 2) eq.push(`بلندی از رفرنس بیشتر است (RMS حدود ${dRms.toFixed(1)} dB بالاتر) — گین کلی را کم کن.`);
-    else if (dRms < -2) eq.push(`بلندی از رفرنس کمتر است (RMS حدود ${Math.abs(dRms).toFixed(1)} dB پایین‌تر) — سطح را نزدیک رفرنس کن.`);
-    if (dLow > 8) eq.push("بیس نسبت به رفرنس سنگین‌تر است — پایین را کم کن و با رفرنس A/B کن.");
-    else if (dLow < -8) eq.push("بیس نسبت به رفرنس ضعیف‌تر است — کیک/باس را کمی پر کن.");
-    if (dHigh > 8) eq.push("بالا نسبت به رفرنس تیزتر است — ۵ تا ۱۰ کیلوهرتز را کنترل کن.");
-    else if (dHigh < -8) eq.push("بالا نسبت به رفرنس کم‌انرژی است — کمی هوا اضافه کن.");
-    if (dCrest < -3) eq.push("داینامیک از رفرنس فشرده‌تر است — کمپرس/لیمیتر را ملایم‌تر کن.");
-    else if (dCrest > 3) eq.push("داینامیک از رفرنس بازتر است — کمپرس ملایم برای نزدیک شدن به رفرنس مفید است.");
-    if (!eq.length) eq.push("تعادل کلی به رفرنس نزدیک است؛ جزئیات وکال و عرض استریو را با A/B چک کن.");
+    const dRms = m.rmsDbfs - ref.rmsDbfs, dLow = low - (ref.lowEnergyPct ?? 33), dHigh = high - (ref.highEnergyPct ?? 33);
+    if (Math.abs(dRms) > 2) eq.push(`${dRms > 0 ? "بلندی" : "آرامی"} ترک نسبت به رفرنس حدود ${Math.abs(dRms).toFixed(1)} dB متفاوت است؛ گین را با loudness matching مقایسه کن.`);
+    if (Math.abs(dLow) > 8) eq.push(`${dLow > 0 ? "پایین بیش‌ازحد سنگین است" : "پایین کم‌انرژی است"}؛ کیک و باس را جدا و سپس با رفرنس A/B کن.`);
+    if (Math.abs(dHigh) > 8) eq.push(`${dHigh > 0 ? "بالا تیزتر است" : "بالا کم‌انرژی است"}؛ ناحیه حضور را بدون تغییر کورکورانه‌ی ولوم کنترل کن.`);
+    if (!eq.length) eq.push("فاصله‌ی متریک‌ها با رفرنس کم است؛ حالا وکال، عمق و ترنزینت‌ها را با A/B بررسی کن.");
   } else {
-    if (low > 42) eq.push("بیس سنگین است — حدود ۴۰ تا ۲۵۰ هرتز را ۱٫۵ تا ۳ دسی‌بل کم کن و باس را مونو چک کن.");
-    else if (low < 22) eq.push("بیس ضعیف است — کیک/باس را حدود ۵۰ تا ۱۰۰ هرتز کمی بلندتر کن.");
-    else eq.push("بیس قابل‌قبول است؛ فقط تداخل کیک و باس را جدا کن.");
-    if (mid > 45) eq.push("میانی شلوغ است — حدود ۲۰۰ تا ۵۰۰ هرتز را کم کن تا فضا باز شود.");
-    else eq.push("میانی متعادل است؛ حضور وکال را با دقت جلو بیاور.");
-    if (high > 40) eq.push("بالا تیز است — حدود ۵ تا ۸ کیلوهرتز را کنترل کن.");
-    else if (high < 18) eq.push("بالا کم‌انرژی است — کمی هوا در ۱۰ تا ۱۴ کیلوهرتز اضافه کن.");
-    else eq.push("بالا متعادل است.");
+    eq.push(low > 42 ? "پایین سنگین است؛ ناحیه ۴۰ تا ۲۵۰ هرتز و تداخل کیک/باس را کنترل کن." : low < 22 ? "پایین کم‌انرژی است؛ کیک و باس را در ۵۰ تا ۱۰۰ هرتز با مرجع شنیداری چک کن." : "تعادل پایین قابل‌قبول است؛ تداخل کیک و باس را با سایدچین یا انتخاب صدا حل کن.");
+    eq.push(mid > 45 ? "میانی شلوغ است؛ ۲۰۰ تا ۵۰۰ هرتز را با حرکت‌های کوچک و هدفمند باز کن." : "میانی قابل‌قبول است؛ فضای وکال را با arrangement و پنینگ حفظ کن.");
+    eq.push(high > 40 ? "بالا تیز است؛ ۵ تا ۸ کیلوهرتز را قبل از افزودن هوا کنترل کن." : high < 18 ? "بالا کم‌انرژی است؛ ابتدا حضور وکال را بررسی کن، سپس هوا اضافه کن." : "بالا متعادل است؛ از بالا بردن غیرضروری برای جبران کمبود وضوح پرهیز کن.");
   }
-  const score = strictScore(m, genre, ref);
-  const summaryBase = ref
-    ? `مقایسه سخت‌گیرانه با رفرنس کاربر. Peak ${m.peakDbfs.toFixed(1)} در برابر ${(ref.peakDbfs ?? 0).toFixed(1)} · RMS ${m.rmsDbfs.toFixed(1)} در برابر ${(ref.rmsDbfs ?? 0).toFixed(1)} · Crest ${m.crestFactorDb.toFixed(1)} در برابر ${(ref.crestFactorDb ?? 0).toFixed(1)}.`
-    : `تحلیل سخت‌گیرانه برای «${genre}» با تمرکز «${focus}». Peak ${m.peakDbfs.toFixed(1)} dBFS · RMS ${m.rmsDbfs.toFixed(1)} dBFS · Crest ${m.crestFactorDb.toFixed(1)} dB.` + (m.approxLufs != null ? ` · ≈${m.approxLufs.toFixed(1)} LUFS` : "");
-  return {
-    fileSummary: summaryBase,
-    matchScore: score,
-    descriptors: {
-      tonal: low > 40 ? "بیس‌محور" : high > 38 ? "روشن" : "متعادل",
-      stereo: corr == null ? "نامشخص" : corr < 0.25 ? "خیلی عریض" : corr > 0.85 ? "تقریباً مونو" : "متعادل",
-      dynamics: m.crestFactorDb < 6 ? "فشرده" : m.crestFactorDb > 14 ? "باز" : "متعادل",
-      loudness: m.rmsDbfs > -10 ? "بلند" : m.rmsDbfs > -16 ? "متوسط" : "آرام",
-    },
-    loudness: {
-      peak: `${m.peakDbfs.toFixed(1)} dBFS`,
-      rms: `${m.rmsDbfs.toFixed(1)} dBFS`,
-      crest: `${m.crestFactorDb.toFixed(1)} dB`,
-      targetLufs: ref?.approxLufs != null ? `نزدیک رفرنس ≈${ref.approxLufs.toFixed(1)}` : (/edm|electro/i.test(genre) ? "حدود ۷- تا ۶- LUFS" : "حدود ۹- تا ۸- LUFS"),
-      truePeak: m.truePeakDbfs != null ? `${m.truePeakDbfs.toFixed(1)} dBTP` : "≤ -1.0 dBTP",
-    },
-    tonal: {
-      summary: `پایین ${low.toFixed(0)}٪ · میانی ${mid.toFixed(0)}٪ · بالا ${high.toFixed(0)}٪` + (m.spectralCentroidHz ? ` · مرکز حدود ${Math.round(m.spectralCentroidHz)}Hz` : "") + (ref ? ` | رفرنس: پایین ${(ref.lowEnergyPct ?? 0).toFixed(0)}٪ · بالا ${(ref.highEnergyPct ?? 0).toFixed(0)}٪` : ""),
-      low, mid, high, centroid: m.spectralCentroidHz,
-    },
-    stereo: {
-      correlation: corr,
-      advice: corr == null ? "اطلاعات استریو نیست." : corr < 0.3 ? "عرض زیاد است؛ بیس را مونو کن." : corr > 0.9 ? "تقریباً مونو است؛ عرض را روی میانی/بالا باز کن." : "عرض پایدار است.",
-    },
-    dynamics: m.crestFactorDb < 6 ? "داینامیک فشرده است — قبل از لیمیتر تعادل را درست کن." : m.crestFactorDb > 14 ? "فضای داینامیک زیاد است — کمپرس ملایم مفید است." : "داینامیک متعادل است.",
-    clipping: m.peakDbfs >= -0.3 || (m.clipPct && m.clipPct > 0.2) ? "پیک نزدیک سقف یا کلیپ دارد — فوری گین را اصلاح کن." : m.peakDbfs >= -1 ? "پیک نزدیک ۱- است؛ هدرووم کم." : "پیک نسبتاً امن است.",
-    compression: {
-      summary: ref ? "کمپرس را طوری تنظیم کن که Crest و RMS به رفرنس نزدیک شود." : "کمپرس را بعد از تعادل بزن؛ هدف کنترل قله‌هاست.",
-      attack: "روی باس متوسط تا سریع",
-      release: "هماهنگ با تمپو",
-      ratio: "۳:۱ تا ۴:۱",
-      thresholdHint: "۱ تا ۳ دسی‌بل کاهش روی باس",
-    },
-    eq,
-    arrangement: [
-      "تراکم سازها را در ورس کم‌تر نگه دار تا کورس بازتر شنیده شود.",
-      "بین ورس و کورس کنتراست تنظیم بساز.",
-      "یک المان امضا در تنظیم تکرار شود.",
-      "سکوت و فضای خالی عمدی بگذار.",
-      "نقش وکال در تنظیم مشخص باشد.",
-    ],
-    mixBalance: [
-      { element: "وکال", advice: ref ? "حضور وکال را با رفرنس A/B کن." : "جلو باشد بدون تیز شدن." },
-      { element: "درامز", advice: "وزن + کلیک واضح." },
-      { element: "باس", advice: "محکم، ساب مونو." },
-      { element: "هارمونی", advice: "فضا بدهد؛ میانی شلوغ نشود." },
-    ],
-    roadmap: ref ? [
-      "سطح کلی را به رفرنس نزدیک کن.",
-      "پیک و True Peak را امن نگه دار.",
-      "تعادل باندها را با رفرنس A/B کن.",
-      "عرض استریو و مونو بودن بیس را چک کن.",
-      "کمپرس و لیمیتر را نزدیک رفرنس تنظیم کن.",
-      "دوباره با رفرنس A/B کن.",
-    ] : [
-      "با رفرنس هم‌سبک سطح را یکی کن.",
-      "پیک و True Peak را امن کن.",
-      "پایین / میانی / بالا را با A/B چک کن.",
-      "بیس را مونو کن.",
-      "کمپرس هدفمند، بعد لیمیتر.",
-      "دوباره با رفرنس A/B کن.",
-    ],
-    quickFixes: ref
-      ? ["سطح را به رفرنس نزدیک کن", "بیس را با رفرنس A/B کن", "بالا را تیز نکن", "دوباره با رفرنس گوش بده"]
-      : ["اول گل‌آلودگی را کم کن", "ساب را مونو نگه دار", "لیمیتر فقط سقف بدهد", "با رفرنس A/B کن"],
-    referenceTips: ref
-      ? "رفرنس خودت معیار است."
-      : "مثل Reference: خط تعادل را دنبال کن.",
-    source: ref ? "metrics-fallback-vs-reference" : "metrics-fallback-strict",
-  };
+  const scoreValue = score(m, genre, ref);
+  return { fileSummary: ref ? `مقایسه‌ی متریک‌محور با رفرنس. Peak ${m.peakDbfs.toFixed(1)} در برابر ${ref.peakDbfs.toFixed(1)} · RMS ${m.rmsDbfs.toFixed(1)} در برابر ${ref.rmsDbfs.toFixed(1)} · Crest ${m.crestFactorDb.toFixed(1)} در برابر ${ref.crestFactorDb.toFixed(1)}.` : `تحلیل ${genre} با تمرکز ${focus}. Peak ${m.peakDbfs.toFixed(1)} dBFS · RMS ${m.rmsDbfs.toFixed(1)} dBFS · Crest ${m.crestFactorDb.toFixed(1)} dB${m.approxLufs == null ? "" : ` · ≈${m.approxLufs.toFixed(1)} LUFS`}.`, matchScore: scoreValue, descriptors: { tonal: low > 40 ? "بیس‌محور" : high > 38 ? "روشن" : "متعادل", stereo: corr == null ? "نامشخص" : corr < 0.25 ? "خیلی عریض" : corr > 0.85 ? "تقریباً مونو" : "متعادل", dynamics: m.crestFactorDb < 6 ? "فشرده" : m.crestFactorDb > 14 ? "باز" : "متعادل", loudness: m.rmsDbfs > -10 ? "بلند" : m.rmsDbfs > -16 ? "متوسط" : "آرام" }, loudness: { peak: `${m.peakDbfs.toFixed(1)} dBFS`, rms: `${m.rmsDbfs.toFixed(1)} dBFS`, crest: `${m.crestFactorDb.toFixed(1)} dB`, targetLufs: ref?.approxLufs != null ? `نزدیک رفرنس ≈${ref.approxLufs.toFixed(1)}` : "با loudness matching قضاوت کن", truePeak: m.truePeakDbfs == null ? "≤ -1.0 dBTP" : `${m.truePeakDbfs.toFixed(1)} dBTP` }, tonal: { summary: `پایین ${low.toFixed(0)}٪ · میانی ${mid.toFixed(0)}٪ · بالا ${high.toFixed(0)}٪${m.spectralCentroidHz ? ` · مرکز ${Math.round(m.spectralCentroidHz)}Hz` : ""}`, low, mid, high, centroid: m.spectralCentroidHz }, stereo: { correlation: corr, advice: corr == null ? "اطلاعات استریو موجود نیست." : corr < 0.3 ? "عرض زیاد است؛ ساب و باس را مونو چک کن." : corr > 0.9 ? "تقریباً مونو است؛ فقط میانی/بالا را با احتیاط باز کن." : "عرض استریو پایدار است." }, dynamics: m.crestFactorDb < 6 ? "داینامیک فشرده است؛ قبل از لیمیتر تعادل و ترنزینت را اصلاح کن." : m.crestFactorDb > 14 ? "داینامیک باز است؛ کمپرس ملایم و وابسته به تمپو را تست کن." : "داینامیک متعادل است.", clipping: m.peakDbfs >= -0.3 || (m.clipPct ?? 0) > 0.2 ? "پیک نزدیک سقف یا کلیپ وجود دارد؛ گین را اصلاح کن." : m.peakDbfs >= -1 ? "هدرووم کم است؛ قبل از مستر نهایی دوباره چک کن." : "پیک فعلاً در محدوده‌ی امن‌تری است.", compression: { summary: ref ? "کمپرس را فقط برای نزدیک‌کردن Crest و RMS به رفرنس تنظیم کن." : "کمپرس بعد از تعادل؛ هدف کنترل قله‌هاست، نه بلندترکردن کور.", attack: "متوسط تا سریع روی باس", release: "هماهنگ با تمپو", ratio: "۳:۱ تا ۴:۱", thresholdHint: "حدود ۱ تا ۳ dB کاهش" }, eq, arrangement: ["ورس را خلوت‌تر و کورس را متراکم‌تر نگه دار تا کنتراست شنیداری ایجاد شود.", "یک hook مشخص را حفظ کن و لایه‌های هم‌نقش را حذف یا ادغام کن.", "برای وکال فضای خالی فرکانسی و زمانی بساز؛ همه‌چیز نباید هم‌زمان پر باشد.", "ترنزیشن‌ها را با حذف/اضافه‌کردن هدفمند سازها بساز، نه فقط با افکت.", "بعد از هر تغییر arrangement، میکس را در ولوم کم و مونو دوباره ارزیابی کن."], mixBalance: [{ element: "وکال", advice: ref ? "حضور وکال را با رفرنس loudness-match کن." : "جلو باشد بدون تیزی اضافه." }, { element: "درامز", advice: "ترنزینت و وزن را جداگانه چک کن." }, { element: "باس", advice: "ساب مونو و تداخل کیک/باس کنترل شود." }, { element: "هارمونی", advice: "فضا بدهد و میانی را اشباع نکند." }], roadmap: ["ابتدا گین و هدرووم را اصلاح کن.", "سپس تداخل پایین و فضای وکال را حل کن.", "بعد کنتراست ورس/کورس و نقش لایه‌ها را اصلاح کن.", "استریو را در مونو و چند ولوم بررسی کن.", "در پایان کمپرس و لیمیتر را با A/B تنظیم کن."], quickFixes: ["loudness-match با رفرنس", "چک مونو برای باس", "کنترل ۲۰۰ تا ۵۰۰ هرتز", "مقایسه در ولوم کم"], referenceTips: ref ? "امتیاز فقط نزدیکی متریک‌ها به رفرنس آپلودشده است؛ کیفیت موسیقایی را جایگزین گوش‌دادن نمی‌کند." : "امتیاز یک راهنمای متریک‌محور است، نه داوری قطعی کیفیت موسیقی.", source: ref ? "deterministic-v2-vs-reference" : "deterministic-v2" };
 }
 
-function parseJson(text: string) {
-  const s = text.trim();
-  try { return JSON.parse(s); } catch {}
-  const a = s.indexOf("{");
-  const b = s.lastIndexOf("}");
-  if (a >= 0 && b > a) { try { return JSON.parse(s.slice(a, b + 1)); } catch {} }
-  return null;
-}
+function parseJson(value: string) { try { return JSON.parse(value); } catch { const start = value.indexOf("{"); const end = value.lastIndexOf("}"); if (start >= 0 && end > start) { try { return JSON.parse(value.slice(start, end + 1)); } catch { return null; } } return null; } }
 
-function resolveLimit(isAdmin: boolean, pro: boolean, course: boolean) {
-  if (isAdmin) return ADMIN_LIMIT;
-  if (pro) return PRO_LIMIT;
-  if (course) return COURSE_LIMIT;
-  return FREE_LIMIT;
-}
+async function entitlement(user: Identity) { if (user.admin) return { limit: UNLIMITED, used: 0, pro: true, course: true, admin: true }; const ids = idsOf(user); const [used, pro, course] = await Promise.all([countUsed(ids), isPro(ids), hasActiveCourse(ids)]); return { limit: limits(false, pro, course), used, pro, course, admin: false }; }
 
-function tierLabel(isAdmin: boolean, pro: boolean, course: boolean) {
-  if (isAdmin) return "admin";
-  if (pro) return "pro";
-  if (course) return "course";
-  return "free";
-}
-
-export async function GET() {
-  const identity = await currentIdentity();
-  if (!identity) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
-  const ids = identity.admin ? [] : Array.from(new Set([identity.id, identity.telegramId || ""].filter(Boolean)));
-  const isAdmin = identity.admin;
-  if (isAdmin) {
-    return NextResponse.json({ ok: true, limit: ADMIN_LIMIT, used: 0, remaining: ADMIN_LIMIT, pro: true, course: true, admin: true, tier: "admin" });
-  }
-  if (!ids.length || !db) {
-    return NextResponse.json({ ok: true, limit: FREE_LIMIT, used: 0, remaining: FREE_LIMIT, pro: false, course: false, admin: false, tier: "free" });
-  }
-  const [used, pro, course] = await Promise.all([countUsed(ids), isPro(ids), hasActiveCourse(ids)]);
-  const limit = resolveLimit(false, pro, course);
-  return NextResponse.json({ ok: true, limit, used, remaining: Math.max(0, limit - used), pro, course, admin: false, tier: tierLabel(false, pro, course) });
-}
+export async function GET() { const user = await identity(); if (!user) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 }); const access = await entitlement(user); return NextResponse.json({ ok: true, ...access, remaining: Math.max(0, access.limit - access.used), tier: access.admin ? "admin" : access.pro ? "pro" : access.course ? "course" : "free" }); }
 
 export async function POST(request: Request) {
-  const form = await request.formData().catch(() => null);
-  if (!form) return NextResponse.json({ ok: false, error: "invalid_form" }, { status: 400 });
-
-  const file = form.get("file");
-  const identity = await currentIdentity();
-  if (!identity) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
-  const userId = identity.admin ? "" : identity.id;
-  const telegramId = identity.admin ? "" : (identity.telegramId || "");
-  const isAdmin = identity.admin;
-  const genre = String(form.get("genre") || "عمومی").slice(0, 80);
-  const focus = String(form.get("focus") || "فول میکس").slice(0, 80);
-  const notes = String(form.get("notes") || "").slice(0, 800);
-  const refName = String(form.get("refName") || "").slice(0, 120);
-  const mode = String(form.get("mode") || "mix").toLowerCase() === "arrangement" ? "arrangement" : "mix";
-
-  let m = null;
-  let ref = null;
-  let af: any = null;
-  try { m = metricsOf(JSON.parse(String(form.get("metrics") || "{}"))); } catch {}
-  try { ref = metricsOf(JSON.parse(String(form.get("refMetrics") || "null"))); } catch { ref = null; }
-  try { af = JSON.parse(String(form.get("arrangementFeatures") || "null")); } catch { af = null; }
-
-  if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "audio_file_required" }, { status: 400 });
-  if (!m) return NextResponse.json({ ok: false, error: "audio_metrics_required" }, { status: 400 });
+  const user = await identity(); if (!user) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
+  const form = await request.formData().catch(() => null); if (!form) return NextResponse.json({ ok: false, error: "invalid_form" }, { status: 400 });
+  const file = form.get("file"); if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "audio_file_required" }, { status: 400 });
   if (file.size <= 0 || file.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "file_too_large_or_empty" }, { status: 413 });
-
-  const ids = Array.from(new Set([userId, telegramId].filter(Boolean)));
-  const pro = isAdmin ? true : await isPro(ids);
-  const course = isAdmin || pro ? true : await hasActiveCourse(ids);
-  const limit = resolveLimit(isAdmin, pro, course);
-  const used = isAdmin ? 0 : await countUsed(ids);
-  if (!isAdmin && used >= limit) {
-    return NextResponse.json({ ok: false, code: "daily_limit_reached", limit, used, remaining: 0, pro, course, admin: false }, { status: 429 });
-  }
-
-  const enriched = { ...m };
-  let analysis: any = mode === "arrangement"
-    ? arrangementFallback(enriched, genre, focus, af)
-    : fallback(enriched, genre, focus, ref);
-
-  if (mode !== "arrangement") {
-    try {
-      const system = ref
-        ? `تو مهندس میکس سخت‌گیر هستی. مقایسه فقط با رفرنس کاربر. فارسی. فقط JSON: fileSummary, matchScore, descriptors, loudness, tonal, stereo, dynamics, clipping, compression, eq, arrangement, mixBalance, roadmap, quickFixes, referenceTips, source.`
-        : `تو مهندس میکس سخت‌گیر هستی. فارسی. فقط JSON: fileSummary, matchScore, descriptors, loudness, tonal, stereo, dynamics, clipping, compression, eq, arrangement, mixBalance, roadmap, quickFixes, referenceTips, source.`;
-      const prompt = ref
-        ? `فایل: ${(file as File).name}\nمتریک: ${JSON.stringify(enriched)}\nرفرنس: ${refName}\nمتریک رفرنس: ${JSON.stringify(ref)}\nژانر: ${genre}\nتمرکز: ${focus}\nتوضیح: ${notes || "—"}`
-        : `فایل: ${(file as File).name}\nمتریک: ${JSON.stringify(enriched)}\nژانر: ${genre}\nتمرکز: ${focus}\nتوضیح: ${notes || "—"}`;
-      const raw = await autoChat([
-        { role: "system", content: system },
-        { role: "user", content: prompt },
-      ]);
-      const parsed = parseJson(typeof raw === "string" ? raw : String((raw as any)?.reply ?? raw ?? ""));
-      if (parsed && typeof parsed === "object") {
-        analysis = {
-          ...analysis,
-          ...parsed,
-          matchScore: Number.isFinite(Number(parsed.matchScore)) ? Math.round(Number(parsed.matchScore)) : analysis.matchScore,
-          arrangement: Array.isArray(parsed.arrangement) && parsed.arrangement.length ? parsed.arrangement : analysis.arrangement,
-          eq: Array.isArray(parsed.eq) && parsed.eq.length ? parsed.eq : analysis.eq,
-          mixBalance: Array.isArray(parsed.mixBalance) && parsed.mixBalance.length ? parsed.mixBalance : analysis.mixBalance,
-          roadmap: Array.isArray(parsed.roadmap) && parsed.roadmap.length ? parsed.roadmap : analysis.roadmap,
-          quickFixes: Array.isArray(parsed.quickFixes) && parsed.quickFixes.length ? parsed.quickFixes : analysis.quickFixes,
-          source: parsed.source || (ref ? "ai-vs-reference" : "ai-strict"),
-        };
-      }
-    } catch { /* keep fallback */ }
-  }
-
-  if (db && ids.length && !isAdmin) {
-    try {
-      await db.from("practice_records").insert({
-        user_id: ids[0],
-        game_id: "music-analyzer",
-        score: analysis.matchScore ?? 0,
-        played_at: new Date().toISOString(),
-        meta: { genre, focus, hasRef: Boolean(ref), mode },
-      });
-    } catch { /* ignore */ }
-  }
-
-  return NextResponse.json({
-    ok: true,
-    metrics: enriched,
-    analysis,
-    quota: { limit, used: used + (isAdmin ? 0 : 1), remaining: Math.max(0, limit - used - (isAdmin ? 0 : 1)), pro, course, admin: isAdmin, tier: tierLabel(isAdmin, pro, course) },
-  });
+  if (!ALLOWED_AUDIO.test(file.name)) return NextResponse.json({ ok: false, error: "unsupported_audio_format" }, { status: 415 });
+  const metrics = metricsOf(parseJson(String(form.get("metrics") || "{}"))); const reference = metricsOf(parseJson(String(form.get("refMetrics") || "null"))); if (!metrics) return NextResponse.json({ ok: false, error: "audio_metrics_required" }, { status: 400 });
+  const genre = String(form.get("genre") || "عمومی").slice(0, 80); const focus = String(form.get("focus") || "فول میکس").slice(0, 80); const notes = String(form.get("notes") || "").slice(0, 800); const refName = String(form.get("refName") || "reference").slice(0, 120);
+  const access = await entitlement(user); if (!access.admin && access.used >= access.limit) return NextResponse.json({ ok: false, code: "daily_limit_reached", ...access, remaining: 0 }, { status: 429 });
+  let analysis: any = deterministicAnalysis(metrics, genre, focus, reference);
+  try {
+    const system = "تو مهندس میکس و تنظیم سخت‌گیر هستی. فارسی ساده و عملی بنویس. اعداد ورودی واقعی‌اند و نباید جعل شوند. فقط JSON معتبر با کلیدهای fileSummary, matchScore, descriptors, loudness, tonal, stereo, dynamics, clipping, compression, eq, arrangement, mixBalance, roadmap, quickFixes, referenceTips, source برگردان. arrangement باید پیشنهاد تنظیم باشد، نه فقط EQ.";
+    const prompt = reference ? `ترک ${file.name} را فقط با رفرنس ${refName} مقایسه کن. متریک ترک: ${JSON.stringify(metrics)}. متریک رفرنس: ${JSON.stringify(reference)}. ژانر: ${genre}. تمرکز: ${focus}. یادداشت: ${notes || "—"}. تفاوت‌های Peak/RMS/Crest/طیف/استریو و پیشنهاد تنظیم را دقیق بگو.` : `ترک ${file.name} را برای ژانر ${genre} و تمرکز ${focus} تحلیل کن. متریک واقعی: ${JSON.stringify(metrics)}. یادداشت: ${notes || "—"}. پیشنهاد میکس و تنظیم باید مرحله‌ای و قابل اجرا باشد.`;
+    const raw = await autoChat([{ role: "system", content: system }, { role: "user", content: prompt }]);
+    const parsed = parseJson(typeof raw === "string" ? raw : String(raw ?? ""));
+    if (parsed && typeof parsed === "object") analysis = { ...analysis, ...parsed, matchScore: Number.isFinite(Number(parsed.matchScore)) ? clamp(Math.round(Number(parsed.matchScore)), 0, 100) : analysis.matchScore, eq: Array.isArray(parsed.eq) && parsed.eq.length ? parsed.eq : analysis.eq, arrangement: Array.isArray(parsed.arrangement) && parsed.arrangement.length ? parsed.arrangement : analysis.arrangement, roadmap: Array.isArray(parsed.roadmap) && parsed.roadmap.length ? parsed.roadmap : analysis.roadmap, source: parsed.source || "ai-assisted-v2" };
+  } catch { /* deterministic analysis remains available when AI is unavailable */ }
+  if (db && !user.admin) { try { await db.from("practice_records").insert({ user_id: user.id, game_id: "music-analyzer", score: analysis.matchScore ?? 0, played_at: new Date().toISOString(), meta: { genre, focus, hasRef: Boolean(reference), analyzerVersion: "v2" } }); } catch { /* result remains valid */ } }
+  const used = access.used + (user.admin ? 0 : 1);
+  return NextResponse.json({ ok: true, metrics, analysis, quota: { ...access, used, remaining: Math.max(0, access.limit - used), tier: access.admin ? "admin" : access.pro ? "pro" : access.course ? "course" : "free" } });
 }

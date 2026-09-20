@@ -1,0 +1,64 @@
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-auth";
+import { listAdminAiModels, syncAdminAiModels, updateAdminAiModel, validateAdminAiModel } from "@/lib/admin-ai-model-registry";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+async function requireAdmin() {
+  const value = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value;
+  return verifyAdminSession(value);
+}
+
+export async function GET() {
+  const session = await requireAdmin();
+  if (!session) return NextResponse.json({ ok: false, error: "دسترسی مدیریت لازم است." }, { status: 401 });
+  try {
+    return NextResponse.json({ ok: true, models: await listAdminAiModels() });
+  } catch (error) {
+    console.error("admin model registry GET failed", error instanceof Error ? error.message : "unknown error");
+    return NextResponse.json({ ok: false, error: "Model Registry در دسترس نیست." }, { status: 503 });
+  }
+}
+
+export async function POST(request: Request) {
+  const session = await requireAdmin();
+  if (!session) return NextResponse.json({ ok: false, error: "دسترسی مدیریت لازم است." }, { status: 401 });
+  try {
+    const body = await request.json() as { action?: unknown; id?: unknown; enabled?: unknown; priority?: unknown; preferred?: unknown; status?: unknown };
+    if (body.action === "sync") return NextResponse.json({ ok: true, models: await syncAdminAiModels() });
+    if (body.action === "validate") {
+      if (typeof body.id !== "string" || !body.id.trim()) return NextResponse.json({ ok: false, error: "شناسه مدل لازم است." }, { status: 400 });
+      const model = await validateAdminAiModel(body.id.trim());
+      if (!model) return NextResponse.json({ ok: false, error: "مدل پیدا نشد." }, { status: 404 });
+      return NextResponse.json({ ok: true, model });
+    }
+    if (typeof body.id !== "string" || !body.id.trim()) return NextResponse.json({ ok: false, error: "شناسه مدل لازم است." }, { status: 400 });
+    const patch: Record<string, unknown> = {};
+    if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
+    if (typeof body.priority === "number" && Number.isInteger(body.priority)) patch.priority = Math.max(0, Math.min(1000, body.priority));
+    if (typeof body.preferred === "boolean") patch.preferred = body.preferred;
+    if (typeof body.status === "string" && ["discovered", "registered", "enabled", "disabled", "deprecated"].includes(body.status)) patch.status = body.status;
+    if (!Object.keys(patch).length) return NextResponse.json({ ok: false, error: "تغییری ارسال نشده است." }, { status: 400 });
+    const model = await updateAdminAiModel(body.id.trim(), patch);
+    if (!model) return NextResponse.json({ ok: false, error: "مدل پیدا نشد." }, { status: 404 });
+    return NextResponse.json({ ok: true, model });
+  } catch (error) {
+    console.error("admin model registry POST failed", error instanceof Error ? error.message : "unknown error");
+    const code = error instanceof Error ? error.message : "";
+    if (code === "admin_ai_model_must_be_validated_first") {
+      return NextResponse.json({ ok: false, error: "مدل باید ابتدا اعتبارسنجی شود." }, { status: 409 });
+    }
+    if (code === "admin_ai_enabled_status_conflicts_with_disabled") {
+      return NextResponse.json({ ok: false, error: "وضعیت enabled با disabled سازگار نیست." }, { status: 400 });
+    }
+    if (code === "admin_ai_preferred_model_must_be_enabled") {
+      return NextResponse.json({ ok: false, error: "مدل ترجیحی باید فعال باشد." }, { status: 400 });
+    }
+    if (code.startsWith("model_discovery_failed:")) {
+      return NextResponse.json({ ok: false, error: "اعتبارسنجی مدل در حال حاضر ممکن نیست؛ سرویس ارائه‌دهنده پاسخ نداد." }, { status: 503 });
+    }
+    return NextResponse.json({ ok: false, error: "تغییر Model Registry ناموفق بود." }, { status: 502 });
+  }
+}
