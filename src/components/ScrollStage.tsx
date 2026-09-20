@@ -10,17 +10,26 @@ type ScrollStageProps = {
   children: ReactNode;
   className?: string;
   as?: ElementType;
-  /** Hero uses strong; content stays calm */
   intensity?: "calm" | "strong";
   enterBlur?: boolean;
   exitBlur?: boolean;
 } & Omit<HTMLAttributes<HTMLElement>, "children" | "className">;
 
+function clearStage(el: HTMLElement) {
+  gsap.set(el, {
+    autoAlpha: 1,
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    filter: "none",
+    clearProps: "filter",
+  });
+}
+
 /**
- * Soft depth on scroll (Apple / bixa inspired).
- * - Enter: light lift + tiny blur that clears while still low in the viewport
- * - Exit: only as the section actually leaves (bottom-based), never while reading
- * - Calm intensity avoids heavy filter so long sections (courses, lists) stay readable
+ * Soft depth on scroll.
+ * Exit always uses explicit from→to so scrub reverse restores a sharp state
+ * when the user scrolls back (hero no longer stays blurred).
  */
 export function ScrollStage({
   children,
@@ -46,35 +55,33 @@ export function ScrollStage({
       },
       (context) => {
         if (context.conditions?.reduce) {
-          gsap.set(el, { clearProps: "all" });
+          clearStage(el);
           return;
         }
-        if (!context.conditions?.desktop) return;
+        if (!context.conditions?.desktop) {
+          clearStage(el);
+          return;
+        }
 
         const isStrong = intensity === "strong";
-
-        // Calm = readability first; strong = hero depth
-        const enterY = isStrong ? 28 : 16;
-        const enterBlurPx = isStrong ? 4 : 1.5;
-        const exitBlurPx = isStrong ? 8 : 2.5;
-        const exitOpacity = isStrong ? 0.5 : 0.92;
-        const exitScale = isStrong ? 0.965 : 0.995;
+        const enterY = isStrong ? 24 : 14;
+        const enterBlurPx = isStrong ? 3 : 1.25;
+        const exitBlurPx = isStrong ? 6 : 2;
+        const exitOpacity = isStrong ? 0.55 : 0.94;
+        const exitScale = isStrong ? 0.97 : 0.996;
 
         const ctx = gsap.context(() => {
-          gsap.set(el, {
-            force3D: true,
-            transformOrigin: "50% 30%",
-          });
+          gsap.set(el, { force3D: true, transformOrigin: "50% 30%" });
+          clearStage(el);
 
           if (enterBlur) {
-            // Clears early so content is sharp before the user focuses on it
             gsap.fromTo(
               el,
               {
-                autoAlpha: 0.9,
+                autoAlpha: 0.92,
                 y: enterY,
                 filter: `blur(${enterBlurPx}px)`,
-                scale: 0.994,
+                scale: 0.995,
               },
               {
                 autoAlpha: 1,
@@ -86,37 +93,56 @@ export function ScrollStage({
                 scrollTrigger: {
                   trigger: el,
                   start: "top 92%",
-                  end: "top 68%",
-                  scrub: 0.75,
+                  end: "top 70%",
+                  scrub: 0.7,
                   invalidateOnRefresh: true,
                 },
               },
             );
-          } else {
-            gsap.set(el, { autoAlpha: 1, y: 0, filter: "blur(0px)", scale: 1 });
           }
 
           if (exitBlur) {
-            // Bottom-anchored: section stays sharp while any meaningful content is on screen.
-            // Starts late so a small scroll down does not soft-focus the whole block.
-            gsap.to(el, {
-              autoAlpha: exitOpacity,
-              scale: exitScale,
-              filter: `blur(${exitBlurPx}px)`,
-              ease: "none",
-              immediateRender: false,
-              scrollTrigger: {
-                trigger: el,
-                start: "bottom 40%",
-                end: "bottom -5%",
-                scrub: 1.25,
-                invalidateOnRefresh: true,
+            // Explicit FROM sharp → TO soft so reverse always restores sharp.
+            // onLeaveBack / onEnterBack force-clear residual filter on the hero.
+            gsap.fromTo(
+              el,
+              {
+                autoAlpha: 1,
+                scale: 1,
+                filter: "blur(0px)",
               },
-            });
+              {
+                autoAlpha: exitOpacity,
+                scale: exitScale,
+                filter: `blur(${exitBlurPx}px)`,
+                ease: "none",
+                immediateRender: false,
+                scrollTrigger: {
+                  trigger: el,
+                  // Leave based on top edge for short sections (hero),
+                  // still late enough that a tiny scroll doesn't blur.
+                  start: isStrong ? "top -5%" : "bottom 38%",
+                  end: isStrong ? "bottom top" : "bottom -8%",
+                  scrub: 1,
+                  invalidateOnRefresh: true,
+                  onLeaveBack: () => clearStage(el),
+                  onEnterBack: () => {
+                    // Coming back from below: keep progressive scrub, but
+                    // if progress is near 0 force sharp.
+                  },
+                  onUpdate: (self) => {
+                    if (self.progress <= 0.02) clearStage(el);
+                  },
+                },
+              },
+            );
           }
         }, el);
 
-        return () => ctx.revert();
+        return () => {
+          ctx.revert();
+          clearStage(el);
+        };
       },
     );
 
