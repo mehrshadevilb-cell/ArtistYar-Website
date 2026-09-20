@@ -7,8 +7,8 @@ import { SafeLink } from "./SafeLink";
 export function HeroActions() {
   return (
     <div className="hero-actions" data-hero-actions>
-      <SafeLink href="/courses" hard className="btn-primary gap-2" ariaLabel="دیدن مسیرهای آموزشی">
-        دیدن مسیرهای آموزشی <ArrowLeft size={16} aria-hidden />
+      <SafeLink href="/courses" hard className="btn-primary gap-2" ariaLabel="دیدن پکیج‌های آموزشی">
+        دیدن پکیج‌های آموزشی <ArrowLeft size={16} aria-hidden />
       </SafeLink>
     </div>
   );
