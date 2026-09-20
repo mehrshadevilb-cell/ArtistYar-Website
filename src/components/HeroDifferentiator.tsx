@@ -13,7 +13,7 @@ export function HeroDifferentiator() {
     <div className="hero-differentiator" aria-label="ویژگی‌های اختصاصی ArtistYar">
       <div className="hero-differentiator-head">
         <span className="hero-differentiator-live"><i /> LIVE SYSTEM</span>
-        <span className="hero-differentiator-label">چیزی فراتر از یک سایت آموزشی</span>
+        <span className="hero-differentiator-label">فراتر از یک سایت آموزشی</span>
       </div>
 
       <div className="hero-differentiator-grid">
