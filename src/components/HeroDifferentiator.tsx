@@ -6,7 +6,7 @@ import { SafeLink } from "@/components/SafeLink";
 const signals = [
   {
     label: "ArtistYar AI",
-    detail: "دستیار تخصصی تولید موسیقی",
+    detail: "سؤال بپرس، عیب‌یابی میکس کن و قدم بعدی را با دستیار هوشمند پیدا کن.",
     icon: Bot,
     href: "/assistant",
     accent: "gold",
@@ -14,7 +14,7 @@ const signals = [
   },
   {
     label: "Practice Arcade",
-    detail: "تمرین شنیداری + مهارت صدا",
+    detail: "تمرین شنیداری و مهارت‌های حرفه‌ای صدا با XP و چالش روزانه.",
     icon: Gamepad2,
     href: "/practice",
     accent: "cyan",
@@ -22,7 +22,7 @@ const signals = [
   },
   {
     label: "Analyze Music",
-    detail: "تحلیل میکس و فرکانس",
+    detail: "فایل، میکس، فرکانس و بالانس را با نگاه حرفه‌ای بررسی کن.",
     icon: BarChart3,
     href: "/music-analyzer",
     accent: "blue",
@@ -30,7 +30,7 @@ const signals = [
   },
   {
     label: "AI Music Generator",
-    detail: "به‌زودی",
+    detail: "ساخت ایده و جهت‌گیری موسیقی با هوش مصنوعی — به‌زودی.",
     icon: Wand2,
     href: "#",
     accent: "violet",
@@ -46,17 +46,17 @@ export function HeroDifferentiator() {
           soon ? (
             <div
               key={label}
-              className={`hero-feature-card hero-feature-${accent} hero-feature-soon`}
+              className={`hero-feature-card hero-feature-large hero-feature-${accent} hero-feature-soon`}
               aria-disabled="true"
             >
-              <span className="hero-feature-icon">
-                <Icon size={18} />
-              </span>
-              <span className="hero-feature-copy">
-                <strong>{label}</strong>
-                <small>{detail}</small>
-              </span>
-              <span className="hero-feature-soon-badge">به‌زودی</span>
+              <div className="hero-feature-top">
+                <span className="hero-feature-icon">
+                  <Icon size={20} />
+                </span>
+                <span className="hero-feature-soon-badge">به‌زودی</span>
+              </div>
+              <strong className="hero-feature-title">{label}</strong>
+              <small className="hero-feature-detail">{detail}</small>
               <span className="hero-feature-index">۰{index + 1}</span>
             </div>
           ) : (
@@ -64,16 +64,16 @@ export function HeroDifferentiator() {
               key={label}
               href={href}
               hard
-              className={`hero-feature-card hero-feature-${accent}`}
+              className={`hero-feature-card hero-feature-large hero-feature-${accent}`}
             >
-              <span className="hero-feature-icon">
-                <Icon size={18} />
-              </span>
-              <span className="hero-feature-copy">
-                <strong>{label}</strong>
-                <small>{detail}</small>
-              </span>
-              <ArrowLeft className="hero-feature-arrow" size={15} />
+              <div className="hero-feature-top">
+                <span className="hero-feature-icon">
+                  <Icon size={20} />
+                </span>
+                <ArrowLeft className="hero-feature-arrow" size={16} />
+              </div>
+              <strong className="hero-feature-title">{label}</strong>
+              <small className="hero-feature-detail">{detail}</small>
               <span className="hero-feature-index">۰{index + 1}</span>
             </SafeLink>
           ),
