@@ -152,7 +152,7 @@ function extractGenreRegional(text: string): { genre?: string; regionalStyle?: s
 
 function firstMatch<T>(patterns: Array<{ re: RegExp; type?: T; inst?: T; role?: T; style?: T }>, text: string, key: "type" | "inst" | "role" | "style"): T | undefined {
   for (const p of patterns) {
-    if (p.re.test(text)) return (p as Record<string, T>)[key];
+    if (p.re.test(text)) return p[key];
   }
   return undefined;
 }
