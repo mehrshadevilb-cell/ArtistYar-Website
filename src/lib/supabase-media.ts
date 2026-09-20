@@ -40,7 +40,15 @@ export async function listPublishedMedia(): Promise<MediaItem[]> {
 
 export async function listStorageFiles(): Promise<StorageItem[]> {
   if (!supabase) return [];
-  const folders = ["", "student-work", "free-training", "ProdBy Mehrshad", "prodby-mehrshad"];
+  const folders = [
+    "",
+    "student-work",
+    "free-training",
+    "free-training-assets",
+    "free-training-assets/video",
+    "ProdBy Mehrshad",
+    "prodby-mehrshad",
+  ];
   const out: StorageItem[] = [];
   const seen = new Set<string>();
   for (const folder of folders) {
