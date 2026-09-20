@@ -1,10 +1,10 @@
 -- ArtistYar User AI Music Generator
 -- Separate from Admin AI Assistant tables.
+-- user_id is text (RahYar/Telegram session id), not auth.users uuid.
 
--- Jobs
 CREATE TABLE IF NOT EXISTS public.ai_music_generation_jobs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id text NOT NULL,
   status text NOT NULL DEFAULT 'queued'
     CHECK (status IN ('queued','planning','generating','validating','completed','failed','cancelled','expired')),
   prompt text NOT NULL,
@@ -52,11 +52,10 @@ CREATE INDEX IF NOT EXISTS ai_music_jobs_status_idx
 CREATE INDEX IF NOT EXISTS ai_music_jobs_correlation_idx
   ON public.ai_music_generation_jobs (correlation_id);
 
--- Outputs (one job may produce multiple in future: variations/stems)
 CREATE TABLE IF NOT EXISTS public.ai_music_generation_outputs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   job_id uuid NOT NULL REFERENCES public.ai_music_generation_jobs(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id text NOT NULL,
   storage_key text NOT NULL,
   public_url text NOT NULL,
   mime_type text NOT NULL,
@@ -80,9 +79,8 @@ CREATE INDEX IF NOT EXISTS ai_music_outputs_user_idx
 CREATE INDEX IF NOT EXISTS ai_music_outputs_job_idx
   ON public.ai_music_generation_outputs (job_id);
 
--- Credit balances + ledger (idempotent charges/refunds)
 CREATE TABLE IF NOT EXISTS public.ai_music_generation_credits (
-  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id text PRIMARY KEY,
   balance numeric(14,4) NOT NULL DEFAULT 0,
   lifetime_granted numeric(14,4) NOT NULL DEFAULT 0,
   lifetime_spent numeric(14,4) NOT NULL DEFAULT 0,
@@ -91,7 +89,7 @@ CREATE TABLE IF NOT EXISTS public.ai_music_generation_credits (
 
 CREATE TABLE IF NOT EXISTS public.ai_music_generation_credit_ledger (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id text NOT NULL,
   job_id uuid REFERENCES public.ai_music_generation_jobs(id) ON DELETE SET NULL,
   delta numeric(12,4) NOT NULL,
   reason text NOT NULL CHECK (reason IN ('charge','refund','grant','purchase','admin_adjust')),
@@ -104,7 +102,6 @@ CREATE TABLE IF NOT EXISTS public.ai_music_generation_credit_ledger (
 CREATE INDEX IF NOT EXISTS ai_music_credit_ledger_user_idx
   ON public.ai_music_generation_credit_ledger (user_id, created_at DESC);
 
--- Optional provider/model config (admin-configurable later)
 CREATE TABLE IF NOT EXISTS public.ai_music_provider_registry (
   id text PRIMARY KEY,
   name text NOT NULL,
@@ -115,30 +112,6 @@ CREATE TABLE IF NOT EXISTS public.ai_music_provider_registry (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- RLS
-ALTER TABLE public.ai_music_generation_jobs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ai_music_generation_outputs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ai_music_generation_credits ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ai_music_generation_credit_ledger ENABLE ROW LEVEL SECURITY;
-
--- Users can only see their own rows
-CREATE POLICY ai_music_jobs_select_own ON public.ai_music_generation_jobs
-  FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY ai_music_jobs_insert_own ON public.ai_music_generation_jobs
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY ai_music_jobs_update_own ON public.ai_music_generation_jobs
-  FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY ai_music_outputs_select_own ON public.ai_music_generation_outputs
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY ai_music_credits_select_own ON public.ai_music_generation_credits
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY ai_music_ledger_select_own ON public.ai_music_generation_credit_ledger
-  FOR SELECT USING (auth.uid() = user_id);
-
--- Service role bypasses RLS for workers / API routes using secret key.
-
+-- No RLS based on auth.uid() — API uses service role + session cookie ownership checks.
 COMMENT ON TABLE public.ai_music_generation_jobs IS 'User AI Music Generator jobs (not Admin AI)';
 COMMENT ON TABLE public.ai_music_generation_outputs IS 'Generated audio assets owned by user';
