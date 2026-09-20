@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ElementType, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ElementType, type HTMLAttributes, type ReactNode } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -15,7 +15,7 @@ type ScrollStageProps = {
   intensity?: "calm" | "strong";
   /** Disable exit blur (keep only enter reveal) */
   exitBlur?: boolean;
-};
+} & Omit<HTMLAttributes<HTMLElement>, "children" | "className">;
 
 /**
  * Apple / bixa-style depth on scroll:
@@ -29,6 +29,7 @@ export function ScrollStage({
   as: Tag = "div",
   intensity = "calm",
   exitBlur = true,
+  ...rest
 }: ScrollStageProps) {
   const root = useRef<HTMLElement | null>(null);
 
@@ -55,7 +56,6 @@ export function ScrollStage({
         const opacityMin = intensity === "strong" ? 0.45 : 0.62;
 
         const ctx = gsap.context(() => {
-          // Enter: soft focus as section approaches viewport center
           gsap.fromTo(
             el,
             {
@@ -81,7 +81,6 @@ export function ScrollStage({
           );
 
           if (exitBlur) {
-            // Exit: previous content softens while the next section takes focus
             gsap.fromTo(
               el,
               {
@@ -118,6 +117,7 @@ export function ScrollStage({
       ref={root as never}
       className={`scroll-stage ${className}`.trim()}
       data-scroll-stage={intensity}
+      {...rest}
     >
       {children}
     </Tag>
