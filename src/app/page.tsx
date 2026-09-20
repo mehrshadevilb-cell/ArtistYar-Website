@@ -1,6 +1,6 @@
 import Image from "next/image";
 import type { Metadata } from "next";
-import { ArrowLeft, Bot, ChevronDown, CirclePlay, Sparkles, Waves } from "lucide-react";
+import { ArrowLeft, ChevronDown, CirclePlay, Sparkles, Waves } from "lucide-react";
 import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 import { Reveal } from "@/components/Reveal";
@@ -141,21 +141,23 @@ export default function HomePage() {
           <p className="hero-lead">
             دوره دیجیتال، کلاس آنلاین و راه‌یار AI — تمرین واقعی روی پروژه خودت، تا خروجی قابل دفاع.
           </p>
-          <HeroActions />
-          <SafeLink
-            href="/amoozesh-mix-mastering"
-            hard
-            className="mt-5 inline-flex text-sm text-ink-400 underline decoration-white/15 underline-offset-8 transition hover:text-gold-300 hover:decoration-gold-400/50"
-          >
-            راهنمای رایگان از پایه تا پروژه ←
-          </SafeLink>
+          <div className="hero-cta-stack">
+            <HeroActions />
+            <SafeLink
+              href="/amoozesh-mix-mastering"
+              hard
+              className="hero-secondary-link"
+            >
+              راهنمای رایگان از پایه تا پروژه ←
+            </SafeLink>
+          </div>
+          <HeroDifferentiator />
           <div className="hero-trust">
             <span className="trust-line" />
             <span>
               فقط ویدیو نیست — <strong className="font-medium text-gold-400">راه‌یار</strong> تا نتیجه کنارت می‌ماند
             </span>
           </div>
-          <HeroDifferentiator />
         </div>
         <ScrollDepth className="hero-scroll-depth" intensity={0.55}>
           <DepthScene className="hero-art">
@@ -213,7 +215,6 @@ export default function HomePage() {
         </ScrollDepth>
       </section>
 
-      {/* THE ARTISTYAR METHOD — kept as continuation of hero */}
       <CoreFeatureRail />
 
       <PracticeEnginePreview />
