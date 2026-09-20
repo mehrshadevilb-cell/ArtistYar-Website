@@ -11,6 +11,7 @@ const signals = [
     href: "/assistant",
     accent: "gold",
     soon: false,
+    extra: null as null | "arcade",
   },
   {
     label: "Practice Arcade",
@@ -19,6 +20,7 @@ const signals = [
     href: "/practice",
     accent: "cyan",
     soon: false,
+    extra: "arcade" as const,
   },
   {
     label: "Analyze Music",
@@ -27,6 +29,7 @@ const signals = [
     href: "/music-analyzer",
     accent: "blue",
     soon: false,
+    extra: null as null | "arcade",
   },
   {
     label: "AI Music Generator",
@@ -35,6 +38,7 @@ const signals = [
     href: "#",
     accent: "violet",
     soon: true,
+    extra: null as null | "arcade",
   },
 ] as const;
 
@@ -42,7 +46,7 @@ export function HeroDifferentiator() {
   return (
     <div className="hero-differentiator hero-differentiator-fill" aria-label="ویژگی‌های اصلی ArtistYar">
       <div className="hero-differentiator-grid hero-differentiator-grid-4">
-        {signals.map(({ label, detail, icon: Icon, href, accent, soon }, index) =>
+        {signals.map(({ label, detail, icon: Icon, href, accent, soon, extra }, index) =>
           soon ? (
             <div
               key={label}
@@ -74,25 +78,22 @@ export function HeroDifferentiator() {
               </div>
               <strong className="hero-feature-title">{label}</strong>
               <small className="hero-feature-detail">{detail}</small>
+              {extra === "arcade" ? (
+                <div className="hero-arcade-meta">
+                  <span className="hero-arcade-chip">
+                    <Zap size={12} />
+                    <b>XP</b> · تمرینت ثبت می‌شود
+                  </span>
+                  <span className="hero-arcade-chip">
+                    <Trophy size={12} />
+                    رکورد · پیشرفت · چالش روزانه
+                  </span>
+                </div>
+              ) : null}
               <span className="hero-feature-index">۰{index + 1}</span>
             </SafeLink>
           ),
         )}
-      </div>
-
-      <div className="hero-differentiator-bottom">
-        <div className="hero-xp">
-          <span className="hero-xp-icon">
-            <Zap size={13} />
-          </span>
-          <span>
-            <b>XP</b> · تمرینت ثبت می‌شود
-          </span>
-        </div>
-        <div className="hero-xp">
-          <Trophy size={13} />
-          <span>رکورد · پیشرفت · چالش روزانه</span>
-        </div>
       </div>
     </div>
   );
