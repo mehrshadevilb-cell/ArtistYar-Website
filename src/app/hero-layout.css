@@ -53,12 +53,61 @@
 
 .hero-differentiator {
   margin-top: 1.5rem !important;
-  max-width: 36rem !important;
+  max-width: 42rem !important;
   padding: 0.85rem !important;
 }
 
 .hero-differentiator-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.hero-differentiator-grid-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+@media (min-width: 720px) {
+  .hero-differentiator-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+.hero-feature-soon {
+  opacity: 0.72;
+  cursor: default;
+  pointer-events: none;
+  position: relative;
+}
+
+.hero-feature-soon-badge {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.15rem 0.45rem;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: #c9a227;
+}
+
+.core-feature-soon {
+  opacity: 0.75;
+  cursor: default;
+  pointer-events: none;
+}
+
+.core-feature-soon-badge {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.28);
+  padding: 0.2rem 0.55rem;
+  font-size: 10px;
+  color: #c9a227;
+}
+
+.feedback-card-compact p {
+  margin: 0;
 }
 
 .hero-trust {
@@ -76,7 +125,7 @@
     align-items: center;
   }
   .hero-copy {
-    max-width: 38rem;
+    max-width: 40rem;
   }
   .hero-art {
     min-height: 480px;
