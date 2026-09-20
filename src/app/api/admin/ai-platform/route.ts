@@ -40,16 +40,62 @@ export async function GET(request: Request) {
     if (section === "models") return NextResponse.json({ ok: true, models: await listAdminAiModels() });
     if (section === "memory") return NextResponse.json({ ok: true, memory: await listMemory(session.username) });
     if (section === "connectors") {
-      const gh = await githubStatus().catch((e) => ({ ok: false, error: String(e) }));
+      const gh = await githubStatus().catch((e) => ({
+        ok: false,
+        configured: false,
+        error: e instanceof Error ? e.message : String(e),
+      }));
+      const has = (keys: string[]) => keys.some((k) => Boolean((process.env[k] || "").trim()));
+      const ghStatus = gh.ok ? "connected" : (gh as { configured?: boolean }).configured ? "error" : "missing";
       return NextResponse.json({
         ok: true,
         connectors: [
-          { id: "github", name: "GitHub", status: gh.ok ? "connected" : "missing", detail: gh },
-          { id: "supabase", name: "Supabase", status: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL ? "connected" : "missing" },
-          { id: "cloudflare", name: "Cloudflare", status: process.env.CF_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN ? "connected" : "optional" },
-          { id: "openai", name: "OpenAI", status: process.env.OPENAI_API_KEY ? "connected" : "missing" },
-          { id: "anthropic", name: "Anthropic", status: process.env.ANTHROPIC_API_KEY ? "connected" : "missing" },
-          { id: "google", name: "Google/Gemini", status: process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY ? "connected" : "missing" },
+          {
+            id: "github",
+            name: "GitHub",
+            status: ghStatus,
+            detail: gh,
+            envKeys: ["GITHUB_TOKEN", "GH_TOKEN", "GITHUB_ADMIN_TOKEN"],
+            hint:
+              ghStatus === "connected"
+                ? "Dev Agent و Draft PR از این اتصال استفاده می‌کنند."
+                : "توکن را فقط در Cloudflare Worker Secrets بگذار (هرگز commit نکن).",
+          },
+          {
+            id: "supabase",
+            name: "Supabase",
+            status: has(["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]) ? "connected" : "missing",
+            envKeys: ["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SECRET_KEY"],
+            hint: "حافظه و usage Admin AI به Supabase وابسته است.",
+          },
+          {
+            id: "cloudflare",
+            name: "Cloudflare",
+            status: has(["CF_API_TOKEN", "CLOUDFLARE_API_TOKEN"]) ? "connected" : "optional",
+            envKeys: ["CF_API_TOKEN", "CLOUDFLARE_API_TOKEN"],
+            hint: "اختیاری — برای عملیات پیشرفته CF.",
+          },
+          {
+            id: "openai",
+            name: "OpenAI",
+            status: has(["OPENAI_API_KEY"]) ? "connected" : "missing",
+            envKeys: ["OPENAI_API_KEY"],
+            hint: "یکی از providerهای مدل برای چت و Dev Agent.",
+          },
+          {
+            id: "anthropic",
+            name: "Anthropic",
+            status: has(["ANTHROPIC_API_KEY"]) ? "connected" : "missing",
+            envKeys: ["ANTHROPIC_API_KEY"],
+            hint: "Claude — برای routing چندمدلی.",
+          },
+          {
+            id: "google",
+            name: "Google / Gemini",
+            status: has(["GOOGLE_API_KEY", "GEMINI_API_KEY"]) ? "connected" : "missing",
+            envKeys: ["GOOGLE_API_KEY", "GEMINI_API_KEY"],
+            hint: "Gemini — provider جایگزین در مدل‌ها.",
+          },
         ],
       });
     }

@@ -81,6 +81,7 @@ export default function AdminAiPlatformPage() {
   const [memKey, setMemKey] = useState("");
   const [memValue, setMemValue] = useState("");
   const [platformError, setPlatformError] = useState("");
+  const [sectionLoading, setSectionLoading] = useState(false);
   const hashSynced = useRef(false);
 
   useEffect(() => {
@@ -137,6 +138,7 @@ export default function AdminAiPlatformPage() {
   const loadSection = useCallback(async (id: Tab) => {
     if (id === "chat") return;
     setPlatformError("");
+    setSectionLoading(true);
     try {
       if (id === "skills" || id === "dev") setSkills((await platform("skills")).skills || []);
       if (id === "models") setModels((await platform("models")).models || []);
@@ -145,6 +147,8 @@ export default function AdminAiPlatformPage() {
       if (id === "cost") setUsage((await platform("cost")).usage || null);
     } catch (e) {
       setPlatformError(e instanceof Error ? e.message : "خطا");
+    } finally {
+      setSectionLoading(false);
     }
   }, []);
 
@@ -351,27 +355,12 @@ export default function AdminAiPlatformPage() {
               کد را می‌خواند، تحلیل می‌کند و در صورت تأیید Draft PR می‌سازد. مستقیم روی main نمی‌نویسد.
             </p>
           </div>
-
           <div className="flex flex-wrap gap-3 text-xs">
             <label className="flex items-center gap-2 text-ink-400">
               Skill
-              <select
-                value={devSkill}
-                onChange={(e) => setDevSkill(e.target.value)}
-                disabled={devRunning}
-                className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sand-50"
-              >
-                {(skills.length
-                  ? skills
-                  : [
-                      { id: "bugfix", name: "Bug Fix" },
-                      { id: "feature", name: "Feature" },
-                      { id: "code-review", name: "Review" },
-                    ]
-                ).map((s: any) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
+              <select value={devSkill} onChange={(e) => setDevSkill(e.target.value)} disabled={devRunning} className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sand-50">
+                {(skills.length ? skills : [{ id: "bugfix", name: "Bug Fix" }, { id: "feature", name: "Feature" }, { id: "code-review", name: "Review" }]).map((s: any) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </label>
@@ -384,19 +373,17 @@ export default function AdminAiPlatformPage() {
               اعمال روی Draft PR
             </label>
           </div>
-
           {devApply ? (
             <p className="rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-[11px] leading-5 text-amber-200/90">
               با فعال بودن «اعمال»، اگر مدل فایل‌هایی با فرمت file:path پیشنهاد دهد، یک branch جدا و Draft PR ساخته می‌شود.
             </p>
           ) : null}
-
           <textarea
             value={devTask}
             onChange={(e) => setDevTask(e.target.value)}
             disabled={devRunning}
             rows={5}
-            placeholder="مثلاً: باگ X را در src/lib پیدا و fix کن… یا یک feature کوچک برای …"
+            placeholder="مثلاً: باگ X را در src/lib پیدا و fix کن…"
             className="w-full rounded-2xl border border-white/10 bg-black/20 p-3 text-sm text-sand-50 outline-none placeholder:text-ink-600"
             onKeyDown={(e) => {
               if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
@@ -405,71 +392,26 @@ export default function AdminAiPlatformPage() {
               }
             }}
           />
-
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" onClick={runDev} disabled={devRunning || !devTask.trim()} className="btn-primary">
               {devRunning ? "در حال اجرا…" : "▶ اجرای Dev Agent"}
             </button>
-            {devRunning ? (
-              <span className="text-[11px] text-ink-500">خواندن repo · فراخوانی مدل · پیشنهاد فایل / PR</span>
-            ) : (
-              <span className="text-[11px] text-ink-600">Ctrl/⌘ + Enter</span>
-            )}
+            {devRunning ? <span className="text-[11px] text-ink-500">خواندن repo · فراخوانی مدل · پیشنهاد فایل / PR</span> : <span className="text-[11px] text-ink-600">Ctrl/⌘ + Enter</span>}
           </div>
-
           {devResult ? (
-            <div
-              className={`space-y-3 rounded-2xl border p-4 text-xs leading-6 ${
-                devResult.ok
-                  ? "border-emerald-400/20 bg-emerald-400/5 text-ink-300"
-                  : "border-red-400/20 bg-red-400/5 text-red-200"
-              }`}
-            >
+            <div className={`space-y-3 rounded-2xl border p-4 text-xs leading-6 ${devResult.ok ? "border-emerald-400/20 bg-emerald-400/5 text-ink-300" : "border-red-400/20 bg-red-400/5 text-red-200"}`}>
               <div className="flex flex-wrap items-center gap-3">
-                <span className={`font-medium ${devResult.ok ? "text-emerald-300" : "text-red-300"}`}>
-                  {devResult.ok ? "نتیجه آماده" : "اجرا ناموفق"}
-                </span>
+                <span className={`font-medium ${devResult.ok ? "text-emerald-300" : "text-red-300"}`}>{devResult.ok ? "نتیجه آماده" : "اجرا ناموفق"}</span>
                 {devResult.pullRequest?.url ? (
                   <a href={devResult.pullRequest.url} target="_blank" rel="noreferrer" className="text-emerald-400 underline">
-                    Draft PR #{devResult.pullRequest.number}
-                    {devResult.pullRequest.draft ? " (draft)" : ""}
+                    Draft PR #{devResult.pullRequest.number}{devResult.pullRequest.draft ? " (draft)" : ""}
                   </a>
                 ) : null}
               </div>
-
-              {devResult.filesRead?.length ? (
-                <p>
-                  <span className="text-ink-500">خوانده‌شده: </span>
-                  {devResult.filesRead.map((f: any) => f.path).join(" · ")}
-                </p>
-              ) : null}
-
-              {devResult.proposedFiles?.length ? (
-                <p>
-                  <span className="text-ink-500">پیشنهادی: </span>
-                  {devResult.proposedFiles.map((f: any) => f.path).join(" · ")}
-                </p>
-              ) : null}
-
-              {devResult.parallel?.length ? (
-                <div className="space-y-1">
-                  <p className="text-ink-500">Parallel summaries:</p>
-                  {devResult.parallel.map((p: any, i: number) => (
-                    <p key={i} className="text-[11px] text-ink-400">
-                      {p.provider}/{p.model}: {String(p.summary || "").slice(0, 180)}
-                      {String(p.summary || "").length > 180 ? "…" : ""}
-                    </p>
-                  ))}
-                </div>
-              ) : null}
-
-              {devResult.error ? <p className="text-red-300">{devResult.error}</p> : null}
-
-              {devResult.analysis ? (
-                <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-black/20 p-3 text-[11px] text-ink-300">
-                  {devResult.analysis}
-                </pre>
-              ) : null}
+              {devResult.filesRead?.length ? <p><span className="text-ink-500">خوانده‌شده: </span>{devResult.filesRead.map((f: any) => f.path).join(" · ")}</p> : null}
+              {devResult.proposedFiles?.length ? <p><span className="text-ink-500">پیشنهادی: </span>{devResult.proposedFiles.map((f: any) => f.path).join(" · ")}</p> : null}
+              {devResult.analysis ? <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-black/20 p-3 text-[11px]">{devResult.analysis}</pre> : null}
+              {devResult.plan ? <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-xl bg-black/20 p-3 text-[11px]">{devResult.plan}</pre> : null}
             </div>
           ) : null}
         </section>
@@ -484,9 +426,7 @@ export default function AdminAiPlatformPage() {
                 <span className="text-[10px] text-emerald-400">{s.enabled ? "فعال" : "خاموش"}</span>
               </div>
               <p className="mt-2 text-xs leading-6 text-ink-500">{s.description}</p>
-              <p className="mt-2 text-[10px] text-ink-600">
-                v{s.version} · {(s.tools || []).join(", ")}
-              </p>
+              <p className="mt-2 text-[10px] text-ink-600">v{s.version} · {(s.tools || []).join(", ")}</p>
             </div>
           ))}
         </section>
@@ -494,18 +434,12 @@ export default function AdminAiPlatformPage() {
 
       {tab === "models" ? (
         <section className="space-y-3">
-          <button type="button" onClick={syncModels} className="btn-ghost !py-2 text-xs">
-            Sync + فعال‌سازی خودکار
-          </button>
+          <button type="button" onClick={syncModels} className="btn-ghost !py-2 text-xs">Sync + فعال‌سازی خودکار</button>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {models.map((m: any) => (
               <div key={m.id} className="rounded-xl border border-white/10 bg-black/10 p-3 text-xs">
-                <p className="text-sand-50">
-                  {m.provider_id} / {m.model_id}
-                </p>
-                <p className="mt-1 text-ink-500">
-                  {m.status} · {m.enabled ? "enabled" : "off"} · p{m.priority}
-                </p>
+                <p className="text-sand-50">{m.provider_id} / {m.model_id}</p>
+                <p className="mt-1 text-ink-500">{m.status} · {m.enabled ? "enabled" : "off"} · p{m.priority}</p>
               </div>
             ))}
           </div>
@@ -515,27 +449,13 @@ export default function AdminAiPlatformPage() {
       {tab === "memory" ? (
         <section className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            <input
-              value={memKey}
-              onChange={(e) => setMemKey(e.target.value)}
-              placeholder="کلید"
-              className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-sand-50"
-            />
-            <input
-              value={memValue}
-              onChange={(e) => setMemValue(e.target.value)}
-              placeholder="مقدار"
-              className="min-w-[220px] flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-sand-50"
-            />
-            <button type="button" onClick={saveMemory} className="btn-primary !py-2 text-xs">
-              ذخیره
-            </button>
+            <input value={memKey} onChange={(e) => setMemKey(e.target.value)} placeholder="کلید" className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-sand-50" />
+            <input value={memValue} onChange={(e) => setMemValue(e.target.value)} placeholder="مقدار" className="min-w-[220px] flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-sand-50" />
+            <button type="button" onClick={saveMemory} className="btn-primary !py-2 text-xs">ذخیره</button>
           </div>
           {memory.map((m: any) => (
             <div key={m.id} className="rounded-xl border border-white/10 bg-black/10 p-3 text-xs text-ink-300">
-              <span className="text-sand-50">
-                [{m.scope}] {m.key}
-              </span>
+              <span className="text-sand-50">[{m.scope}] {m.key}</span>
               <div className="mt-1 whitespace-pre-wrap">{m.value}</div>
             </div>
           ))}
@@ -543,23 +463,56 @@ export default function AdminAiPlatformPage() {
       ) : null}
 
       {tab === "connectors" ? (
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {connectors.map((c: any) => (
-            <div key={c.id} className="rounded-2xl border border-white/10 bg-black/10 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm text-sand-50">{c.name}</h3>
-                <span className={`text-[10px] ${c.status === "connected" ? "text-emerald-400" : "text-amber-400"}`}>
-                  {c.status}
-                </span>
-              </div>
-              {c.detail?.login ? (
-                <p className="mt-2 text-xs text-ink-500">
-                  @{c.detail.login} · {c.detail.owner}/{c.detail.repo}
-                </p>
-              ) : null}
-              {c.detail?.error ? <p className="mt-2 text-xs text-red-300">{c.detail.error}</p> : null}
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-medium text-sand-50">اتصال‌ها</h2>
+              <p className="mt-1 text-xs leading-6 text-ink-500">
+                وضعیت سرویس‌های متصل به Admin AI. کلیدها فقط در Cloudflare Worker Secrets تنظیم می‌شوند.
+              </p>
             </div>
-          ))}
+            <button type="button" onClick={() => void loadSection("connectors")} disabled={sectionLoading} className="btn-ghost !py-2 text-xs">
+              {sectionLoading ? "در حال بررسی…" : "بروزرسانی وضعیت"}
+            </button>
+          </div>
+          {sectionLoading && !connectors.length ? <p className="text-sm text-ink-500">در حال خواندن وضعیت اتصال‌ها…</p> : null}
+          {!sectionLoading && !connectors.length ? (
+            <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 text-xs leading-6 text-amber-100/90">
+              هیچ اتصالی برنگشت. API پلتفرم را چک کن یا صفحه را رفرش کن.
+            </div>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {connectors.map((c: any) => {
+              const status = String(c.status || "unknown");
+              const statusLabel = status === "connected" ? "متصل" : status === "optional" ? "اختیاری" : status === "missing" ? "تنظیم نشده" : status === "error" ? "خطا" : status;
+              const statusClass = status === "connected" ? "text-emerald-400" : status === "optional" ? "text-ink-400" : status === "error" ? "text-red-300" : "text-amber-400";
+              const borderClass = status === "connected" ? "border-emerald-400/20" : status === "error" ? "border-red-400/20" : "border-white/10";
+              return (
+                <div key={c.id} className={`rounded-2xl border ${borderClass} bg-black/10 p-4`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-medium text-sand-50">{c.name}</h3>
+                    <span className={`shrink-0 text-[10px] font-medium ${statusClass}`}>{statusLabel}</span>
+                  </div>
+                  {c.hint ? <p className="mt-2 text-[11px] leading-5 text-ink-500">{c.hint}</p> : null}
+                  {c.detail?.login ? (
+                    <p className="mt-2 text-xs text-ink-400">
+                      @{c.detail.login}
+                      {c.detail.owner && c.detail.repo ? ` · ${c.detail.owner}/${c.detail.repo}` : ""}
+                      {c.detail.baseBranch ? ` · ${c.detail.baseBranch}` : ""}
+                    </p>
+                  ) : null}
+                  {c.detail?.error ? <p className="mt-2 text-xs text-red-300">{c.detail.error}</p> : null}
+                  {c.envKeys?.length ? <p className="mt-2 text-[10px] text-ink-600">env: {(c.envKeys as string[]).join(" · ")}</p> : null}
+                </div>
+              );
+            })}
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/10 p-4 text-[11px] leading-6 text-ink-500">
+            <p className="font-medium text-ink-300">نکته Dev Agent</p>
+            <p className="mt-1">
+              برای کار کردن تب Dev Agent باید <code className="text-sand-50">GITHUB_TOKEN</code> فقط به‌عنوان Secret روی Cloudflare Worker تنظیم شود (هرگز در کد commit نشود). بدون توکن، وضعیت GitHub = «تنظیم نشده» می‌ماند.
+            </p>
+          </div>
         </section>
       ) : null}
 
@@ -567,16 +520,9 @@ export default function AdminAiPlatformPage() {
         <section className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-ink-300">
           {usage ? (
             <>
-              <p>
-                ۳۰ روز · درخواست‌ها: <b className="text-sand-50">{usage.count}</b>
-              </p>
-              <p>
-                توکن in/out: <b className="text-sand-50">{usage.totalIn}</b> /{" "}
-                <b className="text-sand-50">{usage.totalOut}</b>
-              </p>
-              <p>
-                برآورد هزینه: <b className="text-gold-300">${Number(usage.totalCost || 0).toFixed(4)}</b>
-              </p>
+              <p>۳۰ روز · درخواست‌ها: <b className="text-sand-50">{usage.count}</b></p>
+              <p>توکن in/out: <b className="text-sand-50">{usage.totalIn}</b> / <b className="text-sand-50">{usage.totalOut}</b></p>
+              <p>برآورد هزینه: <b className="text-gold-300">${Number(usage.totalCost || 0).toFixed(4)}</b></p>
             </>
           ) : (
             <p className="text-ink-500">هنوز usage ثبت نشده.</p>
