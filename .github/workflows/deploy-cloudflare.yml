@@ -35,14 +35,16 @@ jobs:
           chmod 600 .env.production
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm i -D wrangler@4.135.0 --no-audit --no-fund
 
       - name: OpenNext build
         run: npm run cf:build
 
       - name: Deploy to Cloudflare Workers
         id: deploy
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
