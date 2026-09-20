@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { ArrowLeft, CirclePlay, Sparkles, Waves } from "lucide-react";
 import { HomeLiveCourses } from "@/components/HomeLiveCourses";
+import { HomeStudentWorks } from "@/components/HomeStudentWorks";
 import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 import { Reveal } from "@/components/Reveal";
 import { DepthScene } from "@/components/DepthScene";
@@ -36,42 +37,6 @@ export const metadata: Metadata = {
     url: "/",
   },
 };
-
-/** نمونه‌کار هنرجو — فقط نمایش؛ بدون لینک خارجی / اینستاگرام */
-const studentProjects = [
-  {
-    code: "۰۱",
-    title: "میکس تنظیم هنرجو",
-    student: "خروجی هنرجو",
-    type: "میکس · تنظیم",
-    result: "بالانس و میکس پروژه هنرجو تا خروجی قابل ارائه.",
-    tone: "gold",
-  },
-  {
-    code: "۰۲",
-    title: "خروجی مسیر راه‌یار",
-    student: "خروجی آموزش",
-    type: "تنظیم · میکس",
-    result: "نمونه خروجی آموزش پروژه‌محور در مسیر راه‌یار.",
-    tone: "blue",
-  },
-  {
-    code: "۰۳",
-    title: "Dige Naya — Nimaan",
-    student: "پروژه کامل",
-    type: "تنظیم · میکس و مسترینگ",
-    result: "از تنظیم تا میکس و مسترینگ یک ترک تا انتشار.",
-    tone: "gold",
-  },
-  {
-    code: "۰۴",
-    title: "تمرین شنیداری · کیک",
-    student: "خروجی تمرین",
-    type: "شنوایی · ساخت صدا",
-    result: "تمرین تشخیص فرکانس و ساخت کیک در مسیر آموزشی.",
-    tone: "blue",
-  },
-] as const;
 
 const studentFeedback = [
   {
@@ -217,45 +182,7 @@ export default function HomePage() {
         <HomeLiveCourses />
       </div>
 
-      <section id="projects" className="projects-section border-y border-white/[.06]">
-        <div className="container-ay section-space">
-          <Reveal>
-            <div className="projects-heading">
-              <div>
-                <p className="eyebrow">/ پروژه‌ها و خروجی هنرجوها</p>
-                <h2 className="section-title mt-4">
-                  نمونه‌کار هنرجو
-                  <br />
-                  <span className="text-gold-400">بدون شعار.</span>
-                </h2>
-              </div>
-              <p className="section-sub max-w-md">چهار نمونه از خروجی واقعی مسیر آموزش. جزئیات کامل در گالری.</p>
-            </div>
-          </Reveal>
-
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {studentProjects.map((project, i) => (
-              <Reveal key={project.code} delay={i * 35}>
-                <article className={`student-work-card student-work-${project.tone}`}>
-                  <div className="student-work-top">
-                    <span className="student-work-code">{project.code}</span>
-                    <span className="student-work-badge">{project.student}</span>
-                  </div>
-                  <h3>{project.title}</h3>
-                  <p className="student-work-type">{project.type}</p>
-                  <p className="student-work-body">{project.result}</p>
-                </article>
-              </Reveal>
-            ))}
-          </div>
-
-          <div className="mt-7 text-center">
-            <SafeLink href="/gallery" hard className="btn-ghost inline-flex gap-2 text-sm">
-              مشاهده کامل نمونه‌کارها در گالری <ArrowLeft size={14} aria-hidden />
-            </SafeLink>
-          </div>
-        </div>
-      </section>
+      <HomeStudentWorks />
 
       <section id="feedback" className="container-ay py-10 sm:py-12">
         <Reveal>
