@@ -55,6 +55,26 @@ function folderForCategory(category: MediaCategory): string {
   return category === "prodby-mehrshad" ? "ProdBy Mehrshad" : category;
 }
 
+/**
+ * Storage paths used by the media uploader over time. Keep this allowlist
+ * narrow: the admin may register an existing object, but never an arbitrary
+ * path from another bucket folder.
+ */
+function storagePrefixesForCategory(category: MediaCategory): string[] {
+  if (category === "free-training") {
+    return ["free-training/", "free-training-assets/", "free-training-assets/video/"];
+  }
+  if (category === "prodby-mehrshad") {
+    return ["ProdBy Mehrshad/", "prodby-mehrshad/"];
+  }
+  return ["student-work/"];
+}
+
+function isAllowedStoragePath(publicId: string, category: MediaCategory): boolean {
+  if (publicId.startsWith("/") || publicId.includes("..") || publicId.includes("\\") || publicId.endsWith("/")) return false;
+  return storagePrefixesForCategory(category).some((prefix) => publicId.startsWith(prefix));
+}
+
 async function authorized(): Promise<boolean> {
   const cookieStore = await cookies();
   const session = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
@@ -178,8 +198,7 @@ export async function PUT(request: Request) {
       if (!category) return NextResponse.json({ ok: false, error: "دسته‌بندی معتبر نیست." }, { status: 400 });
       if (category === "student-work" && !consent)
         return NextResponse.json({ ok: false, error: "برای نمونه‌کار هنرجو، تأیید رضایت لازم است." }, { status: 400 });
-      const expectedPrefix = `${folderForCategory(category)}/`;
-      if (!publicId.startsWith(expectedPrefix) || publicId.includes("..") || publicId.includes("\\")) {
+      if (!isAllowedStoragePath(publicId, category)) {
         return NextResponse.json({ ok: false, error: "مسیر Storage برای این دسته‌بندی معتبر نیست." }, { status: 400 });
       }
       const item = await registerExistingMedia({
