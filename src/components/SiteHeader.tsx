@@ -12,6 +12,7 @@ import { SafeLink } from "./SafeLink";
 const coreLinks = [
   { href: "/practice", label: "تمرین" },
   { href: "/assistant", label: "ArtistYar AI" },
+  { href: "/ai-music", label: "تولید موسیقی AI" },
   { href: "/music-analyzer", label: "تحلیل موسیقی" },
   { href: "/courses", label: "مسیر پیشرفت" },
 ];
