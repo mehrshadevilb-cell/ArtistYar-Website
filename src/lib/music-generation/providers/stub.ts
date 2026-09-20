@@ -17,10 +17,10 @@ function allowStub(): boolean {
   return process.env.MUSIC_GEN_ALLOW_STUB === "1" || process.env.NODE_ENV === "development";
 }
 
-/** Minimal silent-ish WAV (very short) so decode/validation paths can run in tests. */
-function makeSilentWav(durationMs: number, sampleRate = 22050): ArrayBuffer {
+/** Short mono WAV with a soft tone (not silence) so validation paths can pass. */
+function makeToneWav(durationMs: number, sampleRate = 22050, freq = 220): ArrayBuffer {
   const numSamples = Math.max(1, Math.floor((sampleRate * durationMs) / 1000));
-  const dataSize = numSamples * 2; // 16-bit mono
+  const dataSize = numSamples * 2;
   const buffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(buffer);
   const writeStr = (offset: number, s: string) => {
@@ -31,15 +31,21 @@ function makeSilentWav(durationMs: number, sampleRate = 22050): ArrayBuffer {
   writeStr(8, "WAVE");
   writeStr(12, "fmt ");
   view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // mono
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, sampleRate * 2, true);
   view.setUint16(32, 2, true);
   view.setUint16(34, 16, true);
   writeStr(36, "data");
   view.setUint32(40, dataSize, true);
-  // samples left at 0 (silence)
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    const env = Math.min(1, t * 8) * Math.min(1, (durationMs / 1000 - t) * 8);
+    const sample = Math.sin(2 * Math.PI * freq * t) * 0.2 * env;
+    const int16 = Math.max(-32767, Math.min(32767, Math.floor(sample * 32767)));
+    view.setInt16(44 + i * 2, int16, true);
+  }
   return buffer;
 }
 
@@ -117,7 +123,7 @@ export class StubMusicProvider implements MusicGenerationProvider {
     }
     const dur = expectedDurationMs(req.spec) || req.spec.durationMs || 4000;
     const clamped = Math.max(500, Math.min(30_000, dur));
-    const audioBuffer = makeSilentWav(clamped);
+    const audioBuffer = makeToneWav(clamped);
     return {
       providerId: this.id,
       modelId: "stub-v0",
