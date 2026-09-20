@@ -9,20 +9,18 @@ gsap.registerPlugin(ScrollTrigger);
 type ScrollStageProps = {
   children: ReactNode;
   className?: string;
-  /** HTML tag or component wrapper */
   as?: ElementType;
-  /** Stronger exit blur (hero) vs calm (content) */
+  /** Hero uses strong; content stays calm */
   intensity?: "calm" | "strong";
-  /** Soft focus while entering the viewport (default true) */
   enterBlur?: boolean;
-  /** Soft focus while leaving the viewport (default true) */
   exitBlur?: boolean;
 } & Omit<HTMLAttributes<HTMLElement>, "children" | "className">;
 
 /**
- * Apple / bixa-style depth on scroll.
- * Exit blur is tied to the section *bottom* so tall blocks (e.g. MP3 grid)
- * stay sharp while still on screen — blur only as they actually leave.
+ * Soft depth on scroll (Apple / bixa inspired).
+ * - Enter: light lift + tiny blur that clears while still low in the viewport
+ * - Exit: only as the section actually leaves (bottom-based), never while reading
+ * - Calm intensity avoids heavy filter so long sections (courses, lists) stay readable
  */
 export function ScrollStage({
   children,
@@ -54,66 +52,67 @@ export function ScrollStage({
         if (!context.conditions?.desktop) return;
 
         const isStrong = intensity === "strong";
-        const blurMax = isStrong ? 10 : 4;
-        const scaleMin = isStrong ? 0.96 : 0.99;
-        const opacityMin = isStrong ? 0.55 : 0.88;
-        const enterBlurPx = isStrong ? 5 : 3;
+
+        // Calm = readability first; strong = hero depth
+        const enterY = isStrong ? 28 : 16;
+        const enterBlurPx = isStrong ? 4 : 1.5;
+        const exitBlurPx = isStrong ? 8 : 2.5;
+        const exitOpacity = isStrong ? 0.5 : 0.92;
+        const exitScale = isStrong ? 0.965 : 0.995;
 
         const ctx = gsap.context(() => {
+          gsap.set(el, {
+            force3D: true,
+            transformOrigin: "50% 30%",
+          });
+
           if (enterBlur) {
+            // Clears early so content is sharp before the user focuses on it
             gsap.fromTo(
               el,
               {
-                opacity: 0.88,
-                y: 22,
+                autoAlpha: 0.9,
+                y: enterY,
                 filter: `blur(${enterBlurPx}px)`,
-                scale: 0.992,
+                scale: 0.994,
               },
               {
-                opacity: 1,
+                autoAlpha: 1,
                 y: 0,
                 filter: "blur(0px)",
                 scale: 1,
                 ease: "none",
+                immediateRender: false,
                 scrollTrigger: {
                   trigger: el,
-                  // Become sharp earlier so content is clear while reading
-                  start: "top 90%",
-                  end: "top 62%",
-                  scrub: 0.9,
+                  start: "top 92%",
+                  end: "top 68%",
+                  scrub: 0.75,
                   invalidateOnRefresh: true,
                 },
               },
             );
           } else {
-            gsap.set(el, { opacity: 1, y: 0, filter: "blur(0px)", scale: 1 });
+            gsap.set(el, { autoAlpha: 1, y: 0, filter: "blur(0px)", scale: 1 });
           }
 
           if (exitBlur) {
-            // CRITICAL: use bottom of element, not top.
-            // With start "top top", tall sections (MP3 list) blur while still fully visible.
-            gsap.fromTo(
-              el,
-              {
-                opacity: 1,
-                scale: 1,
-                filter: "blur(0px)",
+            // Bottom-anchored: section stays sharp while any meaningful content is on screen.
+            // Starts late so a small scroll down does not soft-focus the whole block.
+            gsap.to(el, {
+              autoAlpha: exitOpacity,
+              scale: exitScale,
+              filter: `blur(${exitBlurPx}px)`,
+              ease: "none",
+              immediateRender: false,
+              scrollTrigger: {
+                trigger: el,
+                start: "bottom 40%",
+                end: "bottom -5%",
+                scrub: 1.25,
+                invalidateOnRefresh: true,
               },
-              {
-                opacity: opacityMin,
-                scale: scaleMin,
-                filter: `blur(${blurMax}px)`,
-                ease: "none",
-                scrollTrigger: {
-                  trigger: el,
-                  // Start only when the section is mostly scrolled past
-                  start: "bottom 55%",
-                  end: "bottom 5%",
-                  scrub: 1.1,
-                  invalidateOnRefresh: true,
-                },
-              },
-            );
+            });
           }
         }, el);
 
