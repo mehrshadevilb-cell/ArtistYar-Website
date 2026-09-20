@@ -13,7 +13,9 @@ type ScrollStageProps = {
   as?: ElementType;
   /** Stronger exit blur (hero) vs calm (content) */
   intensity?: "calm" | "strong";
-  /** Disable exit blur (keep only enter reveal) */
+  /** Soft focus while entering the viewport (default true) */
+  enterBlur?: boolean;
+  /** Soft focus while leaving the top of the viewport (default true) */
   exitBlur?: boolean;
 } & Omit<HTMLAttributes<HTMLElement>, "children" | "className">;
 
@@ -28,6 +30,7 @@ export function ScrollStage({
   className = "",
   as: Tag = "div",
   intensity = "calm",
+  enterBlur = true,
   exitBlur = true,
   ...rest
 }: ScrollStageProps) {
@@ -56,29 +59,33 @@ export function ScrollStage({
         const opacityMin = intensity === "strong" ? 0.45 : 0.62;
 
         const ctx = gsap.context(() => {
-          gsap.fromTo(
-            el,
-            {
-              opacity: 0.72,
-              y: 36,
-              filter: "blur(6px)",
-              scale: 0.985,
-            },
-            {
-              opacity: 1,
-              y: 0,
-              filter: "blur(0px)",
-              scale: 1,
-              ease: "none",
-              scrollTrigger: {
-                trigger: el,
-                start: "top 92%",
-                end: "top 42%",
-                scrub: 0.65,
-                invalidateOnRefresh: true,
+          if (enterBlur) {
+            gsap.fromTo(
+              el,
+              {
+                opacity: 0.72,
+                y: 36,
+                filter: "blur(6px)",
+                scale: 0.985,
               },
-            },
-          );
+              {
+                opacity: 1,
+                y: 0,
+                filter: "blur(0px)",
+                scale: 1,
+                ease: "none",
+                scrollTrigger: {
+                  trigger: el,
+                  start: "top 92%",
+                  end: "top 42%",
+                  scrub: 0.65,
+                  invalidateOnRefresh: true,
+                },
+              },
+            );
+          } else {
+            gsap.set(el, { opacity: 1, y: 0, filter: "blur(0px)", scale: 1 });
+          }
 
           if (exitBlur) {
             gsap.fromTo(
@@ -110,7 +117,7 @@ export function ScrollStage({
     );
 
     return () => mm.revert();
-  }, [intensity, exitBlur]);
+  }, [intensity, enterBlur, exitBlur]);
 
   return (
     <Tag
