@@ -6,6 +6,24 @@ type Tab = "chat" | "dev" | "skills" | "models" | "memory" | "connectors" | "cos
 type Message = { role: "user" | "assistant"; content: string; provider?: string | null; model?: string | null };
 type Conversation = { id: string; title: string; archived: boolean; created_at: string; updated_at: string; messages?: Message[] };
 
+async function readApiResponse(response: Response) {
+  const text = await response.text();
+  let json: Record<string, any> = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = {};
+  }
+  if (response.status === 401 && typeof window !== "undefined") {
+    const next = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+  }
+  if (!response.ok || !json.ok) {
+    throw new Error(json.error || (text && text.slice(0, 180)) || `خطای سرور (${response.status})`);
+  }
+  return json;
+}
+
 async function chatApi(body?: Record<string, unknown>, query = "", signal?: AbortSignal) {
   const response = await fetch(`/api/admin/assistant${query}`, {
     method: body ? "POST" : "GET",
@@ -15,9 +33,7 @@ async function chatApi(body?: Record<string, unknown>, query = "", signal?: Abor
     signal,
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const json = await response.json().catch(() => ({}));
-  if (!response.ok || !json.ok) throw new Error(json.error || "خطا");
-  return json;
+  return readApiResponse(response);
 }
 
 async function platform(section?: string, body?: Record<string, unknown>, signal?: AbortSignal) {
@@ -30,9 +46,7 @@ async function platform(section?: string, body?: Record<string, unknown>, signal
     signal,
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  const json = await response.json().catch(() => ({}));
-  if (!response.ok || !json.ok) throw new Error(json.error || "خطا");
-  return json;
+  return readApiResponse(response);
 }
 
 const TABS: { id: Tab; label: string; hashes: string[] }[] = [
@@ -83,6 +97,7 @@ export default function AdminAiPlatformPage() {
   const [platformError, setPlatformError] = useState("");
   const [sectionLoading, setSectionLoading] = useState(false);
   const hashSynced = useRef(false);
+  const sectionRequestRef = useRef(0);
 
   useEffect(() => {
     const apply = () => {
@@ -137,18 +152,34 @@ export default function AdminAiPlatformPage() {
 
   const loadSection = useCallback(async (id: Tab) => {
     if (id === "chat") return;
+    const requestId = ++sectionRequestRef.current;
     setPlatformError("");
     setSectionLoading(true);
     try {
-      if (id === "skills" || id === "dev") setSkills((await platform("skills")).skills || []);
-      if (id === "models") setModels((await platform("models")).models || []);
-      if (id === "memory") setMemory((await platform("memory")).memory || []);
-      if (id === "connectors") setConnectors((await platform("connectors")).connectors || []);
-      if (id === "cost") setUsage((await platform("cost")).usage || null);
+      if (id === "skills" || id === "dev") {
+        const result = await platform("skills");
+        if (requestId === sectionRequestRef.current) setSkills(result.skills || []);
+      }
+      if (id === "models") {
+        const result = await platform("models");
+        if (requestId === sectionRequestRef.current) setModels(result.models || []);
+      }
+      if (id === "memory") {
+        const result = await platform("memory");
+        if (requestId === sectionRequestRef.current) setMemory(result.memory || []);
+      }
+      if (id === "connectors") {
+        const result = await platform("connectors");
+        if (requestId === sectionRequestRef.current) setConnectors(result.connectors || []);
+      }
+      if (id === "cost") {
+        const result = await platform("cost");
+        if (requestId === sectionRequestRef.current) setUsage(result.usage || null);
+      }
     } catch (e) {
-      setPlatformError(e instanceof Error ? e.message : "خطا");
+      if (requestId === sectionRequestRef.current) setPlatformError(e instanceof Error ? e.message : "خطا");
     } finally {
-      setSectionLoading(false);
+      if (requestId === sectionRequestRef.current) setSectionLoading(false);
     }
   }, []);
 
