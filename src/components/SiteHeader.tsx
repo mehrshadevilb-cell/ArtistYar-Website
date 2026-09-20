@@ -13,7 +13,7 @@ const coreLinks = [
   { href: "/practice", label: "تمرین" },
   { href: "/assistant", label: "ArtistYar AI" },
   { href: "/music-analyzer", label: "تحلیل موسیقی" },
-  { href: "/courses", label: "مسیر پیشرفت" },
+  { href: "/courses", label: "پکیج‌ها" },
 ];
 
 const secondaryLinks = [
@@ -21,16 +21,15 @@ const secondaryLinks = [
   { href: "/free-player", label: "آموزش رایگان" },
   { href: "/separate", label: "جداسازی وکال" },
   { href: "/gallery", label: "گالری خروجی‌ها" },
+  { href: "/faq", label: "سؤالات متداول" },
 ];
 
 const moreLinks = [
   { href: "/about", label: "درباره آکادمی" },
-  { href: "/#flow", label: "مسیر هنرجو" },
   { href: "/#projects", label: "نمونه‌کارها" },
   { href: "/#feedback", label: "بازخورد هنرجوها" },
-  { href: "/#faq", label: "سؤالات متداول" },
+  { href: "/faq", label: "سؤالات متداول" },
   { href: "/#quick-consultation", label: "مشاوره رایگان" },
-  { href: "/#contact", label: "ارتباط" },
   { href: "/track", label: "پیگیری سفارش" },
 ];
 
@@ -84,7 +83,12 @@ export function SiteHeader() {
               {link.label}
             </SafeLink>
           ))}
-          <SafeLink href="/about" className="nav-link">بیشتر</SafeLink>
+          <SafeLink href="/faq" className={`nav-link ${pathname === "/faq" ? "nav-link-active" : ""}`}>
+            FAQ
+          </SafeLink>
+          <SafeLink href="/about" className="nav-link">
+            بیشتر
+          </SafeLink>
         </nav>
 
         <div className="hidden items-center gap-2.5 md:flex">
@@ -138,7 +142,7 @@ export function SiteHeader() {
         >
           {[...coreLinks, ...secondaryLinks, ...moreLinks].map((link) => (
             <SafeLink
-              key={link.href}
+              key={link.href + link.label}
               href={link.href}
               hard={link.href === "/courses" || link.href === "/assistant"}
               onClick={() => setOpen(false)}
