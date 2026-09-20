@@ -11,3 +11,10 @@ export {
   cancelJob,
   publicJobView,
 } from "./job-service";
+export {
+  ensureCreditAccount,
+  getBalance,
+  chargeCredits,
+  refundCredits,
+  estimateGenerationCredits,
+} from "./credits";
