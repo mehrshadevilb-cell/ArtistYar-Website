@@ -1,12 +1,11 @@
 import Image from "next/image";
 import type { Metadata } from "next";
-import { ArrowLeft, Bot, Check, ChevronDown, CirclePlay, MessageCircle, Sparkles, Waves } from "lucide-react";
+import { ArrowLeft, Bot, ChevronDown, CirclePlay, Sparkles, Waves } from "lucide-react";
 import { HomeLiveCourses } from "@/components/HomeLiveCourses";
 import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 import { Reveal } from "@/components/Reveal";
 import { DepthScene } from "@/components/DepthScene";
 import { ScrollDepth } from "@/components/ScrollDepth";
-import { HighlightStories } from "@/components/HighlightStories";
 import { HeroActions } from "@/components/HeroActions";
 import { SafeLink } from "@/components/SafeLink";
 import { CommunityLinks } from "@/components/CommunityLinks";
@@ -40,44 +39,6 @@ export const metadata: Metadata = {
     url: "/",
   },
 };
-
-const systemPoints = [
-  {
-    title: "تمرین روی پروژه خودت",
-    body: "تکلیف و بازخورد روی کار واقعی‌ات ثبت می‌شود؛ نه فقط تماشای ویدیو.",
-    icon: "check" as const,
-  },
-  {
-    title: "کلاس با رزرو و یادآوری",
-    body: "جلسه را رزرو کن؛ قبل و روز کلاس از مسیر راه‌یار باخبر می‌شوی.",
-    icon: "play" as const,
-  },
-  {
-    title: "پشتیبانی وقتی گیر کردی",
-    body: "سؤال و تیکت در همان مسیر یادگیری ثبت می‌شود تا وسط راه رها نشوی.",
-    icon: "msg" as const,
-  },
-  {
-    title: "راه‌یار AI کنار مسیر",
-    body: "عیب‌یابی میکس، مفاهیم تئوری و راهنمای قدم بعد — از همین سایت.",
-    icon: "bot" as const,
-  },
-];
-
-const studentSteps = [
-  {
-    title: "مسیر را انتخاب کن",
-    body: "دوره دیجیتال یا کلاس آنلاین — هر کدام به هدف و سطح فعلی‌ات نزدیک‌تر است.",
-  },
-  {
-    title: "درخواست بررسی می‌شود",
-    body: "پرداخت و هماهنگی از طریق راه‌یار تأیید می‌شود؛ وضعیت قابل پیگیری است.",
-  },
-  {
-    title: "یاد بگیر و جلو برو",
-    body: "دسترسی، رزرو، تکلیف و پیشرفت در یک مسیر مشخص می‌مانند.",
-  },
-];
 
 const studentProjects = instagramGallery
   .filter((item) => item.tags.includes("نمونه‌کار هنرجو") || item.tags.includes("خروجی آموزشی"))
@@ -161,13 +122,6 @@ const homepageCoursesJsonLd = {
   ],
 };
 
-function SystemIcon({ kind }: { kind: "check" | "play" | "msg" | "bot" }) {
-  if (kind === "bot") return <Bot size={18} aria-hidden />;
-  if (kind === "msg") return <MessageCircle size={18} aria-hidden />;
-  if (kind === "play") return <CirclePlay size={18} aria-hidden />;
-  return <Check size={18} aria-hidden />;
-}
-
 export default function HomePage() {
   return (
     <div>
@@ -202,18 +156,6 @@ export default function HomePage() {
             </span>
           </div>
           <HeroDifferentiator />
-          <div className="hero-signal-row" aria-label="تمرکز مسیر">
-            <div className="hero-signal-card">
-              <span className="hero-signal-index">۰۱</span>
-              <strong>یادگیری عملی</strong>
-              <small>پروژه تا خروجی</small>
-            </div>
-            <div className="hero-signal-card hero-signal-card-active">
-              <span className="hero-signal-index">۰۲</span>
-              <strong>همراهی هوشمند</strong>
-              <small>تمرین و پیگیری</small>
-            </div>
-          </div>
         </div>
         <ScrollDepth className="hero-scroll-depth" intensity={0.55}>
           <DepthScene className="hero-art">
@@ -271,6 +213,7 @@ export default function HomePage() {
         </ScrollDepth>
       </section>
 
+      {/* THE ARTISTYAR METHOD — kept as continuation of hero */}
       <CoreFeatureRail />
 
       <PracticeEnginePreview />
@@ -304,60 +247,6 @@ export default function HomePage() {
         <HomeLiveCourses />
       </div>
 
-      <section id="flow" className="container-ay section-space border-t border-white/[.06]">
-        <Reveal>
-          <div className="section-intro">
-            <p className="eyebrow">/ مسیر هنرجو</p>
-            <h2 className="section-title">
-              سه قدم مشخص؛
-              <br />
-              <span className="text-gold-400">بدون سردرگمی.</span>
-            </h2>
-          </div>
-        </Reveal>
-        <div className="benefit-grid">
-          {studentSteps.map((step, i) => (
-            <Reveal key={step.title} delay={i * 40}>
-              <article className="benefit-card">
-                <span className="benefit-icon">
-                  <span className="text-sm font-semibold">۰{i + 1}</span>
-                </span>
-                <h3>{step.title}</h3>
-                <p>{step.body}</p>
-              </article>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      <section id="about" className="container-ay section-space border-t border-white/[.06]">
-        <Reveal>
-          <div className="section-intro">
-            <p className="eyebrow">/ سیستم یادگیری</p>
-            <h2 className="section-title">
-              ویدیو به‌تنهایی کافی نیست؛
-              <br />
-              <span className="text-gold-400">مسیر می‌خواهد.</span>
-            </h2>
-            <p className="section-sub">پرداخت، دسترسی، کلاس، تکلیف و پشتیبانی — در یک خط روشن.</p>
-          </div>
-        </Reveal>
-        <div className="benefit-grid">
-          {systemPoints.map((item, i) => (
-            <Reveal key={item.title} delay={i * 35}>
-              <article className="benefit-card">
-                <span className="benefit-icon">
-                  <SystemIcon kind={item.icon} />
-                </span>
-                <span className="benefit-number">۰{i + 1}</span>
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
-              </article>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
       <section id="projects" className="projects-section border-y border-white/[.06]">
         <div className="container-ay section-space">
           <Reveal>
@@ -373,18 +262,6 @@ export default function HomePage() {
               <p className="section-sub max-w-md">نمونه‌های عمومی از گالری؛ جزئیات در پست اینستاگرام.</p>
             </div>
           </Reveal>
-          <div className="mt-10 rounded-[1.25rem] border border-white/[.07] bg-white/[.02] p-4 sm:p-6">
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="eyebrow">/ هایلایت</p>
-                <h3 className="mt-2 text-lg font-medium text-sand-50">لحظه‌هایی از مسیر</h3>
-              </div>
-              <SafeLink href="/gallery" hard className="text-xs text-gold-400 hover:text-gold-300">
-                گالری کامل ←
-              </SafeLink>
-            </div>
-            <HighlightStories items={instagramGallery} />
-          </div>
           <div className="projects-grid mt-8">
             {studentProjects.map((project, i) => (
               <Reveal key={project.code} delay={i * 40}>
@@ -430,30 +307,35 @@ export default function HomePage() {
               </Reveal>
             ))}
           </div>
+          <div className="mt-8 text-center">
+            <SafeLink href="/gallery" hard className="text-sm text-gold-400 hover:text-gold-300">
+              گالری کامل ←
+            </SafeLink>
+          </div>
         </div>
       </section>
 
       <section id="feedback" className="feedback-section container-ay section-space">
         <Reveal>
           <div className="section-intro">
-            <p className="eyebrow">/ صدای هنرجوها</p>
+            <p className="eyebrow">/ بازخورد</p>
             <h2 className="section-title">
-              از زبان کسانی که
+              صدای هنرجو،
               <br />
-              <span className="text-gold-400">مسیر را رفته‌اند.</span>
+              <span className="text-gold-400">نه شعار.</span>
             </h2>
           </div>
         </Reveal>
-        <div className="mt-10 grid gap-3 md:grid-cols-3">
+        <div className="feedback-grid">
           {studentFeedback.map((item, i) => (
-            <Reveal key={item.name} delay={i * 35}>
-              <article className="benefit-card">
-                <p className="text-sm leading-7 text-ink-300">«{item.quote}»</p>
-                <div className="mt-6">
-                  <strong className="block text-sm text-sand-50">{item.name}</strong>
-                  <span className="mt-1 block text-xs text-ink-500">{item.detail}</span>
-                </div>
-              </article>
+            <Reveal key={item.name} delay={i * 40}>
+              <blockquote className="feedback-card">
+                <p>«{item.quote}»</p>
+                <footer>
+                  <strong>{item.name}</strong>
+                  <span>{item.detail}</span>
+                </footer>
+              </blockquote>
             </Reveal>
           ))}
         </div>
@@ -462,7 +344,7 @@ export default function HomePage() {
       <section id="faq" className="container-ay section-space border-t border-white/[.06]">
         <Reveal>
           <div className="section-intro">
-            <p className="eyebrow">/ سؤالات متداول</p>
+            <p className="eyebrow">/ پرسش‌های متداول</p>
             <h2 className="section-title">
               قبل از شروع،
               <br />
@@ -490,40 +372,6 @@ export default function HomePage() {
           title="بیرون از سایت هم همراهت هستیم"
           subtitle="کانال پلاگین، گروه پرسش‌وپاسخ و اینستاگرام رسمی مدرس."
         />
-      </section>
-
-      <section id="contact" className="container-ay section-space">
-        <Reveal>
-          <div className="contact-card">
-            <div className="contact-glow" aria-hidden="true" />
-            <div className="relative z-10 max-w-xl">
-              <p className="eyebrow">/ شروع</p>
-              <h2 className="section-title mt-4">
-                آماده‌ای
-                <br />
-                <span className="text-gold-400">مسیرت را باز کنی؟</span>
-              </h2>
-              <p className="section-sub">
-                اگر هنوز مطمئن نیستی از کجا شروع کنی، فرم مشاوره را پر کن یا مستقیم از راه‌یار بپرس.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <SafeLink href="/courses" hard className="btn-primary gap-2">
-                  مشاهده مسیرها <ArrowLeft size={16} />
-                </SafeLink>
-                <SafeLink href="/assistant" hard className="btn-ghost gap-2">
-                  گفتگو با راه‌یار <Bot size={16} />
-                </SafeLink>
-              </div>
-            </div>
-            <div className="contact-mark" aria-hidden="true">
-              <span>
-                RAHYAR
-                <br />
-                ACADEMY
-              </span>
-            </div>
-          </div>
-        </Reveal>
       </section>
 
       <div id="quick-consultation">

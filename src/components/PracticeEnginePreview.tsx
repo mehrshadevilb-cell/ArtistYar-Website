@@ -1,4 +1,4 @@
-import { ArrowLeft, AudioLines, Ear, Sparkles, Target, Trophy } from "lucide-react";
+import { ArrowLeft, AudioLines, Ear } from "lucide-react";
 import { SafeLink } from "@/components/SafeLink";
 
 const tracks = [
@@ -57,24 +57,6 @@ export function PracticeEnginePreview() {
             </div>
           </SafeLink>
         ))}
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-gold-400/15 bg-gold-400/[.04] p-5">
-          <Target size={17} className="text-gold-300" />
-          <strong className="mt-3 block text-sm text-sand-50">Daily Mission</strong>
-          <p className="mt-1 text-xs leading-6 text-ink-500">هر روز یک مهارت مشخص؛ تمرین کوتاه و هدفمند.</p>
-        </div>
-        <div className="rounded-2xl border border-white/[.08] bg-white/[.02] p-5">
-          <Sparkles size={17} className="text-cyan-200" />
-          <strong className="mt-3 block text-sm text-sand-50">AI Mentor</strong>
-          <p className="mt-1 text-xs leading-6 text-ink-500">ASK · ANALYZE · TRAIN · COACH در مسیر یادگیری.</p>
-        </div>
-        <div className="rounded-2xl border border-white/[.08] bg-white/[.02] p-5">
-          <Trophy size={17} className="text-gold-300" />
-          <strong className="mt-3 block text-sm text-sand-50">Producer Passport</strong>
-          <p className="mt-1 text-xs leading-6 text-ink-500">پیشرفت مهارت‌ها به هویت حرفه‌ای تو تبدیل می‌شود.</p>
-        </div>
       </div>
     </section>
   );
