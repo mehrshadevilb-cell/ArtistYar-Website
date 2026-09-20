@@ -1,4 +1,4 @@
-/* Hero layout optimization — loads after apple-ui / globals */
+/* Hero layout + homepage surface polish */
 
 .hero-section {
   min-height: min(640px, calc(var(--tg-viewport-height, 100vh) - 5.5rem));
@@ -13,13 +13,6 @@
   font-size: clamp(2.85rem, 6.2vw, 5.6rem) !important;
   line-height: 1.1 !important;
   letter-spacing: -0.05em !important;
-}
-
-.hero-lead {
-  max-width: 34rem !important;
-  margin-top: 1.15rem !important;
-  font-size: 1.02rem !important;
-  line-height: 1.9 !important;
 }
 
 .hero-actions {
@@ -51,13 +44,24 @@
   text-decoration-color: rgba(232, 197, 71, 0.45);
 }
 
+/* Feature rail in hero — fills left column */
 .hero-differentiator {
-  margin-top: 1.5rem !important;
-  max-width: 42rem !important;
-  padding: 0.85rem !important;
+  margin-top: 1.35rem !important;
+  max-width: 100% !important;
+  width: 100%;
+  padding: 0.9rem !important;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hero-differentiator-fill {
+  max-width: 100% !important;
 }
 
 .hero-differentiator-grid {
+  display: grid !important;
+  gap: 0.55rem !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 
@@ -71,61 +75,250 @@
   }
 }
 
+.hero-feature-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: 6.5rem;
+  padding: 0.85rem 0.8rem 0.75rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.hero-feature-card:hover {
+  border-color: rgba(201, 162, 39, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.hero-feature-icon {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 0.55rem;
+  color: #d4af37;
+  background: rgba(201, 162, 39, 0.12);
+}
+
+.hero-feature-cyan .hero-feature-icon {
+  color: #8be2ef;
+  background: rgba(88, 196, 213, 0.12);
+}
+
+.hero-feature-blue .hero-feature-icon {
+  color: #9cc6ff;
+  background: rgba(99, 154, 220, 0.12);
+}
+
+.hero-feature-violet .hero-feature-icon {
+  color: #d4b5ff;
+  background: rgba(160, 125, 215, 0.12);
+}
+
+.hero-feature-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.hero-feature-copy strong {
+  color: #f5efe3;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.hero-feature-copy small {
+  color: #8f8a80;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.hero-feature-arrow {
+  position: absolute;
+  left: 0.65rem;
+  top: 0.7rem;
+  color: #6d685f;
+}
+
+.hero-feature-index {
+  position: absolute;
+  left: 0.65rem;
+  bottom: 0.55rem;
+  color: #5f5b53;
+  font: 10px ui-monospace, monospace;
+}
+
 .hero-feature-soon {
   opacity: 0.72;
   cursor: default;
   pointer-events: none;
-  position: relative;
+}
+
+.hero-feature-soon:hover {
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .hero-feature-soon-badge {
   position: absolute;
-  top: 0.55rem;
-  left: 0.55rem;
+  top: 0.5rem;
+  left: 0.5rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.35);
-  padding: 0.15rem 0.45rem;
+  padding: 0.12rem 0.4rem;
   font-size: 9px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   color: #c9a227;
 }
 
-.core-feature-soon {
-  opacity: 0.75;
-  cursor: default;
-  pointer-events: none;
+.hero-differentiator-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.core-feature-soon-badge {
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.28);
-  padding: 0.2rem 0.55rem;
-  font-size: 10px;
-  color: #c9a227;
+.hero-xp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #8f8a80;
+  font-size: 0.7rem;
 }
 
-.feedback-card-compact p {
-  margin: 0;
+.hero-xp b {
+  color: #d4af37;
+  font-weight: 600;
 }
 
 .hero-trust {
-  margin-top: 1.35rem !important;
+  margin-top: 1.25rem !important;
 }
 
 .hero-copy {
   padding-top: 0.35rem;
+  width: 100%;
+}
+
+/* Student work cards — compact, no external link behavior */
+.student-work-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 0;
+  height: 100%;
+  padding: 1rem 1.05rem;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.student-work-card:hover {
+  border-color: rgba(201, 162, 39, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.student-work-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.student-work-code {
+  color: #756f65;
+  font: 10px ui-monospace, monospace;
+  letter-spacing: 0.08em;
+}
+
+.student-work-badge {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.15rem 0.5rem;
+  color: #c9a227;
+  font-size: 10px;
+}
+
+.student-work-card h3 {
+  margin: 0;
+  color: #f0e9dc;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.student-work-type {
+  margin: 0;
+  color: #756f65;
+  font-size: 0.7rem;
+}
+
+.student-work-body {
+  margin: 0.25rem 0 0;
+  color: #9d978e;
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+
+/* Comment-style feedback — tight, no empty min-height */
+.comment-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.85rem 0.95rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.comment-card p {
+  margin: 0;
+  color: #c4beb2;
+  font-size: 0.8rem;
+  line-height: 1.65;
+}
+
+.comment-card footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.comment-card strong {
+  color: #ebe3d5;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.comment-card span {
+  color: #756f65;
+  font-size: 0.68rem;
 }
 
 @media (min-width: 1024px) {
   .hero-section {
-    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
-    gap: clamp(2.5rem, 4vw, 4.5rem);
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+    gap: clamp(2rem, 3.5vw, 3.5rem);
     align-items: center;
   }
   .hero-copy {
-    max-width: 40rem;
+    max-width: none;
   }
   .hero-art {
     min-height: 480px;
@@ -147,9 +340,6 @@
     margin-inline: auto;
     width: 100%;
   }
-  .hero-differentiator {
-    max-width: none !important;
-  }
 }
 
 @media (max-width: 640px) {
@@ -168,8 +358,11 @@
     margin-top: 1.1rem !important;
   }
   .hero-differentiator {
-    margin-top: 1.25rem !important;
-    padding: 0.75rem !important;
+    margin-top: 1.15rem !important;
+    padding: 0.7rem !important;
+  }
+  .hero-feature-card {
+    min-height: 5.75rem;
   }
   .hero-art {
     min-height: 280px;
@@ -182,4 +375,9 @@
 
 .telegram-mini-app .hero-secondary-link {
   font-size: 0.8rem;
+}
+
+/* Override legacy oversized project cards if still referenced */
+.project-card {
+  min-height: 0 !important;
 }
