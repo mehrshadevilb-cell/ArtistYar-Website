@@ -83,17 +83,28 @@ export default function AdminAssistantPage() {
     setError("");
     const controller = new AbortController();
     abortRef.current = controller;
-    setActive((current) => current ? { ...current, messages: [...(current.messages || []), { role: "user", content: text }] } : current);
+    const previousMessages = active.messages || [];
+    setActive((current) => current ? { ...current, messages: [...previousMessages, { role: "user", content: text }] } : current);
 
     const conversationId = active.id;
     try {
       const json = await api({ action: "message", conversationId, content: text }, "", controller.signal);
       if (activeIdRef.current === conversationId) {
-        setActive((current) => current ? { ...current, messages: [...(current.messages || []), json.message] } : current);
+        setActive((current) => current ? { ...current, messages: [...previousMessages, { role: "user", content: text }, json.message] } : current);
       }
       setConversations((items) => items.map((item) => item.id === conversationId ? { ...item, updated_at: new Date().toISOString() } : item));
     } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") return;
+      if (e instanceof DOMException && e.name === "AbortError") {
+        if (activeIdRef.current === conversationId) {
+          setActive((current) => current ? { ...current, messages: previousMessages } : current);
+        }
+        setInput(text);
+        return;
+      }
+      if (activeIdRef.current === conversationId) {
+        setActive((current) => current ? { ...current, messages: previousMessages } : current);
+      }
+      setInput(text);
       setError(e instanceof Error ? e.message : "ارسال پیام ناموفق بود");
     } finally {
       abortRef.current = null;
