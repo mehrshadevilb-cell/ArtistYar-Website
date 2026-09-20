@@ -75,26 +75,11 @@ export default function HomePage() {
 
       <section className="hero-section container-ay">
         <div className="hero-copy">
-          <div className="hero-kicker">
-            <span className="status-dot" /> آکادمی راه‌یار · ArtistYar
-          </div>
           <h1 className="hero-heading">
             تنظیم، میکس و مسترینگ
             <br />
             <span className="gold-shimmer">با مسیر روشن.</span>
           </h1>
-          <div className="hero-cta-stack">
-            <HeroActions />
-            <SafeLink href="/amoozesh-mix-mastering" hard className="hero-secondary-link">
-              راهنمای رایگان از پایه تا پروژه ←
-            </SafeLink>
-          </div>
-          <div className="hero-trust">
-            <span className="trust-line" />
-            <span>
-              فقط ویدیو نیست — <strong className="font-medium text-gold-400">راه‌یار</strong> تا نتیجه کنارت می‌ماند
-            </span>
-          </div>
         </div>
         <ScrollDepth className="hero-scroll-depth" intensity={0.55}>
           <DepthScene className="hero-art">
@@ -152,9 +137,23 @@ export default function HomePage() {
         </ScrollDepth>
       </section>
 
-      {/* Full-width feature cards under the 3D disk / hero */}
+      {/* Feature cards under disk + primary CTAs */}
       <div className="container-ay hero-features-under-disk">
         <HeroDifferentiator />
+        <div className="hero-cta-under-cards">
+          <div className="hero-cta-stack">
+            <HeroActions />
+            <SafeLink href="/amoozesh-mix-mastering" hard className="hero-secondary-link">
+              راهنمای رایگان از پایه تا پروژه ←
+            </SafeLink>
+          </div>
+          <div className="hero-trust">
+            <span className="trust-line" />
+            <span>
+              فقط ویدیو نیست — <strong className="font-medium text-gold-400">راه‌یار</strong> تا نتیجه کنارت می‌ماند
+            </span>
+          </div>
+        </div>
       </div>
 
       <section className="proof-strip border-y border-white/[.06]">
