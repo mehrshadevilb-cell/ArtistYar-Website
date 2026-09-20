@@ -74,7 +74,14 @@ export default function HomePage() {
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
 
-      <ScrollStage as="section" className="hero-section container-ay" intensity="strong" enterBlur={false}>
+      {/* Hero stays sharp when scrolling back to top */}
+      <ScrollStage
+        as="section"
+        className="hero-section container-ay"
+        intensity="strong"
+        enterBlur={false}
+        exitBlur={false}
+      >
         <div className="hero-copy">
           <h1 className="hero-heading">
             تنظیم، میکس و مسترینگ
@@ -181,7 +188,6 @@ export default function HomePage() {
         </div>
       </ScrollStage>
 
-      {/* Package cards: sharp while browsing */}
       <ScrollStage id="courses" className="scroll-mt-24" intensity="calm" exitBlur={false}>
         <div className="container-ay pt-6 pb-2 sm:hidden">
           <SafeLink href="/courses" hard className="btn-primary w-full justify-center gap-2">
