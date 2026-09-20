@@ -33,32 +33,36 @@ function fallbackInitial(title: string): string {
   return clean.slice(0, 1) || "آ";
 }
 
-function coverClass(title: string): string {
-  if (title.includes("پرو")) return "product-cover product-cover-pro";
-  if (title.includes("راه‌یار") || title.includes("راهیار")) return "product-cover product-cover-rahyar";
-  if (title.includes("تئوری")) return "product-cover product-cover-theory";
-  if (title.includes("آرتیست")) return "product-cover product-cover-artist";
-  return "product-cover";
-}
-
 /** Server-friendly card (no client JS). */
 export function LiveProductCard({ product }: { product: LiveProduct }) {
   const hasImage = Boolean(product.thumbnail);
   const slug = slugify(product.title);
+  const isRemote = Boolean(product.thumbnail?.startsWith("http"));
 
   return (
     <article className="card-ay group flex h-full flex-col overflow-hidden transition hover:border-gold-500/25 hover:bg-white/[0.045]">
-      <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[0.06]">
+      <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[0.06] bg-ink-950">
         {hasImage ? (
-          <Image
-            src={product.thumbnail!}
-            alt={product.title}
-            fill
-            sizes="(max-width: 640px) calc(100vw - 2rem), (max-width: 1100px) 50vw, 25vw"
-            quality={78}
-            className={`h-full w-full object-cover transition duration-500 group-hover:scale-[1.03] ${coverClass(product.title)}`}
-            loading="lazy"
-          />
+          isRemote ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={product.thumbnail!}
+              alt={product.title}
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <Image
+              src={product.thumbnail!}
+              alt={product.title}
+              fill
+              sizes="(max-width: 640px) calc(100vw - 2rem), (max-width: 1100px) 50vw, 25vw"
+              quality={78}
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+              loading="lazy"
+            />
+          )
         ) : (
           <div className={`flex h-full w-full items-end justify-between bg-gradient-to-br p-5 ${fallbackTone(product.title)}`}>
             <span className="text-4xl font-semibold tracking-tight text-sand-50/90">{fallbackInitial(product.title)}</span>
