@@ -11,6 +11,7 @@ import { HeroActions } from "@/components/HeroActions";
 import { SafeLink } from "@/components/SafeLink";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { HeroDifferentiator } from "@/components/HeroDifferentiator";
+import { ScrollStage } from "@/components/ScrollStage";
 
 export const metadata: Metadata = {
   title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | مهرشاد بنائی",
@@ -73,7 +74,7 @@ export default function HomePage() {
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
 
-      <section className="hero-section container-ay">
+      <ScrollStage as="section" className="hero-section container-ay" intensity="strong">
         <div className="hero-copy">
           <h1 className="hero-heading">
             تنظیم، میکس و مسترینگ
@@ -135,10 +136,9 @@ export default function HomePage() {
             </div>
           </DepthScene>
         </ScrollDepth>
-      </section>
+      </ScrollStage>
 
-      {/* Feature cards under disk + primary CTAs */}
-      <div className="container-ay hero-features-under-disk">
+      <ScrollStage className="container-ay hero-features-under-disk" intensity="calm">
         <HeroDifferentiator />
         <div className="hero-cta-under-cards">
           <div className="hero-cta-stack">
@@ -154,9 +154,9 @@ export default function HomePage() {
             </span>
           </div>
         </div>
-      </div>
+      </ScrollStage>
 
-      <section className="proof-strip border-y border-white/[.06]">
+      <ScrollStage as="section" className="proof-strip border-y border-white/[.06]" intensity="calm">
         <div className="container-ay proof-grid">
           <div>
             <strong>دوره دیجیتال</strong>
@@ -174,20 +174,22 @@ export default function HomePage() {
             از شروع تا نتیجه، <b>تنها نمی‌مانی.</b>
           </div>
         </div>
-      </section>
+      </ScrollStage>
 
-      <div id="courses" className="scroll-mt-24">
+      <ScrollStage id="courses" className="scroll-mt-24" intensity="calm">
         <div className="container-ay pt-6 pb-2 sm:hidden">
           <SafeLink href="/courses" hard className="btn-primary w-full justify-center gap-2">
             دیدن پکیج‌های آموزشی <ArrowLeft size={16} aria-hidden />
           </SafeLink>
         </div>
         <HomeLiveCourses />
-      </div>
+      </ScrollStage>
 
-      <HomeStudentWorks />
+      <ScrollStage intensity="calm">
+        <HomeStudentWorks />
+      </ScrollStage>
 
-      <section id="feedback" className="container-ay py-10 sm:py-12">
+      <ScrollStage as="section" id="feedback" className="container-ay py-10 sm:py-12" intensity="calm">
         <Reveal>
           <div className="mb-5">
             <p className="eyebrow">/ بازخورد</p>
@@ -209,18 +211,18 @@ export default function HomePage() {
             </Reveal>
           ))}
         </div>
-      </section>
+      </ScrollStage>
 
-      <section className="container-ay pb-4 pt-2">
+      <ScrollStage as="section" className="container-ay pb-4 pt-2" intensity="calm">
         <CommunityLinks
           title="بیرون از سایت هم همراهت هستیم"
           subtitle="کانال پلاگین، گروه پرسش‌وپاسخ و اینستاگرام رسمی مدرس."
         />
-      </section>
+      </ScrollStage>
 
-      <div id="quick-consultation">
+      <ScrollStage id="quick-consultation" intensity="calm" exitBlur={false}>
         <QuickConsultationForm />
-      </div>
+      </ScrollStage>
     </div>
   );
 }
