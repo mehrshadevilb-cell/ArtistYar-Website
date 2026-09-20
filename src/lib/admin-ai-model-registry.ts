@@ -11,39 +11,94 @@ export type AdminAiModel = {
   status: string; last_validated_at: string | null;
 };
 
-function db() { if (!supabase) throw new Error("admin_ai_storage_not_configured"); return supabase; }
+function db() {
+  if (!supabase) throw new Error("admin_ai_storage_not_configured");
+  return supabase;
+}
 
-export async function syncAdminAiModels() {
+function priorityForModel(modelId: string): number {
+  const lower = modelId.toLowerCase();
+  if (/gpt-4o(?!-mini)|gpt-4\.1(?!-)|claude-sonnet|gemini-2\.5-pro|o3|o4/.test(lower)) return 100;
+  if (/gpt-4o-mini|gpt-4\.1-mini|claude-3-5|gemini-2\.5-flash|gemini-2\.0|deepseek|llama-3\.3|70b/.test(lower)) return 90;
+  if (/flash|mini|haiku|nano|lite|small|8b/.test(lower)) return 70;
+  if (/gpt|claude|gemini|llama|qwen|kimi|deepseek/.test(lower)) return 80;
+  return 50;
+}
+
+export async function syncAdminAiModels(options: { autoEnable?: boolean } = {}) {
+  const autoEnable = options.autoEnable !== false;
   const discovered = await discoverAllModels();
-  const rows = discovered.flatMap((entry) => entry.models.map((model) => ({
-    provider_id: entry.provider.id,
-    model_id: model.id,
-    display_name: model.id,
-    capabilities: { chat: true },
-    updated_at: new Date().toISOString(),
-  })));
+  const rows = discovered.flatMap((entry) =>
+    entry.models.map((model) => ({
+      provider_id: entry.provider.id,
+      model_id: model.id,
+      display_name: model.id,
+      capabilities: { chat: true },
+      priority: priorityForModel(model.id),
+      // Auto-enable so Admin AI can route without manual UI steps.
+      ...(autoEnable
+        ? {
+            enabled: true,
+            status: "enabled",
+            preferred: false,
+            last_validated_at: new Date().toISOString(),
+          }
+        : {}),
+      updated_at: new Date().toISOString(),
+    })),
+  );
   if (!rows.length) return [];
-  const result = await db().from("admin_ai_model_registry").upsert(rows, { onConflict: "provider_id,model_id", ignoreDuplicates: false });
+  const result = await db()
+    .from("admin_ai_model_registry")
+    .upsert(rows, { onConflict: "provider_id,model_id", ignoreDuplicates: false });
   if (result.error) throw result.error;
   return listAdminAiModels();
 }
 
 export async function listAdminAiModels() {
-  const result = await db().from("admin_ai_model_registry").select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at").order("priority", { ascending: false }).order("provider_id", { ascending: true });
+  const result = await db()
+    .from("admin_ai_model_registry")
+    .select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at")
+    .order("priority", { ascending: false })
+    .order("provider_id", { ascending: true });
   if (result.error) throw result.error;
   return (result.data || []) as AdminAiModel[];
 }
 
 export async function listAdminAiRoutingCandidates() {
-  const result = await db().from("admin_ai_model_registry").select("provider_id,model_id,priority,preferred").eq("enabled", true).eq("status", "enabled").order("preferred", { ascending: false }).order("priority", { ascending: false });
+  const result = await db()
+    .from("admin_ai_model_registry")
+    .select("provider_id,model_id,priority,preferred")
+    .eq("enabled", true)
+    .eq("status", "enabled")
+    .order("preferred", { ascending: false })
+    .order("priority", { ascending: false });
   if (result.error) throw result.error;
-  return result.data || [];
+  const rows = result.data || [];
+  if (rows.length) return rows;
+
+  // First-run bootstrap: discover providers and enable all chat models automatically.
+  try {
+    await syncAdminAiModels({ autoEnable: true });
+  } catch (error) {
+    console.error("admin ai model auto-sync failed", error instanceof Error ? error.message : "unknown");
+    return [];
+  }
+
+  const after = await db()
+    .from("admin_ai_model_registry")
+    .select("provider_id,model_id,priority,preferred")
+    .eq("enabled", true)
+    .eq("status", "enabled")
+    .order("preferred", { ascending: false })
+    .order("priority", { ascending: false });
+  if (after.error) throw after.error;
+  return after.data || [];
 }
 
 export async function getAdminAiRoutingPreference() {
-  const result = await db().from("admin_ai_model_registry").select("provider_id,model_id").eq("enabled", true).eq("status", "enabled").order("preferred", { ascending: false }).order("priority", { ascending: false }).limit(1).maybeSingle();
-  if (result.error) throw result.error;
-  return result.data;
+  const candidates = await listAdminAiRoutingCandidates();
+  return candidates[0] || null;
 }
 
 export async function validateAdminAiModel(id: string) {
@@ -54,18 +109,26 @@ export async function validateAdminAiModel(id: string) {
   const discovered = await discoverAllModels({ allowFallback: false });
   const provider = discovered.find((entry) => entry.provider.id === currentModel.provider_id);
   const valid = Boolean(provider?.models.some((model) => model.id === currentModel.model_id));
-  const result = await db().from("admin_ai_model_registry").update({
-    status: valid ? "registered" : "disabled",
-    enabled: false,
-    preferred: false,
-    last_validated_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }).eq("id", id).select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at").maybeSingle();
+  const result = await db()
+    .from("admin_ai_model_registry")
+    .update({
+      status: valid ? "registered" : "disabled",
+      enabled: false,
+      preferred: false,
+      last_validated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at")
+    .maybeSingle();
   if (result.error) throw result.error;
   return result.data as AdminAiModel | null;
 }
 
-export async function updateAdminAiModel(id: string, patch: Partial<Pick<AdminAiModel, "enabled" | "priority" | "preferred" | "status">>) {
+export async function updateAdminAiModel(
+  id: string,
+  patch: Partial<Pick<AdminAiModel, "enabled" | "priority" | "preferred" | "status">>,
+) {
   const current = await db().from("admin_ai_model_registry").select("id,status,enabled,preferred").eq("id", id).maybeSingle();
   if (current.error) throw current.error;
   if (!current.data) return null;
@@ -92,7 +155,12 @@ export async function updateAdminAiModel(id: string, patch: Partial<Pick<AdminAi
     update.preferred = false;
   }
 
-  const result = await db().from("admin_ai_model_registry").update(update).eq("id", id).select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at").maybeSingle();
+  const result = await db()
+    .from("admin_ai_model_registry")
+    .update(update)
+    .eq("id", id)
+    .select("id,provider_id,model_id,display_name,enabled,priority,preferred,capabilities,status,last_validated_at")
+    .maybeSingle();
   if (result.error) throw result.error;
   return result.data as AdminAiModel | null;
 }
