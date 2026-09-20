@@ -74,7 +74,7 @@ export default function HomePage() {
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
 
-      <ScrollStage as="section" className="hero-section container-ay" intensity="strong">
+      <ScrollStage as="section" className="hero-section container-ay" intensity="strong" enterBlur={false}>
         <div className="hero-copy">
           <h1 className="hero-heading">
             تنظیم، میکس و مسترینگ
@@ -138,7 +138,13 @@ export default function HomePage() {
         </ScrollDepth>
       </ScrollStage>
 
-      <ScrollStage className="container-ay hero-features-under-disk" intensity="calm">
+      {/* Hero cards: sharp + glow on first screen (no enter/exit blur) */}
+      <ScrollStage
+        className="container-ay hero-features-under-disk"
+        intensity="calm"
+        enterBlur={false}
+        exitBlur={false}
+      >
         <HeroDifferentiator />
         <div className="hero-cta-under-cards">
           <div className="hero-cta-stack">
