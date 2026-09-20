@@ -15,15 +15,14 @@ type ScrollStageProps = {
   intensity?: "calm" | "strong";
   /** Soft focus while entering the viewport (default true) */
   enterBlur?: boolean;
-  /** Soft focus while leaving the top of the viewport (default true) */
+  /** Soft focus while leaving the viewport (default true) */
   exitBlur?: boolean;
 } & Omit<HTMLAttributes<HTMLElement>, "children" | "className">;
 
 /**
- * Apple / bixa-style depth on scroll:
- * - sections ease in (slight blur → sharp)
- * - as they leave the top of the viewport they soften (blur + scale + fade)
- * Desktop only; respects prefers-reduced-motion.
+ * Apple / bixa-style depth on scroll.
+ * Exit blur is tied to the section *bottom* so tall blocks (e.g. MP3 grid)
+ * stay sharp while still on screen — blur only as they actually leave.
  */
 export function ScrollStage({
   children,
@@ -54,19 +53,21 @@ export function ScrollStage({
         }
         if (!context.conditions?.desktop) return;
 
-        const blurMax = intensity === "strong" ? 14 : 8;
-        const scaleMin = intensity === "strong" ? 0.94 : 0.97;
-        const opacityMin = intensity === "strong" ? 0.45 : 0.62;
+        const isStrong = intensity === "strong";
+        const blurMax = isStrong ? 10 : 4;
+        const scaleMin = isStrong ? 0.96 : 0.99;
+        const opacityMin = isStrong ? 0.55 : 0.88;
+        const enterBlurPx = isStrong ? 5 : 3;
 
         const ctx = gsap.context(() => {
           if (enterBlur) {
             gsap.fromTo(
               el,
               {
-                opacity: 0.72,
-                y: 36,
-                filter: "blur(6px)",
-                scale: 0.985,
+                opacity: 0.88,
+                y: 22,
+                filter: `blur(${enterBlurPx}px)`,
+                scale: 0.992,
               },
               {
                 opacity: 1,
@@ -76,9 +77,10 @@ export function ScrollStage({
                 ease: "none",
                 scrollTrigger: {
                   trigger: el,
-                  start: "top 92%",
-                  end: "top 42%",
-                  scrub: 0.65,
+                  // Become sharp earlier so content is clear while reading
+                  start: "top 90%",
+                  end: "top 62%",
+                  scrub: 0.9,
                   invalidateOnRefresh: true,
                 },
               },
@@ -88,6 +90,8 @@ export function ScrollStage({
           }
 
           if (exitBlur) {
+            // CRITICAL: use bottom of element, not top.
+            // With start "top top", tall sections (MP3 list) blur while still fully visible.
             gsap.fromTo(
               el,
               {
@@ -102,9 +106,10 @@ export function ScrollStage({
                 ease: "none",
                 scrollTrigger: {
                   trigger: el,
-                  start: "top top",
-                  end: "bottom top",
-                  scrub: 0.85,
+                  // Start only when the section is mostly scrolled past
+                  start: "bottom 55%",
+                  end: "bottom 5%",
+                  scrub: 1.1,
                   invalidateOnRefresh: true,
                 },
               },
