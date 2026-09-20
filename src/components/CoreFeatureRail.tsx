@@ -1,4 +1,4 @@
-import { ArrowLeft, BarChart3, Bot, Gamepad2, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, BarChart3, Bot, Gamepad2, Wand2 } from "lucide-react";
 import { SafeLink } from "@/components/SafeLink";
 
 const coreFeatures = [
@@ -10,6 +10,7 @@ const coreFeatures = [
     icon: Bot,
     tone: "cyan",
     cta: "شروع گفتگو",
+    soon: false,
   },
   {
     href: "/practice",
@@ -19,6 +20,7 @@ const coreFeatures = [
     icon: Gamepad2,
     tone: "gold",
     cta: "ورود به تمرین",
+    soon: false,
   },
   {
     href: "/music-analyzer",
@@ -28,15 +30,17 @@ const coreFeatures = [
     icon: BarChart3,
     tone: "blue",
     cta: "تحلیل فایل",
+    soon: false,
   },
   {
-    href: "/assistant",
+    href: "#",
     eyebrow: "04 · AI CREATE",
     title: "AI Music Generator",
-    body: "با کمک راه‌یار AI ایده، ساختار و جهت‌گیری ساخت موسیقی را سریع‌تر پیش ببر.",
+    body: "ساخت ایده و جهت‌گیری موسیقی با هوش مصنوعی — به‌زودی فعال می‌شود.",
     icon: Wand2,
     tone: "violet",
-    cta: "شروع با AI",
+    cta: "به‌زودی",
+    soon: true,
   },
 ] as const;
 
@@ -58,27 +62,46 @@ export function CoreFeatureRail() {
       </div>
 
       <div className="core-rail-grid">
-        {coreFeatures.map(({ href, eyebrow, title, body, icon: Icon, tone, cta }, index) => (
-          <SafeLink
-            key={`${title}-${index}`}
-            href={href}
-            hard={href === "/assistant"}
-            className={`core-feature core-feature-${tone}`}
-          >
-            <div className="core-feature-top">
-              <span className="core-feature-icon">
-                <Icon size={19} aria-hidden />
-              </span>
-              <ArrowLeft size={16} aria-hidden className="core-feature-arrow" />
+        {coreFeatures.map(({ href, eyebrow, title, body, icon: Icon, tone, cta, soon }, index) =>
+          soon ? (
+            <div
+              key={`${title}-${index}`}
+              className={`core-feature core-feature-${tone} core-feature-soon`}
+              aria-disabled="true"
+            >
+              <div className="core-feature-top">
+                <span className="core-feature-icon">
+                  <Icon size={19} aria-hidden />
+                </span>
+                <span className="core-feature-soon-badge">به‌زودی</span>
+              </div>
+              <p className="core-feature-eyebrow">{eyebrow}</p>
+              <h3>{title}</h3>
+              <p className="core-feature-body">{body}</p>
+              <span className="core-feature-cta opacity-60">{cta}</span>
             </div>
-            <p className="core-feature-eyebrow">{eyebrow}</p>
-            <h3>{title}</h3>
-            <p className="core-feature-body">{body}</p>
-            <span className="core-feature-cta">
-              {cta} <span aria-hidden>←</span>
-            </span>
-          </SafeLink>
-        ))}
+          ) : (
+            <SafeLink
+              key={`${title}-${index}`}
+              href={href}
+              hard={href === "/assistant"}
+              className={`core-feature core-feature-${tone}`}
+            >
+              <div className="core-feature-top">
+                <span className="core-feature-icon">
+                  <Icon size={19} aria-hidden />
+                </span>
+                <ArrowLeft size={16} aria-hidden className="core-feature-arrow" />
+              </div>
+              <p className="core-feature-eyebrow">{eyebrow}</p>
+              <h3>{title}</h3>
+              <p className="core-feature-body">{body}</p>
+              <span className="core-feature-cta">
+                {cta} <span aria-hidden>←</span>
+              </span>
+            </SafeLink>
+          ),
+        )}
       </div>
     </section>
   );
