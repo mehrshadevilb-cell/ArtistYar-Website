@@ -120,6 +120,33 @@ export async function upsertTool(input: Record<string, unknown>) {
 export function executionCost(inputTokens:number,outputTokens:number,model:string){return estimateCostUsd(inputTokens||0,outputTokens||0,model||"");}
 
 
+export async function resolveAdminAiControlPlan(agentId="admin-assistant", taskId="chat") {
+  try {
+    const agentQ = await db().from("admin_ai_agents").select("*").eq("id", agentId).eq("enabled", true).maybeSingle();
+    const taskQ = await db().from("admin_ai_tasks").select("*").eq("id", taskId).eq("enabled", true).maybeSingle();
+    if (agentQ.error || taskQ.error || !agentQ.data || !taskQ.data) return null;
+    const promptQ = await db().from("admin_ai_prompts").select("*")
+      .eq("agent_id", agentId).eq("task_id", taskId).eq("active", true)
+      .order("version", { ascending: false }).limit(1).maybeSingle();
+    const prompt = promptQ.data || null;
+    return {
+      agent: agentQ.data,
+      task: taskQ.data,
+      prompt,
+      primary: {
+        provider: String(agentQ.data.primary_provider || taskQ.data.primary_provider || "").trim(),
+        model: String(agentQ.data.primary_model || taskQ.data.primary_model || "").trim()
+      },
+      fallback: {
+        provider: String(agentQ.data.fallback_provider || taskQ.data.fallback_provider || "").trim(),
+        model: String(agentQ.data.fallback_model || taskQ.data.fallback_model || "").trim()
+      }
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function runAdminAiPlayground(input: {
   adminUsername: string;
   agentId: string;
