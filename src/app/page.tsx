@@ -14,7 +14,7 @@ import { HeroDifferentiator } from "@/components/HeroDifferentiator";
 import { ScrollStage } from "@/components/ScrollStage";
 
 export const metadata: Metadata = {
-  title: "43325481",
+  title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | مهرشاد بنائی",
   description:
     "آکادمی راه‌یار و ArtistYar: آموزش پروژه‌محور تنظیم، میکس و مسترینگ با کلاس آنلاین، پشتیبانی هنرجو، نمونه‌کار واقعی و دستیار هوشمند راه‌یار AI.",
   keywords: [
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/" },
   openGraph: {
-    title: "43325481",
+    title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | ArtistYar",
     description:
       "یادگیری واقعی تولید موسیقی با مسیر روشن، تمرین پروژه‌محور و دستیار هوشمند راه‌یار.",
     type: "website",
@@ -133,21 +133,6 @@ function HeroDisk() {
 export default function HomePage() {
   return (
     <div>
-      {/* TEMP — remove after Enamad title/meta verification passes */}
-      <div
-        style={{
-          background: "#111",
-          color: "#f5c542",
-          textAlign: "center",
-          padding: "10px 12px",
-          fontSize: 18,
-          fontWeight: 700,
-          letterSpacing: "0.04em",
-        }}
-      >
-        43325481
-      </div>
-
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
 
       {/*
@@ -211,7 +196,6 @@ export default function HomePage() {
           </div>
         </div>
       </ScrollStage>
-
 
       <ScrollStage as="section" className="container-ay py-10 sm:py-14" intensity="calm">
         <div className="card-ay overflow-hidden border-gold-400/10 p-6 sm:p-8">
