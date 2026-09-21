@@ -32,7 +32,7 @@ export async function loadRuntimeProviders(): Promise<AIProvider[]> {
 
 export async function bootstrapRuntimeProvidersFromEnv(): Promise<number> {
   if (!supabase) throw new Error("ai_runtime_storage_not_configured");
-  const existing = await supabase.from("admin_ai_providers").select("id").limit(1);
+  const existing = await supabase.from("admin_ai_providers").select("id,api_key_encrypted").not("api_key_encrypted", "is", null).limit(1);
   if (existing.error) throw existing.error;
   if ((existing.data || []).length) return 0;
   const envProviders = getConfiguredProviders().filter((p) => p.apiKey && p.id !== "rahyar-gateway");
