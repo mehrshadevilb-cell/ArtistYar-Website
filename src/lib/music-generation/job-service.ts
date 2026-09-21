@@ -47,7 +47,7 @@ function rowToJob(row: Record<string, unknown>): GenerationJobRecord {
     variationOfId: row.variation_of_id ? String(row.variation_of_id) : undefined,
     refineOfId: row.refine_of_id ? String(row.refine_of_id) : undefined,
     retryCount: Number(row.retry_count) || 0,
-    maxRetries: Number(row.max_retries) || 2,
+    maxRetries: Number(row.max_retries) || 1,
     creditsCharged: Number(row.credits_charged) || 0,
     creditsRefunded: Number(row.credits_refunded) || 0,
     costUsd: row.cost_usd != null ? Number(row.cost_usd) : undefined,
@@ -146,7 +146,7 @@ export async function createGenerationJob(input: {
       prompt,
       spec,
       retry_count: 0,
-      max_retries: 2,
+      max_retries: 1,
       credits_charged: 0,
       credits_refunded: 0,
       idempotency_key: input.idempotencyKey || null,
@@ -168,7 +168,9 @@ async function storeAudio(
   mimeType: string,
 ): Promise<{ storageKey: string; publicUrl: string; fileSize: number }> {
   const ext = mimeType.includes("wav") ? "wav" : mimeType.includes("ogg") ? "ogg" : "mp3";
-  const storageKey = `ai-music-gen/${userId}/${jobId}.${ext}`;
+  // Sanitize userId for storage path (admin:xxx etc.)
+  const safeUser = userId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80);
+  const storageKey = `ai-music-gen/${safeUser}/${jobId}.${ext}`;
   const buffer = Buffer.from(audio);
   const upload = await client.storage.from(bucket).upload(storageKey, buffer, {
     contentType: mimeType,
@@ -181,14 +183,30 @@ async function storeAudio(
 }
 
 function failCode(err: unknown): { code: GenerationErrorCode; message: string } {
-  const msg = err instanceof Error ? err.message : String(err);
-  if (/timeout|AbortError/i.test(msg)) return { code: "ProviderTimeout", message: ERRORS.ProviderTimeout };
-  if (/quota|rate.?limit|429/i.test(msg)) return { code: "ProviderQuotaExceeded", message: ERRORS.ProviderQuotaExceeded };
-  if (/unavailable|503|ECONNREFUSED/i.test(msg)) return { code: "ProviderUnavailable", message: ERRORS.ProviderUnavailable };
-  if (/storage/i.test(msg)) return { code: "StorageFailed", message: ERRORS.StorageFailed };
-  if (/unsupported.?asset/i.test(msg)) return { code: "UnsupportedAsset", message: ERRORS.UnsupportedAsset };
-  if (/unsupported.?instrument/i.test(msg)) return { code: "UnsupportedInstrument", message: ERRORS.UnsupportedInstrument };
-  return { code: "InternalError", message: ERRORS.InternalError };
+  const raw = err instanceof Error ? err.message : String(err);
+  const detail = raw.replace(/\s+/g, " ").slice(0, 220);
+
+  if (/timeout|AbortError|aborted/i.test(raw))
+    return { code: "ProviderTimeout", message: `${ERRORS.ProviderTimeout} (${detail})` };
+  if (/quota|rate.?limit|429|ProviderQuotaExceeded/i.test(raw))
+    return { code: "ProviderQuotaExceeded", message: `${ERRORS.ProviderQuotaExceeded} (${detail})` };
+  if (/ProviderUnavailable|no_admin_tokens|auth_401|auth_403|ECONNREFUSED|ENOTFOUND|fetch failed|Provider call failed|Provider error/i.test(raw))
+    return {
+      code: "ProviderUnavailable",
+      message: `${ERRORS.ProviderUnavailable} — ${detail}`,
+    };
+  if (/storage/i.test(raw))
+    return { code: "StorageFailed", message: `${ERRORS.StorageFailed} (${detail})` };
+  if (/unsupported.?asset/i.test(raw))
+    return { code: "UnsupportedAsset", message: ERRORS.UnsupportedAsset };
+  if (/unsupported.?instrument/i.test(raw))
+    return { code: "UnsupportedInstrument", message: ERRORS.UnsupportedInstrument };
+
+  // Surface real detail so admin/user can fix config (not opaque InternalError)
+  return {
+    code: "InternalError",
+    message: `${ERRORS.InternalError} — ${detail}`,
+  };
 }
 
 export async function runGenerationJob(jobId: string): Promise<GenerationJobRecord> {
@@ -215,12 +233,18 @@ export async function runGenerationJob(jobId: string): Promise<GenerationJobReco
     });
 
     const providers = getMusicProviders();
-    const selection = selectBestProvider(providers, job.spec);
+    // Prefer admin token pool first
+    const ordered = [...providers].sort((a, b) => {
+      if (a.id === "admin-token-pool") return -1;
+      if (b.id === "admin-token-pool") return 1;
+      return 0;
+    });
+    const selection = selectBestProvider(ordered, job.spec);
     if (!selection) {
       return updateJob(client, jobId, {
         status: "failed",
         error_code: "ProviderUnavailable",
-        error_message: ERRORS.ProviderUnavailable,
+        error_message: `${ERRORS.ProviderUnavailable} — هیچ provider فعالی نیست. توکن را در /admin/music-generator بررسی کنید.`,
         completed_at: new Date().toISOString(),
       });
     }
@@ -236,6 +260,7 @@ export async function runGenerationJob(jobId: string): Promise<GenerationJobReco
 
     let lastValidation: ValidationResult | undefined;
     let attempt = job.retryCount;
+    let lastInner: unknown;
 
     while (attempt <= job.maxRetries) {
       try {
@@ -261,7 +286,7 @@ export async function runGenerationJob(jobId: string): Promise<GenerationJobReco
             return updateJob(client, jobId, {
               status: "failed",
               error_code: "ValidationFailed",
-              error_message: ERRORS.ValidationFailed,
+              error_message: `${ERRORS.ValidationFailed} (${(validation.reasons || []).join(", ")})`,
               validation,
               retry_count: attempt - 1,
               completed_at: new Date().toISOString(),
@@ -301,6 +326,20 @@ export async function runGenerationJob(jobId: string): Promise<GenerationJobReco
           completed_at: new Date().toISOString(),
         });
       } catch (inner) {
+        lastInner = inner;
+        const msg = inner instanceof Error ? inner.message : String(inner);
+        // Don't burn retries on auth / missing token / hard provider config errors
+        if (/auth_|ProviderUnavailable|no_admin_tokens|Provider call failed/i.test(msg)) {
+          const { code, message } = failCode(inner);
+          return updateJob(client, jobId, {
+            status: "failed",
+            error_code: code,
+            error_message: message,
+            validation: lastValidation || null,
+            retry_count: attempt,
+            completed_at: new Date().toISOString(),
+          });
+        }
         attempt += 1;
         if (attempt > job.maxRetries) {
           const { code, message } = failCode(inner);
@@ -316,10 +355,11 @@ export async function runGenerationJob(jobId: string): Promise<GenerationJobReco
       }
     }
 
+    const { code, message } = failCode(lastInner ?? new Error("ValidationFailed"));
     return updateJob(client, jobId, {
       status: "failed",
-      error_code: "ValidationFailed",
-      error_message: ERRORS.ValidationFailed,
+      error_code: code,
+      error_message: message,
       validation: lastValidation || null,
       completed_at: new Date().toISOString(),
     });
