@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { chatExactProviderModel, discoverModels, type ChatMessage } from "@/lib/ai-providers";
+import { chatExactProviderModel, discoverModels, scoreModel, type ChatMessage } from "@/lib/ai-providers";
 import { getRuntimeProviderPool } from "@/lib/ai-runtime-providers";
 import { estimateCostUsd } from "@/lib/admin-ai-platform";
 
@@ -26,7 +26,7 @@ export async function listControlProviders() {
       status: modelCount > 0 ? "healthy" : "degraded",
       configured: true,
       modelCount,
-      models: (live?.models || []).slice(0, 40).map((m) => ({ id: m.id, rank: m.rank })),
+      models: (live?.models || []).slice(0, 40).map((m) => ({ id: m.id, rank: scoreModel(m.id) })),
     };
   });
 }
