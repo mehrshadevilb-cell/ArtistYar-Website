@@ -32,8 +32,8 @@ export async function runtimeAutoChat(
   }
   if (preferredProvider && preferredModel) {
     candidates.sort((a, b) =>
-      Number(a.provider.id === preferredProvider && a.model === preferredModel) -
-      Number(b.provider.id === preferredProvider && b.model === preferredModel)
+      Number(b.provider.id === preferredProvider && b.model === preferredModel) -
+      Number(a.provider.id === preferredProvider && a.model === preferredModel)
     );
   }
   const errors: string[] = [];
