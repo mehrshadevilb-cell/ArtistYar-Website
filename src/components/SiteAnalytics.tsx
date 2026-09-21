@@ -10,8 +10,21 @@ export function SiteAnalytics() {
     if (!pathname || pathname.startsWith("/admin")) return;
 
     const params = new URLSearchParams(window.location.search);
+    let visitorId = "";
+    try {
+      const key = "artistyar_visitor_id";
+      visitorId = window.localStorage.getItem(key) || "";
+      if (!visitorId) {
+        visitorId = window.crypto?.randomUUID?.() || `v-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        window.localStorage.setItem(key, visitorId);
+      }
+    } catch {
+      visitorId = "";
+    }
+
     const metadata: Record<string, string> = {
       device: /mobile|android|iphone|ipad/i.test(navigator.userAgent) ? "mobile" : "desktop",
+      ...(visitorId ? { visitor_id: visitorId } : {}),
     };
     for (const key of ["utm_source", "utm_medium", "utm_campaign"]) {
       const value = params.get(key);
