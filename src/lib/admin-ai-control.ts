@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { discoverAllModels, getConfiguredProviders } from "@/lib/ai-providers";
+import { autoChat, chatExactProviderModel, discoverAllModels, getConfiguredProviders, type ChatMessage } from "@/lib/ai-providers";
 import { estimateCostUsd } from "@/lib/admin-ai-platform";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -118,3 +118,78 @@ export async function upsertTool(input: Record<string, unknown>) {
   const r=await db().from("admin_ai_tools").upsert(row).select("*").single(); if(r.error) throw r.error; return r.data;
 }
 export function executionCost(inputTokens:number,outputTokens:number,model:string){return estimateCostUsd(inputTokens||0,outputTokens||0,model||"");}
+
+
+export async function runAdminAiPlayground(input: {
+  adminUsername: string;
+  agentId: string;
+  taskId: string;
+  message: string;
+}) {
+  const message = input.message.trim().slice(0, 12000);
+  if (!message) throw new Error("پیام تست خالی است.");
+  const agentQ = await db().from("admin_ai_agents").select("*").eq("id", input.agentId).eq("enabled", true).maybeSingle();
+  if (agentQ.error) throw agentQ.error;
+  if (!agentQ.data) throw new Error("Agent فعال پیدا نشد.");
+  const taskQ = await db().from("admin_ai_tasks").select("*").eq("id", input.taskId).eq("enabled", true).maybeSingle();
+  if (taskQ.error) throw taskQ.error;
+  if (!taskQ.data) throw new Error("Task فعال پیدا نشد.");
+
+  const promptQ = await db().from("admin_ai_prompts").select("*")
+    .eq("agent_id", input.agentId).eq("task_id", input.taskId).eq("active", true)
+    .order("version", { ascending: false }).limit(1).maybeSingle();
+  if (promptQ.error) throw promptQ.error;
+  const prompt = promptQ.data;
+  const system = [
+    String(agentQ.data.system_prompt || ""),
+    String(prompt?.system_prompt || ""),
+    String(prompt?.developer_instructions || ""),
+    "این یک Playground تستی Admin AI است. هیچ ابزار، فایل، پرداخت، تغییر داده یا side effect را اجرا نکن. فقط پاسخ متنی تولید کن."
+  ].filter(Boolean).join("\n\n");
+  const messages: ChatMessage[] = [{ role: "system", content: system }, { role: "user", content: message }];
+  const primaryProvider = String(agentQ.data.primary_provider || taskQ.data.primary_provider || "").trim();
+  const primaryModel = String(agentQ.data.primary_model || taskQ.data.primary_model || "").trim();
+  const fallbackProvider = String(agentQ.data.fallback_provider || taskQ.data.fallback_provider || "").trim();
+  const fallbackModel = String(agentQ.data.fallback_model || taskQ.data.fallback_model || "").trim();
+  const candidates = [
+    primaryProvider && primaryModel ? { provider: primaryProvider, model: primaryModel } : null,
+    fallbackProvider && fallbackModel ? { provider: fallbackProvider, model: fallbackModel } : null,
+  ].filter(Boolean) as Array<{provider:string;model:string}>;
+  if (!candidates.length) throw new Error("برای این Agent/Task مدل اصلی یا fallback تنظیم نشده است.");
+
+  const requestId = crypto.randomUUID();
+  const started = Date.now();
+  await db().from("admin_ai_executions").insert({
+    request_id: requestId, admin_username: input.adminUsername, agent_id: input.agentId,
+    task_id: input.taskId, prompt_version: prompt?.version || null, status: "started",
+    metadata: { playground: true, message_length: message.length }
+  });
+
+  let lastError: unknown = null;
+  for (let i = 0; i < candidates.length; i += 1) {
+    const candidate = candidates[i];
+    try {
+      const result = await chatExactProviderModel(messages, candidate.provider, candidate.model, "rahyar-admin-playground");
+      const inputTokens = Math.ceil(messages.reduce((n, m) => n + m.content.length, 0) / 4);
+      const outputTokens = Math.ceil(result.reply.length / 4);
+      await db().from("admin_ai_executions").update({
+        status: "success", provider_id: result.provider, model_id: result.model,
+        input_tokens: inputTokens, output_tokens: outputTokens, latency_ms: Date.now() - started,
+        retry_count: i, fallback_used: i > 0, estimated_cost_usd: executionCost(inputTokens, outputTokens, result.model),
+        completed_at: new Date().toISOString()
+      }).eq("request_id", requestId);
+      return {
+        request_id: requestId, reply: result.reply, provider: result.provider, model: result.model,
+        latency_ms: Date.now() - started, prompt_version: prompt?.version || null, fallback_used: i > 0
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  await db().from("admin_ai_executions").update({
+    status: "failed", error_type: "playground_error",
+    error_message: String(lastError instanceof Error ? lastError.message : lastError).slice(0, 500),
+    latency_ms: Date.now() - started, completed_at: new Date().toISOString()
+  }).eq("request_id", requestId);
+  throw lastError || new Error("Playground اجرا نشد.");
+}
