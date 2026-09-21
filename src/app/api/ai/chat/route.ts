@@ -168,23 +168,19 @@ export async function POST(request: Request) {
 
     let lastError: unknown;
     try {
-      const configured = getConfiguredProviders().filter((p) => p.apiKey);
-      if (configured.length) {
-        const result = await autoChat(
-          withSystemPrompt,
-          preferredProvider,
-          preferredModel,
-          clientId,
-          request.signal,
-        );
-        return NextResponse.json({
-          ok: true,
-          reply: result.reply,
-          provider: result.provider,
-          model: result.model,
-        });
-      }
-      lastError = new Error("no_provider_configured");
+      const result = await runtimeAutoChat(
+        withSystemPrompt,
+        preferredProvider,
+        preferredModel,
+        clientId,
+        request.signal,
+      );
+      return NextResponse.json({
+        ok: true,
+        reply: result.reply,
+        provider: result.provider,
+        model: result.model,
+      });
     } catch (error) {
       lastError = error;
       if (request.signal.aborted) {
