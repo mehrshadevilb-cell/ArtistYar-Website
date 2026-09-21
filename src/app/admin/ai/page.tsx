@@ -642,7 +642,16 @@ export default function AdminAiPlatformPage() {
           ) : null}
           {controlSection === "tasks" || controlSection === "agents" || controlSection === "tools" || controlSection === "executions" ? (
             <div className="space-y-2">
-              {controlData.length ? controlData.map((row,index)=><pre key={String(row.id||index)} className="overflow-auto rounded-xl border border-white/10 bg-black/10 p-3 text-[11px] leading-5 text-ink-300">{JSON.stringify(row,null,2)}</pre>) : <div className="rounded-xl border border-white/10 p-4 text-xs text-ink-500">داده‌ای وجود ندارد یا migration هنوز اجرا نشده است.</div>}
+              {controlData.length ? controlData.map((row,index)=>(
+                <div key={String(row.id||index)} className="rounded-xl border border-white/10 bg-black/10 p-3">
+                  <pre className="overflow-auto text-[11px] leading-5 text-ink-300">{JSON.stringify(row,null,2)}</pre>
+                  {controlSection === "prompts" && row.id ? (
+                    <button type="button" onClick={async()=>{setControlBusy(true);try{await control(undefined,{action:"prompt_activate",id:String(row.id)});await loadSection("control")}catch(e){setPlatformError(e instanceof Error?e.message:"خطا")}finally{setControlBusy(false)}}} disabled={controlBusy || row.active === true} className="btn-ghost mt-3 !py-2 text-xs">
+                      {row.active === true ? "نسخه فعال" : "فعال‌سازی این نسخه"}
+                    </button>
+                  ) : null}
+                </div>
+              )) : <div className="rounded-xl border border-white/10 p-4 text-xs text-ink-500">داده‌ای وجود ندارد یا migration هنوز اجرا نشده است.</div>}
             </div>
           ) : null}
           {controlSection === "usage" ? (
