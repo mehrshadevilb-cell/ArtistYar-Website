@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { discoverAllModels } from "@/lib/ai-providers";
+import { discoverAllModels, getConfiguredProviders } from "@/lib/ai-providers";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -22,6 +22,13 @@ function hasDb() {
   return Boolean(supabase);
 }
 
+function filterToLiveProviders(
+  rows: Array<{ provider_id: string; model_id: string; priority: number; preferred: boolean }>,
+) {
+  const live = new Set(getConfiguredProviders().filter((p) => p.apiKey || p.id === "ollama").map((p) => p.id));
+  return rows.filter((r) => live.has(r.provider_id));
+}
+
 function db() {
   if (!supabase) throw new Error("admin_ai_storage_not_configured");
   return supabase;
@@ -36,7 +43,6 @@ function priorityForModel(modelId: string): number {
   return 50;
 }
 
-/** Ephemeral models from live provider discovery (no Supabase required). */
 async function discoverAsAdminModels(autoEnable = true): Promise<AdminAiModel[]> {
   const discovered = await discoverAllModels();
   const rows: AdminAiModel[] = [];
@@ -61,7 +67,6 @@ async function discoverAsAdminModels(autoEnable = true): Promise<AdminAiModel[]>
   return rows.sort((a, b) => b.priority - a.priority || a.provider_id.localeCompare(b.provider_id));
 }
 
-/** Read registry rows only (no bootstrap / no call into sync). */
 async function readRegistryRows(): Promise<AdminAiModel[]> {
   if (!hasDb()) return [];
   const result = await db()
@@ -128,7 +133,6 @@ export async function listAdminAiModels(): Promise<AdminAiModel[]> {
   try {
     const data = await readRegistryRows();
     if (data.length) return data;
-    // Empty registry → one-shot sync (returns typed AdminAiModel[])
     return syncAdminAiModels({ autoEnable: true });
   } catch (e) {
     console.error("listAdminAiModels exception", e instanceof Error ? e.message : e);
@@ -148,7 +152,10 @@ export async function listAdminAiRoutingCandidates(): Promise<
         .eq("status", "enabled")
         .order("preferred", { ascending: false })
         .order("priority", { ascending: false });
-      if (!result.error && result.data?.length) return result.data;
+      if (!result.error && result.data?.length) {
+        const filtered = filterToLiveProviders(result.data as any);
+        if (filtered.length) return filtered;
+      }
 
       try {
         await syncAdminAiModels({ autoEnable: true });
@@ -163,19 +170,24 @@ export async function listAdminAiRoutingCandidates(): Promise<
         .eq("status", "enabled")
         .order("preferred", { ascending: false })
         .order("priority", { ascending: false });
-      if (!after.error && after.data?.length) return after.data;
+      if (!after.error && after.data?.length) {
+        const filtered = filterToLiveProviders(after.data as any);
+        if (filtered.length) return filtered;
+      }
     } catch (e) {
       console.error("listAdminAiRoutingCandidates db path failed", e instanceof Error ? e.message : e);
     }
   }
 
   const ephemeral = await discoverAsAdminModels(true);
-  return ephemeral.map((m) => ({
-    provider_id: m.provider_id,
-    model_id: m.model_id,
-    priority: m.priority,
-    preferred: m.preferred,
-  }));
+  return filterToLiveProviders(
+    ephemeral.map((m) => ({
+      provider_id: m.provider_id,
+      model_id: m.model_id,
+      priority: m.priority,
+      preferred: m.preferred,
+    })),
+  );
 }
 
 export async function getAdminAiRoutingPreference() {
