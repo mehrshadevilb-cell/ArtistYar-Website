@@ -28,6 +28,8 @@ export const metadata: Metadata = {
     "ArtistYar",
     "تولید موسیقی",
     "عیب‌یابی میکس",
+    "تنظیم آثار موسیقی",
+    "سفارش تنظیم آهنگ",
   ],
   alternates: { canonical: "/" },
   openGraph: {
@@ -206,6 +208,34 @@ export default function HomePage() {
           </div>
           <div className="proof-note">
             از شروع تا نتیجه، <b>تنها نمی‌مانی.</b>
+          </div>
+        </div>
+      </ScrollStage>
+
+
+      <ScrollStage as="section" className="container-ay py-10 sm:py-14" intensity="calm">
+        <div className="card-ay overflow-hidden border-gold-400/10 p-6 sm:p-8">
+          <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <p className="eyebrow">/ خدمات استودیو</p>
+              <h2 className="mt-2 text-2xl font-medium text-sand-50">
+                سفارش <span className="text-gold-400">تنظیم آثار موسیقی</span>
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-ink-400">
+                از دمو و ایده اولیه تا طراحی ساختار، انتخاب المان‌های موسیقی و آماده‌سازی پروژه برای مرحله میکس.
+                جزئیات هر پروژه قبل از شروع بررسی و مشخص می‌شود.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2 text-xs text-ink-300">
+                <span className="rounded-full border border-white/10 px-3 py-1.5">تنظیم اختصاصی</span>
+                <span className="rounded-full border border-white/10 px-3 py-1.5">بازتنظیم پروژه</span>
+                <span className="rounded-full border border-white/10 px-3 py-1.5">طراحی ساختار</span>
+                <span className="rounded-full border border-white/10 px-3 py-1.5">آماده‌سازی پروژه</span>
+              </div>
+            </div>
+            <SafeLink href="/arrangement" hard className="btn-primary gap-2 whitespace-nowrap">
+              مشاهده خدمات تنظیم
+              <ArrowLeft size={16} aria-hidden />
+            </SafeLink>
           </div>
         </div>
       </ScrollStage>
