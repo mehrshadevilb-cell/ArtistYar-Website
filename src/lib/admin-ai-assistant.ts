@@ -93,7 +93,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
     ? controlPlan.primary
     : null;
 
-  let result: Awaited<ReturnType<typeof autoChat>> | null = null;
+  let result: Awaited<ReturnType<typeof runtimeAutoChat>> | null = null;
   let fallbackUsed = false;
   if (provider || model) {
     if (!provider || !model) throw new Error("admin_ai_provider_and_model_must_be_paired");
@@ -121,7 +121,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
     const preferredProvider = controlPrimary?.provider;
     const preferredModel = controlPrimary?.model;
     try {
-      result = await autoChat(
+      result = await runtimeAutoChat(
         [{ role: "system", content: controlSystem }, ...history],
         preferredProvider,
         preferredModel,
