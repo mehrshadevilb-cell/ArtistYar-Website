@@ -26,7 +26,7 @@ Repository audit focused on production-critical authentication, practice APIs, b
 
 ## Architecture observations
 
-- The site is a Next.js 15 / React 19 application deployed through OpenNext to Cloudflare Workers.
+- The site is a Next.js 15 / React 19 application intended to run as a standard Node.js Next.js Web Service on Render.
 - Supabase is used for media/practice data.
 - RahYar is used as the shared backend for student authentication/course state.
 - UVR separation is a separate worker service; the current website proxy still performs synchronous multipart parsing and synchronous upstream processing.
@@ -51,3 +51,12 @@ Repository audit focused on production-critical authentication, practice APIs, b
 - Admin free-training video/thumbnail uploads no longer send the binary through the Next.js request body. The admin requests a short-lived Supabase signed upload URL and uploads the file directly to Storage from the browser, avoiding the previous 1 GB Node multipart-buffering path that could surface as HTTP 502.
 - The signed-upload ticket validates the declared client file size before issuing the upload URL.
 - GitHub Actions verification is running against the latest main commit; the result must be observed before calling the change fully verified.
+
+
+## Deployment migration — Render
+
+- Removed the OpenNext Cloudflare adapter and Wrangler deployment configuration.
+- Removed the Cloudflare Worker GitHub Actions deployment workflow.
+- Added `render.yaml` with Node 22, `npm ci && npm run build`, and `npm start`.
+- Production secrets remain environment variables managed by Render and are not committed.
+- Cloudflare references that belong to optional application integrations are not part of the hosting runtime and were intentionally left untouched.
