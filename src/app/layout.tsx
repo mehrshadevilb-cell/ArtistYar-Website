@@ -19,8 +19,6 @@ import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { TelegramMiniAppBridge } from "@/components/TelegramMiniAppBridge";
 import { SmoothScroll } from "@/components/SmoothScroll";
 
-// Keep HTML aligned with the current Next.js asset manifest after each deploy.
-// Static JS/CSS assets remain cacheable; only the document shell must revalidate.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -35,7 +33,8 @@ const vazirmatn = Vazirmatn({
 const backend = (process.env.RAHYAR_API_URL || "").replace(/\/$/, "");
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
 
-export const metadata: Metadata = {\n  other: { enamad: "43325481" },
+export const metadata: Metadata = {
+  other: { enamad: "43325481" },
   title: {
     default: "43325481",
     template: "%s | ArtistYar",
