@@ -26,9 +26,9 @@ export function HomeLiveCourses() {
     <section className="container-ay py-20 sm:py-24">
       <div className="flex flex-col items-start justify-between gap-8 sm:flex-row sm:items-end">
         <SectionHeading
-          eyebrow="مسیرهای پیشنهادی"
-          title="از بنیان تا انتشار"
-          subtitle="مسیرت را انتخاب کن و یادگیری را روی موسیقی خودت جلو ببر."
+          eyebrow="پکیج‌های آموزشی"
+          title="هر پکیج، یک مسیر مستقل"
+          subtitle="پکیج‌ها به هم وابسته نیستند؛ همان را انتخاب کن که به سطح و هدف تو می‌خورد."
         />
         <div className="flex items-center gap-3">
           <StatusChip tone={source === "rahyar" ? "ok" : source === "loading" ? "neutral" : "warn"}>
@@ -41,7 +41,7 @@ export function HomeLiveCourses() {
                   : "خطا"}
           </StatusChip>
           <Link href="/courses" className="btn-ghost !py-2.5 text-xs">
-            دیدن همه مسیرها
+            دیدن همه پکیج‌ها
           </Link>
         </div>
       </div>
@@ -53,7 +53,7 @@ export function HomeLiveCourses() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p className="mt-12 text-sm text-ink-400">فعلاً دوره‌ای برای نمایش نیست.</p>
+        <p className="mt-12 text-sm text-ink-400">فعلاً پکیجی برای نمایش نیست.</p>
       ) : (
         <div className="product-grid mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((p) => (

@@ -1,0 +1,62 @@
+/* Scroll motion — subtle Apple-like depth */
+
+.scroll-stage {
+  transform-origin: 50% 30%;
+  backface-visibility: hidden;
+  /* will-change only helps during active scrub; keep light by default */
+}
+
+@media (min-width: 768px) {
+  .scroll-stage {
+    will-change: transform, opacity, filter;
+  }
+}
+
+/* Mobile: no scroll blur (JS also skips) */
+@media (max-width: 767px) {
+  .scroll-stage {
+    will-change: auto;
+    filter: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Reveal: softer blur → sharp */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  filter: blur(4px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: none;
+  filter: blur(0);
+}
+
+.scroll-depth {
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-stage,
+  .scroll-depth {
+    will-change: auto;
+    filter: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+}

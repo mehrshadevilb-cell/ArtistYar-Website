@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-// OpenNext/Cloudflare cannot bundle edge specials inside the default server function.
+// Keep OG generation on the Node.js runtime for Render production.
 export const runtime = "nodejs";
 export const alt = "ArtistYar؛ آکادمی راه‌یار برای آموزش تنظیم، میکس و مسترینگ";
 export const size = { width: 1200, height: 630 };

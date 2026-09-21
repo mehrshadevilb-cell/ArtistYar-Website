@@ -318,6 +318,47 @@ html.light .site-footer a:hover {
   color: #9a7a18;
 }
 
+/* Light-mode text contrast: dark-theme utility colors must not remain pale on day surfaces. */
+html.light .text-sand-50,
+html.light .text-sand-100,
+html.light .text-sand-200,
+html.light .text-sand-300 {
+  color: #28251f;
+}
+html.light .text-ink-100,
+html.light .text-ink-200 {
+  color: #4d493f;
+}
+html.light .text-ink-300,
+html.light .text-ink-400 {
+  color: #625d52;
+}
+html.light .text-ink-500 {
+  color: #716b5f;
+}
+html.light .text-ink-600 {
+  color: #5c564c;
+}
+html.light .text-gold-300,
+html.light .text-gold-400,
+html.light .text-gold-500 {
+  color: #806514;
+}
+html.light .text-cyan-200,
+html.light .text-cyan-300,
+html.light .text-cyan-400 {
+  color: #176b78;
+}
+html.light .text-emerald-200,
+html.light .text-emerald-300,
+html.light .text-emerald-400 {
+  color: #187044;
+}
+html.light .text-orange-300,
+html.light .text-orange-400 {
+  color: #995013;
+}
+
 /* Theme toggle */
 .theme-toggle {
   display: inline-flex;
@@ -509,12 +550,12 @@ body {
 }
 
 @media (max-width: 767px) {
-  .hero-section {
-    display: block;
+  /* Layout order is controlled by hero-layout.css (title → cards → disk).
+     Keep this block for overflow / 3D safety only. */
+  .hero-section.hero-layout-root {
+    display: grid;
     width: 100%;
     min-height: auto;
-    padding-top: 3rem;
-    padding-bottom: 3.5rem;
   }
 
   .hero-copy {
@@ -523,8 +564,8 @@ body {
 
   .hero-heading {
     max-width: 100%;
-    font-size: clamp(2.25rem, 10.5vw, 3.4rem);
-    line-height: 1.24;
+    font-size: clamp(2.15rem, 8.8vw, 2.9rem);
+    line-height: 1.22;
     letter-spacing: -0.035em;
   }
 
@@ -542,8 +583,8 @@ body {
 
   .hero-art {
     width: 100%;
-    min-height: clamp(320px, 82vw, 410px);
-    margin-top: 1.5rem;
+    min-height: clamp(220px, 68vw, 300px);
+    margin-top: 0.25rem;
     overflow: hidden;
     overflow: clip;
     contain: layout paint;

@@ -21,7 +21,7 @@ Branch head Build run `35500139220` completed with **success**:
 - `npm ci` ✅
 - `npm run typecheck` ✅
 - `npm run build` ✅
-- `npm run cf:build` ✅
+- Render production build/runtime validation is separate from GitHub CI.
 
 URL: https://github.com/mehrshadevilb-cell/ArtistYar-Website/actions/runs/35500139220
 
@@ -33,19 +33,17 @@ Subsequent hardening commits may need a fresh Build dispatch to re-confirm.
 - Admin AI UI: roll back optimistic user message and restore input on send failure or abort (aligned with server: user message is only persisted after successful generation).
 - CI workflows on this branch support `workflow_dispatch` for manual validation.
 
-## Cloudflare deployment
+## Render deployment
 
-Production deployment must use:
-
-`.github/workflows/deploy-cloudflare.yml`
+Production deployment target is Render.
 
 Production flow:
 
-`main push → npm ci → npm run cf:build → cloudflare/wrangler-action@v4 → Worker deploy`
+`main push → Render auto-deploy → npm ci && npm run build → npm start`
 
-Deploy job only runs when `github.ref == 'refs/heads/main'`.
+Render configuration is defined in `render.yaml`. Runtime secrets are configured in the Render service Environment settings, not committed to Git.
 
-Do not claim a production deployment succeeded until the actual Deploy Cloudflare workflow run is observed as successful.
+Do not claim a production deployment succeeded until the actual Render deploy is observed as successful.
 
 ## Required validation order
 
@@ -86,4 +84,4 @@ User Chat Bot: `/api/ai/chat` (separate)
 1. Keep PR #35 open and unmerged.
 2. Re-run Build on latest head after hardening commits.
 3. Confirm Supabase migrations applied in the target environment before production use of Assistant storage.
-4. Production deploy only after merge to `main` via deploy-cloudflare.yml.
+4. Production deploy only after merge to `main` via Render.

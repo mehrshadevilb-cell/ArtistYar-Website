@@ -23,12 +23,75 @@ function clean(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value.trim().slice(0, 500) : fallback;
 }
 
+type AudioTagPayload = {
+  artist: string;
+  album: string;
+  genre: string;
+  year: number | null;
+  duration: number | null;
+  titleFromTag: string;
+  coverUrl: string | null;
+};
+
+async function extractAudioTagsFromBuffer(
+  buffer: Buffer,
+  storageBasePath: string,
+): Promise<AudioTagPayload> {
+  const empty: AudioTagPayload = {
+    artist: "",
+    album: "",
+    genre: "",
+    year: null,
+    duration: null,
+    titleFromTag: "",
+    coverUrl: null,
+  };
+  if (!supabase) return empty;
+  try {
+    const meta = await parseBuffer(buffer, undefined, { duration: true, skipCovers: false });
+    const common = meta.common || {};
+    const artist = clean(common.artist || (Array.isArray(common.artists) ? common.artists[0] : ""));
+    const album = clean(common.album);
+    const genre = clean(Array.isArray(common.genre) ? common.genre[0] : common.genre);
+    const year = common.year ? Number(common.year) : null;
+    const duration = meta.format?.duration ? Number(meta.format.duration) : null;
+    const titleFromTag = clean(common.title);
+    let coverUrl: string | null = null;
+    const picture = Array.isArray(common.picture) && common.picture.length > 0 ? common.picture[0] : null;
+    if (picture?.data) {
+      const mime = String(picture.format || "image/jpeg");
+      const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+      const coverPath = storageBasePath.replace(/\.[^.]+$/, "") + "-cover." + ext;
+      const data = Buffer.isBuffer(picture.data) ? picture.data : Buffer.from(picture.data as Uint8Array);
+      const up = await supabase.storage.from(bucket).upload(coverPath, data, {
+        contentType: mime,
+        upsert: true,
+        cacheControl: "31536000",
+      });
+      if (!up.error) {
+        coverUrl = supabase.storage.from(bucket).getPublicUrl(coverPath).data.publicUrl;
+      }
+    }
+    return { artist, album, genre, year, duration, titleFromTag, coverUrl };
+  } catch {
+    return empty;
+  }
+}
+
+async function downloadStorageObject(publicId: string): Promise<Buffer | null> {
+  if (!supabase) return null;
+  const dl = await supabase.storage.from(bucket).download(publicId);
+  if (dl.error || !dl.data) return null;
+  const ab = await dl.data.arrayBuffer();
+  return Buffer.from(ab);
+}
+
 function toItem(row: Record<string, unknown>): MediaItem {
   const mime = String(row.mime_type || "");
   const ext = String(row.file_ext || "").toLowerCase();
   const kind = mime.startsWith("image/") ? "image" : mime.startsWith("video/") ? "video" : mime.startsWith("audio/") || ["mp3", "wav", "m4a", "ogg", "flac", "aac"].includes(ext) ? "audio" : "raw";
   const resourceType = kind === "image" ? "image" : kind === "video" ? "video" : "raw";
-  return { id: String(row.id), publicId: String(row.storage_path), title: clean(row.title), description: clean(row.description), category: normalizeCategory(row.category) || "student-work", kind, format: ext, resourceType, url: String(row.public_url), createdAt: String(row.created_at || ""), artist: clean(row.artist), album: clean(row.album), genre: clean(row.genre), year: row.year ? Number(row.year) : null, duration: row.duration ? Number(row.duration) : null, coverUrl: row.cover_url ? String(row.cover_url) : null, isActive: row.is_active !== false };
+  return { id: String(row.id), publicId: String(row.storage_path), title: clean(row.title), description: clean(row.description), category: normalizeCategory(row.category) || "student-work", kind, format: ext, resourceType: resourceType, url: String(row.public_url), createdAt: String(row.created_at || ""), artist: clean(row.artist), album: clean(row.album), genre: clean(row.genre), year: row.year ? Number(row.year) : null, duration: row.duration ? Number(row.duration) : null, coverUrl: row.cover_url ? String(row.cover_url) : null, isActive: row.is_active !== false };
 }
 
 export async function listPublishedMedia(): Promise<MediaItem[]> {
@@ -40,7 +103,7 @@ export async function listPublishedMedia(): Promise<MediaItem[]> {
 
 export async function listStorageFiles(): Promise<StorageItem[]> {
   if (!supabase) return [];
-  const folders = ["", "student-work", "free-training", "ProdBy Mehrshad", "prodby-mehrshad"];
+  const folders = ["", "student-work", "free-training", "free-training-assets", "free-training-assets/video", "ProdBy Mehrshad", "prodby-mehrshad"];
   const out: StorageItem[] = [];
   const seen = new Set<string>();
   for (const folder of folders) {
@@ -74,6 +137,22 @@ export async function registerExistingMedia(input: { publicId: string; title: st
   if (!found) throw new Error("media_object_not_found: فایل در Storage پیدا نشد. مسیر باید دقیقاً همان نام داخل bucket باشد (مثلاً student-work/clip.mp4).");
   const result = await supabase.from("media_assets").upsert({ storage_path: input.publicId, public_url: publicUrl, title: input.title.trim().slice(0, 200), description: input.description.trim().slice(0, 1000), category: input.category, mime_type: input.mimeType || "application/octet-stream", file_ext: ext, consent: input.consent, status: "published" }, { onConflict: "storage_path" }).select().single();
   if (result.error) throw new SupabaseOperationError("media_register", result.error);
+  const isAudio = (input.mimeType || "").startsWith("audio/") || ["mp3", "wav", "m4a", "ogg", "flac", "aac"].includes(ext.toLowerCase());
+  if (isAudio) {
+    const buffer = await downloadStorageObject(input.publicId);
+    if (buffer) {
+      const tags = await extractAudioTagsFromBuffer(buffer, input.publicId);
+      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (tags.artist) patch.artist = tags.artist;
+      if (tags.album) patch.album = tags.album;
+      if (tags.genre) patch.genre = tags.genre;
+      if (tags.year) patch.year = tags.year;
+      if (tags.duration) patch.duration = tags.duration;
+      if (tags.coverUrl) patch.cover_url = tags.coverUrl;
+      const updated = await supabase.from("media_assets").update(patch).eq("storage_path", input.publicId).select().single();
+      if (!updated.error && updated.data) return toItem(updated.data);
+    }
+  }
   return toItem(result.data);
 }
 
@@ -85,7 +164,26 @@ export async function uploadMedia(input: { buffer: Buffer; filename: string; mim
   const upload = await supabase.storage.from(bucket).upload(path, input.buffer, { contentType: input.mimeType || "application/octet-stream", upsert: false, cacheControl: "31536000" });
   if (upload.error) throw new SupabaseOperationError("media_upload", upload.error);
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-  const inserted = await supabase.from("media_assets").insert({ storage_path: path, public_url: publicUrl, title: input.title.trim().slice(0, 200), description: input.description.trim().slice(0, 1000), category: input.category, mime_type: input.mimeType, file_ext: ext, consent: input.consent, status: "published" }).select().single();
+  const isAudio = (input.mimeType || "").startsWith("audio/") || ["mp3", "wav", "m4a", "ogg", "flac", "aac"].includes(ext);
+  let tags: AudioTagPayload | null = null;
+  if (isAudio) tags = await extractAudioTagsFromBuffer(input.buffer, path);
+  const inserted = await supabase.from("media_assets").insert({
+    storage_path: path,
+    public_url: publicUrl,
+    title: (input.title.trim() || tags?.titleFromTag || input.filename).slice(0, 200),
+    description: input.description.trim().slice(0, 1000),
+    category: input.category,
+    mime_type: input.mimeType,
+    file_ext: ext,
+    consent: input.consent,
+    status: "published",
+    artist: tags?.artist || null,
+    album: tags?.album || null,
+    genre: tags?.genre || null,
+    year: tags?.year || null,
+    duration: tags?.duration || null,
+    cover_url: tags?.coverUrl || null,
+  }).select().single();
   if (inserted.error) { await supabase.storage.from(bucket).remove([path]); throw new SupabaseOperationError("media_register", inserted.error); }
   return toItem(inserted.data);
 }
@@ -99,7 +197,17 @@ export async function replaceMediaFile(input: { publicId: string; buffer: Buffer
   if (uploaded.error) throw new SupabaseOperationError("media_replace_file", uploaded.error);
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(input.publicId).data.publicUrl;
   const ext = input.filename.toLowerCase().split(".").pop() || String(existing.data.file_ext || "bin");
-  const result = await supabase.from("media_assets").update({ public_url: publicUrl, mime_type: input.mimeType, file_ext: ext, updated_at: new Date().toISOString() }).eq("storage_path", input.publicId).select().single();
+  const isAudio = (input.mimeType || "").startsWith("audio/") || ["mp3", "wav", "m4a", "ogg", "flac", "aac"].includes(ext.toLowerCase());
+  let tags: AudioTagPayload | null = null;
+  if (isAudio) tags = await extractAudioTagsFromBuffer(input.buffer, input.publicId);
+  const patch: Record<string, unknown> = { public_url: publicUrl, mime_type: input.mimeType, file_ext: ext, updated_at: new Date().toISOString() };
+  if (tags?.artist) patch.artist = tags.artist;
+  if (tags?.album) patch.album = tags.album;
+  if (tags?.genre) patch.genre = tags.genre;
+  if (tags?.year) patch.year = tags.year;
+  if (tags?.duration) patch.duration = tags.duration;
+  if (tags?.coverUrl) patch.cover_url = tags.coverUrl;
+  const result = await supabase.from("media_assets").update(patch).eq("storage_path", input.publicId).select().single();
   if (result.error) throw new SupabaseOperationError("media_replace_meta", result.error);
   return toItem(result.data);
 }
@@ -127,7 +235,20 @@ export async function refreshMediaTags(publicId: string): Promise<MediaItem> {
   const existing = await supabase.from("media_assets").select("*").eq("storage_path", publicId).maybeSingle();
   if (existing.error) throw new SupabaseOperationError("media_lookup", existing.error);
   if (!existing.data) throw new Error("media_not_found");
-  return toItem(existing.data);
+  const buffer = await downloadStorageObject(publicId);
+  if (!buffer) return toItem(existing.data);
+  const tags = await extractAudioTagsFromBuffer(buffer, publicId);
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (tags.artist) patch.artist = tags.artist;
+  if (tags.album) patch.album = tags.album;
+  if (tags.genre) patch.genre = tags.genre;
+  if (tags.year) patch.year = tags.year;
+  if (tags.duration) patch.duration = tags.duration;
+  if (tags.coverUrl) patch.cover_url = tags.coverUrl;
+  if (tags.titleFromTag && !clean(existing.data.title)) patch.title = tags.titleFromTag;
+  const result = await supabase.from("media_assets").update(patch).eq("storage_path", publicId).select().single();
+  if (result.error) throw new SupabaseOperationError("media_refresh_tags", result.error);
+  return toItem(result.data);
 }
 
 export async function createStandaloneUploadTicket(input: { filename: string; mimeType: string; kind: "video" | "thumbnail" }) {
@@ -157,129 +278,69 @@ export async function probeMediaConnection(): Promise<{ bucket: string; bucketPu
 }
 
 export type FreeLessonChapter = { title: string; time: number };
-
 export type FreeLessonAdminItem = {
-  id: string;
-  publicId: string;
-  title: string;
-  description: string;
-  videoUrl: string;
-  thumbnailUrl: string | null;
-  duration: number | null;
-  chapters: FreeLessonChapter[];
-  sortOrder: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  id: string; publicId: string; title: string; description: string; videoUrl: string; thumbnailUrl: string | null;
+  duration: number | null; chapters: FreeLessonChapter[]; sortOrder: number; isActive: boolean; createdAt: string; updatedAt: string;
 };
 
 function freeLessonFromRow(row: Record<string, unknown>): FreeLessonAdminItem {
   const chapters = Array.isArray(row.chapters)
-    ? row.chapters
-        .filter((item) => item && typeof item === "object")
-        .map((item) => ({
-          title: clean((item as Record<string, unknown>).title),
-          time: Math.max(0, Number((item as Record<string, unknown>).time) || 0),
-        }))
-        .filter((item) => item.title)
+    ? row.chapters.filter((item) => item && typeof item === "object").map((item) => ({
+        title: clean((item as Record<string, unknown>).title),
+        time: Math.max(0, Number((item as Record<string, unknown>).time) || 0),
+      })).filter((item) => item.title)
     : [];
   return {
-    id: String(row.id),
-    publicId: String(row.storage_path),
-    title: clean(row.title),
-    description: clean(row.description),
-    videoUrl: String(row.public_url || ""),
-    thumbnailUrl: row.cover_url ? String(row.cover_url) : null,
-    duration: row.duration ? Number(row.duration) : null,
-    chapters,
-    sortOrder: Number(row.sort_order) || 0,
-    isActive: row.status === "published" && row.is_active !== false,
-    createdAt: String(row.created_at || ""),
-    updatedAt: String(row.updated_at || row.created_at || ""),
+    id: String(row.id), publicId: String(row.storage_path), title: clean(row.title), description: clean(row.description),
+    videoUrl: String(row.public_url || ""), thumbnailUrl: row.cover_url ? String(row.cover_url) : null,
+    duration: row.duration ? Number(row.duration) : null, chapters,
+    sortOrder: Number(row.sort_order) || 0, isActive: row.status === "published" && row.is_active !== false,
+    createdAt: String(row.created_at || ""), updatedAt: String(row.updated_at || row.created_at || ""),
   };
 }
 
 export async function listFreeLessonsAdmin(): Promise<FreeLessonAdminItem[]> {
   if (!supabase) throw new Error("supabase_not_configured");
-  const result = await supabase
-    .from("media_assets")
-    .select("*")
-    .eq("category", "free-training")
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: false })
-    .limit(500);
+  const result = await supabase.from("media_assets").select("*").eq("category", "free-training").order("sort_order", { ascending: true }).order("created_at", { ascending: false }).limit(500);
   if (result.error) throw new SupabaseOperationError("free_lessons_list", result.error);
   return (result.data || []).map((row) => freeLessonFromRow(row));
 }
 
-export async function registerFreeLessonFromStorage(input: {
-  publicId: string;
-  title: string;
-  description: string;
-  thumbnailUrl?: string | null;
-  sortOrder?: number;
-}) {
+export async function registerFreeLessonFromStorage(input: { publicId: string; title: string; description: string; thumbnailUrl?: string | null; sortOrder?: number; }) {
   if (!supabase) throw new Error("supabase_not_configured");
   const existing = await supabase.from("media_assets").select("id").eq("storage_path", input.publicId).maybeSingle();
   if (existing.error) throw new SupabaseOperationError("free_lesson_lookup", existing.error);
   if (existing.data) {
     const updated = await supabase.from("media_assets").update({
-      category: "free-training",
-      title: input.title.trim().slice(0, 200),
-      description: input.description.trim().slice(0, 1000),
-      cover_url: input.thumbnailUrl || null,
-      sort_order: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0,
-      is_active: true,
-      status: "published",
-      updated_at: new Date().toISOString(),
+      category: "free-training", title: input.title.trim().slice(0, 200), description: input.description.trim().slice(0, 1000),
+      cover_url: input.thumbnailUrl || null, sort_order: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0,
+      is_active: true, status: "published", updated_at: new Date().toISOString(),
     }).eq("storage_path", input.publicId).select().single();
     if (updated.error) throw new SupabaseOperationError("free_lesson_register", updated.error);
     return freeLessonFromRow(updated.data);
   }
-
   const info = await supabase.storage.from(bucket).list(input.publicId.includes("/") ? input.publicId.split("/").slice(0, -1).join("/") : "", { limit: 1000 });
   const fileName = input.publicId.split("/").pop() || input.publicId;
   const file = (info.data || []).find((item) => item.name === fileName);
   const mimeType = String(file?.metadata?.mimetype || "video/mp4");
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(input.publicId).data.publicUrl;
   const result = await supabase.from("media_assets").insert({
-    storage_path: input.publicId,
-    public_url: publicUrl,
-    title: input.title.trim().slice(0, 200),
-    description: input.description.trim().slice(0, 1000),
-    category: "free-training",
-    mime_type: mimeType,
-    file_ext: (fileName.split(".").pop() || "mp4").toLowerCase(),
-    cover_url: input.thumbnailUrl || null,
-    consent: true,
-    status: "published",
-    sort_order: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0,
-    is_active: true,
-    chapters: [],
+    storage_path: input.publicId, public_url: publicUrl, title: input.title.trim().slice(0, 200), description: input.description.trim().slice(0, 1000),
+    category: "free-training", mime_type: mimeType, file_ext: (fileName.split(".").pop() || "mp4").toLowerCase(),
+    cover_url: input.thumbnailUrl || null, consent: true, status: "published",
+    sort_order: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0, is_active: true, chapters: [],
   }).select().single();
   if (result.error) throw new SupabaseOperationError("free_lesson_register", result.error);
   return freeLessonFromRow(result.data);
 }
 
-export async function updateFreeLesson(input: {
-  publicId: string;
-  title: string;
-  description: string;
-  thumbnailUrl?: string | null;
-  chapters?: FreeLessonChapter[];
-  sortOrder?: number;
-  isActive?: boolean;
-}) {
+export async function updateFreeLesson(input: { publicId: string; title: string; description: string; thumbnailUrl?: string | null; chapters?: FreeLessonChapter[]; sortOrder?: number; isActive?: boolean; }) {
   if (!supabase) throw new Error("supabase_not_configured");
   const result = await supabase.from("media_assets").update({
-    title: input.title.trim().slice(0, 200),
-    description: input.description.trim().slice(0, 1000),
-    cover_url: input.thumbnailUrl || null,
-    chapters: Array.isArray(input.chapters) ? input.chapters.slice(0, 100) : [],
+    title: input.title.trim().slice(0, 200), description: input.description.trim().slice(0, 1000),
+    cover_url: input.thumbnailUrl || null, chapters: Array.isArray(input.chapters) ? input.chapters.slice(0, 100) : [],
     sort_order: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0,
-    is_active: input.isActive !== false,
-    status: input.isActive === false ? "draft" : "published",
-    updated_at: new Date().toISOString(),
+    is_active: input.isActive !== false, status: input.isActive === false ? "draft" : "published", updated_at: new Date().toISOString(),
   }).eq("storage_path", input.publicId).eq("category", "free-training").select().single();
   if (result.error) throw new SupabaseOperationError("free_lesson_update", result.error);
   return freeLessonFromRow(result.data);
@@ -299,9 +360,14 @@ export async function listFreeTrainingStorageFiles(): Promise<StorageItem[]> {
   if (!supabase) return [];
   const folders = ["free-training", "free-training-assets/video", "free-training-assets", ""];
   const videoExt = [".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi", ".mpeg", ".mpg", ".ogv"];
-  const results = await Promise.all(folders.map((folder) =>
-    supabase!.storage.from(bucket).list(folder, { limit: 500, sortBy: { column: "created_at", order: "desc" } })
-  ));
+  const results = await Promise.all(
+    folders.map((folder) =>
+      supabase!.storage.from(bucket).list(folder, {
+        limit: 500,
+        sortBy: { column: "created_at", order: "desc" },
+      }),
+    ),
+  );
   const seen = new Set<string>();
   return results.flatMap((result, index) => {
     if (result.error) return [];
@@ -314,7 +380,7 @@ export async function listFreeTrainingStorageFiles(): Promise<StorageItem[]> {
         return mime.startsWith("video/") || videoExt.some((ext) => lower.endsWith(ext));
       })
       .map((file) => {
-        const path = folder ? `${folder}/${file.name}` : file.name;
+        const path = folder ? folder + "/" + file.name : file.name;
         if (seen.has(path)) return null;
         seen.add(path);
         return {

@@ -15,9 +15,10 @@
   .hero-section {
     grid-template-columns: 1fr;
     min-height: auto;
-    gap: 2.5rem;
-    padding-top: 3.5rem;
-    padding-bottom: 3.5rem;
+    gap: 2rem;
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+    align-items: start;
   }
   .hero-heading {
     font-size: clamp(2.8rem, 6vw, 4.2rem);
