@@ -15,6 +15,7 @@ const nav = [
   { href: "/admin/media", label: "مدیریت محتوا" },
   { href: "/admin/free-education", label: "آموزش رایگان" },
   { href: "/admin/ai", label: "Admin AI Assistant" },
+  { href: "/admin/music-generator", label: "AI Music Generator" },
   { href: "/admin/system", label: "وضعیت سیستم" },
   { href: "/admin/settings", label: "تنظیمات پیشرفته" },
 ];
