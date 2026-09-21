@@ -13,17 +13,19 @@ function normalizeBase(value: string) {
 export async function loadRuntimeProviders(): Promise<AIProvider[]> {
   if (!supabase) throw new Error("ai_runtime_storage_not_configured");
   const { data, error } = await supabase.from("admin_ai_providers")
-    .select("id,name,enabled,metadata,base_url,api_key_encrypted,provider_type,priority,cooldown_until")
-    .eq("enabled", true).order("priority", { ascending: true }).order("id");
+    .select("id,name,enabled,metadata")
+    .eq("enabled", true).order("id");
   if (error) throw error;
-  const rows = data || [];
   const now = Date.now();
-  return rows.filter((r: any) => r.api_key_encrypted && (!r.cooldown_until || new Date(r.cooldown_until).getTime() <= now)).map((r: any) => {
+  return (data || []).filter((r: any) => {
+    const meta = r.metadata || {};
+    return meta.apiKeyEncrypted && (!meta.cooldownUntil || new Date(meta.cooldownUntil).getTime() <= now);
+  }).map((r: any) => {
     const meta = r.metadata || {};
     return {
-      id: r.id, name: r.name, baseUrl: normalizeBase(r.base_url || meta.baseUrl || ""),
+      id: r.id, name: r.name, baseUrl: normalizeBase(meta.baseUrl || ""),
       modelsUrl: meta.modelsUrl || "/models", chatPath: meta.chatPath || "/chat/completions",
-      apiKey: decryptProviderKey(r.api_key_encrypted), modelsRequireAuth: true,
+      apiKey: decryptProviderKey(meta.apiKeyEncrypted), modelsRequireAuth: true,
       authScheme: meta.authScheme || "bearer", chatStyle: meta.chatStyle || "openai",
       defaultModels: Array.isArray(meta.defaultModels) ? meta.defaultModels : [],
     } as AIProvider;
@@ -32,16 +34,29 @@ export async function loadRuntimeProviders(): Promise<AIProvider[]> {
 
 export async function bootstrapRuntimeProvidersFromEnv(): Promise<number> {
   if (!supabase) throw new Error("ai_runtime_storage_not_configured");
-  const existing = await supabase.from("admin_ai_providers").select("id,api_key_encrypted").not("api_key_encrypted", "is", null).limit(1);
+  const existing = await supabase.from("admin_ai_providers").select("id,metadata");
   if (existing.error) throw existing.error;
-  if ((existing.data || []).length) return 0;
+  if ((existing.data || []).some((r: any) => r?.metadata?.apiKeyEncrypted)) return 0;
+
   const envProviders = getConfiguredProviders().filter((p) => p.apiKey && p.id !== "rahyar-gateway");
   if (!envProviders.length) return 0;
+  const existingById = new Map((existing.data || []).map((r: any) => [r.id, r]));
   const rows = envProviders.map((p, index) => ({
-    id: p.id, name: p.name, enabled: true, base_url: normalizeBase(p.baseUrl),
-    api_key_encrypted: encryptProviderKey(p.apiKey || ""), provider_type: p.chatStyle,
-    priority: index + 10,
-    metadata: { modelsUrl: p.modelsUrl, chatPath: p.chatPath, authScheme: p.authScheme, chatStyle: p.chatStyle, defaultModels: p.defaultModels || [] },
+    id: p.id,
+    name: p.name,
+    enabled: true,
+    metadata: {
+      ...(existingById.get(p.id)?.metadata || {}),
+      baseUrl: normalizeBase(p.baseUrl),
+      apiKeyEncrypted: encryptProviderKey(p.apiKey || ""),
+      providerType: p.chatStyle,
+      priority: index + 10,
+      modelsUrl: p.modelsUrl,
+      chatPath: p.chatPath,
+      authScheme: p.authScheme,
+      chatStyle: p.chatStyle,
+      defaultModels: p.defaultModels || [],
+    },
   }));
   const { error } = await supabase.from("admin_ai_providers").upsert(rows, { onConflict: "id" });
   if (error) throw error;
