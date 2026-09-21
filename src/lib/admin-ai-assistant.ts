@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { autoChat, chatExactProviderModel, type ChatMessage } from "@/lib/ai-providers";
 import { listAdminAiRoutingCandidates } from "@/lib/admin-ai-model-registry";
-import { listHealthyAdminAiModels, recordAdminAiModelFailure, recordAdminAiModelSuccess } from "@/lib/admin-ai-model-health";
+import { recordAdminAiModelFailure, recordAdminAiModelSuccess } from "@/lib/admin-ai-model-health";
 import { executionCost, resolveAdminAiControlPlan } from "@/lib/admin-ai-control";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -91,9 +91,6 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   const controlPrimary = controlPlan?.primary.provider && controlPlan?.primary.model
     ? controlPlan.primary
     : null;
-  const controlFallback = controlPlan?.fallback.provider && controlPlan?.fallback.model
-    ? controlPlan.fallback
-    : null;
 
   let result: Awaited<ReturnType<typeof autoChat>> | null = null;
   let fallbackUsed = false;
@@ -109,73 +106,39 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
     } catch (error) {
       if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
       await recordAdminAiModelFailure(provider, model, error);
-      throw error;
+      // Auto-failover to ranked scan if explicit pair fails
+      try {
+        result = await autoChat([{ role: "system", content: controlSystem }, ...history], undefined, undefined, "rahyar-admin-assistant", signal);
+        fallbackUsed = true;
+        await recordAdminAiModelSuccess(result.provider, result.model).catch(() => null);
+      } catch {
+        throw error;
+      }
     }
   } else {
-    const routing = await listAdminAiRoutingCandidates();
-    let candidates = controlPrimary
-      ? [controlPrimary, ...(controlFallback ? [controlFallback] : [])]
-      : (await listHealthyAdminAiModels(routing)).map((candidate) => ({ provider: candidate.provider_id, model: candidate.model_id }));
-
-    if (!candidates.length && routing.length) {
-      candidates = routing.map((c) => ({ provider: c.provider_id, model: c.model_id }));
-    }
-
-    let lastError: unknown;
-    let completed = false;
-
-    if (candidates.length) {
-      for (const candidate of candidates) {
-        if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
-        try {
-          result = await chatExactProviderModel(
-            [{ role: "system", content: controlSystem }, ...history],
-            candidate.provider,
-            candidate.model,
-            "rahyar-admin-assistant",
-            signal,
-          );
-          await recordAdminAiModelSuccess(candidate.provider, candidate.model);
-          fallbackUsed = Boolean(lastError);
-          completed = true;
-          break;
-        } catch (error) {
-          if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
-          lastError = error;
-          await recordAdminAiModelFailure(candidate.provider, candidate.model, error);
-        }
+    // Ranked failover across all Render env APIs (control primary preferred first)
+    const preferredProvider = controlPrimary?.provider;
+    const preferredModel = controlPrimary?.model;
+    try {
+      result = await autoChat(
+        [{ role: "system", content: controlSystem }, ...history],
+        preferredProvider,
+        preferredModel,
+        "rahyar-admin-assistant",
+        signal,
+      );
+      await recordAdminAiModelSuccess(result.provider, result.model).catch(() => null);
+      fallbackUsed = Boolean(
+        preferredProvider && (result.provider !== preferredProvider || result.model !== preferredModel),
+      );
+    } catch (error) {
+      if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg === "no_provider_configured") throw new Error("admin_ai_no_provider_configured");
+      if (msg.startsWith("all_providers_failed:")) {
+        throw new Error(`admin_ai_all_models_failed:${msg.slice("all_providers_failed:".length)}`);
       }
-    }
-
-    if (!completed) {
-      try {
-        result = await autoChat(
-          [{ role: "system", content: controlSystem }, ...history],
-          undefined,
-          undefined,
-          "rahyar-admin-assistant",
-          signal,
-        );
-        await recordAdminAiModelSuccess(result.provider, result.model);
-        completed = true;
-        fallbackUsed = true;
-      } catch (error) {
-        if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
-        lastError = error;
-        const msg = error instanceof Error ? error.message : String(error);
-        if (msg === "no_provider_configured") throw new Error("admin_ai_no_provider_configured");
-      }
-    }
-
-    if (!completed) {
-      const detail = lastError instanceof Error ? lastError.message : String(lastError || "");
-      if (detail === "no_provider_configured" || detail === "admin_ai_no_provider_configured") {
-        throw new Error("admin_ai_no_provider_configured");
-      }
-      if (detail.startsWith("all_providers_failed:")) {
-        throw new Error(`admin_ai_all_models_failed:${detail.slice("all_providers_failed:".length)}`);
-      }
-      throw new Error(`admin_ai_all_models_failed:${detail.slice(0, 400)}`);
+      throw new Error(`admin_ai_all_models_failed:${msg.slice(0, 400)}`);
     }
   }
 

@@ -357,6 +357,100 @@ export async function chatExactProviderModel(
   return { reply, provider: providerId, model: modelId };
 }
 
+export type RankedCandidate = {
+  providerId: string;
+  modelId: string;
+  score: number;
+  providerName: string;
+};
+
+/** Score: quality (0-100) + speed bias for admin responsiveness */
+export function scoreModel(modelId: string): number {
+  const id = modelId.toLowerCase();
+  let quality = 50;
+  let speed = 50;
+  if (/gpt-4o(?!-mini)|claude-sonnet-4|claude-opus|gemini-2\.5-pro|o3|o4|gpt-4\.1(?!-mini)/.test(id)) {
+    quality = 98;
+    speed = 55;
+  } else if (/gpt-4o-mini|gpt-4\.1-mini|claude-3-5-sonnet|gemini-2\.5-flash|gemini-2\.0-flash|deepseek-chat|llama-3\.3-70b|grok-3(?!-mini)/.test(id)) {
+    quality = 88;
+    speed = 75;
+  } else if (/haiku|flash|mini|nano|instant|8b|small|lite/.test(id)) {
+    quality = 72;
+    speed = 95;
+  } else if (/gpt|claude|gemini|llama|qwen|kimi|deepseek|grok|mistral|command/.test(id)) {
+    quality = 80;
+    speed = 65;
+  }
+  return Math.round(quality * 0.55 + speed * 0.45);
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`timeout_${ms}ms:${label}`)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
+/** Scan every env-configured provider, discover models, return ranked candidates */
+export async function buildRankedCandidates(limit = 24): Promise<RankedCandidate[]> {
+  const providers = getConfiguredProviders().filter((p) => Boolean(p.apiKey) || p.id === "ollama");
+  const out: RankedCandidate[] = [];
+  const seen = new Set<string>();
+
+  for (const provider of providers) {
+    const models: string[] = [];
+    const tried = new Set<string>();
+    for (const m of provider.defaultModels || []) {
+      if (m && !tried.has(m)) {
+        tried.add(m);
+        models.push(m);
+      }
+    }
+    try {
+      const discovered = await withTimeout(
+        discoverModels(provider, { allowFallback: true }),
+        8000,
+        `discover:${provider.id}`,
+      );
+      for (const m of discovered) {
+        if (m.id && !tried.has(m.id)) {
+          tried.add(m.id);
+          models.push(m.id);
+        }
+      }
+    } catch {
+      /* defaults only */
+    }
+    if (!models.length && provider.defaultModels?.length) {
+      models.push(...provider.defaultModels);
+    }
+    for (const modelId of models.slice(0, 8)) {
+      const key = `${provider.id}::${modelId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        providerId: provider.id,
+        modelId,
+        score: scoreModel(modelId),
+        providerName: provider.name,
+      });
+    }
+  }
+
+  out.sort((a, b) => b.score - a.score || a.providerId.localeCompare(b.providerId));
+  return out.slice(0, limit);
+}
+
 export async function autoChat(
   messages: ChatMessage[],
   preferredProvider?: string,
@@ -364,47 +458,54 @@ export async function autoChat(
   _clientId = "artistyar-web",
   signal?: AbortSignal,
 ): Promise<{ reply: string; provider: string; model: string }> {
-  if (preferredProvider && preferredModel) {
-    return chatExactProviderModel(messages, preferredProvider, preferredModel, _clientId, signal);
-  }
-  const providers = getConfiguredProviders().filter((p) => Boolean(p.apiKey));
-  if (!providers.length) throw new Error("no_provider_configured");
   const errors: string[] = [];
-  for (const provider of providers) {
-    if (signal?.aborted) throw new Error("aborted");
-    const tried = new Set<string>();
-    const queue: string[] = [];
-    for (const m of provider.defaultModels || []) {
-      if (m && !tried.has(m)) {
-        tried.add(m);
-        queue.push(m);
-      }
-    }
-    if (queue.length < 2) {
-      try {
-        for (const m of await discoverModels(provider, { allowFallback: true })) {
-          if (m.id && !tried.has(m.id)) {
-            tried.add(m.id);
-            queue.push(m.id);
-          }
-        }
-      } catch (e) {
-        errors.push(`${provider.id}/discover: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
-    for (const model of queue.slice(0, 5)) {
-      try {
-        const reply = await chatWithProvider(provider, model, messages, signal);
-        if (!reply?.trim()) throw new Error("empty_reply");
-        return { reply, provider: provider.id, model };
-      } catch (e) {
-        errors.push(`${provider.id}/${model}: ${e instanceof Error ? e.message : String(e)}`);
-        if (signal?.aborted) throw e;
-      }
+
+  // Preferred pair first, then full ranked failover
+  const ranked = await buildRankedCandidates(30);
+  const ordered: RankedCandidate[] = [];
+  if (preferredProvider && preferredModel) {
+    ordered.push({
+      providerId: preferredProvider,
+      modelId: preferredModel,
+      score: 999,
+      providerName: preferredProvider,
+    });
+  }
+  for (const c of ranked) {
+    if (preferredProvider && preferredModel && c.providerId === preferredProvider && c.modelId === preferredModel) continue;
+    ordered.push(c);
+  }
+
+  if (!ordered.length) {
+    const providers = getConfiguredProviders().filter((p) => Boolean(p.apiKey));
+    if (!providers.length) throw new Error("no_provider_configured");
+    for (const p of providers) {
+      const m = p.defaultModels?.[0] || "gpt-4o-mini";
+      ordered.push({ providerId: p.id, modelId: m, score: 1, providerName: p.name });
     }
   }
-  const detail = errors.slice(0, 6).join(" | ") || "unknown";
-  throw new Error(`all_providers_failed:${detail.slice(0, 500)}`);
+
+  if (!ordered.length) throw new Error("no_provider_configured");
+
+  for (const c of ordered.slice(0, 12)) {
+    if (signal?.aborted) throw new Error("aborted");
+    try {
+      const result = await withTimeout(
+        chatExactProviderModel(messages, c.providerId, c.modelId, _clientId, signal),
+        28_000,
+        `${c.providerId}/${c.modelId}`,
+      );
+      if (result.reply?.trim()) return result;
+      errors.push(`${c.providerId}/${c.modelId}: empty_reply`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`${c.providerId}/${c.modelId}: ${msg}`);
+      if (signal?.aborted) throw e;
+    }
+  }
+
+  const detail = errors.slice(0, 8).join(" | ") || "unknown";
+  throw new Error(`all_providers_failed:${detail.slice(0, 600)}`);
 }
 
 /** Safe status for admin UI — never returns secrets */
