@@ -252,17 +252,27 @@ export async function discoverAllModels(options: { allowFallback?: boolean } = {
 }
 
 async function chatOpenAI(provider: AIProvider, model: string, messages: ChatMessage[], signal?: AbortSignal): Promise<string> {
+  const headers: Record<string, string> = { ...authHeaders(provider) };
+  if (provider.id === "openrouter" || /openrouter/i.test(provider.baseUrl)) {
+    headers["HTTP-Referer"] = env("NEXT_PUBLIC_SITE_URL") || "https://artistyaar.ir";
+    headers["X-Title"] = "ArtistYar";
+  }
   const response = await fetch(`${provider.baseUrl}${provider.chatPath || "/chat/completions"}`, {
     method: "POST",
-    headers: authHeaders(provider),
+    headers,
     body: JSON.stringify({ model, messages, temperature: 0.3 }),
     signal,
   });
   const data = await readJson(response);
   if (!response.ok) {
-    throw new Error(data?.error?.message || data?.message || `HTTP ${response.status}`);
+    const errMsg =
+      (typeof data?.error === "object" && data?.error?.message) ||
+      (typeof data?.error === "string" ? data.error : null) ||
+      data?.message ||
+      `HTTP ${response.status}`;
+    throw new Error(String(errMsg).slice(0, 240));
   }
-  const reply = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || "";
+  const reply = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || data?.output_text || "";
   if (!reply) throw new Error("empty_reply");
   return String(reply);
 }
@@ -364,7 +374,6 @@ export type RankedCandidate = {
   providerName: string;
 };
 
-/** Score: quality (0-100) + speed bias for admin responsiveness */
 export function scoreModel(modelId: string): number {
   const id = modelId.toLowerCase();
   let quality = 50;
@@ -401,7 +410,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
-/** Scan every env-configured provider, discover models, return ranked candidates */
 export async function buildRankedCandidates(limit = 24): Promise<RankedCandidate[]> {
   const providers = getConfiguredProviders().filter((p) => Boolean(p.apiKey) || p.id === "ollama");
   const out: RankedCandidate[] = [];
@@ -460,7 +468,6 @@ export async function autoChat(
 ): Promise<{ reply: string; provider: string; model: string }> {
   const errors: string[] = [];
 
-  // Preferred pair first, then full ranked failover
   const ranked = await buildRankedCandidates(30);
   const ordered: RankedCandidate[] = [];
   if (preferredProvider && preferredModel) {
@@ -508,7 +515,6 @@ export async function autoChat(
   throw new Error(`all_providers_failed:${detail.slice(0, 600)}`);
 }
 
-/** Safe status for admin UI — never returns secrets */
 export function listProviderStatus(): Array<{
   id: string;
   name: string;
