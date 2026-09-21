@@ -10,7 +10,7 @@ function db() { if (!supabase) throw new Error("admin_ai_storage_not_configured"
 function has(name: string) { return Boolean((process.env[name] || "").trim()); }
 
 export async function listControlProviders() {
-  const discovered = await discoverAllModels({ allowFallback: false }).catch(() => []);
+  const discovered = await discoverAllModels().catch(() => []);
   const configuredProviders = getConfiguredProviders();
   const configured = new Map(configuredProviders.map((p) => [p.id, p]));
   const discoveredMap = new Map(discovered.map((x) => [x.provider.id, x]));
