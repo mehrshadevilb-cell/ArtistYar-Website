@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       );
       candidate = normalize(parse(result.reply), level);
     } catch {}
+    if (!candidate) continue;
     const fingerprint = createHash("sha256").update(JSON.stringify({ quality:candidate.quality, notes:candidate.notes, prompt:candidate.prompt, dayKey })).digest("hex");
     if (!recent.includes(fingerprint)) { question = { ...candidate, source:candidate.source, fingerprint } as VoicingQuestion & { fingerprint:string }; }
     else recent.push(fingerprint);
