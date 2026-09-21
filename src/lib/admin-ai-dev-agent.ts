@@ -97,7 +97,7 @@ export async function runDevAgent(input: {
     };
   }
 
-  const skill = input.skillId ? getSkill(input.skillId) : undefined;
+  const skill = input.skillId ? await getSkill(input.skillId) : undefined;
   if (skill) pushActivity("info", `Skill: ${skill.name}`);
   const mem = await memoryContext(input.adminUsername).catch(() => "");
 
