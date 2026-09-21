@@ -163,15 +163,23 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 
 export async function buildRankedCandidates(limit = 24): Promise<RankedCandidate[]> {
   const providers = getConfiguredProviders().filter((p) => Boolean(p.apiKey) || p.id === "ollama");
+  const discovered = await Promise.all(
+    providers.map(async (provider) => {
+      const models: string[] = [...(provider.defaultModels || [])];
+      try {
+        const live = await withTimeout(discoverModels(provider), 3500, `discover:${provider.id}`);
+        for (const m of live) if (m.id && !models.includes(m.id)) models.push(m.id);
+      } catch {
+        // A discovery endpoint being unavailable must never disable the provider.
+        // Configured default models remain usable.
+      }
+      return { provider, models: models.slice(0, 6) };
+    }),
+  );
   const out: RankedCandidate[] = [];
   const seen = new Set<string>();
-  for (const provider of providers) {
-    const models: string[] = [...(provider.defaultModels || [])];
-    try {
-      const discovered = await withTimeout(discoverModels(provider), 6000, `discover:${provider.id}`);
-      for (const m of discovered) if (m.id && !models.includes(m.id)) models.push(m.id);
-    } catch { /* defaults */ }
-    for (const modelId of models.slice(0, 6)) {
+  for (const { provider, models } of discovered) {
+    for (const modelId of models) {
       const key = `${provider.id}::${modelId}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -180,6 +188,10 @@ export async function buildRankedCandidates(limit = 24): Promise<RankedCandidate
   }
   out.sort((a, b) => b.score - a.score);
   return out.slice(0, limit);
+}
+
+function isTransientProviderError(message: string): boolean {
+  return /timeout|timed out|temporar|rate.?limit|429|502|503|504|network|fetch failed|empty_reply/i.test(message);
 }
 
 export async function autoChat(messages: ChatMessage[], preferredProvider?: string, preferredModel?: string, _clientId = "artistyar-web", signal?: AbortSignal) {
@@ -198,18 +210,23 @@ export async function autoChat(messages: ChatMessage[], preferredProvider?: stri
     }
   }
   if (!ordered.length) throw new Error("no_provider_configured");
-  for (const c of ordered.slice(0, 16)) {
+  // Keep failover bounded: the API routes are normally limited to ~60s.
+  // Sixteen × 28s could otherwise keep a single request alive for several minutes.
+  for (const c of ordered.slice(0, 4)) {
     if (signal?.aborted) throw new Error("aborted");
     if (dead.has(c.providerId)) continue;
     try {
-      const result = await withTimeout(chatExactProviderModel(messages, c.providerId, c.modelId, _clientId, signal), 28000, `${c.providerId}/${c.modelId}`);
+      const result = await withTimeout(chatExactProviderModel(messages, c.providerId, c.modelId, _clientId, signal), 12000, `${c.providerId}/${c.modelId}`);
       if (result.reply?.trim()) return result;
       errors.push(`${c.providerId}/${c.modelId}: empty_reply`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`${c.providerId}/${c.modelId}: ${msg.slice(0, 140)}`);
       if (signal?.aborted) throw e;
-      if (/insufficient|billing|wallet|invalid api key|unauthorized|provider_missing_key|401|403/i.test(msg)) dead.add(c.providerId);
+      if (/insufficient|billing|wallet|invalid api key|unauthorized|provider_missing_key|401|403|404/i.test(msg)) dead.add(c.providerId);
+      // For transient failures, try the next provider/model rather than burning the
+      // entire request budget on repeated models from the same provider.
+      if (isTransientProviderError(msg)) dead.add(c.providerId);
     }
   }
   throw new Error(`all_providers_failed:${errors.slice(0, 8).join(" | ").slice(0, 600)}`);
