@@ -14,7 +14,7 @@ import { HeroDifferentiator } from "@/components/HeroDifferentiator";
 import { ScrollStage } from "@/components/ScrollStage";
 
 export const metadata: Metadata = {
-  title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | مهرشاد بنائی",
+  title: "43325481",
   description:
     "آکادمی راه‌یار و ArtistYar: آموزش پروژه‌محور تنظیم، میکس و مسترینگ با کلاس آنلاین، پشتیبانی هنرجو، نمونه‌کار واقعی و دستیار هوشمند راه‌یار AI.",
   keywords: [
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/" },
   openGraph: {
-    title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | ArtistYar",
+    title: "43325481",
     description:
       "یادگیری واقعی تولید موسیقی با مسیر روشن، تمرین پروژه‌محور و دستیار هوشمند راه‌یار.",
     type: "website",
