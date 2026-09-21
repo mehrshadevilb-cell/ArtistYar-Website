@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { autoChat, chatExactProviderModel, type ChatMessage } from "@/lib/ai-providers";
 import { listAdminAiRoutingCandidates } from "@/lib/admin-ai-model-registry";
 import { listHealthyAdminAiModels, recordAdminAiModelFailure, recordAdminAiModelSuccess } from "@/lib/admin-ai-model-health";
-import { executionCost } from "@/lib/admin-ai-control";
+import { executionCost, resolveAdminAiControlPlan } from "@/lib/admin-ai-control";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -81,6 +81,19 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
 
   const history: ChatMessage[] = conversation.messages.slice(-30).map((m) => ({ role: m.role, content: m.content }));
   history.push({ role: "user", content: userContent });
+  const controlPlan = await resolveAdminAiControlPlan("admin-assistant", "chat");
+  const controlSystem = [
+    ADMIN_AI_SYSTEM_PROMPT,
+    controlPlan?.agent?.system_prompt,
+    controlPlan?.prompt?.system_prompt,
+    controlPlan?.prompt?.developer_instructions
+  ].filter(Boolean).join("\n\n");
+  const controlPrimary = controlPlan?.primary.provider && controlPlan?.primary.model
+    ? controlPlan.primary
+    : null;
+  const controlFallback = controlPlan?.fallback.provider && controlPlan?.fallback.model
+    ? controlPlan.fallback
+    : null;
 
   let result: Awaited<ReturnType<typeof autoChat>> | null = null;
   let fallbackUsed = false;
@@ -91,7 +104,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
       throw new Error("admin_ai_model_not_enabled_for_routing");
     }
     try {
-      result = await chatExactProviderModel([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], provider, model, "rahyar-admin-assistant", signal);
+      result = await chatExactProviderModel([{ role: "system", content: controlSystem }, ...history], provider, model, "rahyar-admin-assistant", signal);
       await recordAdminAiModelSuccess(provider, model);
     } catch (error) {
       if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
@@ -99,22 +112,27 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
       throw error;
     }
   } else {
-    const candidates = await listHealthyAdminAiModels(await listAdminAiRoutingCandidates());
+    const candidates = controlPrimary
+      ? [controlPrimary, ...(controlFallback ? [controlFallback] : [])]
+      : (await listHealthyAdminAiModels(await listAdminAiRoutingCandidates())).map((candidate) => ({ provider: candidate.provider_id, model: candidate.model_id }));
+
     if (!candidates.length) { throw new Error("admin_ai_no_healthy_model"); }
     let lastError: unknown;
     let completed = false;
     for (const candidate of candidates) {
       if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
       try {
-        result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], candidate.provider_id, candidate.model_id, "rahyar-admin-assistant", signal);
-        await recordAdminAiModelSuccess(candidate.provider_id, candidate.model_id);
+        result = controlPlan
+          ? await chatExactProviderModel([{ role: "system", content: controlSystem }, ...history], candidate.provider, candidate.model, "rahyar-admin-assistant", signal)
+          : await autoChat([{ role: "system", content: controlSystem }, ...history], candidate.provider, candidate.model, "rahyar-admin-assistant", signal);
+        await recordAdminAiModelSuccess(candidate.provider, candidate.model);
         fallbackUsed = Boolean(lastError);
         completed = true;
         break;
       } catch (error) {
         if (signal?.aborted) throw new Error("admin_ai_generation_stopped");
         lastError = error;
-        await recordAdminAiModelFailure(candidate.provider_id, candidate.model_id, error);
+        await recordAdminAiModelFailure(candidate.provider, candidate.model, error);
       }
     }
     if (!completed) throw lastError || new Error("admin_ai_all_models_failed");
