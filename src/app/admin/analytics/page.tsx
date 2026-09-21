@@ -79,7 +79,7 @@ export default function AdminAnalyticsPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const s = data?.snapshot;
+  const s = data?.snapshot || data?.summary?.snapshot;
   const t = parse(data?.synthesis || "");
   const conv = s?.conversion || {};
   const funnel = [["بازدید", s?.traffic?.page_views || 0], ["شروع سفارش", conv.orders_started || 0], ["سفارش", conv.orders_created || 0], ["Checkout", conv.checkout || 0], ["درخواست کلاس", conv.class_inquiries || 0], ["کلیک ربات", conv.bot_clicks || 0]];
