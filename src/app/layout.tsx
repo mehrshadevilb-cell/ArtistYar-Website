@@ -35,10 +35,8 @@ const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").re
 
 export const metadata: Metadata = {
   other: { enamad: "43325481" },
-  // Title also set as raw <title> in <head> below so crawlers that only
-  // read the first HTML chunk still see 43325481 (Enamad verification).
   title: {
-    default: "43325481",
+    default: "آرتیست‌یار | آموزش تنظیم، میکس و مسترینگ + راه‌یار AI",
     template: "%s | ArtistYar",
   },
   description:
@@ -83,7 +81,7 @@ export const metadata: Metadata = {
     locale: "fa_IR",
     url: siteUrl,
     siteName: "ArtistYar",
-    title: "43325481",
+    title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | ArtistYar",
     description:
       "آموزش پروژه‌محور تنظیم، میکس و مسترینگ با کلاس آنلاین، پشتیبانی هنرجو و راه‌یار AI.",
     images: [{ url: `${siteUrl}/og-default.png`, width: 1200, height: 630, alt: "ArtistYar" }],
@@ -110,8 +108,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable} suppressHydrationWarning>
       <head>
-        {/* Must be first: Enamad crawler often only parses early HTML */}
-        <title>43325481</title>
         <meta name="enamad" content="43325481" />
         {backend ? <link rel="preconnect" href={backend} crossOrigin="anonymous" /> : null}
       </head>
