@@ -37,7 +37,7 @@ const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").re
 
 export const metadata: Metadata = {
   title: {
-    default: "ArtistYar | آکادمی راه‌یار — آموزش تنظیم، میکس و مسترینگ با AI",
+    default: "43325481",
     template: "%s | ArtistYar",
   },
   description:
@@ -82,7 +82,7 @@ export const metadata: Metadata = {
     locale: "fa_IR",
     url: siteUrl,
     siteName: "ArtistYar",
-    title: "ArtistYar | آکادمی راه‌یار — آموزش تنظیم، میکس و مسترینگ با AI",
+    title: "43325481",
     description:
       "آموزش پروژه‌محور تنظیم، میکس و مسترینگ با کلاس آنلاین، پشتیبانی هنرجو و راه‌یار AI.",
     images: [{ url: `${siteUrl}/og-default.png`, width: 1200, height: 630, alt: "ArtistYar" }],
