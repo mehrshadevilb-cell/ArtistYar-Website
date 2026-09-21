@@ -125,42 +125,159 @@ export async function getSkill(id: string): Promise<SkillDefinition | undefined>
 }
 
 export async function installSkillFromGithubUrl(url: string, installedBy?: string): Promise<SkillDefinition> {
-  const raw = url.trim();
+  const raw = url.trim().replace(/\/+$/, "");
   if (!raw) throw new Error("skill_url_empty");
-  let fetchUrl = raw;
+
+  const candidates: string[] = [];
+
   const blob = raw.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/i);
   if (blob) {
-    fetchUrl = `https://raw.githubusercontent.com/${blob[1]}/${blob[2]}/${blob[3]}/${blob[4]}`;
+    candidates.push(`https://raw.githubusercontent.com/${blob[1]}/${blob[2]}/${blob[3]}/${blob[4]}`);
   }
-  const res = await fetch(fetchUrl, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
-  if (!res.ok) throw new Error(`skill_fetch_failed:${res.status}`);
-  const text = await res.text();
-  if (!text.trim()) throw new Error("skill_empty");
+
+  if (/^https?:\/\/raw\.githubusercontent\.com\//i.test(raw)) {
+    candidates.push(raw);
+  }
+
+  const repo = raw.match(
+    /^https?:\/\/github\.com\/([^/]+)\/([^/#?]+)(?:\/(?:tree|blob)\/([^/]+)(?:\/(.*))?)?(?:[?#].*)?$/i,
+  );
+  if (repo && !blob) {
+    const owner = repo[1];
+    const name = repo[2].replace(/\.git$/i, "");
+    const branch = repo[3] || "main";
+    const sub = (repo[4] || "").replace(/\/+$/, "");
+    const base = `https://raw.githubusercontent.com/${owner}/${name}/${branch}`;
+    const paths = sub
+      ? [
+          `${base}/${sub}`,
+          `${base}/${sub}/skill.json`,
+          `${base}/${sub}/SKILL.md`,
+          `${base}/${sub}/README.md`,
+        ]
+      : [
+          `${base}/skill.json`,
+          `${base}/SKILL.md`,
+          `${base}/.claude/skills/SKILL.md`,
+          `${base}/skills/SKILL.md`,
+          `${base}/README.md`,
+        ];
+    candidates.push(...paths);
+
+    try {
+      const treeUrl = `https://api.github.com/repos/${owner}/${name}/git/trees/${branch}?recursive=1`;
+      const treeRes = await fetch(treeUrl, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(12_000),
+        headers: { Accept: "application/vnd.github+json", "User-Agent": "ArtistYar-AdminAI" },
+      });
+      if (treeRes.ok) {
+        const tree = (await treeRes.json()) as { tree?: Array<{ path: string; type: string }> };
+        const skillFiles = (tree.tree || [])
+          .filter((t) => t.type === "blob")
+          .map((t) => t.path)
+          .filter(
+            (p) =>
+              /(^|\/)skill\.json$/i.test(p) ||
+              /(^|\/)SKILL\.md$/i.test(p) ||
+              /(^|\/)\.claude\/skills\/.+\/SKILL\.md$/i.test(p),
+          )
+          .slice(0, 8);
+        for (const p of skillFiles) {
+          candidates.push(`https://raw.githubusercontent.com/${owner}/${name}/${branch}/${p}`);
+        }
+      }
+    } catch {
+      /* discovery optional */
+    }
+  }
+
+  if (!candidates.length) candidates.push(raw);
+
+  const seen = new Set<string>();
+  const unique = candidates.filter((c) => {
+    const k = c.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  let fetchedText = "";
+  let usedUrl = "";
+  let lastStatus = 0;
+  for (const fetchUrl of unique.slice(0, 16)) {
+    try {
+      const res = await fetch(fetchUrl, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
+        headers: { "User-Agent": "ArtistYar-AdminAI", Accept: "text/plain, application/json, */*" },
+      });
+      lastStatus = res.status;
+      if (!res.ok) continue;
+      const body = await res.text();
+      if (!body.trim()) continue;
+      fetchedText = body;
+      usedUrl = fetchUrl;
+      break;
+    } catch {
+      continue;
+    }
+  }
+
+  if (!fetchedText.trim()) {
+    throw new Error(lastStatus ? `skill_fetch_failed:${lastStatus}` : "skill_fetch_failed:no_candidate");
+  }
 
   let skill: SkillDefinition | null = null;
-  if (text.trim().startsWith("{")) {
+
+  if (fetchedText.trim().startsWith("{")) {
     try {
-      const j = JSON.parse(text) as Partial<SkillDefinition>;
-      if (j.id && j.name) {
+      const j = JSON.parse(fetchedText) as Record<string, unknown>;
+      const idRaw =
+        (typeof j.id === "string" && j.id) ||
+        (typeof j.name === "string" && j.name) ||
+        "";
+      const nameRaw =
+        (typeof j.displayName === "string" && j.displayName) ||
+        (typeof j.name === "string" && j.name) ||
+        "";
+      if (idRaw || nameRaw) {
+        const id =
+          String(idRaw || nameRaw)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "")
+            .slice(0, 64) || `skill-${Date.now().toString(36)}`;
+        const description = String(j.description || "").slice(0, 500);
+        const version = String(j.version || "1.0.0").slice(0, 32);
+        const tools = Array.isArray(j.tools)
+          ? j.tools.map(String).slice(0, 20)
+          : ["github_search", "github_read", "github_pr"];
+        const extra =
+          typeof j.system_prompt_extra === "string"
+            ? j.system_prompt_extra.slice(0, 6000)
+            : description
+              ? `Follow the skill «${nameRaw || id}»: ${description}`
+              : undefined;
         skill = {
-          id: String(j.id).slice(0, 64),
-          name: String(j.name).slice(0, 120),
-          description: String(j.description || "").slice(0, 500),
-          version: String(j.version || "1.0.0"),
-          tools: Array.isArray(j.tools) ? j.tools.map(String).slice(0, 20) : ["github_search", "github_read"],
-          system_prompt_extra: typeof j.system_prompt_extra === "string" ? j.system_prompt_extra.slice(0, 4000) : undefined,
+          id,
+          name: String(nameRaw || id).slice(0, 120),
+          description,
+          version,
+          tools,
+          system_prompt_extra: extra,
           enabled: j.enabled !== false,
           source: "github",
           sourceUrl: raw,
         };
       }
     } catch {
-      /* fall through */
+      /* fall through to markdown */
     }
   }
 
   if (!skill) {
-    const titleMatch = text.match(/^#\s+(.+)$/m);
+    const titleMatch = fetchedText.match(/^#\s+(.+)$/m);
     const name = (titleMatch?.[1] || "Imported Skill").trim().slice(0, 120);
     const id =
       name
@@ -168,18 +285,28 @@ export async function installSkillFromGithubUrl(url: string, installedBy?: strin
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "")
         .slice(0, 48) || `skill-${Date.now().toString(36)}`;
-    const body = text.replace(/^#\s+.+$/m, "").trim();
+    const body = fetchedText.replace(/^#\s+.+$/m, "").trim();
     skill = {
       id,
       name,
       description: body.slice(0, 280).replace(/\n+/g, " "),
       version: "1.0.0",
       tools: ["github_search", "github_read", "github_pr"],
-      system_prompt_extra: body.slice(0, 4000),
+      system_prompt_extra: body.slice(0, 6000),
       enabled: true,
       source: "github",
       sourceUrl: raw,
     };
+  }
+
+  const pathId = usedUrl.match(/\/([^/]+)\/(?:SKILL\.md|skill\.json)$/i)?.[1];
+  if (pathId && pathId.length > 2 && skill.source === "github") {
+    const clean = pathId
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 64);
+    if (clean && skill.id === "imported-skill") skill.id = clean;
   }
 
   if (supabase) {
