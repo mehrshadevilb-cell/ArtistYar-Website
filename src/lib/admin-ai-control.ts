@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { discoverAllModels } from "@/lib/ai-providers";
+import { discoverAllModels, getConfiguredProviders } from "@/lib/ai-providers";
 import { estimateCostUsd } from "@/lib/admin-ai-platform";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -11,19 +11,27 @@ function has(name: string) { return Boolean((process.env[name] || "").trim()); }
 
 export async function listControlProviders() {
   const discovered = await discoverAllModels({ allowFallback: false }).catch(() => []);
-  const configured = new Map(discovered.map((x) => [x.provider.id, x]));
-  const ids = ["openai","anthropic","google","openrouter","xkiro","opencode","agentrouter","rahyar"];
+  const configuredProviders = getConfiguredProviders();
+  const configured = new Map(configuredProviders.map((p) => [p.id, p]));
+  const discoveredMap = new Map(discovered.map((x) => [x.provider.id, x]));
+  const catalog = [
+    "openai","anthropic","google","openrouter","xkiro","opencode","agentrouter",
+    "rahyar-gateway","groq","bytez","deepseek","mistral","together","fireworks","xai",
+    "flare","orca","ollama"
+  ];
+  const ids = [...new Set([...catalog, ...configuredProviders.map((p) => p.id)])];
   return ids.map((id) => {
-    const entry = configured.get(id);
-    const modelCount = entry?.models?.length || 0;
-    const configuredFlag = Boolean(entry?.provider?.configured) || has(id === "google" ? "GOOGLE_API_KEY" : id === "openai" ? "OPENAI_API_KEY" : id === "anthropic" ? "ANTHROPIC_API_KEY" : id === "openrouter" ? "OPENROUTER_API_KEY" : "API_KEY");
+    const live = discoveredMap.get(id);
+    const provider = configured.get(id);
+    const modelCount = live?.models?.length || 0;
+    const isConfigured = Boolean(provider?.apiKey);
     return {
       id,
-      name: entry?.provider?.name || id,
-      status: modelCount > 0 ? "healthy" : configuredFlag ? "degraded" : "configuration_error",
-      configured: configuredFlag,
+      name: provider?.name || live?.provider?.name || id,
+      status: modelCount > 0 ? "healthy" : isConfigured ? "degraded" : "configuration_error",
+      configured: isConfigured,
       modelCount,
-      models: (entry?.models || []).slice(0, 40).map((m) => ({ id: m.id, rank: m.rank, accessTier: m.accessTier })),
+      models: (live?.models || []).slice(0, 40).map((m) => ({ id: m.id, rank: m.rank, accessTier: m.accessTier })),
     };
   });
 }
