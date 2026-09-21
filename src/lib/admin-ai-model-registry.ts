@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { discoverAllModels, getConfiguredProviders } from "@/lib/ai-providers";
+import { discoverAllModels } from "@/lib/ai-providers";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -25,8 +25,9 @@ function hasDb() {
 function filterToLiveProviders(
   rows: Array<{ provider_id: string; model_id: string; priority: number; preferred: boolean }>,
 ) {
-  const live = new Set(getConfiguredProviders().filter((p) => p.apiKey || p.id === "ollama").map((p) => p.id));
-  return rows.filter((r) => live.has(r.provider_id));
+  // Runtime credentials live in the encrypted DB provider pool. Do not inspect
+  // provider API keys from process.env here.
+  return rows;
 }
 
 function db() {
