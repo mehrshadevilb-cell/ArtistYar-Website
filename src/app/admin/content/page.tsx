@@ -1,1 +1,104 @@
-PLACEHOLDER
+"use client";
+
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { BookOpen, FolderOpen, GraduationCap, LayoutGrid } from "lucide-react";
+import MediaPage from "../media/page";
+import FreeEducationPage from "../free-education/page";
+import EducationPage from "../education/page";
+
+type TabId = "media" | "free" | "courses";
+
+const TABS: { id: TabId; label: string; hint: string; icon: typeof FolderOpen }[] = [
+  { id: "media", label: "رسانه و گالری", hint: "نمونه‌کار · ProdBy · فایل‌های عمومی", icon: FolderOpen },
+  { id: "free", label: "آموزش رایگان", hint: "ویدیو، فصل، انتشار عمومی", icon: BookOpen },
+  { id: "courses", label: "دوره‌های آموزشی", hint: "اتصال ویدیو به Course / Lesson", icon: GraduationCap },
+];
+
+function tabFromQuery(raw: string | null): TabId {
+  const v = (raw || "").toLowerCase().trim();
+  if (v === "free" || v === "free-education" || v === "videos" || v === "video") return "free";
+  if (v === "courses" || v === "education" || v === "course") return "courses";
+  return "media";
+}
+
+function ContentHubInner() {
+  const search = useSearchParams();
+  const router = useRouter();
+  const initial = useMemo(() => tabFromQuery(search.get("tab")), [search]);
+  const [tab, setTab] = useState<TabId>(initial);
+
+  useEffect(() => {
+    setTab(tabFromQuery(search.get("tab")));
+  }, [search]);
+
+  function select(id: TabId) {
+    setTab(id);
+    const url = id === "media" ? "/admin/content" : `/admin/content?tab=${id}`;
+    router.replace(url, { scroll: false });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="eyebrow">/ مرکز محتوا</p>
+        <h2 className="mt-3 flex items-center gap-2 text-2xl font-semibold text-sand-50">
+          <LayoutGrid size={22} className="text-gold-400" />
+          مدیریت محتوا
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm leading-7 text-ink-400">
+          رسانه، آموزش رایگان و ویدیوهای دوره در یک پنل. لینک‌های قدیمی منو به همین‌جا منتقل شده‌اند.
+        </p>
+      </div>
+
+      <nav className="flex flex-wrap gap-2 border-b border-white/10 pb-3">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => select(t.id)}
+              className={`flex min-w-[140px] flex-col rounded-2xl border px-4 py-3 text-right transition ${
+                active
+                  ? "border-gold-400/40 bg-gold-400/10 text-gold-200"
+                  : "border-white/10 bg-black/10 text-ink-400 hover:border-white/20 hover:text-sand-50"
+              }`}
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <Icon size={16} />
+                {t.label}
+              </span>
+              <span className="mt-1 text-[11px] opacity-70">{t.hint}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className={tab === "media" ? "block" : "hidden"} aria-hidden={tab !== "media"}>
+        <MediaPage />
+      </div>
+      <div className={tab === "free" ? "block" : "hidden"} aria-hidden={tab !== "free"}>
+        <FreeEducationPage />
+      </div>
+      <div className={tab === "courses" ? "block" : "hidden"} aria-hidden={tab !== "courses"}>
+        <EducationPage />
+      </div>
+    </div>
+  );
+}
+
+export default function AdminContentHubPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-white/10 bg-black/10 p-8 text-sm text-ink-500">
+          در حال بارگذاری مرکز محتوا…
+        </div>
+      }
+    >
+      <ContentHubInner />
+    </Suspense>
+  );
+}
