@@ -69,7 +69,8 @@ export async function POST(request: Request) {
       admin_ai_empty_message: { message: "پیام خالی است.", status: 400 },
       admin_ai_provider_and_model_must_be_paired: { message: "Provider و Model باید با هم انتخاب شوند.", status: 400 },
       admin_ai_model_not_enabled_for_routing: { message: "این مدل برای مسیریابی فعال نیست.", status: 403 },
-      admin_ai_no_healthy_model: { message: "در حال حاضر هیچ مدل سالم و فعال برای دستیار وجود ندارد.", status: 503 },
+      admin_ai_no_healthy_model: { message: "در حال حاضر هیچ مدل سالم و فعال برای دستیار وجود ندارد. در تب مدل‌ها Sync بزن یا API key را در Render secrets چک کن.", status: 503 },
+      admin_ai_no_provider_configured: { message: "هیچ Providerی با API key روی سرور تنظیم نشده. روی Render حداقل OPENAI_API_KEY یا OPENROUTER_API_KEY یا ANTHROPIC_API_KEY بگذار.", status: 503 },
       admin_ai_all_models_failed: { message: "مدل‌های فعال در حال حاضر پاسخ‌گو نیستند.", status: 503 },
       admin_ai_empty_provider_result: { message: "پاسخ معتبری از مدل دریافت نشد.", status: 502 },
     };
