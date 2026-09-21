@@ -23,7 +23,20 @@ export async function GET(request: Request) {
     }
     return NextResponse.json({ ok: true, conversations: await listConversations(session.username) });
   } catch (error) {
-    console.error("admin assistant GET failed", error instanceof Error ? error.message : "unknown error");
+    const msg = error instanceof Error ? error.message : "unknown error";
+    console.error("admin assistant GET failed", msg);
+    if (msg === "admin_ai_storage_not_configured") {
+      return NextResponse.json({
+        ok: false,
+        error: "Supabase برای Admin AI تنظیم نشده (SUPABASE_URL + SUPABASE_SECRET_KEY).",
+      }, { status: 503 });
+    }
+    if (/relation .* does not exist|Could not find the table|PGRST/i.test(msg)) {
+      return NextResponse.json({
+        ok: false,
+        error: "جدول‌های Admin AI در Supabase وجود ندارد. migrationهای 20260920_admin_ai_*.sql را اجرا کنید.",
+      }, { status: 503 });
+    }
     return NextResponse.json({ ok: false, error: "ذخیره‌سازی دستیار مدیریت در دسترس نیست." }, { status: 503 });
   }
 }
