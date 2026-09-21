@@ -55,3 +55,18 @@ export async function runtimeAutoChat(
   }
   throw new Error("all_providers_failed:" + errors.slice(0, 8).join(" | "));
 }
+
+
+export async function runtimeGenerateJson(
+  prompt: string,
+  system = "Return only valid JSON.",
+  signal?: AbortSignal,
+) {
+  return runtimeAutoChat(
+    [{ role: "system", content: system }, { role: "user", content: prompt }],
+    undefined,
+    undefined,
+    "artistyar-runtime-json",
+    signal,
+  );
+}
