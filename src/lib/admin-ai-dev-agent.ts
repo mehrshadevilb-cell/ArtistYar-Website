@@ -40,33 +40,22 @@ function parseProposedFiles(text: string): FileChange[] {
 }
 
 async function runModel(messages: ChatMessage[], provider?: string, model?: string, signal?: AbortSignal) {
-  if (provider && model) {
-    try {
-      pushActivity("model", `مدل ${provider}/${model}`);
-      const result = await chatExactProviderModel(messages, provider, model, "rahyar-admin-dev", signal);
-      await recordAdminAiModelSuccess(provider, model);
-      return result;
-    } catch (error) {
-      await recordAdminAiModelFailure(provider, model, error);
-      throw error;
-    }
+  // Ranked auto-failover across every env API (preferred pair tried first inside autoChat)
+  try {
+    if (provider && model) pushActivity("model", `اولویت ${provider}/${model}`);
+    else pushActivity("model", "اسکن و رتبه‌بندی مدل‌های env…");
+    const result = await autoChat(messages, provider, model, "rahyar-admin-dev", signal);
+    await recordAdminAiModelSuccess(result.provider, result.model).catch(() => null);
+    pushActivity("done", `مدل فعال: ${result.provider}/${result.model}`);
+    return result;
+  } catch (error) {
+    if (provider && model) await recordAdminAiModelFailure(provider, model, error).catch(() => null);
+    pushActivity("error", error instanceof Error ? error.message : "all_models_failed");
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg === "no_provider_configured") throw new Error("admin_ai_no_healthy_model");
+    if (msg.startsWith("all_providers_failed:")) throw new Error("admin_ai_all_models_failed");
+    throw new Error("admin_ai_all_models_failed");
   }
-  const candidates = await listHealthyAdminAiModels(await listAdminAiRoutingCandidates());
-  if (!candidates.length) throw new Error("admin_ai_no_healthy_model");
-  let lastError: unknown;
-  for (const c of candidates.slice(0, 5)) {
-    try {
-      pushActivity("model", `سعی مدل ${c.provider_id}/${c.model_id}`);
-      const result = await autoChat(messages, c.provider_id, c.model_id, "rahyar-admin-dev", signal);
-      await recordAdminAiModelSuccess(c.provider_id, c.model_id);
-      return result;
-    } catch (error) {
-      lastError = error;
-      await recordAdminAiModelFailure(c.provider_id, c.model_id, error);
-      pushActivity("error", `مدل ${c.provider_id}/${c.model_id} شکست`, error instanceof Error ? error.message : "");
-    }
-  }
-  throw lastError || new Error("admin_ai_all_models_failed");
 }
 
 export async function runDevAgent(input: {
@@ -171,14 +160,18 @@ export async function runDevAgent(input: {
       r: PromiseFulfilledResult<Awaited<ReturnType<typeof runModel>>>;
       c: { provider_id: string; model_id: string };
     }>;
-    if (!fulfilled.length) throw new Error("admin_ai_all_models_failed");
-    primary = fulfilled[0].r.value;
-    for (const item of fulfilled) {
-      parallelSummaries.push({
-        provider: item.c.provider_id,
-        model: item.c.model_id,
-        summary: item.r.value.reply.slice(0, 1200),
-      });
+    if (!fulfilled.length) {
+      // fallback to single ranked autoChat
+      primary = await runModel(messages, input.provider, input.model, input.signal);
+    } else {
+      primary = fulfilled[0].r.value;
+      for (const item of fulfilled) {
+        parallelSummaries.push({
+          provider: item.c.provider_id,
+          model: item.c.model_id,
+          summary: item.r.value.reply.slice(0, 1200),
+        });
+      }
     }
   } else {
     primary = await runModel(messages, input.provider, input.model, input.signal);
