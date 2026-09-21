@@ -108,6 +108,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable} suppressHydrationWarning>
       <head>
+        {/* Explicit Enamad verification meta — must stay until panel confirms */}
+        <meta name="enamad" content="43325481" />
         {backend ? <link rel="preconnect" href={backend} crossOrigin="anonymous" /> : null}
       </head>
       <body className="font-sans antialiased">
