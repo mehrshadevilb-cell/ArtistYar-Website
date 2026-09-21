@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-auth";
-import { activatePrompt, controlUsage, createPrompt, listAgents, listControlProviders, listExecutions, listPrompts, listTasks, listTools, testControlProvider, upsertAgent, upsertTask, upsertTool } from "@/lib/admin-ai-control";
+import { activatePrompt, controlUsage, createPrompt, listAgents, runAdminAiPlayground, listControlProviders, listExecutions, listPrompts, listTasks, listTools, testControlProvider, upsertAgent, upsertTask, upsertTool } from "@/lib/admin-ai-control";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -33,6 +33,11 @@ export async function POST(request:Request){
  const session=await admin(); if(!session)return NextResponse.json({ok:false,error:"دسترسی مدیریت لازم است."},{status:401});
  try{
   const b=await request.json() as Record<string,unknown>, action=String(b.action||"");
+  if(action==="playground_run"){
+    const agentId=String(b.agentId||"").trim(), taskId=String(b.taskId||"").trim(), message=String(b.message||"").trim();
+    if(!agentId || !taskId || !message) return NextResponse.json({ok:false,error:"Agent، Task و پیام تست الزامی هستند."},{status:400});
+    return NextResponse.json({ok:true,result:await runAdminAiPlayground({adminUsername:session.username,agentId,taskId,message})});
+  }
   if(action==="test_provider"){const id=String(b.providerId||"").trim();if(!id)return NextResponse.json({ok:false,error:"provider لازم است."},{status:400});return NextResponse.json({ok:true,result:await testControlProvider(id)});}
   if(action==="task_upsert")return NextResponse.json({ok:true,task:await upsertTask(b)});
   if(action==="agent_upsert")return NextResponse.json({ok:true,agent:await upsertAgent(b)});
