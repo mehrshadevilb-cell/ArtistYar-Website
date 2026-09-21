@@ -107,7 +107,8 @@ export async function activatePrompt(id: string) {
   const current=await db().from("admin_ai_prompts").select("id,agent_id,task_id").eq("id",id).maybeSingle();
   if(current.error) throw current.error; if(!current.data) return null;
   const {agent_id,task_id}=current.data;
-  await db().from("admin_ai_prompts").update({active:false}).eq("agent_id",agent_id).eq("task_id",task_id);
+  const deactivate = await db().from("admin_ai_prompts").update({active:false}).eq("agent_id",agent_id).eq("task_id",task_id);
+  if (deactivate.error) throw deactivate.error;
   const r=await db().from("admin_ai_prompts").update({active:true,updated_at:new Date().toISOString()}).eq("id",id).select("*").single();
   if(r.error) throw r.error; return r.data;
 }
