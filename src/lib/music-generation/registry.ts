@@ -1,11 +1,12 @@
 /**
  * Music generation provider registry.
- * Register real adapters here. Free path + paid path without rewriting product.
+ * Prefer admin token pool, then env ElevenLabs, then stub (dev only).
  */
 
 import type { MusicGenerationProvider } from "./types";
 import { StubMusicProvider } from "./providers/stub";
 import { ElevenMusicProvider } from "./providers/elevenlabs";
+import { ConfigurableMusicProvider } from "./providers/configurable";
 
 const providers: MusicGenerationProvider[] = [];
 let initialized = false;
@@ -14,10 +15,13 @@ function ensureInit() {
   if (initialized) return;
   initialized = true;
 
-  // Paid / real provider first when configured
+  // 1) Admin-managed tokens (base URL + API key from panel)
+  providers.push(new ConfigurableMusicProvider());
+
+  // 2) Env-based ElevenLabs (optional fallback)
   providers.push(new ElevenMusicProvider());
 
-  // Stub only for architecture/dev (disabled in production unless MUSIC_GEN_ALLOW_STUB=1)
+  // 3) Stub only for architecture/dev
   providers.push(new StubMusicProvider());
 }
 

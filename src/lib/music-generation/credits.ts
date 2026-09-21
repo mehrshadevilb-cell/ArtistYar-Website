@@ -1,6 +1,7 @@
 /**
  * Credits accounting for User AI Music Generator.
- * Idempotent charge/refund — retries must not double-charge.
+ * Free: 3 generates without subscription (MUSIC_GEN_FREE_CREDITS default 3).
+ * Paid: purchase grants more credits (reason=purchase).
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -12,7 +13,8 @@ function db(): SupabaseClient {
   return createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
-const FREE_GRANT_ON_FIRST_TOUCH = Number(process.env.MUSIC_GEN_FREE_CREDITS || "10");
+/** Users without subscription get this many free generation credits. */
+const FREE_GRANT_ON_FIRST_TOUCH = Number(process.env.MUSIC_GEN_FREE_CREDITS || "3");
 
 export async function ensureCreditAccount(userId: string): Promise<{ balance: number }> {
   const client = db();
@@ -36,7 +38,6 @@ export async function ensureCreditAccount(userId: string): Promise<{ balance: nu
     .single();
 
   if (inserted.error) {
-    // race: another request created the row
     const again = await client
       .from("ai_music_generation_credits")
       .select("balance")
@@ -67,10 +68,6 @@ export async function getBalance(userId: string): Promise<number> {
   return balance;
 }
 
-/**
- * Charge credits. Same idempotencyKey → no double charge.
- * Returns { ok, balance, charged }.
- */
 export async function chargeCredits(input: {
   userId: string;
   amount: number;
@@ -86,7 +83,6 @@ export async function chargeCredits(input: {
   const client = db();
   await ensureCreditAccount(input.userId);
 
-  // Already applied?
   const prior = await client
     .from("ai_music_generation_credit_ledger")
     .select("id, balance_after, delta")
@@ -118,12 +114,11 @@ export async function chargeCredits(input: {
     .from("ai_music_generation_credits")
     .update({ balance: next, lifetime_spent: lifetimeSpent, updated_at: new Date().toISOString() })
     .eq("user_id", input.userId)
-    .eq("balance", balance) // optimistic lock
+    .eq("balance", balance)
     .select("balance")
     .maybeSingle();
 
   if (!upd.data) {
-    // concurrent charge — retry once via re-read
     return chargeCredits(input);
   }
 
@@ -190,9 +185,65 @@ export async function refundCredits(input: {
   return { ok: true, balance: next };
 }
 
-/** Default credit cost for a generation (can be tuned by duration/quality later). */
+/** Grant credits after payment (idempotent by paymentId). */
+export async function grantPurchaseCredits(input: {
+  userId: string;
+  amount: number;
+  paymentId: string;
+}): Promise<{ ok: boolean; balance: number }> {
+  const amount = Math.max(0, Math.floor(Number(input.amount) || 0));
+  if (amount <= 0) return { ok: false, balance: await getBalance(input.userId) };
+
+  const client = db();
+  await ensureCreditAccount(input.userId);
+  const idempotencyKey = `purchase:${input.paymentId}`;
+
+  const prior = await client
+    .from("ai_music_generation_credit_ledger")
+    .select("id, balance_after")
+    .eq("user_id", input.userId)
+    .eq("idempotency_key", idempotencyKey)
+    .maybeSingle();
+  if (prior.data) {
+    return { ok: true, balance: Number(prior.data.balance_after) || 0 };
+  }
+
+  const current = await client
+    .from("ai_music_generation_credits")
+    .select("balance, lifetime_granted")
+    .eq("user_id", input.userId)
+    .single();
+  if (current.error) throw new Error(current.error.message);
+
+  const balance = Number(current.data.balance) || 0;
+  const next = balance + amount;
+  const lifetimeGranted = (Number(current.data.lifetime_granted) || 0) + amount;
+
+  await client
+    .from("ai_music_generation_credits")
+    .update({
+      balance: next,
+      lifetime_granted: lifetimeGranted,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", input.userId);
+
+  await client.from("ai_music_generation_credit_ledger").insert({
+    user_id: input.userId,
+    delta: amount,
+    reason: "purchase",
+    balance_after: next,
+    idempotency_key: idempotencyKey,
+  });
+
+  return { ok: true, balance: next };
+}
+
+/** 1 credit ≈ 1 short generation; longer clips cost more. */
 export function estimateGenerationCredits(durationMs?: number): number {
   if (!durationMs || durationMs <= 15_000) return 1;
   if (durationMs <= 45_000) return 2;
   return 3;
 }
+
+export const FREE_GENERATION_CREDITS = FREE_GRANT_ON_FIRST_TOUCH;
