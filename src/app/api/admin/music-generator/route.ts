@@ -121,7 +121,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: false, error: "userId و amount لازم است" }, { status: 400 });
       }
       const result = await grantPurchaseCredits({ userId, amount, paymentId });
-      return NextResponse.json({ ok: true, ...result });
+      return NextResponse.json({ ...result, ok: true });
     }
 
     return NextResponse.json({ ok: false, error: "unknown action" }, { status: 400 });
