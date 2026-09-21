@@ -114,6 +114,7 @@ export default function AdminAiPlatformPage() {
   const [controlData, setControlData] = useState<ControlRecord[]>([]);
   const [controlSection, setControlSection] = useState("providers");
   const [controlBusy, setControlBusy] = useState(false);
+  const [promptDraft, setPromptDraft] = useState({agent_id:"admin-assistant",task_id:"chat",version:"1",system_prompt:"",developer_instructions:"",user_template:"",changelog:""});
   const hashSynced = useRef(false);
   const sectionRequestRef = useRef(0);
 
@@ -286,6 +287,17 @@ export default function AdminAiPlatformPage() {
     } catch (e) {
       setPlatformError(e instanceof Error ? e.message : "خطا");
     }
+  }
+
+  async function createControlPrompt() {
+    if (!promptDraft.system_prompt.trim()) return;
+    setControlBusy(true);
+    try {
+      await control(undefined, { action:"prompt_create", ...promptDraft, version:Number(promptDraft.version||1), author:"admin" });
+      setPromptDraft((p)=>({...p,version:String(Number(p.version||1)+1),system_prompt:"",developer_instructions:"",user_template:"",changelog:""}));
+      await loadSection("control");
+    } catch(e) { setPlatformError(e instanceof Error ? e.message : "خطا"); }
+    finally { setControlBusy(false); }
   }
 
   async function saveMemory() {
@@ -610,7 +622,25 @@ export default function AdminAiPlatformPage() {
               })}
             </div>
           ) : null}
-          {controlSection === "tasks" || controlSection === "agents" || controlSection === "prompts" || controlSection === "tools" || controlSection === "executions" ? (
+          {controlSection === "prompts" ? (
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
+              <h3 className="text-sm font-medium text-sand-50">نسخه جدید Prompt</h3>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <input value={promptDraft.agent_id} onChange={e=>setPromptDraft(p=>({...p,agent_id:e.target.value}))} placeholder="Agent ID" className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
+                <input value={promptDraft.task_id} onChange={e=>setPromptDraft(p=>({...p,task_id:e.target.value}))} placeholder="Task ID" className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
+                <input value={promptDraft.version} onChange={e=>setPromptDraft(p=>({...p,version:e.target.value}))} placeholder="Version" className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
+              </div>
+              <textarea value={promptDraft.system_prompt} onChange={e=>setPromptDraft(p=>({...p,system_prompt:e.target.value}))} placeholder="System prompt" rows={5} className="w-full rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-sand-50" />
+              <textarea value={promptDraft.developer_instructions} onChange={e=>setPromptDraft(p=>({...p,developer_instructions:e.target.value}))} placeholder="Developer instructions" rows={3} className="w-full rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-sand-50" />
+              <textarea value={promptDraft.user_template} onChange={e=>setPromptDraft(p=>({...p,user_template:e.target.value}))} placeholder="User template (optional)" rows={2} className="w-full rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-sand-50" />
+              <div className="flex items-center gap-2">
+                <input value={promptDraft.changelog} onChange={e=>setPromptDraft(p=>({...p,changelog:e.target.value}))} placeholder="Changelog" className="flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
+                <button type="button" onClick={createControlPrompt} disabled={controlBusy || !promptDraft.system_prompt.trim()} className="btn-primary !py-2 text-xs">ثبت نسخه</button>
+              </div>
+              <p className="text-[10px] text-ink-600">نسخه جدید ابتدا غیرفعال است؛ فعال‌سازی باید صریح انجام شود.</p>
+            </div>
+          ) : null}
+          {controlSection === "tasks" || controlSection === "agents" || controlSection === "tools" || controlSection === "executions" ? (
             <div className="space-y-2">
               {controlData.length ? controlData.map((row,index)=><pre key={String(row.id||index)} className="overflow-auto rounded-xl border border-white/10 bg-black/10 p-3 text-[11px] leading-5 text-ink-300">{JSON.stringify(row,null,2)}</pre>) : <div className="rounded-xl border border-white/10 p-4 text-xs text-ink-500">داده‌ای وجود ندارد یا migration هنوز اجرا نشده است.</div>}
             </div>
