@@ -60,7 +60,9 @@ export async function GET(request: Request) {
     if (msg.includes("supabase_not_configured")) {
       return NextResponse.json({ ok: false, error: "Supabase پیکربندی نشده" }, { status: 503 });
     }
-    console.error("admin music-generator failed", msg);\n    if (/api.?key|token|secret|password|authorization|bearer/i.test(msg)) return NextResponse.json({ ok: false, error: "عملیات ناموفق بود؛ جزئیات حساس نمایش داده نشد." }, { status: 502 });\n    return NextResponse.json({ ok: false, error: msg.slice(0, 240) || "عملیات ناموفق بود." }, { status: 502 });
+    console.error("admin music-generator failed", msg);
+    if (/api.?key|token|secret|password|authorization|bearer/i.test(msg)) return NextResponse.json({ ok: false, error: "عملیات ناموفق بود؛ جزئیات حساس نمایش داده نشد." }, { status: 502 });
+    return NextResponse.json({ ok: false, error: msg.slice(0, 240) || "عملیات ناموفق بود." }, { status: 502 });
   }
 }
 
@@ -127,6 +129,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "unknown action" }, { status: 400 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "error";
-    console.error("admin music-generator failed", msg);\n    if (/api.?key|token|secret|password|authorization|bearer/i.test(msg)) return NextResponse.json({ ok: false, error: "عملیات ناموفق بود؛ جزئیات حساس نمایش داده نشد." }, { status: 502 });\n    return NextResponse.json({ ok: false, error: msg.slice(0, 240) || "عملیات ناموفق بود." }, { status: 502 });
+    console.error("admin music-generator failed", msg);
+    if (/api.?key|token|secret|password|authorization|bearer/i.test(msg)) return NextResponse.json({ ok: false, error: "عملیات ناموفق بود؛ جزئیات حساس نمایش داده نشد." }, { status: 502 });
+    return NextResponse.json({ ok: false, error: msg.slice(0, 240) || "عملیات ناموفق بود." }, { status: 502 });
   }
 }
