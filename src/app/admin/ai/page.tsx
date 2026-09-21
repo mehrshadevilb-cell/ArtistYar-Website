@@ -86,6 +86,18 @@ function hashForTab(id: Tab): string {
   return `#${id}`;
 }
 
+function ControlEditor({title,fields,onSave}:{title:string;id:string;fields:string[];onSave:(data:Record<string,string>)=>Promise<void>}) {
+  const [data,setData]=useState<Record<string,string>>({});
+  const [busy,setBusy]=useState(false);
+  return <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+    <h3 className="mb-3 text-sm font-medium text-sand-50">{title}</h3>
+    <div className="grid gap-2 sm:grid-cols-2">
+      {fields.map((field)=><input key={field} value={data[field]||""} onChange={e=>setData(v=>({...v,[field]:e.target.value}))} placeholder={field} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />)}
+    </div>
+    <button type="button" disabled={busy || !data.id || !data.name} onClick={async()=>{setBusy(true);try{await onSave(data);setData({});}finally{setBusy(false);}}} className="btn-primary mt-3 !py-2 text-xs">{busy?"در حال ذخیره…":"ذخیره"}</button>
+  </div>;
+}
+
 export default function AdminAiPlatformPage() {
   const [tab, setTab] = useState<Tab>("chat");
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -628,6 +640,15 @@ export default function AdminAiPlatformPage() {
                 </div>
               })}
             </div>
+          ) : null}
+          {controlSection === "tasks" ? (
+            <ControlEditor title="Task Registry" id="task" fields={["id","name","description","capability","primary_provider","primary_model","fallback_provider","fallback_model"]} onSave={async (data)=>{await control(undefined,{action:"task_upsert",...data,max_retries:Number(data.max_retries||2),timeout_ms:Number(data.timeout_ms||45000),enabled:true});await loadSection("control");}} />
+          ) : null}
+          {controlSection === "agents" ? (
+            <ControlEditor title="Agent Registry" id="agent" fields={["id","name","description","purpose","task_id","primary_provider","primary_model","fallback_provider","fallback_model","system_prompt"]} onSave={async (data)=>{await control(undefined,{action:"agent_upsert",...data,enabled:true,version:1});await loadSection("control");}} />
+          ) : null}
+          {controlSection === "tools" ? (
+            <ControlEditor title="Tool Registry" id="tool" fields={["id","name","description","permission_level","timeout_ms"]} onSave={async (data)=>{await control(undefined,{action:"tool_upsert",...data,enabled:false,timeout_ms:Number(data.timeout_ms||10000)});await loadSection("control");}} />
           ) : null}
           {controlSection === "prompts" ? (
             <div className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
