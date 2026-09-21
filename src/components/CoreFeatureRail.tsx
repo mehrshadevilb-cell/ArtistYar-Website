@@ -33,14 +33,14 @@ const coreFeatures = [
     soon: false,
   },
   {
-    href: "#",
+    href: "/ai-music",
     eyebrow: "04 · AI CREATE",
     title: "AI Music Generator",
-    body: "ساخت ایده و جهت‌گیری موسیقی با هوش مصنوعی — به‌زودی فعال می‌شود.",
+    body: "ریف، بیس‌لاین، ملودی و فیل درام را با زبان طبیعی بخواه و بشنو.",
     icon: Wand2,
     tone: "violet",
-    cta: "به‌زودی",
-    soon: true,
+    cta: "شروع تولید",
+    soon: false,
   },
 ] as const;
 
