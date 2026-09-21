@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { autoChat, getConfiguredProviders, type ChatMessage } from "@/lib/ai-providers";
+import { type ChatMessage } from "@/lib/ai-providers";
+import { runtimeAutoChat } from "@/lib/ai-runtime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
