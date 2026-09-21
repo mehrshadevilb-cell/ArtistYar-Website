@@ -35,7 +35,7 @@ const vazirmatn = Vazirmatn({
 const backend = (process.env.RAHYAR_API_URL || "").replace(/\/$/, "");
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
 
-export const metadata: Metadata = {
+export const metadata: Metadata = {\n  other: { enamad: "43325481" },
   title: {
     default: "43325481",
     template: "%s | ArtistYar",
