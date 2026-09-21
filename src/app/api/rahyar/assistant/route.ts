@@ -104,15 +104,18 @@ export async function POST(request: Request) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+      const raw = String(data.reply || data.error || data.detail || "").trim();
+      const lower = raw.toLowerCase();
+      const providerUnavailable =
+        /no credits|credits|insufficient|quota|billing|balance|payment required|provider unavailable|provider_unavailable/i.test(lower);
       const msg =
-        data.reply ||
-        data.error ||
-        data.detail ||
-        (res.status === 429
-          ? "محدودیت نرخ پاسخ. کمی بعد دوباره تلاش کنید."
-          : res.status >= 500
-            ? "سرویس بک‌اند موقتاً در دسترس نیست."
-            : `خطا (${res.status})`);
+        providerUnavailable
+          ? "مدل فعلی اعتبار یا سهمیه کافی ندارد و باید به مدل/Provider دیگری منتقل شود."
+          : res.status === 429
+            ? "محدودیت نرخ پاسخ. کمی بعد دوباره تلاش کنید."
+            : res.status >= 500
+              ? "سرویس راه‌یار موقتاً در دسترس نیست؛ مسیر جایگزین AI باید فعال باشد."
+              : raw || `خطا (${res.status})`;
       return NextResponse.json(
         { ok: false, error: msg, reply: msg },
         { status: res.status >= 500 ? 502 : res.status },
