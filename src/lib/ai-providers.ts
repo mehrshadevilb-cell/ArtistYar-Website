@@ -103,7 +103,7 @@ export function getConfiguredProviders(): AIProvider[] {
   pushOpenAICompat(providers, "bytez", "Bytez", env("BYTEZ_API_KEY") || env("BYTEZ_KEY"), env("BYTEZ_BASE_URL") || "https://api.bytez.com/models/v2/openai/v1", [env("BYTEZ_MODEL") || "Qwen/Qwen2.5-72B-Instruct"]);
   const ollamaBase = env("OLLAMA_BASE_URL") || env("OLLAMA_HOST") || (env("OLLAMA_API_KEY") || env("OLLAMA_ENABLED") === "1" ? "http://127.0.0.1:11434/v1" : "");
   pushOpenAICompat(providers, "ollama", "Ollama", env("OLLAMA_API_KEY") || "ollama", ollamaBase, env("OLLAMA_MODEL") ? [env("OLLAMA_MODEL")] : ["llama3.2"]);
-  pushOpenAICompat(providers, "deepseek", "DeepSeek", env("DEEPSEEK_API_KEY"), env("DEEPSEEK_BASE_URL") || "https://api.deepseek.com", ["deepseek-chat", "deepseek-reasoner"]);
+  pushOpenAICompat(providers, "deepseek", "DeepSeek", env("DEEPSEEK_API_KEY"), env("DEEPSEEK_BASE_URL") || "https://api.deepseek.com/v1", ["deepseek-chat", "deepseek-reasoner"]);
   pushOpenAICompat(providers, "mistral", "Mistral", env("MISTRAL_API_KEY"), env("MISTRAL_BASE_URL") || "https://api.mistral.ai/v1", ["mistral-large-latest"]);
   pushOpenAICompat(providers, "together", "Together", env("TOGETHER_API_KEY"), "https://api.together.xyz/v1");
   pushOpenAICompat(providers, "fireworks", "Fireworks", env("FIREWORKS_API_KEY"), "https://api.fireworks.ai/inference/v1");
@@ -176,7 +176,8 @@ async function readJson(response: Response): Promise<any> {
 
 function rankForModel(id: string): number {
   const lower = id.toLowerCase();
-  if (/gpt-4o(?!-mini)|claude-sonnet|gemini-2\.5-pro|o3|gpt-4\.1(?!-)/.test(lower)) return 100;
+  if (/gpt-4o(?!-mini)|gpt-4\.1(?!-)|claude-sonnet|gemini-2\.5-pro|o3|o4/.test(lower)) return 100;
+  if (/gpt-4o-mini|gpt-4\.1-mini|claude-3-5|gemini-2\.5-flash|gemini-2\.0|deepseek|llama-3\.3|70b/.test(lower)) return 90;
   if (/mini|flash|haiku|nano/.test(lower)) return 70;
   if (/gpt|claude|gemini|llama|qwen|kimi|deepseek|grok/.test(lower)) return 85;
   return 50;
@@ -230,12 +231,10 @@ export async function discoverModels(provider: AIProvider, options: { allowFallb
     });
     if (!response.ok) return allowFallback ? fallback(provider.defaultModels || []) : [];
     const data = await readJson(response);
-    const raw = [
-      ...(data?.data || []).map((i: any) => i.id),
-      ...(data?.result || []).map((i: any) => i.id || i.name),
-      ...(data?.models || []).map((i: any) => i.name || i.model),
-    ].filter(Boolean);
-    const models = raw.map((id: string) => ({ id, provider: provider.id, task: "chat" as const, rank: rankForModel(id) }));
+    const models = (data?.data || data?.models || [])
+      .map((m: any) => (typeof m === "string" ? m : m.id || m.name))
+      .filter(Boolean)
+      .map((id: string) => ({ id: String(id), provider: provider.id, task: "chat" as const, rank: rankForModel(String(id)) }));
     return models.length ? models.slice(0, 40) : fallback(provider.defaultModels || []);
   } catch {
     return allowFallback ? fallback(provider.defaultModels || []) : [];
@@ -244,9 +243,6 @@ export async function discoverModels(provider: AIProvider, options: { allowFallb
 
 export async function discoverAllModels(options: { allowFallback?: boolean } = {}) {
   const providers = getConfiguredProviders();
-  if (!providers.length) {
-    return [{ provider: { id: "none", name: "No provider configured", configured: false }, models: [] as AIModel[] }];
-  }
   return Promise.all(
     providers.map(async (provider) => ({
       provider: { id: provider.id, name: provider.name, configured: Boolean(provider.apiKey) },
@@ -347,9 +343,17 @@ export async function chatExactProviderModel(
   _clientId = "artistyar-web",
   signal?: AbortSignal,
 ): Promise<{ reply: string; provider: string; model: string }> {
-  const provider = getConfiguredProviders().find((p) => p.id === providerId);
-  if (!provider) throw new Error(`provider_not_found:${providerId}`);
+  const providers = getConfiguredProviders();
+  const provider = providers.find((p) => p.id === providerId);
+  if (!provider) {
+    const available = providers.map((p) => p.id).join(",") || "none";
+    throw new Error(`provider_not_found:${providerId};available:${available}`);
+  }
+  if (!provider.apiKey && provider.id !== "ollama") {
+    throw new Error(`provider_missing_key:${providerId}`);
+  }
   const reply = await chatWithProvider(provider, modelId, messages, signal);
+  if (!reply?.trim()) throw new Error("empty_reply");
   return { reply, provider: providerId, model: modelId };
 }
 
@@ -363,16 +367,35 @@ export async function autoChat(
   if (preferredProvider && preferredModel) {
     return chatExactProviderModel(messages, preferredProvider, preferredModel, _clientId, signal);
   }
-  const providers = getConfiguredProviders().filter((p) => p.apiKey);
+  const providers = getConfiguredProviders().filter((p) => Boolean(p.apiKey));
   if (!providers.length) throw new Error("no_provider_configured");
   const errors: string[] = [];
   for (const provider of providers) {
-    const models = provider.defaultModels?.length
-      ? provider.defaultModels
-      : (await discoverModels(provider)).map((m) => m.id);
-    for (const model of models.slice(0, 3)) {
+    if (signal?.aborted) throw new Error("aborted");
+    const tried = new Set<string>();
+    const queue: string[] = [];
+    for (const m of provider.defaultModels || []) {
+      if (m && !tried.has(m)) {
+        tried.add(m);
+        queue.push(m);
+      }
+    }
+    if (queue.length < 2) {
+      try {
+        for (const m of await discoverModels(provider, { allowFallback: true })) {
+          if (m.id && !tried.has(m.id)) {
+            tried.add(m.id);
+            queue.push(m.id);
+          }
+        }
+      } catch (e) {
+        errors.push(`${provider.id}/discover: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    for (const model of queue.slice(0, 5)) {
       try {
         const reply = await chatWithProvider(provider, model, messages, signal);
+        if (!reply?.trim()) throw new Error("empty_reply");
         return { reply, provider: provider.id, model };
       } catch (e) {
         errors.push(`${provider.id}/${model}: ${e instanceof Error ? e.message : String(e)}`);
@@ -380,5 +403,25 @@ export async function autoChat(
       }
     }
   }
-  throw new Error(`هیچ مدل زنده‌ای پاسخ نداد. ${errors.slice(0, 5).join(" | ")}`);
+  const detail = errors.slice(0, 6).join(" | ") || "unknown";
+  throw new Error(`all_providers_failed:${detail.slice(0, 500)}`);
+}
+
+/** Safe status for admin UI — never returns secrets */
+export function listProviderStatus(): Array<{
+  id: string;
+  name: string;
+  hasKey: boolean;
+  baseUrl: string;
+  chatStyle: string;
+  defaultModels: string[];
+}> {
+  return getConfiguredProviders().map((p) => ({
+    id: p.id,
+    name: p.name,
+    hasKey: Boolean(p.apiKey),
+    baseUrl: p.baseUrl,
+    chatStyle: p.chatStyle,
+    defaultModels: (p.defaultModels || []).slice(0, 5),
+  }));
 }

@@ -117,7 +117,6 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
       ? [controlPrimary, ...(controlFallback ? [controlFallback] : [])]
       : (await listHealthyAdminAiModels(routing)).map((candidate) => ({ provider: candidate.provider_id, model: candidate.model_id }));
 
-    // If health cooldown filtered everything out, still try the full routing list
     if (!candidates.length && routing.length) {
       candidates = routing.map((c) => ({ provider: c.provider_id, model: c.model_id }));
     }
@@ -148,7 +147,6 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
       }
     }
 
-    // Last resort: walk every configured provider/default model (no registry required)
     if (!completed) {
       try {
         result = await autoChat(
@@ -169,7 +167,16 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
       }
     }
 
-    if (!completed) throw lastError || new Error("admin_ai_all_models_failed");
+    if (!completed) {
+      const detail = lastError instanceof Error ? lastError.message : String(lastError || "");
+      if (detail === "no_provider_configured" || detail === "admin_ai_no_provider_configured") {
+        throw new Error("admin_ai_no_provider_configured");
+      }
+      if (detail.startsWith("all_providers_failed:")) {
+        throw new Error(`admin_ai_all_models_failed:${detail.slice("all_providers_failed:".length)}`);
+      }
+      throw new Error(`admin_ai_all_models_failed:${detail.slice(0, 400)}`);
+    }
   }
 
   const completedResult = result;

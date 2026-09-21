@@ -64,17 +64,29 @@ export async function POST(request: Request) {
     if (request.signal.aborted || (error instanceof Error && error.message === "admin_ai_generation_stopped")) return new NextResponse(null, { status: 499 });
     console.error("admin assistant POST failed", error instanceof Error ? error.message : "unknown error");
     const code = error instanceof Error ? error.message : "";
+    if (code.startsWith("admin_ai_all_models_failed:")) {
+      const detail = code.slice("admin_ai_all_models_failed:".length).trim();
+      return NextResponse.json({
+        ok: false,
+        error: detail
+          ? `همه مدل‌ها پاسخ ندادند. جزئیات: ${detail.slice(0, 350)}`
+          : "مدل‌های فعال پاسخ‌گو نیستند. API key و base URL را در secrets چک کن.",
+      }, { status: 503 });
+    }
+    if (code.startsWith("provider_not_found:")) {
+      return NextResponse.json({ ok: false, error: `Provider در env پیدا نشد (${code}). Sync مدل‌ها را بزن یا کلید API را ست کن.` }, { status: 503 });
+    }
     const known: Record<string, { message: string; status: number }> = {
       admin_ai_conversation_not_found: { message: "گفتگو پیدا نشد.", status: 404 },
       admin_ai_empty_message: { message: "پیام خالی است.", status: 400 },
       admin_ai_provider_and_model_must_be_paired: { message: "Provider و Model باید با هم انتخاب شوند.", status: 400 },
       admin_ai_model_not_enabled_for_routing: { message: "این مدل برای مسیریابی فعال نیست.", status: 403 },
-      admin_ai_no_healthy_model: { message: "در حال حاضر هیچ مدل سالم و فعال برای دستیار وجود ندارد. در تب مدل‌ها Sync بزن یا API key را در Render secrets چک کن.", status: 503 },
-      admin_ai_no_provider_configured: { message: "هیچ Providerی با API key روی سرور تنظیم نشده. روی Render حداقل OPENAI_API_KEY یا OPENROUTER_API_KEY یا ANTHROPIC_API_KEY بگذار.", status: 503 },
-      admin_ai_all_models_failed: { message: "مدل‌های فعال در حال حاضر پاسخ‌گو نیستند.", status: 503 },
+      admin_ai_no_healthy_model: { message: "هیچ مدل سالمی نیست. تب مدل‌ها → Sync از env، و API key را در Cloudflare/Render Secrets چک کن.", status: 503 },
+      admin_ai_no_provider_configured: { message: "هیچ Provider با API key روی سرور نیست. روی Cloudflare Worker / Render حداقل یکی از OPENAI_API_KEY، OPENROUTER_API_KEY، ANTHROPIC_API_KEY، GROQ_API_KEY را بگذار.", status: 503 },
+      admin_ai_all_models_failed: { message: "مدل‌های فعال پاسخ‌گو نیستند. کلید API یا نام مدل اشتباه است.", status: 503 },
       admin_ai_empty_provider_result: { message: "پاسخ معتبری از مدل دریافت نشد.", status: 502 },
     };
     const mapped = known[code];
-    return mapped ? NextResponse.json({ ok: false, error: mapped.message }, { status: mapped.status }) : NextResponse.json({ ok: false, error: "اجرای درخواست دستیار مدیریت ناموفق بود." }, { status: 502 });
+    return mapped ? NextResponse.json({ ok: false, error: mapped.message }, { status: mapped.status }) : NextResponse.json({ ok: false, error: code && code.length < 300 ? code : "اجرای درخواست دستیار مدیریت ناموفق بود." }, { status: 502 });
   }
 }
