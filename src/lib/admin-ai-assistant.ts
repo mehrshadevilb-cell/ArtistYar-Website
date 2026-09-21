@@ -73,6 +73,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
   await executionStart({requestId,adminUsername,metadata:{conversationId}});
+  try {
   const conversation = await getConversation(adminUsername, conversationId);
   if (!conversation) throw new Error("admin_ai_conversation_not_found");
   const userContent = content.trim().slice(0, 16000);
@@ -148,5 +149,15 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
     estimated_cost_usd:executionCost(inputTokens,outputTokens,completedResult.model), fallback_used:fallbackUsed
   });
   await audit(adminUsername, "message_completed", conversationId, { provider: completedResult.provider, model: completedResult.model, requestId });
+  await executionFinish(requestId,{status:"success",latency_ms:Date.now()-startedAt});
   return { ...assistantInsert.data, request_id: requestId };
+  } catch (error) {
+    await executionFinish(requestId,{
+      status:"failed",
+      error_type:"runtime_error",
+      error_message:String(error instanceof Error ? error.message : error).slice(0,500),
+      latency_ms:Date.now()-startedAt
+    });
+    throw error;
+  }
 }
