@@ -29,8 +29,19 @@ export async function createConversation(adminUsername: string) {
 }
 
 export async function listConversations(adminUsername: string) {
+  if (!supabase) {
+    console.warn("admin_ai_conversations: storage not configured — empty list");
+    return [];
+  }
   const result = await db().from("admin_ai_conversations").select("id,title,archived,created_at,updated_at").eq("admin_username", adminUsername).order("updated_at", { ascending: false }).limit(100);
-  if (result.error) throw result.error;
+  if (result.error) {
+    const msg = result.error.message || "";
+    if (/relation .* does not exist|Could not find the table|PGRST/i.test(msg)) {
+      console.error("admin_ai_conversations table missing — run migration 20260920_admin_ai_assistant.sql", msg);
+      return [];
+    }
+    throw result.error;
+  }
   return result.data || [];
 }
 
