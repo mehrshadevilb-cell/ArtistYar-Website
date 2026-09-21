@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 type JobView = {
   id: string;
@@ -30,6 +30,8 @@ const EXAMPLES = [
   "یک melody روی Am، ۸ میزان، مناسب vocal topline",
 ];
 
+const TERMINAL = new Set(["completed", "failed", "cancelled", "expired"]);
+
 function statusLabel(s: string): string {
   const map: Record<string, string> = {
     queued: "در صف",
@@ -55,6 +57,14 @@ export function MusicGeneratorClient() {
   const [error, setError] = useState<string | null>(null);
   const [job, setJob] = useState<JobView | null>(null);
   const [library, setLibrary] = useState<JobView[]>([]);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
 
   const loadLibrary = useCallback(async () => {
     try {
@@ -68,12 +78,48 @@ export function MusicGeneratorClient() {
 
   useEffect(() => {
     void loadLibrary();
-  }, [loadLibrary]);
+    return () => stopPolling();
+  }, [loadLibrary, stopPolling]);
+
+  const pollJob = useCallback(
+    (jobId: string) => {
+      stopPolling();
+      let ticks = 0;
+      pollRef.current = setInterval(async () => {
+        ticks += 1;
+        if (ticks > 90) {
+          stopPolling();
+          setBusy(false);
+          setError("زمان انتظار تمام شد. وضعیت را از کتابخانه بررسی کنید.");
+          return;
+        }
+        try {
+          const res = await fetch(`/api/music/generations/${jobId}`, {
+            credentials: "include",
+            cache: "no-store",
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok || !data.job) return;
+          const next = data.job as JobView;
+          setJob(next);
+          if (TERMINAL.has(next.status)) {
+            stopPolling();
+            setBusy(false);
+            void loadLibrary();
+          }
+        } catch {
+          /* keep polling */
+        }
+      }, 2000);
+    },
+    [loadLibrary, stopPolling],
+  );
 
   async function onGenerate() {
     setError(null);
     setBusy(true);
     setJob(null);
+    stopPolling();
     try {
       const body: Record<string, unknown> = { prompt: prompt.trim() };
       if (bpm) body.bpm = Number(bpm);
@@ -90,14 +136,29 @@ export function MusicGeneratorClient() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        setError(data.error || (res.status === 401 ? "برای تولید وارد شوید." : "خطا در تولید"));
+        setError(
+          data.error ||
+            (res.status === 401
+              ? "برای تولید وارد شوید."
+              : res.status === 402
+                ? "اعتبار کافی نیست."
+                : "خطا در تولید"),
+        );
+        setBusy(false);
         return;
       }
-      setJob(data.job as JobView);
+      const created = data.job as JobView;
+      setJob(created);
       void loadLibrary();
+
+      if (TERMINAL.has(created.status)) {
+        setBusy(false);
+      } else {
+        // Async path: keep polling until terminal state
+        pollJob(created.id);
+      }
     } catch {
       setError("ارتباط با سرور برقرار نشد.");
-    } finally {
       setBusy(false);
     }
   }
@@ -220,7 +281,9 @@ export function MusicGeneratorClient() {
           ) : job.errorMessage ? (
             <p className="text-sm text-red-500">{job.errorMessage}</p>
           ) : (
-            <p className="text-sm text-[var(--muted)]">در حال پردازش… می‌توانید صفحه را رفرش کنید؛ وضعیت ذخیره می‌شود.</p>
+            <p className="text-sm text-[var(--muted)]">
+              در حال پردازش… وضعیت هر ۲ ثانیه به‌روز می‌شود.
+            </p>
           )}
         </section>
       )}
