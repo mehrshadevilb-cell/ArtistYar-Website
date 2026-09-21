@@ -36,7 +36,6 @@ export async function POST(request:Request){
   if(action==="test_provider"){const id=String(b.providerId||"").trim();if(!id)return NextResponse.json({ok:false,error:"provider لازم است."},{status:400});return NextResponse.json({ok:true,result:await testControlProvider(id)});}
   if(action==="task_upsert")return NextResponse.json({ok:true,task:await upsertTask(b)});
   if(action==="agent_upsert")return NextResponse.json({ok:true,agent:await upsertAgent(b)});
-  if(action==="task_upsert")return NextResponse.json({ok:true,task:await upsertTask(b)});
   if(action==="prompt_create")return NextResponse.json({ok:true,prompt:await createPrompt(b)});
   if(action==="prompt_activate"){const id=String(b.id||"");if(!id)return NextResponse.json({ok:false,error:"شناسه prompt لازم است."},{status:400});const prompt=await activatePrompt(id);return prompt?NextResponse.json({ok:true,prompt}):NextResponse.json({ok:false,error:"prompt پیدا نشد."},{status:404});}
   if(action==="tool_upsert")return NextResponse.json({ok:true,tool:await upsertTool(b)});
