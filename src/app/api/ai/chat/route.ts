@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { autoChat, type ChatMessage } from "@/lib/ai-providers";
+import { autoChat, getConfiguredProviders, type ChatMessage } from "@/lib/ai-providers";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `تو راه‌یار، دستیار آموزشی آرتیست‌یار هستی.
@@ -11,7 +12,6 @@ const SYSTEM_PROMPT = `تو راه‌یار، دستیار آموزشی آرتی
 
 type NormalizedMessage = ChatMessage;
 
-/** Simple per-IP chat rate limit (in-memory). */
 const chatAttempts = new Map<string, { count: number; resetAt: number }>();
 const CHAT_WINDOW_MS = 60 * 1000;
 const CHAT_MAX_PER_WINDOW = 20;
@@ -47,7 +47,6 @@ function normalizeMessages(value: unknown): NormalizedMessage[] {
       const role = message.role === "assistant" ? "assistant" : "user";
       const content = typeof message.content === "string" ? message.content.trim() : "";
       if (!content) return null;
-      // Cap single message size to reduce prompt injection / cost abuse
       return { role, content: content.slice(0, 8000) };
     })
     .filter((message): message is NormalizedMessage => message !== null)
@@ -59,6 +58,65 @@ function clientIdFromRequest(request: Request): string {
   const real = request.headers.get("x-real-ip")?.trim();
   const value = forwarded || real || "artistyar-web-anonymous";
   return value.slice(0, 64);
+}
+
+function mapChatError(error: unknown): { status: number; message: string } {
+  const raw = error instanceof Error ? error.message : String(error || "");
+  if (raw === "no_provider_configured") {
+    return {
+      status: 503,
+      message:
+        "هیچ API keyای برای مدل‌ها روی سرور تنظیم نشده. روی Render حداقل OPENAI_API_KEY یا OPENROUTER_API_KEY یا GROQ_API_KEY بگذار.",
+    };
+  }
+  if (raw.startsWith("all_providers_failed:")) {
+    const detail = raw.slice("all_providers_failed:".length).trim().slice(0, 280);
+    return {
+      status: 502,
+      message: detail
+        ? `مدل‌های محلی پاسخ ندادند (${detail}).`
+        : "مدل‌های محلی پاسخ ندادند.",
+    };
+  }
+  if (raw.includes("aborted") || raw.includes("timeout")) {
+    return { status: 504, message: "زمان پاسخ مدل تمام شد. دوباره امتحان کن." };
+  }
+  return {
+    status: 502,
+    message: raw && raw.length < 220 ? raw : "اتصال به مدل‌های هوش مصنوعی برقرار نشد. کمی بعد دوباره امتحان کن.",
+  };
+}
+
+async function chatViaRahyarBackend(
+  messages: ChatMessage[],
+  signal?: AbortSignal,
+): Promise<{ reply: string; provider: string; model: string }> {
+  const backend = (process.env.RAHYAR_API_URL || process.env.RAHYAR_AI_GATEWAY_URL || "").replace(/\/$/, "");
+  const secret = process.env.RAHYAR_AI_BRIDGE_SECRET || process.env.RAHYAR_AI_KEY || "";
+  if (!backend || !secret) {
+    throw new Error("rahyar_bridge_not_configured");
+  }
+  const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content || "";
+  const res = await fetch(`${backend}/api/v1/assistant/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-rahyar-ai-key": secret,
+    },
+    body: JSON.stringify({
+      message: lastUser,
+      messages: messages.filter((m) => m.role !== "system"),
+    }),
+    signal,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data.reply || data.error || data.detail || `rahyar_backend_http_${res.status}`;
+    throw new Error(String(msg).slice(0, 240));
+  }
+  const reply = data.reply || data.message || data.content || "";
+  if (!reply || typeof reply !== "string") throw new Error("rahyar_empty_reply");
+  return { reply, provider: "rahyar-backend", model: data.model || "centralized-router" };
 }
 
 export async function POST(request: Request) {
@@ -86,11 +144,12 @@ export async function POST(request: Request) {
     };
 
     const incoming = normalizeMessages(body.messages);
-    const messages: ChatMessage[] = incoming.length
-      ? incoming
-      : typeof body.message === "string" && body.message.trim()
-        ? [{ role: "user", content: body.message.trim().slice(0, 8000) }]
-        : [];
+    const messages: ChatMessage[] =
+      incoming.length
+        ? incoming
+        : typeof body.message === "string" && body.message.trim()
+          ? [{ role: "user", content: body.message.trim().slice(0, 8000) }]
+          : [];
 
     if (!messages.length) {
       return NextResponse.json({ ok: false, error: "پیام خالی است." }, { status: 400 });
@@ -103,27 +162,70 @@ export async function POST(request: Request) {
         ? body.client_id.trim().slice(0, 64)
         : clientKey;
 
-    const result = await autoChat(
-      withSystemPrompt,
-      typeof body.provider === "string" ? body.provider : undefined,
-      typeof body.model === "string" ? body.model : undefined,
-      clientId,
-    );
+    const preferredProvider = typeof body.provider === "string" ? body.provider : undefined;
+    const preferredModel = typeof body.model === "string" ? body.model : undefined;
 
-    return NextResponse.json({
-      ok: true,
-      reply: result.reply,
-      provider: result.provider,
-      model: result.model,
-    });
+    let lastError: unknown;
+    try {
+      const configured = getConfiguredProviders().filter((p) => p.apiKey);
+      if (configured.length) {
+        const result = await autoChat(
+          withSystemPrompt,
+          preferredProvider,
+          preferredModel,
+          clientId,
+          request.signal,
+        );
+        return NextResponse.json({
+          ok: true,
+          reply: result.reply,
+          provider: result.provider,
+          model: result.model,
+        });
+      }
+      lastError = new Error("no_provider_configured");
+    } catch (error) {
+      lastError = error;
+      if (request.signal.aborted) {
+        return new NextResponse(null, { status: 499 });
+      }
+      console.error("AI chat local path failed", error instanceof Error ? error.message : error);
+    }
+
+    try {
+      const result = await chatViaRahyarBackend(withSystemPrompt, request.signal);
+      return NextResponse.json({
+        ok: true,
+        reply: result.reply,
+        provider: result.provider,
+        model: result.model,
+        via: "rahyar-backend",
+      });
+    } catch (error) {
+      console.error("AI chat rahyar backend failed", error instanceof Error ? error.message : error);
+      const mapped = mapChatError(lastError || error);
+      const backendMsg = error instanceof Error ? error.message : String(error);
+      if (backendMsg === "rahyar_bridge_not_configured" && lastError) {
+        return NextResponse.json({ ok: false, error: mapped.message }, { status: mapped.status });
+      }
+      if (backendMsg !== "rahyar_bridge_not_configured") {
+        const local = mapChatError(lastError);
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              local.message.includes("API key")
+                ? local.message
+                : `اتصال برقرار نشد. محلی: ${local.message.slice(0, 120)} | بک‌اند: ${backendMsg.slice(0, 120)}`,
+          },
+          { status: 502 },
+        );
+      }
+      return NextResponse.json({ ok: false, error: mapped.message }, { status: mapped.status });
+    }
   } catch (error) {
     console.error("AI chat request failed", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "اتصال به مدل‌های هوش مصنوعی برقرار نشد. کمی بعد دوباره امتحان کن.",
-      },
-      { status: 502 },
-    );
+    const mapped = mapChatError(error);
+    return NextResponse.json({ ok: false, error: mapped.message }, { status: mapped.status });
   }
 }
