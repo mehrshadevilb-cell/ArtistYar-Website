@@ -22,6 +22,13 @@ function fallback(seed: number): VoicingQuestion {
   const row = rows[seed % rows.length];
   return { title:row[0], quality:row[1], key:row[2], notes:[...row[3]], degrees:row[4], prompt:"کیفیت آکورد را از روی voicing بشنو و انتخاب کن.", hint:"ابتدا باس، سپس ۳ و ۷ و در پایان نت رنگی را جدا کن.", options:[row[1],"Cmaj7","Dm7","G7sus4"], answer:row[1], tip:"نت‌های راهنما را نزدیک نگه دار و spacing باس را باز حفظ کن.", use:row[5], difficulty:Math.min(500, seed + 1), source:"fallback" };
 }
+function parse(text: string) {
+  const clean = text.trim().replace(/^\`\`\`json/i, "").replace(/\`\`\`$/, "").trim();
+  const start = clean.indexOf("{");
+  const end = clean.lastIndexOf("}");
+  if (start < 0 || end <= start) throw new Error("invalid_json");
+  return JSON.parse(clean.slice(start, end + 1));
+}
 function normalize(raw: any, level: number): VoicingQuestion | null {
   if (!raw || typeof raw !== "object" || typeof raw.quality !== "string" || !Array.isArray(raw.notes) || raw.notes.length < 3 || !Array.isArray(raw.options)) return null;
   const options = [...new Set(raw.options.map(String))];
@@ -48,7 +55,7 @@ export async function POST(request: Request) {
         `Create one advanced daily piano voicing ear-training task for level ${level}/500. Include title, quality, key, notes, degrees, prompt, hint, options, answer, tip, use. Avoid these fingerprints: ${recent.join(",")}`,
         "You are a professional piano voicing and ear-training designer. Return only valid JSON in Persian. Never repeat templates. Keep notes musically valid and answer objectively scorable.",
       );
-      candidate = normalize(result.reply, level);
+      candidate = normalize(parse(result.reply), level);
     } catch {}
     const fingerprint = createHash("sha256").update(JSON.stringify({ quality:candidate.quality, notes:candidate.notes, prompt:candidate.prompt, dayKey })).digest("hex");
     if (!recent.includes(fingerprint)) { question = { ...candidate, source:candidate.source, fingerprint } as VoicingQuestion & { fingerprint:string }; }
