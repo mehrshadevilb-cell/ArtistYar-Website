@@ -69,101 +69,108 @@ const homepageCoursesJsonLd = {
   ],
 };
 
+function HeroDisk() {
+  return (
+    <ScrollDepth className="hero-scroll-depth" intensity={0.55}>
+      <DepthScene className="hero-art">
+        <div className="hero-photo-stage">
+          <Image
+            src="/artistyar-studio-hero.png"
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 767px) 100vw, (max-width: 1024px) 60vw, 42vw"
+            className="hero-photo"
+          />
+        </div>
+        <div className="hero-orbit orbit-a" />
+        <div className="hero-orbit orbit-b" />
+        <div className="record-disc">
+          <div className="record-groove groove-one" />
+          <div className="record-groove groove-two" />
+          <div className="record-label">
+            <Waves size={20} />
+            <span>RY</span>
+          </div>
+        </div>
+        <div className="floating-note note-one">♪</div>
+        <div className="floating-note note-two">♫</div>
+        <div className="now-playing">
+          <div className="play-icon">
+            <CirclePlay size={18} />
+          </div>
+          <div>
+            <span className="mini-label">RAHYAR</span>
+            <strong>مسیرت را ادامه بده</strong>
+          </div>
+        </div>
+        <div className="studio-session">
+          <span>جلسهٔ تمرین / ۰۱</span>
+          <strong>از شنیدن تا ساختن</strong>
+        </div>
+        <div className="studio-meter" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+        </div>
+        <div className="art-caption">
+          <Sparkles size={14} /> آموزش · تمرین · پیگیری
+        </div>
+      </DepthScene>
+    </ScrollDepth>
+  );
+}
+
 export default function HomePage() {
   return (
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
 
-      {/* Hero stays sharp when scrolling back to top */}
+      {/*
+        Desktop: title | disk, then cards full-width under.
+        Mobile:  title → cards → disk (disk goes under cards).
+      */}
       <ScrollStage
         as="section"
-        className="hero-section container-ay"
+        className="hero-section container-ay hero-layout-root"
         intensity="strong"
         enterBlur={false}
         exitBlur={false}
       >
-        <div className="hero-copy">
+        <div className="hero-copy hero-order-title">
           <h1 className="hero-heading">
             تنظیم، میکس و مسترینگ
             <br />
             <span className="gold-shimmer">با مسیر روشن.</span>
           </h1>
         </div>
-        <ScrollDepth className="hero-scroll-depth" intensity={0.55}>
-          <DepthScene className="hero-art">
-            <div className="hero-photo-stage">
-              <Image
-                src="/artistyar-studio-hero.png"
-                alt=""
-                fill
-                priority
-                sizes="(max-width: 767px) 100vw, (max-width: 1024px) 60vw, 42vw"
-                className="hero-photo"
-              />
-            </div>
-            <div className="hero-orbit orbit-a" />
-            <div className="hero-orbit orbit-b" />
-            <div className="record-disc">
-              <div className="record-groove groove-one" />
-              <div className="record-groove groove-two" />
-              <div className="record-label">
-                <Waves size={20} />
-                <span>RY</span>
-              </div>
-            </div>
-            <div className="floating-note note-one">♪</div>
-            <div className="floating-note note-two">♫</div>
-            <div className="now-playing">
-              <div className="play-icon">
-                <CirclePlay size={18} />
-              </div>
-              <div>
-                <span className="mini-label">RAHYAR</span>
-                <strong>مسیرت را ادامه بده</strong>
-              </div>
-            </div>
-            <div className="studio-session">
-              <span>جلسهٔ تمرین / ۰۱</span>
-              <strong>از شنیدن تا ساختن</strong>
-            </div>
-            <div className="studio-meter" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-            </div>
-            <div className="art-caption">
-              <Sparkles size={14} /> آموزش · تمرین · پیگیری
-            </div>
-          </DepthScene>
-        </ScrollDepth>
-      </ScrollStage>
 
-      <ScrollStage
-        className="container-ay hero-features-under-disk"
-        intensity="calm"
-        enterBlur={false}
-        exitBlur={false}
-      >
-        <HeroDifferentiator />
-        <div className="hero-cta-under-cards">
-          <div className="hero-cta-stack">
-            <HeroActions />
-            <SafeLink href="/amoozesh-mix-mastering" hard className="hero-secondary-link">
-              راهنمای رایگان از پایه تا پروژه ←
-            </SafeLink>
-          </div>
-          <div className="hero-trust">
-            <span className="trust-line" />
-            <span>
-              فقط ویدیو نیست — <strong className="font-medium text-gold-400">راه‌یار</strong> تا نتیجه کنارت می‌ماند
-            </span>
+        <div className="hero-order-disk">
+          <HeroDisk />
+        </div>
+
+        <div className="hero-order-cards hero-features-under-disk">
+          <HeroDifferentiator />
+          <div className="hero-cta-under-cards">
+            <div className="hero-cta-stack">
+              <HeroActions />
+              <SafeLink href="/amoozesh-mix-mastering" hard className="hero-secondary-link">
+                راهنمای رایگان از پایه تا پروژه ←
+              </SafeLink>
+            </div>
+            <div className="hero-trust">
+              <span className="trust-line" />
+              <span>
+                فقط ویدیو نیست — <strong className="font-medium text-gold-400">راه‌یار</strong> تا نتیجه کنارت می‌ماند
+              </span>
+            </div>
           </div>
         </div>
       </ScrollStage>

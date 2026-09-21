@@ -1,11 +1,37 @@
 /* Hero layout + homepage surface polish */
 
-.hero-section {
-  min-height: min(420px, calc(var(--tg-viewport-height, 100vh) - 7.5rem));
-  align-items: center;
-  gap: clamp(1.25rem, 2.5vw, 2.5rem);
+/* Root layout:
+   Desktop: 2-col grid — title | disk, cards span full width under
+   Mobile:  stacked — title → cards → disk
+*/
+.hero-layout-root.hero-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "title"
+    "cards"
+    "disk";
+  align-items: start;
+  gap: clamp(1rem, 2.5vw, 1.75rem);
+  min-height: auto;
   padding-top: clamp(1.5rem, 3.2vw, 2.75rem);
-  padding-bottom: clamp(0.75rem, 1.5vw, 1.25rem);
+  padding-bottom: clamp(1rem, 2vw, 1.75rem);
+}
+
+.hero-order-title {
+  grid-area: title;
+}
+
+.hero-order-disk {
+  grid-area: disk;
+  width: 100%;
+  min-width: 0;
+}
+
+.hero-order-cards {
+  grid-area: cards;
+  width: 100%;
+  min-width: 0;
 }
 
 .hero-heading {
@@ -53,9 +79,9 @@
   text-decoration-color: rgba(232, 197, 71, 0.45);
 }
 
-/* Full-width row under disk */
+/* Full-width row under disk (desktop) / above disk (mobile) */
 .hero-features-under-disk {
-  padding-bottom: clamp(1.5rem, 3vw, 2.5rem);
+  padding-bottom: 0;
 }
 
 .hero-differentiator {
@@ -212,7 +238,7 @@
   background: rgba(88, 196, 213, 0.14);
   box-shadow:
     inset 0 0 0 1px rgba(88, 196, 213, 0.16),
-    0 0 14px -2px rgba(88, 196, 213, 0.4);
+    0 0 14px -2px rgba(160, 125, 215, 0.4);
 }
 
 .hero-feature-blue .hero-feature-icon {
@@ -369,57 +395,128 @@
   min-height: 0;
 }
 
+/* Desktop / laptop: title | disk on top row, cards full-width under */
 @media (min-width: 1024px) {
-  .hero-section {
+  .hero-layout-root.hero-section {
     grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-    gap: clamp(1.5rem, 3vw, 3rem);
+    grid-template-areas:
+      "title disk"
+      "cards cards";
+    gap: clamp(1.5rem, 3vw, 3rem) clamp(1.5rem, 3vw, 3rem);
     align-items: center;
+    min-height: min(420px, calc(var(--tg-viewport-height, 100vh) - 7.5rem));
   }
+
   .hero-copy {
     max-width: 36rem;
   }
-  .hero-art {
+
+  .hero-order-disk .hero-art {
     min-height: 380px;
     align-self: center;
   }
+
+  .hero-features-under-disk {
+    padding-bottom: clamp(1.5rem, 3vw, 2.5rem);
+    padding-top: 0.25rem;
+  }
 }
 
-@media (max-width: 1023px) {
-  .hero-section {
-    grid-template-columns: 1fr;
-    align-items: start;
+/* Tablet */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .hero-layout-root.hero-section {
+    grid-template-areas:
+      "title"
+      "cards"
+      "disk";
+    gap: 1.5rem 2rem;
+    padding-top: 3rem;
+    padding-bottom: 2.5rem;
   }
-  .hero-art {
-    min-height: 280px;
-    max-width: 380px;
+
+  .hero-order-disk .hero-art {
+    min-height: 320px;
+    max-width: 420px;
     margin-inline: auto;
-    width: 100%;
   }
 }
 
-@media (max-width: 640px) {
+/* Mobile: title → cards → disk, fix overflow / clipping bugs */
+@media (max-width: 767px) {
+  .hero-layout-root.hero-section {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "title"
+      "cards"
+      "disk";
+    gap: 1.15rem;
+    padding-top: 2.5rem;
+    padding-bottom: 2rem;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .hero-order-disk {
+    margin-top: 0.35rem;
+  }
+
   .hero-cta-stack {
     width: 100%;
     gap: 0.65rem;
   }
+
   .hero-actions {
     width: 100%;
   }
+
   .hero-secondary-link {
     font-size: 0.78rem;
   }
+
   .hero-feature-large {
     min-height: 0;
     padding: 1rem 1.05rem 0.9rem;
   }
+
   .hero-feature-title {
     font-size: 1rem;
   }
-  .hero-art {
-    min-height: 240px;
-  }
+
   .hero-heading {
     font-size: clamp(2.15rem, 8.5vw, 2.85rem) !important;
+  }
+
+  .hero-order-disk .hero-art,
+  .hero-art {
+    min-height: clamp(240px, 72vw, 320px);
+    max-width: 100%;
+    margin-inline: auto;
+    width: 100%;
+  }
+
+  /* Prevent disk ornaments from overflowing / covering cards */
+  .hero-order-disk .hero-scroll-depth,
+  .hero-order-disk .depth-scene {
+    overflow: hidden;
+    overflow: clip;
+  }
+
+  .hero-cta-under-cards {
+    margin-top: 0.9rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-layout-root.hero-section {
+    gap: 1rem;
+    padding-top: 2.25rem;
+    padding-bottom: 1.75rem;
+  }
+
+  .hero-order-disk .hero-art,
+  .hero-art {
+    min-height: clamp(220px, 68vw, 280px);
   }
 }
 
