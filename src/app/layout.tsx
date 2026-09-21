@@ -7,6 +7,7 @@ import "./responsive.css";
 import "./apple-ui.css";
 import "./hero-layout.css";
 import "./taste-ui.css";
+import "./light-mode-fix.css";
 import "./click-fix.css";
 import "./scroll-motion.css";
 import { AuthProvider } from "@/components/AuthProvider";

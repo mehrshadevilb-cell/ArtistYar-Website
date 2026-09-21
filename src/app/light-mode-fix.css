@@ -1,0 +1,148 @@
+/* Light mode site-wide contrast fix — loaded after taste-ui */
+
+html.light {
+  --color-fg: #1a1917;
+  --color-fg-muted: #5a544c;
+  --color-fg-subtle: #716b5f;
+  --color-accent: #9a7a18;
+  --color-accent-hover: #806514;
+  --color-focus-ring: rgba(154, 122, 24, 0.55);
+}
+
+html.light .site-header {
+  background: rgba(248, 244, 236, 0.92) !important;
+  border-bottom-color: rgba(28, 27, 25, 0.08) !important;
+  box-shadow: 0 10px 28px -24px rgba(60, 45, 15, 0.22) !important;
+}
+
+html.light .nav-link {
+  color: #5a544c !important;
+}
+
+html.light .nav-link:hover,
+html.light .nav-link-active {
+  color: #1a1917 !important;
+  background: rgba(28, 27, 25, 0.05) !important;
+}
+
+html.light .card-ay,
+html.light .benefit-card,
+html.light .project-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(28, 27, 25, 0.1) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 1) inset,
+    0 14px 32px -22px rgba(80, 55, 15, 0.16) !important;
+}
+
+html.light .card-ay:hover,
+html.light .benefit-card:hover,
+html.light .project-card:hover {
+  border-color: rgba(154, 122, 24, 0.32) !important;
+  background: #fffdf8 !important;
+}
+
+html.light .benefit-card h3,
+html.light .project-card h3,
+html.light .card-ay h3,
+html.light .hero-heading,
+html.light .section-title {
+  color: #1a1917 !important;
+}
+
+html.light .benefit-card p,
+html.light .project-card p,
+html.light .card-ay p,
+html.light .section-sub,
+html.light .hero-lead {
+  color: #5a544c !important;
+}
+
+html.light .benefit-number {
+  color: rgba(28, 27, 25, 0.28) !important;
+}
+
+html.light .btn-ghost {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-color: rgba(28, 27, 25, 0.12) !important;
+  color: #1a1917 !important;
+}
+
+html.light .btn-primary {
+  background: #b8921f !important;
+  color: #1a1812 !important;
+}
+
+html.light .proof-strip {
+  background: rgba(28, 27, 25, 0.03) !important;
+  border-color: rgba(28, 27, 25, 0.08) !important;
+}
+
+html.light .proof-grid strong {
+  color: #1a1917 !important;
+}
+
+html.light .proof-grid span,
+html.light .proof-note {
+  color: #5a544c !important;
+}
+
+html.light .input-ay {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(28, 27, 25, 0.12) !important;
+  color: #1a1917 !important;
+}
+
+html.light .menu-button {
+  border-color: rgba(28, 27, 25, 0.12) !important;
+  color: #1a1917 !important;
+  background: rgba(255, 255, 255, 0.55) !important;
+}
+
+html.light .mobile-menu {
+  background: rgba(248, 244, 236, 0.98) !important;
+}
+
+html.light .mobile-nav-link {
+  color: #1a1917 !important;
+}
+
+html.light .text-sand-50,
+html.light .text-sand-100,
+html.light .text-sand-200,
+html.light .text-sand-300 {
+  color: #1a1917 !important;
+}
+
+html.light .text-ink-200,
+html.light .text-ink-300,
+html.light .text-ink-400 {
+  color: #5a544c !important;
+}
+
+html.light .text-gold-400,
+html.light .text-gold-500 {
+  color: #806514 !important;
+}
+
+html.light .hero-feature-title {
+  color: #1a1917 !important;
+}
+
+html.light .hero-feature-detail {
+  color: #5a544c !important;
+}
+
+html.light .gold-shimmer {
+  color: #9a7a18 !important;
+}
+
+html.light .contact-card {
+  border-color: rgba(154, 122, 24, 0.25) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(201, 162, 39, 0.1),
+    rgba(255, 255, 255, 0.88) 50%,
+    transparent
+  ) !important;
+}
