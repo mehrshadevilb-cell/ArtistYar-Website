@@ -200,7 +200,14 @@ export default function AdminAiPlatformPage() {
         if (requestId === sectionRequestRef.current) {
           const key = controlSection;
           const value = result[key];
-          setControlData(Array.isArray(value) ? value as ControlRecord[] : []);
+          if (key === "usage" && value && typeof value === "object") {
+            setControlData(Object.entries(value as Record<string, unknown>).map(([period, data]) => ({
+              period,
+              ...(data && typeof data === "object" ? data as Record<string, unknown> : {})
+            })));
+          } else {
+            setControlData(Array.isArray(value) ? value as ControlRecord[] : []);
+          }
         }
       }
     } catch (e) {
