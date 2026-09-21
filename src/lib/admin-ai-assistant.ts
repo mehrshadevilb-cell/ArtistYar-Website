@@ -144,7 +144,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   await executionFinish(requestId,{
     status:"success",provider_id:completedResult.provider,model_id:completedResult.model,
     input_tokens:inputTokens,output_tokens:outputTokens,latency_ms:Date.now()-startedAt,
-    retry_count:0,fallback_used:Boolean(provider || model ? false : candidates && candidates.length > 1),
+    retry_count:0,
     estimated_cost_usd:executionCost(inputTokens,outputTokens,completedResult.model), fallback_used:fallbackUsed
   });
   await audit(adminUsername, "message_completed", conversationId, { provider: completedResult.provider, model: completedResult.model, requestId });
