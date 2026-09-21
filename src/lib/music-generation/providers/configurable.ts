@@ -1,7 +1,9 @@
 /**
- * Configurable music provider driven by admin token pool (base URL + API key).
- * Official ElevenLabs: POST {base}/v1/music  (or base already ends with /v1 + path /music)
- * Docs: https://elevenlabs.io/docs/api-reference/music/compose
+ * Generic music provider — any admin-configured base URL + API key.
+ * Works with:
+ *  - Official ElevenLabs: base https://api.elevenlabs.io + path /v1/music
+ *  - OpenAI-compatible gateways (AvalAI, etc.): base https://api.xxx/v1 + path /music (if exposed)
+ *  - Custom proxies: set exact Path in admin panel
  */
 
 import type {
@@ -38,12 +40,62 @@ function buildPrompt(spec: GenerationSpec): string {
 
 function joinUrl(base: string, path: string): string {
   const b = base.replace(/\/$/, "");
-  const p = path.startsWith("/") ? path : `/${path}`;
-  // Avoid double /v1 if base already ends with /v1 and path starts with /v1
-  if (b.endsWith("/v1") && p.startsWith("/v1/")) {
-    return `${b}${p.slice(3)}`;
+  let p = path.startsWith("/") ? path : `/${path}`;
+  // base already .../v1 and path starts with /v1/...
+  if (/\/v1$/i.test(b) && p.startsWith("/v1/")) {
+    p = p.slice(3);
   }
   return `${b}${p}`;
+}
+
+function pathCandidates(token: ProviderTokenRow): string[] {
+  const configured = (token.path || "").trim();
+  const base = token.base_url.replace(/\/$/, "");
+  const baseHasV1 = /\/v1$/i.test(base);
+
+  // If admin set an exact path, try it first — then a small set of relatives
+  const extras: string[] = [];
+  if (token.provider_kind === "elevenlabs") {
+    extras.push("/v1/music", "/music", "/v1/music/stream", "/music/stream");
+  } else {
+    // openai_compat / custom / gateways like AvalAI
+    if (baseHasV1) {
+      extras.push("/music", "/music/generate", "/music/compose", "/audio/music", "/generate/music");
+    } else {
+      extras.push("/v1/music", "/music", "/v1/music/generate", "/v1/music/compose");
+    }
+  }
+
+  return Array.from(new Set([configured, ...extras].filter(Boolean)));
+}
+
+function authHeaderVariants(token: ProviderTokenRow): Record<string, string>[] {
+  const common = {
+    "Content-Type": "application/json",
+    Accept: "audio/mpeg, audio/*, application/octet-stream, application/json",
+  };
+
+  if (token.provider_kind === "elevenlabs") {
+    return [{ ...common, "xi-api-key": token.api_key }];
+  }
+
+  // openai_compat / custom: Bearer first (AvalAI, OpenAI-style)
+  return [
+    { ...common, Authorization: `Bearer ${token.api_key}` },
+    { ...common, "xi-api-key": token.api_key },
+    { ...common, Authorization: `Bearer ${token.api_key}`, "xi-api-key": token.api_key },
+  ];
+}
+
+function bodyVariants(prompt: string, modelId: string, lengthMs: number): Record<string, unknown>[] {
+  return [
+    // Official ElevenLabs compose
+    { prompt, model_id: modelId, music_length_ms: lengthMs },
+    // Some proxies
+    { prompt, model: modelId, music_length_ms: lengthMs, force_instrumental: true },
+    { model: modelId, prompt, duration_ms: lengthMs, music_length_ms: lengthMs },
+    { model: modelId, input: prompt, prompt, music_length_ms: lengthMs },
+  ];
 }
 
 async function parseAudioResponse(
@@ -54,7 +106,6 @@ async function parseAudioResponse(
 ): Promise<ProviderGenerateResult> {
   const contentType = res.headers.get("content-type") || "";
 
-  // Official ElevenLabs returns raw audio stream
   if (
     contentType.includes("audio") ||
     contentType.includes("octet-stream") ||
@@ -68,25 +119,16 @@ async function parseAudioResponse(
       audioBuffer,
       mimeType: contentType.includes("wav") || contentType.includes("pcm") ? "audio/wav" : "audio/mpeg",
       durationMs: lengthMs,
-      metadata: { tokenId: token.id, label: token.label },
+      metadata: { tokenId: token.id, label: token.label, url: res.url },
     };
   }
 
-  // Some gateways still return JSON
   const text = await res.text();
   let json: Record<string, unknown> = {};
   try {
     json = JSON.parse(text) as Record<string, unknown>;
   } catch {
-    // Maybe raw audio without correct content-type
-    if (text.length > 500 || res.headers.get("content-length")) {
-      const buf = await (async () => {
-        // re-fetch not possible; treat as failed JSON
-        return null;
-      })();
-      void buf;
-    }
-    throw new Error(`Provider non-JSON response: ${text.slice(0, 180)}`);
+    throw new Error(`Provider non-JSON response (${contentType}): ${text.slice(0, 160)}`);
   }
 
   const audioBase64 =
@@ -94,6 +136,10 @@ async function parseAudioResponse(
     (typeof json.audio === "string" && json.audio) ||
     (typeof (json as { data?: { b64_json?: string }[] }).data?.[0]?.b64_json === "string"
       ? (json as { data: { b64_json: string }[] }).data[0].b64_json
+      : null) ||
+    (typeof (json as { choices?: { message?: { audio?: { data?: string } } }[] }).choices?.[0]?.message
+      ?.audio?.data === "string"
+      ? (json as { choices: { message: { audio: { data: string } } }[] }).choices[0].message.audio.data
       : null);
 
   if (audioBase64) {
@@ -147,45 +193,9 @@ async function callToken(
   );
   const prompt = buildPrompt(req.spec);
   const modelId = token.model_id || "music_v2_5";
-  const configuredPath = (token.path || "").trim();
-
-  // Official ElevenLabs compose: POST /v1/music
-  // Also try proxy-style paths
-  const pathCandidates = Array.from(
-    new Set(
-      [
-        configuredPath,
-        "/v1/music",
-        "/music",
-        "/v1/music/stream",
-        "/music/stream",
-        "/v1/music/generate",
-        "/music/generate",
-        "/generate",
-      ].filter(Boolean),
-    ),
-  );
-
-  // Official body first (no force_instrumental — not in public compose schema)
-  const bodyVariants: Record<string, unknown>[] = [
-    {
-      prompt,
-      model_id: modelId,
-      music_length_ms: lengthMs,
-    },
-    {
-      prompt,
-      model_id: modelId,
-      music_length_ms: lengthMs,
-      force_instrumental: true,
-    },
-    {
-      model: modelId,
-      prompt,
-      music_length_ms: lengthMs,
-      duration_ms: lengthMs,
-    },
-  ];
+  const paths = pathCandidates(token);
+  const bodies = bodyVariants(prompt, modelId, lengthMs);
+  const headerSets = authHeaderVariants(token);
 
   const started = Date.now();
   let success = false;
@@ -194,38 +204,9 @@ async function callToken(
   let lastError = "unknown";
 
   try {
-    for (const path of pathCandidates) {
-      for (const body of bodyVariants) {
-        const headersList: Record<string, string>[] = [];
-
-        if (token.provider_kind === "elevenlabs") {
-          headersList.push({
-            "Content-Type": "application/json",
-            Accept: "audio/mpeg, audio/*, application/json",
-            "xi-api-key": token.api_key,
-          });
-        } else {
-          headersList.push(
-            {
-              "Content-Type": "application/json",
-              Accept: "audio/mpeg, audio/*, application/json",
-              "xi-api-key": token.api_key,
-            },
-            {
-              "Content-Type": "application/json",
-              Accept: "audio/mpeg, audio/*, application/json",
-              Authorization: `Bearer ${token.api_key}`,
-            },
-            {
-              "Content-Type": "application/json",
-              Accept: "audio/mpeg, audio/*, application/json",
-              Authorization: `Bearer ${token.api_key}`,
-              "xi-api-key": token.api_key,
-            },
-          );
-        }
-
-        for (const headers of headersList) {
+    for (const path of paths) {
+      for (const body of bodies) {
+        for (const headers of headerSets) {
           const url = joinUrl(token.base_url, path);
           try {
             const res = await fetch(url, {
@@ -236,24 +217,24 @@ async function callToken(
               cache: "no-store",
             });
 
-            tried.push(`${res.status}:${path}`);
+            tried.push(`${res.status} ${url}`);
 
             if (res.status === 404 || res.status === 405) {
-              lastError = `http_${res.status} path=${path}`;
+              lastError = `http_${res.status} ${url}`;
               continue;
             }
             if (res.status === 401 || res.status === 403) {
-              lastError = `auth_${res.status} path=${path}`;
+              lastError = `auth_${res.status} ${url}`;
               continue;
             }
-            if (res.status === 429) {
-              throw new Error("ProviderQuotaExceeded");
-            }
+            if (res.status === 429) throw new Error("ProviderQuotaExceeded");
             if (!res.ok) {
               const text = await res.text().catch(() => "");
-              lastError = `http_${res.status} path=${path}: ${text.slice(0, 160)}`;
+              lastError = `http_${res.status} ${url}: ${text.slice(0, 140)}`;
               if (res.status === 400 || res.status === 422) continue;
-              throw new Error(`Provider error ${res.status} path=${path}: ${text.slice(0, 200)}`);
+              // keep trying other combos for 5xx
+              if (res.status >= 500) continue;
+              throw new Error(`Provider error ${res.status} ${url}: ${text.slice(0, 180)}`);
             }
 
             const result = await parseAudioResponse(res, modelId, token, lengthMs);
@@ -262,27 +243,26 @@ async function callToken(
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             lastError = msg;
-            if (msg.includes("ProviderQuotaExceeded") || msg.includes("ProviderUnavailable")) {
-              throw e;
-            }
+            if (msg.includes("ProviderQuotaExceeded")) throw e;
           }
         }
       }
     }
 
-    throw new Error(`Provider call failed: ${lastError} | tried=${tried.slice(-12).join(",")}`);
+    throw new Error(
+      `Provider call failed: ${lastError} | tried=${tried.slice(-10).join(" ; ")}`,
+    );
   } catch (e) {
     errMsg = e instanceof Error ? e.message : String(e);
     throw e;
   } finally {
-    const latencyMs = Date.now() - started;
     try {
       await recordTokenUsage({
         tokenId: token.id,
         jobId: req.jobId,
         success,
         creditsUsed: 1,
-        latencyMs,
+        latencyMs: Date.now() - started,
         errorMessage: errMsg,
       });
     } catch {
@@ -297,7 +277,7 @@ export class ConfigurableMusicProvider implements MusicGenerationProvider {
   getCapabilities(): ProviderCapability {
     return {
       id: this.id,
-      name: "Admin Token Pool",
+      name: "Admin Token Pool (any provider)",
       supportedAssetTypes: [
         "riff",
         "melody",
@@ -343,7 +323,7 @@ export class ConfigurableMusicProvider implements MusicGenerationProvider {
       requiresApiKey: true,
       latencyClass: "medium",
       qualityTier: ["high", "studio"],
-      limitations: ["Uses admin-configured tokens (base URL + API key)"],
+      limitations: ["Uses admin Base URL + API key + Path for any gateway"],
       enabled: true,
     };
   }
@@ -352,7 +332,7 @@ export class ConfigurableMusicProvider implements MusicGenerationProvider {
     try {
       const token = await selectProviderToken();
       if (!token) return { ok: false, message: "no_admin_tokens" };
-      return { ok: true, message: `token:${token.label}` };
+      return { ok: true, message: `token:${token.label} base=${token.base_url}` };
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : "error" };
     }
@@ -373,14 +353,16 @@ export class ConfigurableMusicProvider implements MusicGenerationProvider {
     return {
       modelId: token?.model_id || "music_v2_5",
       adjustedSpec: adjusted,
-      notes: token ? [`token:${token.id}`, token.label] : ["no_token"],
+      notes: token ? [`token:${token.id}`, token.label, token.base_url] : ["no_token"],
     };
   }
 
   async generate(req: ProviderGenerateRequest): Promise<ProviderGenerateResult> {
     const token = await selectProviderToken();
     if (!token) {
-      throw new Error("ProviderUnavailable: هیچ توکن ادمین تنظیم نشده است. از /admin/music-generator توکن اضافه کنید.");
+      throw new Error(
+        "ProviderUnavailable: هیچ توکن ادمین تنظیم نشده. از /admin/music-generator Base URL و API Key اضافه کنید.",
+      );
     }
     return callToken(token, req);
   }
