@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import Link from "next/link";
 
 type JobView = {
   id: string;
@@ -55,6 +56,7 @@ export function MusicGeneratorClient() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsLogin, setNeedsLogin] = useState(false);
   const [job, setJob] = useState<JobView | null>(null);
   const [library, setLibrary] = useState<JobView[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -70,7 +72,14 @@ export function MusicGeneratorClient() {
     try {
       const res = await fetch("/api/music/library?limit=20", { credentials: "include", cache: "no-store" });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok && Array.isArray(data.items)) setLibrary(data.items);
+      if (res.status === 401) {
+        setNeedsLogin(true);
+        return;
+      }
+      if (res.ok && data.ok && Array.isArray(data.items)) {
+        setNeedsLogin(false);
+        setLibrary(data.items);
+      }
     } catch {
       /* ignore */
     }
@@ -105,6 +114,9 @@ export function MusicGeneratorClient() {
           if (TERMINAL.has(next.status)) {
             stopPolling();
             setBusy(false);
+            if (next.status === "failed") {
+              setError(next.errorMessage || "تولید ناموفق بود.");
+            }
             void loadLibrary();
           }
         } catch {
@@ -135,28 +147,44 @@ export function MusicGeneratorClient() {
         cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401) {
+        setNeedsLogin(true);
+        setError(data.error || "برای تولید وارد شوید.");
+        setBusy(false);
+        return;
+      }
+
+      if (data.job) {
+        const created = data.job as JobView;
+        setJob(created);
+        void loadLibrary();
+
+        if (created.status === "completed") {
+          setBusy(false);
+          return;
+        }
+        if (TERMINAL.has(created.status)) {
+          setError(data.error || created.errorMessage || "تولید ناموفق بود.");
+          setBusy(false);
+          return;
+        }
+        pollJob(created.id);
+        return;
+      }
+
       if (!res.ok || !data.ok) {
         setError(
           data.error ||
-            (res.status === 401
-              ? "برای تولید وارد شوید."
-              : res.status === 402
-                ? "اعتبار کافی نیست."
-                : "خطا در تولید"),
+            (res.status === 402
+              ? "اعتبار کافی نیست. ۳ تولید رایگان تمام شده یا نیاز به خرید اعتبار دارید."
+              : "خطا در تولید"),
         );
         setBusy(false);
         return;
       }
-      const created = data.job as JobView;
-      setJob(created);
-      void loadLibrary();
 
-      if (TERMINAL.has(created.status)) {
-        setBusy(false);
-      } else {
-        // Async path: keep polling until terminal state
-        pollJob(created.id);
-      }
+      setBusy(false);
     } catch {
       setError("ارتباط با سرور برقرار نشد.");
       setBusy(false);
@@ -165,6 +193,15 @@ export function MusicGeneratorClient() {
 
   return (
     <div className="space-y-8">
+      {needsLogin && (
+        <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm leading-7 text-amber-100">
+          برای استفاده از تولید موسیقی باید وارد شوید.{" "}
+          <Link href="/login" className="font-semibold text-gold-400 underline underline-offset-2">
+            ورود / ثبت‌نام
+          </Link>
+        </div>
+      )}
+
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:p-6">
         <label htmlFor={promptId} className="mb-2 block text-sm font-medium">
           چه قطعه‌ای می‌خواهید بسازید؟

@@ -35,6 +35,89 @@ function buildPrompt(spec: GenerationSpec): string {
   return parts.filter(Boolean).join(". ");
 }
 
+function joinUrl(base: string, path: string): string {
+  const b = base.replace(/\/$/, "");
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${b}${p}`;
+}
+
+async function parseAudioResponse(
+  res: Response,
+  modelId: string,
+  token: ProviderTokenRow,
+  lengthMs: number,
+): Promise<ProviderGenerateResult> {
+  const contentType = res.headers.get("content-type") || "";
+
+  if (contentType.includes("audio") || contentType.includes("octet-stream")) {
+    const audioBuffer = await res.arrayBuffer();
+    if (audioBuffer.byteLength < 200) throw new Error("Provider returned empty audio");
+    return {
+      providerId: `token:${token.id}`,
+      modelId,
+      audioBuffer,
+      mimeType: contentType.includes("wav") ? "audio/wav" : "audio/mpeg",
+      durationMs: lengthMs,
+      metadata: { tokenId: token.id, label: token.label },
+    };
+  }
+
+  const text = await res.text();
+  let json: Record<string, unknown> = {};
+  try {
+    json = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Provider non-JSON response: ${text.slice(0, 180)}`);
+  }
+
+  const audioBase64 =
+    (typeof json.audio_base64 === "string" && json.audio_base64) ||
+    (typeof json.audio === "string" && json.audio) ||
+    (typeof (json as { data?: { b64_json?: string }[] }).data?.[0]?.b64_json === "string"
+      ? (json as { data: { b64_json: string }[] }).data[0].b64_json
+      : null);
+
+  if (audioBase64) {
+    const raw = Buffer.from(audioBase64, "base64");
+    return {
+      providerId: `token:${token.id}`,
+      modelId,
+      providerJobId: typeof json.job_id === "string" ? json.job_id : undefined,
+      audioBuffer: raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength),
+      mimeType: "audio/mpeg",
+      durationMs: lengthMs,
+      metadata: { tokenId: token.id },
+    };
+  }
+
+  const url =
+    (typeof json.audio_url === "string" && json.audio_url) ||
+    (typeof json.url === "string" && json.url) ||
+    (typeof (json as { data?: { url?: string }[] }).data?.[0]?.url === "string"
+      ? (json as { data: { url: string }[] }).data[0].url
+      : null) ||
+    (typeof json.output_url === "string" && json.output_url) ||
+    null;
+
+  if (!url) {
+    throw new Error(`Provider returned no audio fields: ${text.slice(0, 200)}`);
+  }
+
+  const audioRes = await fetch(url, { signal: AbortSignal.timeout(60_000), cache: "no-store" });
+  if (!audioRes.ok) throw new Error(`Failed to download provider audio: ${audioRes.status}`);
+  const audioBuffer = await audioRes.arrayBuffer();
+  if (audioBuffer.byteLength < 200) throw new Error("Downloaded audio empty");
+  return {
+    providerId: `token:${token.id}`,
+    modelId,
+    providerJobId: typeof json.job_id === "string" ? json.job_id : undefined,
+    audioBuffer,
+    mimeType: audioRes.headers.get("content-type") || "audio/mpeg",
+    durationMs: lengthMs,
+    metadata: { tokenId: token.id, audioUrl: url },
+  };
+}
+
 async function callToken(
   token: ProviderTokenRow,
   req: ProviderGenerateRequest,
@@ -45,127 +128,123 @@ async function callToken(
   );
   const prompt = buildPrompt(req.spec);
   const modelId = token.model_id || "music_v2_5";
-  const base = token.base_url.replace(/\/$/, "");
-  const path = (token.path || "/music/generate").startsWith("/")
-    ? token.path || "/music/generate"
-    : `/${token.path}`;
+  const configuredPath = (token.path || "/music/generate").trim() || "/music/generate";
+
+  // Try a few common paths if the primary fails with 404
+  const pathCandidates = Array.from(
+    new Set([
+      configuredPath,
+      "/music/generate",
+      "/v1/music/generate",
+      "/music-generation",
+      "/generate",
+    ]),
+  );
+
+  const bodyVariants: Record<string, unknown>[] = [
+    {
+      prompt,
+      model_id: modelId,
+      music_length_ms: lengthMs,
+      force_instrumental: true,
+    },
+    {
+      model: modelId,
+      prompt,
+      music_length_ms: lengthMs,
+      duration_ms: lengthMs,
+      force_instrumental: true,
+    },
+    {
+      prompt,
+      model: modelId,
+      duration: Math.round(lengthMs / 1000),
+    },
+  ];
 
   const started = Date.now();
   let success = false;
   let errMsg: string | undefined;
+  let lastError = "unknown";
 
   try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Accept: "audio/mpeg, application/json",
-    };
+    for (const path of pathCandidates) {
+      for (const body of bodyVariants) {
+        const headersList: Record<string, string>[] = [];
 
-    // ElevenLabs style
-    if (token.provider_kind === "elevenlabs") {
-      headers["xi-api-key"] = token.api_key;
-    } else {
-      // OpenAI-compat / custom proxies often use Bearer
-      headers.Authorization = `Bearer ${token.api_key}`;
-      headers["xi-api-key"] = token.api_key; // some proxies still expect this
-    }
+        if (token.provider_kind === "elevenlabs") {
+          headersList.push({
+            "Content-Type": "application/json",
+            Accept: "audio/mpeg, application/json",
+            "xi-api-key": token.api_key,
+          });
+        } else {
+          headersList.push(
+            {
+              "Content-Type": "application/json",
+              Accept: "audio/mpeg, application/json",
+              Authorization: `Bearer ${token.api_key}`,
+            },
+            {
+              "Content-Type": "application/json",
+              Accept: "audio/mpeg, application/json",
+              "xi-api-key": token.api_key,
+            },
+            {
+              "Content-Type": "application/json",
+              Accept: "audio/mpeg, application/json",
+              Authorization: `Bearer ${token.api_key}`,
+              "xi-api-key": token.api_key,
+            },
+          );
+        }
 
-    const body =
-      token.provider_kind === "openai_compat"
-        ? {
-            model: modelId,
-            prompt,
-            music_length_ms: lengthMs,
-            duration_ms: lengthMs,
-            force_instrumental: true,
+        for (const headers of headersList) {
+          try {
+            const res = await fetch(joinUrl(token.base_url, path), {
+              method: "POST",
+              headers,
+              body: JSON.stringify(body),
+              signal: req.signal ?? AbortSignal.timeout(120_000),
+              cache: "no-store",
+            });
+
+            if (res.status === 404 || res.status === 405) {
+              lastError = `http_${res.status} path=${path}`;
+              continue;
+            }
+            if (res.status === 401 || res.status === 403) {
+              lastError = `auth_${res.status}`;
+              // try next header style
+              continue;
+            }
+            if (res.status === 429) {
+              throw new Error("ProviderQuotaExceeded");
+            }
+            if (!res.ok) {
+              const text = await res.text().catch(() => "");
+              lastError = `http_${res.status}: ${text.slice(0, 160)}`;
+              // bad request with this body — try next body
+              if (res.status === 400 || res.status === 422) continue;
+              throw new Error(`Provider error ${res.status}: ${text.slice(0, 200)}`);
+            }
+
+            const result = await parseAudioResponse(res, modelId, token, lengthMs);
+            success = true;
+            return result;
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            lastError = msg;
+            if (msg.includes("ProviderQuotaExceeded") || msg.includes("ProviderUnavailable")) {
+              throw e;
+            }
+            // try next combination
           }
-        : {
-            prompt,
-            model_id: modelId,
-            music_length_ms: lengthMs,
-            force_instrumental: true,
-          };
-
-    const res = await fetch(`${base}${path}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-      signal: req.signal ?? AbortSignal.timeout(120_000),
-      cache: "no-store",
-    });
-
-    const contentType = res.headers.get("content-type") || "";
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      if (res.status === 401 || res.status === 403) throw new Error("ProviderUnavailable: auth");
-      if (res.status === 429) throw new Error("ProviderQuotaExceeded");
-      throw new Error(`Provider error ${res.status}: ${text.slice(0, 200)}`);
+        }
+      }
     }
 
-    if (contentType.includes("audio") || contentType.includes("octet-stream")) {
-      const audioBuffer = await res.arrayBuffer();
-      success = true;
-      return {
-        providerId: `token:${token.id}`,
-        modelId,
-        audioBuffer,
-        mimeType: contentType.includes("wav") ? "audio/wav" : "audio/mpeg",
-        durationMs: lengthMs,
-        metadata: { tokenId: token.id, label: token.label },
-      };
-    }
-
-    const json = (await res.json()) as {
-      audio_url?: string;
-      url?: string;
-      audio_base64?: string;
-      job_id?: string;
-      data?: Array<{ url?: string; b64_json?: string }>;
-    };
-
-    if (json.audio_base64) {
-      const raw = Buffer.from(json.audio_base64, "base64");
-      success = true;
-      return {
-        providerId: `token:${token.id}`,
-        modelId,
-        providerJobId: json.job_id,
-        audioBuffer: raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength),
-        mimeType: "audio/mpeg",
-        durationMs: lengthMs,
-        metadata: { tokenId: token.id },
-      };
-    }
-
-    const url = json.audio_url || json.url || json.data?.[0]?.url;
-    if (json.data?.[0]?.b64_json) {
-      const raw = Buffer.from(json.data[0].b64_json, "base64");
-      success = true;
-      return {
-        providerId: `token:${token.id}`,
-        modelId,
-        audioBuffer: raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength),
-        mimeType: "audio/mpeg",
-        durationMs: lengthMs,
-        metadata: { tokenId: token.id },
-      };
-    }
-
-    if (!url) throw new Error("Provider returned no audio");
-
-    const audioRes = await fetch(url, { signal: AbortSignal.timeout(60_000), cache: "no-store" });
-    if (!audioRes.ok) throw new Error(`Failed to download provider audio: ${audioRes.status}`);
-    const audioBuffer = await audioRes.arrayBuffer();
-    success = true;
-    return {
-      providerId: `token:${token.id}`,
-      modelId,
-      providerJobId: json.job_id,
-      audioBuffer,
-      mimeType: audioRes.headers.get("content-type") || "audio/mpeg",
-      durationMs: lengthMs,
-      metadata: { tokenId: token.id, audioUrl: url },
-    };
+    throw new Error(`Provider call failed: ${lastError}`);
   } catch (e) {
     errMsg = e instanceof Error ? e.message : String(e);
     throw e;
@@ -233,13 +312,12 @@ export class ConfigurableMusicProvider implements MusicGenerationProvider {
       supportsBpm: true,
       supportsKey: true,
       supportsBars: true,
-      costPerSecondEstimateUsd: 0.002,
+      costPerSecondEstimateUsd: 0.001,
       isFreeTierAvailable: false,
       requiresApiKey: true,
       latencyClass: "medium",
       qualityTier: ["high", "studio"],
       limitations: ["Uses admin-configured tokens (base URL + API key)"],
-      // Always register; generate() fails clearly if no token
       enabled: true,
     };
   }
@@ -276,7 +354,7 @@ export class ConfigurableMusicProvider implements MusicGenerationProvider {
   async generate(req: ProviderGenerateRequest): Promise<ProviderGenerateResult> {
     const token = await selectProviderToken();
     if (!token) {
-      throw new Error("ProviderUnavailable: هیچ توکن ادمین تنظیم نشده است");
+      throw new Error("ProviderUnavailable: هیچ توکن ادمین تنظیم نشده است. از /admin/music-generator توکن اضافه کنید.");
     }
     return callToken(token, req);
   }

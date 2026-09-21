@@ -22,6 +22,8 @@ import { PERSIAN_ERROR_MESSAGES } from "@/lib/music-generation/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Long-running provider call
+export const maxDuration = 120;
 
 const rateMap = new Map<string, { count: number; resetAt: number }>();
 const WINDOW_MS = 60_000;
@@ -50,7 +52,15 @@ async function resolveUser(): Promise<{ id: string; username: string } | null> {
 export async function POST(request: Request) {
   const user = await resolveUser();
   if (!user) {
-    return NextResponse.json({ ok: false, error: "برای تولید موسیقی وارد شوید." }, { status: 401 });
+    return NextResponse.json(
+      {
+        ok: false,
+        code: "Unauthorized",
+        error: "برای تولید موسیقی ابتدا وارد شوید.",
+        loginUrl: "/login",
+      },
+      { status: 401 },
+    );
   }
   if (!rateOk(user.id)) {
     return NextResponse.json(
@@ -121,9 +131,20 @@ export async function POST(request: Request) {
     }
 
     const balance = await getBalance(user.id);
+    const view = publicJobView(finished);
 
+    // Always 200 with job payload so UI can show status + errorMessage
     return NextResponse.json(
-      { ok: true, job: publicJobView(finished), credits: { charged: charge.charged, balance } },
+      {
+        ok: finished.status === "completed",
+        job: view,
+        credits: { charged: charge.charged, balance },
+        error:
+          finished.status !== "completed"
+            ? finished.errorMessage || PERSIAN_ERROR_MESSAGES.InternalError
+            : undefined,
+        code: finished.errorCode,
+      },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (err) {
@@ -136,7 +157,7 @@ export async function POST(request: Request) {
     }
     console.error("[music/generate]", msg);
     return NextResponse.json(
-      { ok: false, error: "خطا در ایجاد درخواست تولید." },
+      { ok: false, error: "خطا در ایجاد درخواست تولید.", detail: msg.slice(0, 240) },
       { status: 500 },
     );
   }
