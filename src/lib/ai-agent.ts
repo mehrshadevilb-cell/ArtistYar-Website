@@ -203,7 +203,7 @@ async function ask(provider: AIProvider, model: string, task: string, context: s
         content: `TASK:\n${task}\n\nPROJECT CONTEXT:\n${context.slice(0, 14000)}\n\nGive:\n1) understanding/diagnosis\n2) implementation plan (ordered steps)\n3) affected files (exact paths)\n4) risks / regressions\n5) tests & verification\n6) checks for other agents`,
       },
     ];
-    const reply = await withTimeout(chatWithProvider(provider, model, messages, "artistyar-multi-agent"), ANALYSIS_TIMEOUT_MS);
+    const reply = await withTimeout(chatWithProvider(provider, model, messages), ANALYSIS_TIMEOUT_MS);
     return { provider: provider.id, model, ok: true, reply, durationMs: Date.now() - started };
   } catch (error) {
     return {
@@ -407,7 +407,6 @@ const desiredCoders = 1;
                 },
                 { role: "user", content: coderPrompt },
               ],
-              "artistyar-development-coder",
             ),
             CODING_TIMEOUT_MS,
           );
@@ -433,7 +432,7 @@ const desiredCoders = 1;
           chatWithProvider(candidate.provider, candidate.model, [
             { role: "system", content: "تو Coding Agent پروژه ArtistYar-Website هستی. خروجی دقیق و قابل اعمال بده. پاسخ نهایی JSON معتبر با فیلد changes باشد." },
             { role: "user", content: coderPrompt },
-          ], "artistyar-development-coder-backup"),
+          ]),
           CODING_TIMEOUT_MS,
         );
         const parsed = await parseCoderReply(reply, label);
@@ -466,7 +465,7 @@ const desiredCoders = 1;
         chatWithProvider(c.provider, c.model, [
           { role: "system", content: "تو Senior Reviewer پروژه ArtistYar-Website هستی. correctness، امنیت، TypeScript، Next.js و regression را بررسی کن. سخت‌گیر ولی عملی باش." },
           { role: "user", content: `TASK:\n${task}\n\nPLAN:\n${planning.synthesis.reply}\n\nPROPOSALS:\n${proposalText}\n\nدر ابتدای پاسخ دقیقاً بنویس:\nAPPROVE <شماره>\nیا\nREJECT ALL\nسپس دلیل فنی کوتاه بده.` },
-        ], "artistyar-development-reviewer"),
+        ]),
         REVIEW_TIMEOUT_MS,
       );
       reviews.push(review);
