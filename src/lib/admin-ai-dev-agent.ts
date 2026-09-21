@@ -4,7 +4,7 @@ import { listHealthyAdminAiModels, recordAdminAiModelFailure, recordAdminAiModel
 import { createBranchAndPullRequest, githubStatus, listTree, readFile, searchCode, type FileChange } from "@/lib/admin-ai-github";
 import { memoryContext } from "@/lib/admin-ai-memory";
 import { recordUsage } from "@/lib/admin-ai-usage";
-import { BUILTIN_SKILLS } from "@/lib/admin-ai-platform";
+import { getSkill, pushActivity } from "@/lib/admin-ai-platform";
 
 const DEV_SYSTEM = `تو RahYar Admin Dev Agent هستی — دستیار کدنویسی فقط برای مدیران.
 قوانین:
@@ -42,6 +42,7 @@ function parseProposedFiles(text: string): FileChange[] {
 async function runModel(messages: ChatMessage[], provider?: string, model?: string, signal?: AbortSignal) {
   if (provider && model) {
     try {
+      pushActivity("model", `مدل ${provider}/${model}`);
       const result = await chatExactProviderModel(messages, provider, model, "rahyar-admin-dev", signal);
       await recordAdminAiModelSuccess(provider, model);
       return result;
@@ -55,12 +56,14 @@ async function runModel(messages: ChatMessage[], provider?: string, model?: stri
   let lastError: unknown;
   for (const c of candidates.slice(0, 5)) {
     try {
+      pushActivity("model", `سعی مدل ${c.provider_id}/${c.model_id}`);
       const result = await autoChat(messages, c.provider_id, c.model_id, "rahyar-admin-dev", signal);
       await recordAdminAiModelSuccess(c.provider_id, c.model_id);
       return result;
     } catch (error) {
       lastError = error;
       await recordAdminAiModelFailure(c.provider_id, c.model_id, error);
+      pushActivity("error", `مدل ${c.provider_id}/${c.model_id} شکست`, error instanceof Error ? error.message : "");
     }
   }
   throw lastError || new Error("admin_ai_all_models_failed");
@@ -80,6 +83,7 @@ export async function runDevAgent(input: {
   const task = input.task.trim().slice(0, 8000);
   if (!task) throw new Error("empty_task");
 
+  pushActivity("info", "بررسی اتصال GitHub…");
   const gh = await githubStatus();
   if (!gh.ok) {
     return {
@@ -93,9 +97,11 @@ export async function runDevAgent(input: {
     };
   }
 
-  const skill = BUILTIN_SKILLS.find((s) => s.id === input.skillId && s.enabled);
+  const skill = input.skillId ? await getSkill(input.skillId) : undefined;
+  if (skill) pushActivity("info", `Skill: ${skill.name}`);
   const mem = await memoryContext(input.adminUsername).catch(() => "");
 
+  pushActivity("tool", "جستجوی کد مرتبط…");
   const searchHits = await searchCode(task.split(/\s+/).slice(0, 6).join(" "), 10).catch(() => []);
   const paths = [
     ...(input.paths || []),
@@ -105,6 +111,7 @@ export async function runDevAgent(input: {
   const filesRead: Array<{ path: string; bytes: number; content: string }> = [];
   for (const path of paths) {
     try {
+      pushActivity("tool", `خواندن ${path}`);
       const file = await readFile(path);
       filesRead.push({ path: file.path, bytes: file.content.length, content: file.content.slice(0, 14000) });
     } catch {
@@ -151,6 +158,7 @@ export async function runDevAgent(input: {
   const parallelSummaries: Array<{ provider: string; model: string; summary: string }> = [];
   let primary: Awaited<ReturnType<typeof runModel>>;
 
+  pushActivity("model", "اجرای مدل…");
   if (input.parallel) {
     const candidates = await listHealthyAdminAiModels(await listAdminAiRoutingCandidates());
     const picked = candidates.slice(0, 3);
@@ -180,6 +188,7 @@ export async function runDevAgent(input: {
   let pullRequest: DevAgentResult["pullRequest"];
 
   if (input.apply && proposedFiles.length) {
+    pushActivity("tool", "ساخت Draft PR…", proposedFiles.map((f) => f.path).join(", "));
     pullRequest = await createBranchAndPullRequest({
       branchName: `admin-ai/${Date.now().toString(36)}`,
       title: `Admin AI: ${task.slice(0, 72)}`,
@@ -187,6 +196,7 @@ export async function runDevAgent(input: {
       files: proposedFiles,
       draft: true,
     });
+    pushActivity("done", `PR #${pullRequest.number}`, pullRequest.url);
   }
 
   await recordUsage({
