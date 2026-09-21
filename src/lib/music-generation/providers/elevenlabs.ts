@@ -1,9 +1,7 @@
 /**
- * ElevenLabs Eleven Music adapter.
- * Enabled only when ELEVENLABS_API_KEY is present.
- * Docs: https://elevenlabs.io/docs/eleven-creative/products/music
- *
- * Note: Exact endpoint paths may evolve; adjust BASE if Eleven updates API.
+ * ElevenLabs Eleven Music adapter (env-based fallback).
+ * Official endpoint: POST https://api.elevenlabs.io/v1/music
+ * Docs: https://elevenlabs.io/docs/api-reference/music/compose
  */
 
 import type {
@@ -15,7 +13,7 @@ import type {
 } from "../types";
 import { expectedDurationMs } from "../provider";
 
-const BASE = (process.env.ELEVENLABS_MUSIC_BASE_URL || "https://api.elevenlabs.io/v1").replace(/\/$/, "");
+const BASE = (process.env.ELEVENLABS_MUSIC_BASE_URL || "https://api.elevenlabs.io").replace(/\/$/, "");
 
 function apiKey(): string {
   return (process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_API_KEY || "").trim();
@@ -104,7 +102,7 @@ export class ElevenMusicProvider implements MusicGenerationProvider {
     const key = apiKey();
     if (!key) return { ok: false, message: "ELEVENLABS_API_KEY missing" };
     try {
-      const res = await fetch(`${BASE}/user`, {
+      const res = await fetch(`${BASE}/v1/user`, {
         headers: { "xi-api-key": key },
         signal: AbortSignal.timeout(8_000),
         cache: "no-store",
@@ -143,23 +141,19 @@ export class ElevenMusicProvider implements MusicGenerationProvider {
     );
     const prompt = buildPrompt(req.spec);
     const modelId = process.env.ELEVENLABS_MUSIC_MODEL || "music_v2_5";
+    const endpoint = process.env.ELEVENLABS_MUSIC_PATH || "/v1/music";
 
-    // Composition-style request; path may be /music/generate or /music-generation depending on account tier.
-    const endpoint =
-      process.env.ELEVENLABS_MUSIC_PATH || "/music/generate";
-
-    const res = await fetch(`${BASE}${endpoint}`, {
+    const res = await fetch(`${BASE}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`, {
       method: "POST",
       headers: {
         "xi-api-key": key,
         "Content-Type": "application/json",
-        Accept: "audio/mpeg, application/json",
+        Accept: "audio/mpeg, audio/*, application/json",
       },
       body: JSON.stringify({
         prompt,
         model_id: modelId,
         music_length_ms: lengthMs,
-        force_instrumental: true,
       }),
       signal: req.signal ?? AbortSignal.timeout(120_000),
       cache: "no-store",
@@ -174,7 +168,6 @@ export class ElevenMusicProvider implements MusicGenerationProvider {
       throw new Error(`Provider error ${res.status}: ${text.slice(0, 200)}`);
     }
 
-    // Binary audio
     if (contentType.includes("audio") || contentType.includes("octet-stream")) {
       const audioBuffer = await res.arrayBuffer();
       return {
@@ -187,7 +180,6 @@ export class ElevenMusicProvider implements MusicGenerationProvider {
       };
     }
 
-    // JSON with URL or base64
     const json = (await res.json()) as {
       audio_url?: string;
       url?: string;

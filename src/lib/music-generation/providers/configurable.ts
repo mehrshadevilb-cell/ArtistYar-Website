@@ -1,6 +1,7 @@
 /**
  * Configurable music provider driven by admin token pool (base URL + API key).
- * Works with ElevenLabs-compatible proxies and OpenAI-compat music endpoints.
+ * Official ElevenLabs: POST {base}/v1/music  (or base already ends with /v1 + path /music)
+ * Docs: https://elevenlabs.io/docs/api-reference/music/compose
  */
 
 import type {
@@ -38,6 +39,10 @@ function buildPrompt(spec: GenerationSpec): string {
 function joinUrl(base: string, path: string): string {
   const b = base.replace(/\/$/, "");
   const p = path.startsWith("/") ? path : `/${path}`;
+  // Avoid double /v1 if base already ends with /v1 and path starts with /v1
+  if (b.endsWith("/v1") && p.startsWith("/v1/")) {
+    return `${b}${p.slice(3)}`;
+  }
   return `${b}${p}`;
 }
 
@@ -49,24 +54,38 @@ async function parseAudioResponse(
 ): Promise<ProviderGenerateResult> {
   const contentType = res.headers.get("content-type") || "";
 
-  if (contentType.includes("audio") || contentType.includes("octet-stream")) {
+  // Official ElevenLabs returns raw audio stream
+  if (
+    contentType.includes("audio") ||
+    contentType.includes("octet-stream") ||
+    contentType.includes("application/octet-stream")
+  ) {
     const audioBuffer = await res.arrayBuffer();
     if (audioBuffer.byteLength < 200) throw new Error("Provider returned empty audio");
     return {
       providerId: `token:${token.id}`,
       modelId,
       audioBuffer,
-      mimeType: contentType.includes("wav") ? "audio/wav" : "audio/mpeg",
+      mimeType: contentType.includes("wav") || contentType.includes("pcm") ? "audio/wav" : "audio/mpeg",
       durationMs: lengthMs,
       metadata: { tokenId: token.id, label: token.label },
     };
   }
 
+  // Some gateways still return JSON
   const text = await res.text();
   let json: Record<string, unknown> = {};
   try {
     json = JSON.parse(text) as Record<string, unknown>;
   } catch {
+    // Maybe raw audio without correct content-type
+    if (text.length > 500 || res.headers.get("content-length")) {
+      const buf = await (async () => {
+        // re-fetch not possible; treat as failed JSON
+        return null;
+      })();
+      void buf;
+    }
     throw new Error(`Provider non-JSON response: ${text.slice(0, 180)}`);
   }
 
@@ -128,20 +147,32 @@ async function callToken(
   );
   const prompt = buildPrompt(req.spec);
   const modelId = token.model_id || "music_v2_5";
-  const configuredPath = (token.path || "/music/generate").trim() || "/music/generate";
+  const configuredPath = (token.path || "").trim();
 
-  // Try a few common paths if the primary fails with 404
+  // Official ElevenLabs compose: POST /v1/music
+  // Also try proxy-style paths
   const pathCandidates = Array.from(
-    new Set([
-      configuredPath,
-      "/music/generate",
-      "/v1/music/generate",
-      "/music-generation",
-      "/generate",
-    ]),
+    new Set(
+      [
+        configuredPath,
+        "/v1/music",
+        "/music",
+        "/v1/music/stream",
+        "/music/stream",
+        "/v1/music/generate",
+        "/music/generate",
+        "/generate",
+      ].filter(Boolean),
+    ),
   );
 
+  // Official body first (no force_instrumental — not in public compose schema)
   const bodyVariants: Record<string, unknown>[] = [
+    {
+      prompt,
+      model_id: modelId,
+      music_length_ms: lengthMs,
+    },
     {
       prompt,
       model_id: modelId,
@@ -153,18 +184,13 @@ async function callToken(
       prompt,
       music_length_ms: lengthMs,
       duration_ms: lengthMs,
-      force_instrumental: true,
-    },
-    {
-      prompt,
-      model: modelId,
-      duration: Math.round(lengthMs / 1000),
     },
   ];
 
   const started = Date.now();
   let success = false;
   let errMsg: string | undefined;
+  const tried: string[] = [];
   let lastError = "unknown";
 
   try {
@@ -175,24 +201,24 @@ async function callToken(
         if (token.provider_kind === "elevenlabs") {
           headersList.push({
             "Content-Type": "application/json",
-            Accept: "audio/mpeg, application/json",
+            Accept: "audio/mpeg, audio/*, application/json",
             "xi-api-key": token.api_key,
           });
         } else {
           headersList.push(
             {
               "Content-Type": "application/json",
-              Accept: "audio/mpeg, application/json",
-              Authorization: `Bearer ${token.api_key}`,
-            },
-            {
-              "Content-Type": "application/json",
-              Accept: "audio/mpeg, application/json",
+              Accept: "audio/mpeg, audio/*, application/json",
               "xi-api-key": token.api_key,
             },
             {
               "Content-Type": "application/json",
-              Accept: "audio/mpeg, application/json",
+              Accept: "audio/mpeg, audio/*, application/json",
+              Authorization: `Bearer ${token.api_key}`,
+            },
+            {
+              "Content-Type": "application/json",
+              Accept: "audio/mpeg, audio/*, application/json",
               Authorization: `Bearer ${token.api_key}`,
               "xi-api-key": token.api_key,
             },
@@ -200,8 +226,9 @@ async function callToken(
         }
 
         for (const headers of headersList) {
+          const url = joinUrl(token.base_url, path);
           try {
-            const res = await fetch(joinUrl(token.base_url, path), {
+            const res = await fetch(url, {
               method: "POST",
               headers,
               body: JSON.stringify(body),
@@ -209,13 +236,14 @@ async function callToken(
               cache: "no-store",
             });
 
+            tried.push(`${res.status}:${path}`);
+
             if (res.status === 404 || res.status === 405) {
               lastError = `http_${res.status} path=${path}`;
               continue;
             }
             if (res.status === 401 || res.status === 403) {
-              lastError = `auth_${res.status}`;
-              // try next header style
+              lastError = `auth_${res.status} path=${path}`;
               continue;
             }
             if (res.status === 429) {
@@ -223,10 +251,9 @@ async function callToken(
             }
             if (!res.ok) {
               const text = await res.text().catch(() => "");
-              lastError = `http_${res.status}: ${text.slice(0, 160)}`;
-              // bad request with this body — try next body
+              lastError = `http_${res.status} path=${path}: ${text.slice(0, 160)}`;
               if (res.status === 400 || res.status === 422) continue;
-              throw new Error(`Provider error ${res.status}: ${text.slice(0, 200)}`);
+              throw new Error(`Provider error ${res.status} path=${path}: ${text.slice(0, 200)}`);
             }
 
             const result = await parseAudioResponse(res, modelId, token, lengthMs);
@@ -238,13 +265,12 @@ async function callToken(
             if (msg.includes("ProviderQuotaExceeded") || msg.includes("ProviderUnavailable")) {
               throw e;
             }
-            // try next combination
           }
         }
       }
     }
 
-    throw new Error(`Provider call failed: ${lastError}`);
+    throw new Error(`Provider call failed: ${lastError} | tried=${tried.slice(-12).join(",")}`);
   } catch (e) {
     errMsg = e instanceof Error ? e.message : String(e);
     throw e;
@@ -345,7 +371,7 @@ export class ConfigurableMusicProvider implements MusicGenerationProvider {
     if (dur) adjusted.durationMs = Math.max(5000, Math.min(180_000, dur));
     else if (!adjusted.durationMs) adjusted.durationMs = 15_000;
     return {
-      modelId: token?.model_id || "music_default",
+      modelId: token?.model_id || "music_v2_5",
       adjustedSpec: adjusted,
       notes: token ? [`token:${token.id}`, token.label] : ["no_token"],
     };
