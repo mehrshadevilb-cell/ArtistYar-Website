@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { USER_SESSION_COOKIE, verifyUserSession } from "@/lib/server-admin-auth";
 import { createPracticeQuestionToken } from "@/lib/practice-question-token";
+import { runtimeGenerateJson } from "@/lib/ai-runtime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,17 +28,6 @@ const db =
   dbUrl && dbSecret
     ? createClient(dbUrl, dbSecret, { auth: { autoRefreshToken: false, persistSession: false } })
     : null;
-
-const MODEL_CONFIGS = [
-  ["OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_MODEL", "https://api.openai.com/v1", process.env.OPENAI_MODEL || "gpt-5.6-luna"],
-  ["OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENROUTER_MODEL", "https://openrouter.ai/api/v1", process.env.OPENROUTER_MODEL || "openai/gpt-5.6-luna"],
-  ["GROQ_API_KEY", "GROQ_BASE_URL", "GROQ_MODEL", "https://api.groq.com/openai/v1", process.env.GROQ_MODEL || "llama-3.3-70b-versatile"],
-  ["DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL", "https://api.deepseek.com/v1", process.env.DEEPSEEK_MODEL || "deepseek-chat"],
-  ["MISTRAL_API_KEY", "MISTRAL_BASE_URL", "MISTRAL_MODEL", "https://api.mistral.ai/v1", process.env.MISTRAL_MODEL || "mistral-small-latest"],
-  ["TOGETHER_API_KEY", "TOGETHER_BASE_URL", "TOGETHER_MODEL", "https://api.together.xyz/v1", process.env.TOGETHER_MODEL || "meta-llama/Llama-3.3-70B-Instruct-Turbo"],
-  ["XAI_API_KEY", "XAI_BASE_URL", "XAI_MODEL", "https://api.x.ai/v1", process.env.XAI_MODEL || "grok-3-mini"],
-  ["BYTEZ_API_KEY", "BYTEZ_BASE_URL", "BYTEZ_MODEL", "https://api.bytez.com/models/v2/openai/v1", process.env.BYTEZ_MODEL || "Qwen/Qwen2.5-72B-Instruct"],
-] as const;
 
 function clampLevel(value: unknown) {
   return Math.max(1, Math.min(500, Math.round(Number(value) || 1)));
@@ -214,29 +204,6 @@ function fallback(gameId: GameId, level: number, recent: string[] = []): Generat
   };
 }
 
-async function ask(key: string, base: string, model: string, prompt: string) {
-  const response = await fetch(base.replace(/\/$/, "") + "/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
-    body: JSON.stringify({
-      model,
-      temperature: 1.05,
-      max_tokens: 700,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert music ear-training question designer. Return ONLY valid JSON. Never repeat generic templates. Generate a musically plausible, objectively scorable listening question. Audio parameters must exactly match the answer.",
-        },
-        { role: "user", content: prompt },
-      ],
-    }),
-    signal: AbortSignal.timeout(12000),
-  });
-  if (!response.ok) throw new Error("provider_" + response.status);
-  return extractText(await response.json());
-}
-
 function buildPrompt(gameId: GameId, level: number, recent: string[]) {
   const t = progress(level);
   const difficultyNote =
@@ -274,50 +241,17 @@ function buildPrompt(gameId: GameId, level: number, recent: string[]) {
 
 async function generate(gameId: GameId, level: number, recent: string[]) {
   const prompt = buildPrompt(gameId, level, recent);
-  const active = MODEL_CONFIGS.filter(([keyName]) => Boolean(process.env[keyName]));
-  if (!active.length) return fallback(gameId, level, recent);
-
-  const ensembleSize = level >= 300 ? 3 : level >= 100 ? 2 : 1;
-  const selected = active.slice(0, ensembleSize);
-  const results = await Promise.allSettled(
-    selected.map(async ([keyName, baseName, modelName, defaultBase, defaultModel]) => {
-      const key = process.env[keyName]!;
-      const text = await ask(
-        key,
-        process.env[baseName] || defaultBase,
-        process.env[modelName] || defaultModel,
-        prompt,
-      );
-      const question = normalize(parseJson(text), gameId, level);
-      if (!question) throw new Error("invalid_question");
-      return { question, provider: keyName, model: process.env[modelName] || defaultModel };
-    }),
-  );
-  const candidates = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
-
-  if (!candidates.length) return fallback(gameId, level, recent);
-  if (candidates.length === 1) return { ...candidates[0].question, source: `ai:${candidates[0].provider}` };
-
-  const grouped = new Map<string, typeof candidates>();
-  for (const candidate of candidates) {
-    const key = JSON.stringify({ answer: candidate.question.answer, audio: candidate.question.audio });
-    const group = grouped.get(key) || [];
-    group.push(candidate);
-    grouped.set(key, group);
+  try {
+    const result = await runtimeGenerateJson(
+      prompt,
+      "You are an expert music ear-training question designer. Return ONLY valid JSON. Never repeat generic templates. Generate a musically plausible, objectively scorable listening question. Audio parameters must exactly match the answer.",
+    );
+    const question = normalize(parseJson(result.reply), gameId, level);
+    if (!question) throw new Error("invalid_question");
+    return { ...question, source: `ai:${result.provider}/${result.model}` };
+  } catch {
+    return fallback(gameId, level, recent);
   }
-  const consensus = [...grouped.values()].sort((a, b) => b.length - a.length)[0];
-  const winner =
-    consensus.length > 1
-      ? consensus[Math.abs(level + recent.length) % consensus.length]
-      : [...candidates].sort((a, b) => {
-          const aScore = a.question.prompt.length + a.question.hint.length + a.question.options.length * 10;
-          const bScore = b.question.prompt.length + b.question.hint.length + b.question.options.length * 10;
-          return bScore - aScore;
-        })[(level + recent.length) % candidates.length];
-  return {
-    ...winner.question,
-    source: `ensemble:${candidates.map((c) => c.provider.replace("_API_KEY", "")).join("+")}`,
-  };
 }
 
 export async function POST(request: Request) {
