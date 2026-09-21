@@ -17,7 +17,8 @@ export async function loadRuntimeProviders(): Promise<AIProvider[]> {
     .eq("enabled", true).order("id");
   if (error) throw error;
   const now = Date.now();
-  return (data || []).filter((r: any) => {
+  const rows = [...(data || [])].sort((a: any, b: any) => Number(a?.metadata?.priority || 100) - Number(b?.metadata?.priority || 100) || String(a.id).localeCompare(String(b.id)));
+  return rows.filter((r: any) => {
     const meta = r.metadata || {};
     return meta.apiKeyEncrypted && (!meta.cooldownUntil || new Date(meta.cooldownUntil).getTime() <= now);
   }).map((r: any) => {
