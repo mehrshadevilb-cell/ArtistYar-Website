@@ -31,14 +31,14 @@ export async function listControlProviders() {
       status: modelCount > 0 ? "healthy" : isConfigured ? "degraded" : "configuration_error",
       configured: isConfigured,
       modelCount,
-      models: (live?.models || []).slice(0, 40).map((m) => ({ id: m.id, rank: m.rank, accessTier: m.accessTier })),
+      models: (live?.models || []).slice(0, 40).map((m) => ({ id: m.id, rank: m.rank })),
     };
   });
 }
 
 export async function testControlProvider(providerId: string) {
   const before = Date.now();
-  const discovered = await discoverAllModels({ allowFallback: false });
+  const discovered = await discoverAllModels();
   const entry = discovered.find((x) => x.provider.id === providerId);
   if (!entry) return { ok: false, providerId, latencyMs: Date.now() - before, error: "provider_not_configured" };
   return {
