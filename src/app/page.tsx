@@ -131,6 +131,21 @@ function HeroDisk() {
 export default function HomePage() {
   return (
     <div>
+      {/* TEMP — remove after Enamad title/meta verification passes */}
+      <div
+        style={{
+          background: "#111",
+          color: "#f5c542",
+          textAlign: "center",
+          padding: "10px 12px",
+          fontSize: 18,
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+        }}
+      >
+        43325481
+      </div>
+
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
 
       {/*
