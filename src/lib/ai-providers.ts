@@ -327,7 +327,7 @@ async function chatRahyar(provider: AIProvider, model: string, messages: ChatMes
   return String(reply);
 }
 
-async function chatWithProvider(provider: AIProvider, model: string, messages: ChatMessage[], signal?: AbortSignal): Promise<string> {
+export async function chatWithProvider(provider: AIProvider, model: string, messages: ChatMessage[], signal?: AbortSignal): Promise<string> {
   switch (provider.chatStyle) {
     case "anthropic":
       return chatAnthropic(provider, model, messages, signal);
