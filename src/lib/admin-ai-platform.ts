@@ -251,11 +251,15 @@ export function pushActivity(kind: ActivityEvent["kind"], message: string, detai
   activityLogMem.unshift(ev);
   if (activityLogMem.length > MAX_ACTIVITY) activityLogMem.length = MAX_ACTIVITY;
   if (supabase) {
-    void supabase
-      .from("admin_ai_activity")
-      .insert({ kind: ev.kind, message: ev.message, detail: ev.detail || null })
-      .then(() => null)
-      .catch(() => null);
+    void (async () => {
+      try {
+        await supabase
+          .from("admin_ai_activity")
+          .insert({ kind: ev.kind, message: ev.message, detail: ev.detail || null });
+      } catch {
+        /* activity logging must never affect the request */
+      }
+    })();
   }
 }
 
