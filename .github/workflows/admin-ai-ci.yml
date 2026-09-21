@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "ai/admin-ai-*"
+      - main
   pull_request:
     branches:
       - main
