@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { decryptProviderKey, encryptProviderKey } from "@/lib/ai-provider-crypto";
-import { getConfiguredProviders, type AIProvider } from "@/lib/ai-providers";
+import { discoverModels, getConfiguredProviders, type AIProvider } from "@/lib/ai-providers";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -49,10 +49,20 @@ export async function bootstrapRuntimeProvidersFromEnv(): Promise<number> {
 }
 
 export async function getRuntimeProviderPool(): Promise<AIProvider[]> {
-  try {
-    const providers = await loadRuntimeProviders();
-    if (providers.length) return providers;
-  } catch {}
-  await bootstrapRuntimeProvidersFromEnv();
-  return loadRuntimeProviders();
+  let providers: AIProvider[] = [];
+  try { providers = await loadRuntimeProviders(); } catch {}
+  if (!providers.length) {
+    await bootstrapRuntimeProvidersFromEnv();
+    providers = await loadRuntimeProviders();
+  }
+  const enriched = await Promise.all(providers.map(async (provider) => {
+    try {
+      const live = await discoverModels(provider);
+      const merged = [...new Set([...(provider.defaultModels || []), ...live.map((m) => m.id)])].slice(0, 8);
+      return { ...provider, defaultModels: merged };
+    } catch {
+      return provider;
+    }
+  }));
+  return enriched;
 }
