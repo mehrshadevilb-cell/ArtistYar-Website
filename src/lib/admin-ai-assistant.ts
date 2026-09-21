@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { autoChat, chatExactProviderModel, type ChatMessage } from "@/lib/ai-providers";
 import { listAdminAiRoutingCandidates } from "@/lib/admin-ai-model-registry";
 import { listHealthyAdminAiModels, recordAdminAiModelFailure, recordAdminAiModelSuccess } from "@/lib/admin-ai-model-health";
+import { executionCost } from "@/lib/admin-ai-control";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -10,6 +11,15 @@ const supabase = url && secret ? createClient(url, secret, { auth: { autoRefresh
 export const ADMIN_AI_SYSTEM_PROMPT = "تو RahYar Admin AI Assistant هستی؛ دستیار عمومی و مدیریتی فقط برای مدیران مجاز آکادمی.\nتو User Chat Bot نیستی. کار تو گفت‌وگوی طبیعی، خلاصه‌سازی، بازنویسی، تهیه گزارش و کمک عمومی مدیریتی است.\nدر این محصول هیچ دسترسی به Repository، کدنویسی، اجرای Command، تحلیل صوت، تحلیل موسیقی، Multi-Agent یا Workflow چندمرحله‌ای نداری. اگر کاری نیازمند چنین دسترسی‌ای بود، بگو در این Assistant در دسترس نیست.\nپاسخ را فارسی، حرفه‌ای، مستقیم و ساختاریافته نگه دار.";
 
 export type AdminAiMessage = { role: "user" | "assistant"; content: string; provider?: string | null; model?: string | null; created_at?: string };
+
+async function executionStart(input: { requestId:string; adminUsername:string; metadata?:Record<string,unknown> }) {
+  if (!supabase) return;
+  await supabase.from("admin_ai_executions").insert({request_id:input.requestId,admin_username:input.adminUsername,status:"started",metadata:input.metadata||{}});
+}
+async function executionFinish(requestId:string, patch:Record<string,unknown>) {
+  if (!supabase) return;
+  await supabase.from("admin_ai_executions").update({ ...patch, completed_at:new Date().toISOString() }).eq("request_id",requestId);
+}
 
 function db() {
   if (!supabase) throw new Error("admin_ai_storage_not_configured");
@@ -60,6 +70,10 @@ export async function archiveConversation(adminUsername: string, id: string) {
 }
 
 export async function sendAdminMessage(adminUsername: string, conversationId: string, content: string, provider?: string, model?: string, signal?: AbortSignal) {
+  const requestId = crypto.randomUUID();
+  const startedAt = Date.now();
+  await executionStart({requestId,adminUsername,metadata:{conversationId}});
+  try {
   const conversation = await getConversation(adminUsername, conversationId);
   if (!conversation) throw new Error("admin_ai_conversation_not_found");
   const userContent = content.trim().slice(0, 16000);
@@ -69,6 +83,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   history.push({ role: "user", content: userContent });
 
   let result: Awaited<ReturnType<typeof autoChat>> | null = null;
+  let fallbackUsed = false;
   if (provider || model) {
     if (!provider || !model) throw new Error("admin_ai_provider_and_model_must_be_paired");
     const allowed = await listAdminAiRoutingCandidates();
@@ -85,7 +100,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
     }
   } else {
     const candidates = await listHealthyAdminAiModels(await listAdminAiRoutingCandidates());
-    if (!candidates.length) throw new Error("admin_ai_no_healthy_model");
+    if (!candidates.length) { throw new Error("admin_ai_no_healthy_model"); }
     let lastError: unknown;
     let completed = false;
     for (const candidate of candidates) {
@@ -93,6 +108,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
       try {
         result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], candidate.provider_id, candidate.model_id, "rahyar-admin-assistant", signal);
         await recordAdminAiModelSuccess(candidate.provider_id, candidate.model_id);
+        fallbackUsed = Boolean(lastError);
         completed = true;
         break;
       } catch (error) {
@@ -122,6 +138,23 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   if (assistantInsert.error) throw assistantInsert.error;
 
   await db().from("admin_ai_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId).eq("admin_username", adminUsername);
-  await audit(adminUsername, "message_completed", conversationId, { provider: completedResult.provider, model: completedResult.model });
-  return assistantInsert.data;
+  const inputTokens = Math.ceil(history.reduce((n,m)=>n+m.content.length,0)/4);
+  const outputTokens = Math.ceil(completedResult.reply.length/4);
+  await executionFinish(requestId,{
+    status:"success",provider_id:completedResult.provider,model_id:completedResult.model,
+    input_tokens:inputTokens,output_tokens:outputTokens,latency_ms:Date.now()-startedAt,
+    retry_count:0,
+    estimated_cost_usd:executionCost(inputTokens,outputTokens,completedResult.model), fallback_used:fallbackUsed
+  });
+  await audit(adminUsername, "message_completed", conversationId, { provider: completedResult.provider, model: completedResult.model, requestId });
+  return { ...assistantInsert.data, request_id: requestId };
+  } catch (error) {
+    await executionFinish(requestId,{
+      status:"failed",
+      error_type:"runtime_error",
+      error_message:String(error instanceof Error ? error.message : error).slice(0,500),
+      latency_ms:Date.now()-startedAt
+    });
+    throw error;
+  }
 }

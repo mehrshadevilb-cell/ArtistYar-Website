@@ -2,7 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
-type Tab = "chat" | "dev" | "skills" | "models" | "memory" | "connectors" | "cost";
+type Tab = "chat" | "dev" | "skills" | "models" | "memory" | "connectors" | "cost" | "control";
+type ControlRecord = Record<string, unknown>;
 type Message = { role: "user" | "assistant"; content: string; provider?: string | null; model?: string | null };
 type Conversation = { id: string; title: string; archived: boolean; created_at: string; updated_at: string; messages?: Message[] };
 
@@ -36,6 +37,19 @@ async function chatApi(body?: Record<string, unknown>, query = "", signal?: Abor
   return readApiResponse(response);
 }
 
+async function control(section?: string, body?: Record<string, unknown>, signal?: AbortSignal) {
+  const url = section && !body ? `/api/admin/ai-control?section=${encodeURIComponent(section)}` : "/api/admin/ai-control";
+  const response = await fetch(url, {
+    method: body ? "POST" : "GET",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    credentials: "include",
+    cache: "no-store",
+    signal,
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  return readApiResponse(response);
+}
+
 async function platform(section?: string, body?: Record<string, unknown>, signal?: AbortSignal) {
   const url = section && !body ? `/api/admin/ai-platform?section=${section}` : "/api/admin/ai-platform";
   const response = await fetch(url, {
@@ -57,6 +71,7 @@ const TABS: { id: Tab; label: string; hashes: string[] }[] = [
   { id: "memory", label: "حافظه", hashes: ["memory"] },
   { id: "connectors", label: "اتصال‌ها", hashes: ["connectors"] },
   { id: "cost", label: "هزینه", hashes: ["cost", "usage"] },
+  { id: "control", label: "کنترل AI", hashes: ["control", "control-plane", "ai-control"] },
 ];
 
 function tabFromHash(hash: string): Tab | null {
@@ -69,6 +84,18 @@ function tabFromHash(hash: string): Tab | null {
 function hashForTab(id: Tab): string {
   if (id === "dev") return "#development-agent";
   return `#${id}`;
+}
+
+function ControlEditor({title,fields,onSave}:{title:string;id:string;fields:string[];onSave:(data:Record<string,string>)=>Promise<void>}) {
+  const [data,setData]=useState<Record<string,string>>({});
+  const [busy,setBusy]=useState(false);
+  return <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+    <h3 className="mb-3 text-sm font-medium text-sand-50">{title}</h3>
+    <div className="grid gap-2 sm:grid-cols-2">
+      {fields.map((field)=><input key={field} value={data[field]||""} onChange={e=>setData(v=>({...v,[field]:e.target.value}))} placeholder={field} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />)}
+    </div>
+    <button type="button" disabled={busy || !data.id || !data.name} onClick={async()=>{setBusy(true);try{await onSave(data);setData({});}finally{setBusy(false);}}} className="btn-primary mt-3 !py-2 text-xs">{busy?"در حال ذخیره…":"ذخیره"}</button>
+  </div>;
 }
 
 export default function AdminAiPlatformPage() {
@@ -96,6 +123,10 @@ export default function AdminAiPlatformPage() {
   const [memValue, setMemValue] = useState("");
   const [platformError, setPlatformError] = useState("");
   const [sectionLoading, setSectionLoading] = useState(false);
+  const [controlData, setControlData] = useState<ControlRecord[]>([]);
+  const [controlSection, setControlSection] = useState("providers");
+  const [controlBusy, setControlBusy] = useState(false);
+  const [promptDraft, setPromptDraft] = useState({agent_id:"admin-assistant",task_id:"chat",version:"1",system_prompt:"",developer_instructions:"",user_template:"",changelog:""});
   const hashSynced = useRef(false);
   const sectionRequestRef = useRef(0);
 
@@ -176,16 +207,31 @@ export default function AdminAiPlatformPage() {
         const result = await platform("cost");
         if (requestId === sectionRequestRef.current) setUsage(result.usage || null);
       }
+      if (id === "control") {
+        const result = await control(controlSection);
+        if (requestId === sectionRequestRef.current) {
+          const key = controlSection;
+          const value = result[key];
+          if (key === "usage" && value && typeof value === "object") {
+            setControlData(Object.entries(value as Record<string, unknown>).map(([period, data]) => ({
+              period,
+              ...(data && typeof data === "object" ? data as Record<string, unknown> : {})
+            })));
+          } else {
+            setControlData(Array.isArray(value) ? value as ControlRecord[] : []);
+          }
+        }
+      }
     } catch (e) {
       if (requestId === sectionRequestRef.current) setPlatformError(e instanceof Error ? e.message : "خطا");
     } finally {
       if (requestId === sectionRequestRef.current) setSectionLoading(false);
     }
-  }, []);
+  }, [controlSection]);
 
   useEffect(() => {
     void loadSection(tab);
-  }, [tab, loadSection]);
+  }, [tab, loadSection, controlSection]);
 
   async function create() {
     if (creating) return;
@@ -260,6 +306,17 @@ export default function AdminAiPlatformPage() {
     } catch (e) {
       setPlatformError(e instanceof Error ? e.message : "خطا");
     }
+  }
+
+  async function createControlPrompt() {
+    if (!promptDraft.system_prompt.trim()) return;
+    setControlBusy(true);
+    try {
+      await control(undefined, { action:"prompt_create", ...promptDraft, version:Number(promptDraft.version||1), author:"admin" });
+      setPromptDraft((p)=>({...p,version:String(Number(p.version||1)+1),system_prompt:"",developer_instructions:"",user_template:"",changelog:""}));
+      await loadSection("control");
+    } catch(e) { setPlatformError(e instanceof Error ? e.message : "خطا"); }
+    finally { setControlBusy(false); }
   }
 
   async function saveMemory() {
@@ -544,6 +601,97 @@ export default function AdminAiPlatformPage() {
               برای کار کردن تب Dev Agent باید <code className="text-sand-50">GITHUB_TOKEN</code> فقط به‌عنوان Secret روی Cloudflare Worker تنظیم شود (هرگز در کد commit نشود). بدون توکن، وضعیت GitHub = «تنظیم نشده» می‌ماند.
             </p>
           </div>
+        </section>
+      ) : null}
+
+      {tab === "control" ? (
+        <section className="space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-medium text-sand-50">کنترل و Observability</h2>
+                <p className="mt-1 text-xs leading-6 text-ink-500">Provider · Task · Agent · Prompt · Tool · Execution Log · Health</p>
+              </div>
+              <button type="button" onClick={() => void loadSection("control")} disabled={sectionLoading} className="btn-ghost !py-2 text-xs">
+                {sectionLoading ? "در حال بررسی…" : "بروزرسانی"}
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {[
+                ["providers","Providerها"],["tasks","Taskها"],["agents","Agentها"],["prompts","Promptها"],
+                ["tools","Toolها"],["executions","Execution Logs"],["usage","Health / Usage"]
+              ].map(([id,label]) => (
+                <button key={id} type="button" onClick={() => setControlSection(id)}
+                  className={`rounded-full border px-3 py-1.5 text-xs ${controlSection === id ? "border-gold-400/30 bg-gold-400/15 text-gold-300" : "border-white/10 text-ink-400"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {controlSection === "providers" ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {controlData.map((p) => {
+                const id=String(p.id||""); const status=String(p.status||"unknown");
+                const cls=status==="healthy" ? "text-emerald-400" : status==="degraded" ? "text-amber-300" : "text-red-300";
+                return <div key={id} className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                  <div className="flex items-center justify-between"><h3 className="text-sm text-sand-50">{String(p.name||id)}</h3><span className={`text-[10px] ${cls}`}>{status}</span></div>
+                  <p className="mt-2 text-xs text-ink-500">مدل‌های قابل کشف: {String(p.modelCount||0)}</p>
+                  <button type="button" onClick={async()=>{setControlBusy(true);try{await control(undefined,{action:"test_provider",providerId:id});await loadSection("control")}catch(e){setPlatformError(e instanceof Error?e.message:"خطا")}finally{setControlBusy(false)}}} disabled={controlBusy} className="btn-ghost mt-3 !py-2 text-xs">Test Connection</button>
+                </div>
+              })}
+            </div>
+          ) : null}
+          {controlSection === "tasks" ? (
+            <ControlEditor title="Task Registry" id="task" fields={["id","name","description","capability","primary_provider","primary_model","fallback_provider","fallback_model"]} onSave={async (data)=>{await control(undefined,{action:"task_upsert",...data,max_retries:Number(data.max_retries||2),timeout_ms:Number(data.timeout_ms||45000),enabled:true});await loadSection("control");}} />
+          ) : null}
+          {controlSection === "agents" ? (
+            <ControlEditor title="Agent Registry" id="agent" fields={["id","name","description","purpose","task_id","primary_provider","primary_model","fallback_provider","fallback_model","system_prompt"]} onSave={async (data)=>{await control(undefined,{action:"agent_upsert",...data,enabled:true,version:1});await loadSection("control");}} />
+          ) : null}
+          {controlSection === "tools" ? (
+            <ControlEditor title="Tool Registry" id="tool" fields={["id","name","description","permission_level","timeout_ms"]} onSave={async (data)=>{await control(undefined,{action:"tool_upsert",...data,enabled:false,timeout_ms:Number(data.timeout_ms||10000)});await loadSection("control");}} />
+          ) : null}
+          {controlSection === "prompts" ? (
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
+              <h3 className="text-sm font-medium text-sand-50">نسخه جدید Prompt</h3>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <input value={promptDraft.agent_id} onChange={e=>setPromptDraft(p=>({...p,agent_id:e.target.value}))} placeholder="Agent ID" className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
+                <input value={promptDraft.task_id} onChange={e=>setPromptDraft(p=>({...p,task_id:e.target.value}))} placeholder="Task ID" className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
+                <input value={promptDraft.version} onChange={e=>setPromptDraft(p=>({...p,version:e.target.value}))} placeholder="Version" className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
+              </div>
+              <textarea value={promptDraft.system_prompt} onChange={e=>setPromptDraft(p=>({...p,system_prompt:e.target.value}))} placeholder="System prompt" rows={5} className="w-full rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-sand-50" />
+              <textarea value={promptDraft.developer_instructions} onChange={e=>setPromptDraft(p=>({...p,developer_instructions:e.target.value}))} placeholder="Developer instructions" rows={3} className="w-full rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-sand-50" />
+              <textarea value={promptDraft.user_template} onChange={e=>setPromptDraft(p=>({...p,user_template:e.target.value}))} placeholder="User template (optional)" rows={2} className="w-full rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-sand-50" />
+              <div className="flex items-center gap-2">
+                <input value={promptDraft.changelog} onChange={e=>setPromptDraft(p=>({...p,changelog:e.target.value}))} placeholder="Changelog" className="flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
+                <button type="button" onClick={createControlPrompt} disabled={controlBusy || !promptDraft.system_prompt.trim()} className="btn-primary !py-2 text-xs">ثبت نسخه</button>
+              </div>
+              <p className="text-[10px] text-ink-600">نسخه جدید ابتدا غیرفعال است؛ فعال‌سازی باید صریح انجام شود.</p>
+            </div>
+          ) : null}
+          {controlSection === "tasks" || controlSection === "agents" || controlSection === "prompts" || controlSection === "tools" || controlSection === "executions" ? (
+            <div className="space-y-2">
+              {controlData.length ? controlData.map((row,index)=>(
+                <div key={String(row.id||index)} className="rounded-xl border border-white/10 bg-black/10 p-3">
+                  <pre className="overflow-auto text-[11px] leading-5 text-ink-300">{JSON.stringify(row,null,2)}</pre>
+                  {controlSection === "prompts" && row.id ? (
+                    <button type="button" onClick={async()=>{setControlBusy(true);try{await control(undefined,{action:"prompt_activate",id:String(row.id)});await loadSection("control")}catch(e){setPlatformError(e instanceof Error?e.message:"خطا")}finally{setControlBusy(false)}}} disabled={controlBusy || row.active === true} className="btn-ghost mt-3 !py-2 text-xs">
+                      {row.active === true ? "نسخه فعال" : "فعال‌سازی این نسخه"}
+                    </button>
+                  ) : null}
+                  {controlSection === "agents" && row.id ? (
+                    <button type="button" onClick={async()=>{setControlBusy(true);try{await control(undefined,{action:"agent_upsert",id:String(row.id),enabled:row.enabled===false});await loadSection("control")}catch(e){setPlatformError(e instanceof Error?e.message:"خطا")}finally{setControlBusy(false)}}} disabled={controlBusy} className="btn-ghost mt-3 ml-2 !py-2 text-xs">
+                      {row.enabled === false ? "فعال‌سازی Agent" : "غیرفعال‌سازی Agent"}
+                    </button>
+                  ) : null}
+                </div>
+              )) : <div className="rounded-xl border border-white/10 p-4 text-xs text-ink-500">داده‌ای وجود ندارد یا migration هنوز اجرا نشده است.</div>}
+            </div>
+          ) : null}
+          {controlSection === "usage" ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              {controlData.length ? controlData.map((row,index)=><div key={index} className="rounded-2xl border border-white/10 bg-black/10 p-4 text-xs"><p className="text-ink-500">{String(row.label||row.period||"usage")}</p><p className="mt-2 text-lg text-sand-50">{String(row.requests||row.estimatedCost||"—")}</p></div>) : <div className="rounded-xl border border-white/10 p-4 text-xs text-ink-500">Usage هنوز ثبت نشده است.</div>}
+            </div>
+          ) : null}
         </section>
       ) : null}
 
