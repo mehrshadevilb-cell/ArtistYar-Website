@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { autoChat, chatExactProviderModel, type ChatMessage } from "@/lib/ai-providers";
+import { chatExactProviderModel, type ChatMessage } from "@/lib/ai-providers";
+import { runtimeAutoChat } from "@/lib/ai-runtime";
 import { listAdminAiRoutingCandidates } from "@/lib/admin-ai-model-registry";
 import { recordAdminAiModelFailure, recordAdminAiModelSuccess } from "@/lib/admin-ai-model-health";
 import { executionCost, resolveAdminAiControlPlan } from "@/lib/admin-ai-control";
@@ -108,7 +109,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
       await recordAdminAiModelFailure(provider, model, error);
       // Auto-failover to ranked scan if explicit pair fails
       try {
-        result = await autoChat([{ role: "system", content: controlSystem }, ...history], undefined, undefined, "rahyar-admin-assistant", signal);
+        result = await runtimeAutoChat([{ role: "system", content: controlSystem }, ...history], undefined, undefined, "rahyar-admin-assistant", signal);
         fallbackUsed = true;
         await recordAdminAiModelSuccess(result.provider, result.model).catch(() => null);
       } catch {
