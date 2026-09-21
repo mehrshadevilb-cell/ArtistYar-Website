@@ -100,7 +100,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
     }
   } else {
     const candidates = await listHealthyAdminAiModels(await listAdminAiRoutingCandidates());
-    if (!candidates.length) { await executionFinish(requestId,{status:"failed",error_type:"no_healthy_model",error_message:"admin_ai_no_healthy_model",latency_ms:Date.now()-startedAt}); throw new Error("admin_ai_no_healthy_model"); }
+    if (!candidates.length) { throw new Error("admin_ai_no_healthy_model"); }
     let lastError: unknown;
     let completed = false;
     for (const candidate of candidates) {
@@ -122,8 +122,6 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
 
   const completedResult = result;
   if (!completedResult || typeof completedResult.reply !== "string" || !completedResult.reply.trim()) {
-    await executionFinish(requestId,{status:"failed",error_type:"empty_response",error_message:"admin_ai_empty_provider_result",latency_ms:Date.now()-startedAt});
-
     throw new Error("admin_ai_empty_provider_result");
   }
 
@@ -149,7 +147,6 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
     estimated_cost_usd:executionCost(inputTokens,outputTokens,completedResult.model), fallback_used:fallbackUsed
   });
   await audit(adminUsername, "message_completed", conversationId, { provider: completedResult.provider, model: completedResult.model, requestId });
-  await executionFinish(requestId,{status:"success",latency_ms:Date.now()-startedAt});
   return { ...assistantInsert.data, request_id: requestId };
   } catch (error) {
     await executionFinish(requestId,{
