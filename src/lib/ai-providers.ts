@@ -223,7 +223,7 @@ export async function autoChat(messages: ChatMessage[], preferredProvider?: stri
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`${c.providerId}/${c.modelId}: ${msg.slice(0, 140)}`);
       if (signal?.aborted) throw e;
-      if (/insufficient|billing|wallet|invalid api key|unauthorized|provider_missing_key|401|403|404/i.test(msg)) dead.add(c.providerId);
+      if (/insufficient|billing|wallet|credit|credits|quota|balance|funds|invalid api key|unauthorized|provider_missing_key|401|402|403|404/i.test(msg)) dead.add(c.providerId);
       // For transient failures, try the next provider/model rather than burning the
       // entire request budget on repeated models from the same provider.
       if (isTransientProviderError(msg)) dead.add(c.providerId);
