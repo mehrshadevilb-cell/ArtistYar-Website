@@ -127,6 +127,7 @@ export default function AdminAiPlatformPage() {
   const [controlSection, setControlSection] = useState("providers");
   const [controlBusy, setControlBusy] = useState(false);
   const [promptDraft, setPromptDraft] = useState({agent_id:"admin-assistant",task_id:"chat",version:"1",system_prompt:"",developer_instructions:"",user_template:"",changelog:""});
+  const [playground, setPlayground] = useState({agentId:"admin-assistant",taskId:"chat",message:"",running:false,result:null as any});
   const hashSynced = useRef(false);
   const sectionRequestRef = useRef(0);
 
@@ -628,6 +629,47 @@ export default function AdminAiPlatformPage() {
               ))}
             </div>
           </div>
+          {controlSection === "playground" ? (
+            <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
+                <div>
+                  <h3 className="text-sm font-medium text-sand-50">Admin AI Playground</h3>
+                  <p className="mt-1 text-[11px] leading-5 text-ink-500">اجرای تستی با Agent و Task واقعی. هیچ Tool یا side effect در Playground اجرا نمی‌شود.</p>
+                </div>
+                <input value={playground.agentId} onChange={e=>setPlayground(p=>({...p,agentId:e.target.value}))} placeholder="Agent ID" className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
+                <input value={playground.taskId} onChange={e=>setPlayground(p=>({...p,taskId:e.target.value}))} placeholder="Task ID" className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
+                <p className="text-[10px] leading-5 text-ink-600">Prompt فعال، Provider/Model اصلی و fallback از Registry خوانده می‌شوند.</p>
+              </div>
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
+                <textarea value={playground.message} onChange={e=>setPlayground(p=>({...p,message:e.target.value}))} rows={7} placeholder="پیام تست را اینجا بنویس…" className="w-full rounded-2xl border border-white/10 bg-black/20 p-3 text-sm text-sand-50 placeholder:text-ink-600" />
+                <button type="button" disabled={playground.running || !playground.message.trim()} onClick={async()=>{
+                  setPlayground(p=>({...p,running:true,result:null}));
+                  try {
+                    const r=await control(undefined,{action:"playground_run",agentId:playground.agentId,taskId:playground.taskId,message:playground.message});
+                    setPlayground(p=>({...p,running:false,result:r.result}));
+                  } catch(e) {
+                    setPlayground(p=>({...p,running:false,result:{error:e instanceof Error?e.message:"خطا"}}));
+                  }
+                }} className="btn-primary !py-2 text-xs">{playground.running?"در حال اجرا…":"اجرای تست"}</button>
+                {playground.result ? (
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-xs">
+                    {playground.result.error ? <p className="text-red-300">{playground.result.error}</p> : (
+                      <>
+                        <div className="flex flex-wrap gap-3 text-[10px] text-ink-500">
+                          <span>Request: <b className="text-sand-50">{playground.result.request_id}</b></span>
+                          <span>{playground.result.provider}/{playground.result.model}</span>
+                          <span>{playground.result.latency_ms}ms</span>
+                          <span>Prompt v{playground.result.prompt_version || "—"}</span>
+                          {playground.result.fallback_used ? <span className="text-amber-300">Fallback</span> : null}
+                        </div>
+                        <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap leading-6 text-ink-200">{playground.result.reply}</pre>
+                      </>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           {controlSection === "providers" ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {controlData.map((p) => {
