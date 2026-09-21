@@ -35,6 +35,13 @@ export function verifyAdminSession(value: string | undefined): SessionPayload | 
     const username = payload.slice(0, separator);
     const issuedAt = Number(payload.slice(separator + 1));
     if (!username || !Number.isFinite(issuedAt)) return null;
+
+    // A valid HMAC alone is not enough: bind the session to the currently
+    // configured admin identity. This immediately invalidates sessions for a
+    // previous admin username after the credential is rotated.
+    const configuredAdmin = (process.env.ARTISTYAR_ADMIN_USERNAME || "").trim();
+    if (!configuredAdmin || username !== configuredAdmin) return null;
+
     const ageSeconds = Math.floor((Date.now() - issuedAt) / 1000);
     if (ageSeconds < 0 || ageSeconds > SESSION_MAX_AGE_SECONDS) return null;
     return { username, issuedAt };
