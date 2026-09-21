@@ -2,7 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
-type Tab = "chat" | "dev" | "skills" | "models" | "memory" | "connectors" | "cost";
+type Tab = "chat" | "dev" | "skills" | "models" | "memory" | "connectors" | "cost" | "control";
+type ControlRecord = Record<string, unknown>;
 type Message = { role: "user" | "assistant"; content: string; provider?: string | null; model?: string | null };
 type Conversation = { id: string; title: string; archived: boolean; created_at: string; updated_at: string; messages?: Message[] };
 
@@ -36,6 +37,19 @@ async function chatApi(body?: Record<string, unknown>, query = "", signal?: Abor
   return readApiResponse(response);
 }
 
+async function control(section?: string, body?: Record<string, unknown>, signal?: AbortSignal) {
+  const url = section && !body ? `/api/admin/ai-control?section=${encodeURIComponent(section)}` : "/api/admin/ai-control";
+  const response = await fetch(url, {
+    method: body ? "POST" : "GET",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    credentials: "include",
+    cache: "no-store",
+    signal,
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  return readApiResponse(response);
+}
+
 async function platform(section?: string, body?: Record<string, unknown>, signal?: AbortSignal) {
   const url = section && !body ? `/api/admin/ai-platform?section=${section}` : "/api/admin/ai-platform";
   const response = await fetch(url, {
@@ -57,6 +71,7 @@ const TABS: { id: Tab; label: string; hashes: string[] }[] = [
   { id: "memory", label: "حافظه", hashes: ["memory"] },
   { id: "connectors", label: "اتصال‌ها", hashes: ["connectors"] },
   { id: "cost", label: "هزینه", hashes: ["cost", "usage"] },
+  { id: "control", label: "کنترل AI", hashes: ["control", "control-plane", "ai-control"] },
 ];
 
 function tabFromHash(hash: string): Tab | null {
@@ -96,6 +111,9 @@ export default function AdminAiPlatformPage() {
   const [memValue, setMemValue] = useState("");
   const [platformError, setPlatformError] = useState("");
   const [sectionLoading, setSectionLoading] = useState(false);
+  const [controlData, setControlData] = useState<ControlRecord[]>([]);
+  const [controlSection, setControlSection] = useState("providers");
+  const [controlBusy, setControlBusy] = useState(false);
   const hashSynced = useRef(false);
   const sectionRequestRef = useRef(0);
 
@@ -176,6 +194,14 @@ export default function AdminAiPlatformPage() {
         const result = await platform("cost");
         if (requestId === sectionRequestRef.current) setUsage(result.usage || null);
       }
+      if (id === "control") {
+        const result = await control(controlSection);
+        if (requestId === sectionRequestRef.current) {
+          const key = controlSection;
+          const value = result[key];
+          setControlData(Array.isArray(value) ? value as ControlRecord[] : []);
+        }
+      }
     } catch (e) {
       if (requestId === sectionRequestRef.current) setPlatformError(e instanceof Error ? e.message : "خطا");
     } finally {
@@ -185,7 +211,7 @@ export default function AdminAiPlatformPage() {
 
   useEffect(() => {
     void loadSection(tab);
-  }, [tab, loadSection]);
+  }, [tab, loadSection, controlSection]);
 
   async function create() {
     if (creating) return;
@@ -544,6 +570,56 @@ export default function AdminAiPlatformPage() {
               برای کار کردن تب Dev Agent باید <code className="text-sand-50">GITHUB_TOKEN</code> فقط به‌عنوان Secret روی Cloudflare Worker تنظیم شود (هرگز در کد commit نشود). بدون توکن، وضعیت GitHub = «تنظیم نشده» می‌ماند.
             </p>
           </div>
+        </section>
+      ) : null}
+
+      {tab === "control" ? (
+        <section className="space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-medium text-sand-50">کنترل و Observability</h2>
+                <p className="mt-1 text-xs leading-6 text-ink-500">Provider · Task · Agent · Prompt · Tool · Execution Log · Health</p>
+              </div>
+              <button type="button" onClick={() => void loadSection("control")} disabled={sectionLoading} className="btn-ghost !py-2 text-xs">
+                {sectionLoading ? "در حال بررسی…" : "بروزرسانی"}
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {[
+                ["providers","Providerها"],["tasks","Taskها"],["agents","Agentها"],["prompts","Promptها"],
+                ["tools","Toolها"],["executions","Execution Logs"],["usage","Health / Usage"]
+              ].map(([id,label]) => (
+                <button key={id} type="button" onClick={() => setControlSection(id)}
+                  className={`rounded-full border px-3 py-1.5 text-xs ${controlSection === id ? "border-gold-400/30 bg-gold-400/15 text-gold-300" : "border-white/10 text-ink-400"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {controlSection === "providers" ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {controlData.map((p) => {
+                const id=String(p.id||""); const status=String(p.status||"unknown");
+                const cls=status==="healthy" ? "text-emerald-400" : status==="degraded" ? "text-amber-300" : "text-red-300";
+                return <div key={id} className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                  <div className="flex items-center justify-between"><h3 className="text-sm text-sand-50">{String(p.name||id)}</h3><span className={`text-[10px] ${cls}`}>{status}</span></div>
+                  <p className="mt-2 text-xs text-ink-500">مدل‌های قابل کشف: {String(p.modelCount||0)}</p>
+                  <button type="button" onClick={async()=>{setControlBusy(true);try{await control(undefined,{action:"test_provider",providerId:id});await loadSection("control")}catch(e){setPlatformError(e instanceof Error?e.message:"خطا")}finally{setControlBusy(false)}}} disabled={controlBusy} className="btn-ghost mt-3 !py-2 text-xs">Test Connection</button>
+                </div>
+              })}
+            </div>
+          ) : null}
+          {controlSection === "tasks" || controlSection === "agents" || controlSection === "prompts" || controlSection === "tools" || controlSection === "executions" ? (
+            <div className="space-y-2">
+              {controlData.length ? controlData.map((row,index)=><pre key={String(row.id||index)} className="overflow-auto rounded-xl border border-white/10 bg-black/10 p-3 text-[11px] leading-5 text-ink-300">{JSON.stringify(row,null,2)}</pre>) : <div className="rounded-xl border border-white/10 p-4 text-xs text-ink-500">داده‌ای وجود ندارد یا migration هنوز اجرا نشده است.</div>}
+            </div>
+          ) : null}
+          {controlSection === "usage" ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              {controlData.length ? controlData.map((row,index)=><div key={index} className="rounded-2xl border border-white/10 bg-black/10 p-4 text-xs"><p className="text-ink-500">{String(row.label||row.period||"usage")}</p><p className="mt-2 text-lg text-sand-50">{String(row.requests||row.estimatedCost||"—")}</p></div>) : <div className="rounded-xl border border-white/10 p-4 text-xs text-ink-500">Usage هنوز ثبت نشده است.</div>}
+            </div>
+          ) : null}
         </section>
       ) : null}
 
