@@ -215,7 +215,7 @@ export default function AdminAiPlatformPage() {
     } finally {
       if (requestId === sectionRequestRef.current) setSectionLoading(false);
     }
-  }, []);
+  }, [controlSection]);
 
   useEffect(() => {
     void loadSection(tab);
@@ -647,7 +647,7 @@ export default function AdminAiPlatformPage() {
               <p className="text-[10px] text-ink-600">نسخه جدید ابتدا غیرفعال است؛ فعال‌سازی باید صریح انجام شود.</p>
             </div>
           ) : null}
-          {controlSection === "tasks" || controlSection === "agents" || controlSection === "tools" || controlSection === "executions" ? (
+          {controlSection === "tasks" || controlSection === "agents" || controlSection === "prompts" || controlSection === "tools" || controlSection === "executions" ? (
             <div className="space-y-2">
               {controlData.length ? controlData.map((row,index)=>(
                 <div key={String(row.id||index)} className="rounded-xl border border-white/10 bg-black/10 p-3">
