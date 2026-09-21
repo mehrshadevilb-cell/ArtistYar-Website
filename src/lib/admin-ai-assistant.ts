@@ -82,6 +82,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
   history.push({ role: "user", content: userContent });
 
   let result: Awaited<ReturnType<typeof autoChat>> | null = null;
+  let fallbackUsed = false;
   if (provider || model) {
     if (!provider || !model) throw new Error("admin_ai_provider_and_model_must_be_paired");
     const allowed = await listAdminAiRoutingCandidates();
@@ -106,6 +107,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
       try {
         result = await autoChat([{ role: "system", content: ADMIN_AI_SYSTEM_PROMPT }, ...history], candidate.provider_id, candidate.model_id, "rahyar-admin-assistant", signal);
         await recordAdminAiModelSuccess(candidate.provider_id, candidate.model_id);
+        fallbackUsed = Boolean(lastError);
         completed = true;
         break;
       } catch (error) {
@@ -143,7 +145,7 @@ export async function sendAdminMessage(adminUsername: string, conversationId: st
     status:"success",provider_id:completedResult.provider,model_id:completedResult.model,
     input_tokens:inputTokens,output_tokens:outputTokens,latency_ms:Date.now()-startedAt,
     retry_count:0,fallback_used:Boolean(provider || model ? false : candidates && candidates.length > 1),
-    estimated_cost_usd:executionCost(inputTokens,outputTokens,completedResult.model)
+    estimated_cost_usd:executionCost(inputTokens,outputTokens,completedResult.model), fallback_used:fallbackUsed
   });
   await audit(adminUsername, "message_completed", conversationId, { provider: completedResult.provider, model: completedResult.model, requestId });
   return { ...assistantInsert.data, request_id: requestId };
