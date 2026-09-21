@@ -1,3 +1,5 @@
+create extension if not exists pgcrypto;
+
 -- Admin AI control plane: providers, tasks, agents, prompts, tools, executions
 create table if not exists public.admin_ai_providers (
   id text primary key,
