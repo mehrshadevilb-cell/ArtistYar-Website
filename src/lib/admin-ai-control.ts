@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { chatExactProviderModel, discoverAllModels, getConfiguredProviders, type ChatMessage } from "@/lib/ai-providers";
+import { chatExactProviderModel, discoverModels, type ChatMessage } from "@/lib/ai-providers";
+import { getRuntimeProviderPool } from "@/lib/ai-runtime-providers";
 import { estimateCostUsd } from "@/lib/admin-ai-platform";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -10,26 +11,20 @@ function db() { if (!supabase) throw new Error("admin_ai_storage_not_configured"
 function has(name: string) { return Boolean((process.env[name] || "").trim()); }
 
 export async function listControlProviders() {
-  const discovered = await discoverAllModels().catch(() => []);
-  const configuredProviders = getConfiguredProviders();
-  const configured = new Map(configuredProviders.map((p) => [p.id, p]));
+  const configuredProviders = await getRuntimeProviderPool().catch(() => []);
+  const discovered = await Promise.all(configuredProviders.map(async (provider) => ({
+    provider: { id: provider.id, name: provider.name, configured: Boolean(provider.apiKey) },
+    models: await discoverModels(provider).catch(() => (provider.defaultModels || []).map((id) => ({ id, provider: provider.id }))),
+  })));
   const discoveredMap = new Map(discovered.map((x) => [x.provider.id, x]));
-  const catalog = [
-    "openai","anthropic","google","openrouter","xkiro","opencode","agentrouter",
-    "rahyar-gateway","groq","bytez","deepseek","mistral","together","fireworks","xai",
-    "flare","orca","ollama"
-  ];
-  const ids = [...new Set([...catalog, ...configuredProviders.map((p) => p.id)])];
-  return ids.map((id) => {
-    const live = discoveredMap.get(id);
-    const provider = configured.get(id);
+  return configuredProviders.map((provider) => {
+    const live = discoveredMap.get(provider.id);
     const modelCount = live?.models?.length || 0;
-    const isConfigured = Boolean(provider?.apiKey);
     return {
-      id,
-      name: provider?.name || live?.provider?.name || id,
-      status: modelCount > 0 ? "healthy" : isConfigured ? "degraded" : "configuration_error",
-      configured: isConfigured,
+      id: provider.id,
+      name: provider.name,
+      status: modelCount > 0 ? "healthy" : "degraded",
+      configured: true,
       modelCount,
       models: (live?.models || []).slice(0, 40).map((m) => ({ id: m.id, rank: m.rank })),
     };
@@ -38,8 +33,11 @@ export async function listControlProviders() {
 
 export async function testControlProvider(providerId: string) {
   const before = Date.now();
-  const discovered = await discoverAllModels();
-  const entry = discovered.find((x) => x.provider.id === providerId);
+  const providers = await getRuntimeProviderPool();
+  const provider = providers.find((x) => x.id === providerId);
+  if (!provider) return { ok: false, providerId, latencyMs: Date.now() - before, error: "provider_not_configured" };
+  const models = await discoverModels(provider).catch(() => (provider.defaultModels || []).map((id) => ({ id, provider: provider.id })));
+  const entry = { provider: { id: provider.id }, models };
   if (!entry) return { ok: false, providerId, latencyMs: Date.now() - before, error: "provider_not_configured" };
   return {
     ok: entry.models.length > 0,
