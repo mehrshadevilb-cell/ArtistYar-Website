@@ -110,6 +110,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta name="enamad" content="43325481" />
         {backend ? <link rel="preconnect" href={backend} crossOrigin="anonymous" /> : null}
+        {/* Kavenegar Web Push SDK */}
+        <script
+          src="https://cdn.kavenegar.com/sdk/page.js?appId=5b6c18c0-c2d6-47c0-ae2f-3fddcf7f499e"
+          defer
+          charSet="utf-8"
+        />
       </head>
       <body className="font-sans antialiased">
         <SmoothScroll />
