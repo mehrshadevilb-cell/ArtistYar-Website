@@ -89,15 +89,15 @@ export async function GET(request: Request) {
           github: gh,
           modelsEnabled: enabled.length,
           modelsTotal: models.length,
-          skills: listAllSkills().length,
+          skills: (await listAllSkills()).length,
           providersConfigured: providers.length,
           repo: githubConfig().configured ? `${githubConfig().owner}/${githubConfig().repo}` : null,
-          activity: listActivity(12),
+          activity: await listActivity(12),
         },
       });
     }
-    if (section === "skills") return NextResponse.json({ ok: true, skills: listAllSkills() });
-    if (section === "activity") return NextResponse.json({ ok: true, activity: listActivity(50) });
+    if (section === "skills") return NextResponse.json({ ok: true, skills: await listAllSkills() });
+    if (section === "activity") return NextResponse.json({ ok: true, activity: await listActivity(50) });
     if (section === "models") {
       try {
         return NextResponse.json({ ok: true, models: await listAdminAiModels() });
@@ -153,7 +153,7 @@ export async function GET(request: Request) {
                 ? "connected"
                 : "missing",
             envKeys: ["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SECRET_KEY"],
-            hint: "حافظه، usage و registry مدل‌های Admin AI به Supabase وابسته است.",
+            hint: "حافظه، usage، skill و activity به Supabase وابسته است.",
           },
           {
             id: "cloudflare",
@@ -199,13 +199,13 @@ export async function POST(request: Request) {
     if (action === "skill_install") {
       const url = typeof body.url === "string" ? body.url.trim() : "";
       pushActivity("tool", "نصب skill از GitHub", url);
-      const skill = await installSkillFromGithubUrl(url);
+      const skill = await installSkillFromGithubUrl(url, session.username);
       pushActivity("done", `Skill نصب شد: ${skill.name}`, skill.id);
-      return NextResponse.json({ ok: true, skill, skills: listAllSkills() });
+      return NextResponse.json({ ok: true, skill, skills: await listAllSkills() });
     }
 
     if (action === "activity_clear") {
-      clearActivity();
+      await clearActivity();
       return NextResponse.json({ ok: true, activity: [] });
     }
 
