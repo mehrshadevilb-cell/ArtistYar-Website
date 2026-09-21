@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { autoChat, getConfiguredProviders, type ChatMessage } from "@/lib/ai-providers";
+import { type ChatMessage } from "@/lib/ai-providers";
+import { runtimeAutoChat } from "@/lib/ai-runtime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,18 +50,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "پیام خالی است.", reply: "پیام خالی است." }, { status: 400 });
   }
 
-  // 1) Prefer local providers from Render env
+  // 1) Prefer the encrypted database provider pool.
   try {
-    const configured = getConfiguredProviders().filter((p) => p.apiKey);
-    if (configured.length) {
-      const result = await autoChat(messages, undefined, undefined, "rahyar-web", request.signal);
-      return NextResponse.json({
-        ok: true,
-        reply: result.reply,
-        provider: result.provider,
-        model: result.model,
-      });
-    }
+    const result = await runtimeAutoChat(messages, undefined, undefined, "rahyar-web", request.signal);
+    return NextResponse.json({
+      ok: true,
+      reply: result.reply,
+      provider: result.provider,
+      model: result.model,
+    });
   } catch (error) {
     console.error("rahyar assistant local failed", error instanceof Error ? error.message : error);
   }
