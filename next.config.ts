@@ -42,6 +42,14 @@ const nextConfig: NextConfig = {
         source: "/llms.txt",
         headers: [{ key: "Cache-Control", value: "public, max-age=3600" }],
       },
+      {
+        source: "/43325481.txt",
+        headers: [
+          { key: "Content-Type", value: "text/plain; charset=utf-8" },
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
+          { key: "X-Robots-Tag", value: "noindex" },
+        ],
+      },
     ];
   },
 };
