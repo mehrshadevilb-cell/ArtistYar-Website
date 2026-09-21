@@ -657,6 +657,11 @@ export default function AdminAiPlatformPage() {
                       {row.active === true ? "نسخه فعال" : "فعال‌سازی این نسخه"}
                     </button>
                   ) : null}
+                  {controlSection === "agents" && row.id ? (
+                    <button type="button" onClick={async()=>{setControlBusy(true);try{await control(undefined,{action:"agent_upsert",id:String(row.id),enabled:row.enabled===false});await loadSection("control")}catch(e){setPlatformError(e instanceof Error?e.message:"خطا")}finally{setControlBusy(false)}}} disabled={controlBusy} className="btn-ghost mt-3 ml-2 !py-2 text-xs">
+                      {row.enabled === false ? "فعال‌سازی Agent" : "غیرفعال‌سازی Agent"}
+                    </button>
+                  ) : null}
                 </div>
               )) : <div className="rounded-xl border border-white/10 p-4 text-xs text-ink-500">داده‌ای وجود ندارد یا migration هنوز اجرا نشده است.</div>}
             </div>
