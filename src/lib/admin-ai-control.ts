@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { autoChat, chatExactProviderModel, discoverAllModels, getConfiguredProviders, type ChatMessage } from "@/lib/ai-providers";
+import { chatExactProviderModel, discoverAllModels, getConfiguredProviders, type ChatMessage } from "@/lib/ai-providers";
 import { estimateCostUsd } from "@/lib/admin-ai-platform";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
