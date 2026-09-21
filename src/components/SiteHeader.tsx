@@ -14,6 +14,7 @@ const coreLinks = [
   { href: "/assistant", label: "ArtistYar AI" },
   { href: "/ai-music", label: "تولید موسیقی AI" },
   { href: "/music-analyzer", label: "تحلیل موسیقی" },
+  { href: "/arrangement", label: "سفارش تنظیم" },
   { href: "/courses", label: "پکیج‌ها" },
 ];
 
