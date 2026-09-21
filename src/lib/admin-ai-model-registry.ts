@@ -154,7 +154,25 @@ export async function listAdminAiRoutingCandidates(): Promise<
         .order("priority", { ascending: false });
       if (!result.error && result.data?.length) {
         const filtered = filterToLiveProviders(result.data as any);
-        if (filtered.length) return filtered;
+        if (filtered.length) {
+          // The registry can become stale after a provider changes models or keys.
+          // Keep the administrator's saved priority, but append live discovered
+          // candidates so one stale registry row cannot disable every AI feature.
+          const live = await discoverAsAdminModels(true).catch(() => []);
+          const liveCandidates = filterToLiveProviders(
+            live.map((m) => ({
+              provider_id: m.provider_id,
+              model_id: m.model_id,
+              priority: m.priority,
+              preferred: m.preferred,
+            })),
+          );
+          const seen = new Set(filtered.map((x) => `${x.provider_id}::${x.model_id}`));
+          return [
+            ...filtered,
+            ...liveCandidates.filter((x) => !seen.has(`${x.provider_id}::${x.model_id}`)),
+          ].sort((a, b) => Number(b.preferred) - Number(a.preferred) || b.priority - a.priority);
+        }
       }
 
       try {
