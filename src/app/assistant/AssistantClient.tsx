@@ -1,23 +1,25 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Bot,
-  Check,
-  CheckCircle2,
-  Clipboard,
-  Lightbulb,
-  MessageCircle,
-  Music2,
-  Plus,
-  RotateCcw,
-  Send,
-  ShieldCheck,
-  Sparkles,
-  Wifi,
-  WifiOff,
-} from "lucide-react";
+import * as Lucide from "lucide-react";
 import { MarkdownContent } from "@/components/MarkdownContent";
+
+// Keep the assistant route resilient if a Lucide export changes between package versions.
+function SafeIcon({
+  name,
+  size = 16,
+  className,
+  ...props
+}: {
+  name: keyof typeof Lucide;
+  size?: number;
+  className?: string;
+  [key: string]: unknown;
+}) {
+  const Icon = Lucide[name] as React.ComponentType<{ size?: number; className?: string; [key: string]: unknown }> | undefined;
+  return Icon ? <Icon size={size} className={className} {...props} /> : <span aria-hidden="true" className={className} />;
+}
+
 
 const WELCOME_MESSAGE =
   "سلام، من راه‌یارم. درباره تنظیم، میکس، مسترینگ، ملودی و دوره‌های آرتیست‌یار هر سؤالی داری بپرس؛ با هم قدم‌به‌قدم جلو می‌ریم.";
