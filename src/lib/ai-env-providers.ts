@@ -1,4 +1,4 @@
-/** Dynamic OpenAI-compatible providers from Render/CF env (any *_BASE_URL or *_API_KEY). */
+/** Dynamic OpenAI-compatible providers from Render/CF env (any *_BASE_URL / *_URL / *_API_KEY). */
 
 export type DynProvider = {
   id: string;
@@ -12,7 +12,7 @@ function env(name: string): string {
   return (process.env[name] || "").trim();
 }
 
-/** Prefixes already handled in getConfiguredProviders static list */
+/** Prefixes already handled in getConfiguredProviders static list — skip re-discovery. */
 const STATIC = new Set([
   "OPENAI", "OPENROUTER", "XKIRO", "KIRA", "XTROUTER", "OPENCODE", "OPENCODE_ZEN",
   "AGENTROUTER", "AGENT_ROUTER", "ANTHROPIC", "CLAUDE", "CLAUD", "GROQ", "BYTEZ",
@@ -23,6 +23,7 @@ const STATIC = new Set([
   "RAHYAR_AI_GATEWAY", "RAHYAR_API", "GOOGLE_GENERATIVE_AI", "GOOGLE", "GEMINI",
   "SUPABASE", "GITHUB", "NEXT_PUBLIC", "NODE", "NPM", "PATH", "HOME", "USER", "PWD",
   "ARTISTYAR", "WEB_ADMIN", "UVR", "MUSIC", "ELEVEN", "CF_API", "DATABASE", "POSTGRES",
+  "VERCEL", "RENDER", "PORT", "HOSTNAME", "LANG", "TERM", "SHLVL", "SHELL",
 ]);
 
 const DEFAULT_BASES: Record<string, string> = {
@@ -38,6 +39,16 @@ const DEFAULT_BASES: Record<string, string> = {
   ANTHROPIC: "https://api.anthropic.com/v1",
 };
 
+/** Generic models when a custom OpenAI-compat gateway has no *_MODEL set. */
+export const GENERIC_OPENAI_MODELS = [
+  "gpt-4o-mini",
+  "gpt-4o",
+  "llama-3.1-8b-instant",
+  "llama-3.3-70b-versatile",
+  "gemini-2.0-flash",
+  "deepseek-chat",
+];
+
 function slugify(prefix: string): string {
   return prefix.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "dyn";
 }
@@ -49,6 +60,7 @@ function resolveKey(prefix: string): string {
     env(`${prefix}_TOKEN`) ||
     env(`${prefix}_SECRET`) ||
     env(`${prefix}_APIKEY`) ||
+    env(`${prefix}_ACCESS_TOKEN`) ||
     ""
   );
 }
@@ -58,6 +70,8 @@ function resolveBase(prefix: string): string {
     env(`${prefix}_BASE_URL`) ||
     env(`${prefix}_URL`) ||
     env(`${prefix}_ENDPOINT`) ||
+    env(`${prefix}_API_BASE`) ||
+    env(`${prefix}_HOST`) ||
     DEFAULT_BASES[prefix.toUpperCase()] ||
     "";
   return raw
@@ -66,22 +80,50 @@ function resolveBase(prefix: string): string {
     .replace(/\/messages$/i, "");
 }
 
+function resolveModels(prefix: string): string[] | undefined {
+  const multi = env(`${prefix}_MODELS`) || env(`${prefix}_MODEL_LIST`) || "";
+  if (multi) {
+    const list = multi.split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
+    if (list.length) return list.slice(0, 8);
+  }
+  const single = env(`${prefix}_MODEL`) || env(`${prefix}_DEFAULT_MODEL`);
+  return single ? [single] : undefined;
+}
+
+/**
+ * Scan process.env for any provider-like prefix that has both a key and a base URL.
+ * Covers: FOO_API_KEY + FOO_BASE_URL, FOO_URL, FOO_ENDPOINT, etc.
+ */
 export function listEnvDiscoveredProviders(existingIds: Set<string> = new Set()): DynProvider[] {
   const list: DynProvider[] = [];
   const envKeys = Object.keys(process.env || {});
   const prefixes = new Set<string>();
 
+  const suffixPatterns: RegExp[] = [
+    /_BASE_URL$/i,
+    /_API_KEY$/i,
+    /_APIKEY$/i,
+    /_URL$/i,
+    /_ENDPOINT$/i,
+    /_API_BASE$/i,
+    /_KEY$/i,
+    /_TOKEN$/i,
+  ];
+
   for (const k of envKeys) {
     if (!((process.env[k] || "").trim())) continue;
     let prefix = "";
-    if (/_BASE_URL$/i.test(k)) prefix = k.replace(/_BASE_URL$/i, "");
-    else if (/_API_KEY$/i.test(k)) prefix = k.replace(/_API_KEY$/i, "");
-    else if (/_APIKEY$/i.test(k)) prefix = k.replace(/_APIKEY$/i, "");
-    else continue;
+    for (const re of suffixPatterns) {
+      if (re.test(k)) {
+        prefix = k.replace(re, "");
+        break;
+      }
+    }
     if (!prefix) continue;
     const up = prefix.toUpperCase();
     if (STATIC.has(up) || STATIC.has(prefix)) continue;
-    if (/^(npm_|corepack|yarn|pnpm)/i.test(prefix)) continue;
+    if (/^(npm_|corepack|yarn|pnpm|__|NEXT_|VERCEL_|RENDER_)/i.test(prefix)) continue;
+    if (/^(COLOR|FORCE|EDITOR|LC_|SSL_|HTTP_|HTTPS_)/i.test(prefix)) continue;
     prefixes.add(prefix);
   }
 
@@ -94,13 +136,13 @@ export function listEnvDiscoveredProviders(existingIds: Set<string> = new Set())
     if (existingIds.has(id)) id = `dyn-${slug}`;
     if (existingIds.has(id)) continue;
     existingIds.add(id);
-    const model = env(`${prefix}_MODEL`) || env(`${prefix}_DEFAULT_MODEL`);
+    const models = resolveModels(prefix);
     list.push({
       id,
       name: env(`${prefix}_NAME`) || prefix.replace(/_/g, " "),
       baseUrl: base,
       apiKey: key,
-      defaultModels: model ? [model] : undefined,
+      defaultModels: models?.length ? models : GENERIC_OPENAI_MODELS.slice(0, 3),
     });
   }
   return list;
