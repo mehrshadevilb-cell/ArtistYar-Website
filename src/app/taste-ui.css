@@ -146,17 +146,19 @@
   border-radius: 99px;
 }
 
-/* —— Product covers —— */
+/* —— Product covers (1:1) —— */
 .product-cover {
   object-fit: cover;
+  object-position: center center;
+  aspect-ratio: 1 / 1;
 }
 
 .product-cover-rahyar {
-  object-position: center 30%;
+  object-position: center center;
 }
 
 .product-cover-pro {
-  object-position: center 40%;
+  object-position: center center;
 }
 
 .product-cover-theory {
@@ -164,7 +166,7 @@
 }
 
 .product-cover-artist {
-  object-position: center 35%;
+  object-position: center center;
 }
 
 /* —— Comment cards —— */
@@ -206,7 +208,7 @@
   color: #8f8a80;
 }
 
-/* —— Hero layout —— */
+/* —— Hero layout extras —— */
 .hero-layout-root {
   position: relative;
 }
@@ -303,13 +305,6 @@
   color: #c9a227;
 }
 
-/* —— Free player empty —— */
-.free-player-empty {
-  background:
-    radial-gradient(circle at 50% 30%, rgba(201, 162, 39, 0.2), transparent 42%),
-    #10100e;
-}
-
 /* —— Status chips —— */
 .status-chip {
   display: inline-flex;
@@ -323,7 +318,6 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
-/* —— Scroll motion restraint —— */
 @media (prefers-reduced-motion: reduce) {
   .studio-meter i,
   .assistant-audio-meter i {
@@ -335,7 +329,6 @@
   }
 }
 
-/* —— Mobile polish —— */
 @media (max-width: 767px) {
   .hero-photo-stage {
     opacity: 0.35;
