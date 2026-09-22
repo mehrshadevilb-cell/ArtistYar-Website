@@ -12,6 +12,7 @@ import "./taste-ui.css";
 import "./light-mode-fix.css";
 import "./click-fix.css";
 import "./scroll-motion.css";
+import "./sonic-progress.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -20,6 +21,7 @@ import { FloatingAssistant } from "@/components/FloatingAssistant";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { TelegramMiniAppBridge } from "@/components/TelegramMiniAppBridge";
 import { SmoothScroll } from "@/components/SmoothScroll";
+import { SonicProgress } from "@/components/SonicProgress";
 
 // Public marketing pages can be cached; API routes stay dynamic on their own.
 export const revalidate = 60;
@@ -125,6 +127,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>
             <TelegramMiniAppBridge />
             <SiteAnalytics />
+            <SonicProgress />
             <div className="site-root relative min-h-screen overflow-x-hidden">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-radial-fade" />
               <div className="route-ambient route-ambient-one" aria-hidden="true" />
