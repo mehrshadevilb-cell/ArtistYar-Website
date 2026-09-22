@@ -8,12 +8,12 @@ type Lesson={id:string;course_id:number;title:string;description:string;sort_ord
 type Video={id:string;course_id:number;lesson_id:string;title:string;description:string;storage_bucket:string;storage_path:string;mime_type:string;file_size:number|null;duration_seconds:number|null;sort_order:number;is_active:boolean};
 type StorageItem={path:string;name:string;size:number;mimeType:string;createdAt:string};
 
-async function json(url:string,init?:RequestInit){const r=await fetch(url,{...init,cache:"no-store"});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||d.detail||"درخواست ناموفق بود.");return d;}
+async function json(url:string,init?:RequestInit){const r=await fetch(url,{credentials:"include",cache:"no-store",...init});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||d.detail||"درخواست ناموفق بود.");return d;}
 
 export default function AdminEducationPage(){
  const [storageBucket,setStorageBucket]=useState("artistyar-media"),[courses,setCourses]=useState<Course[]>([]),[courseId,setCourseId]=useState(""),[lessons,setLessons]=useState<Lesson[]>([]),[lessonId,setLessonId]=useState(""),[videos,setVideos]=useState<Video[]>([]),[storage,setStorage]=useState<StorageItem[]>([]);
  const [title,setTitle]=useState(""),[description,setDescription]=useState(""),[newLesson,setNewLesson]=useState(""),[message,setMessage]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
- async function loadCourses(){const d=await fetch("/api/rahyar/products",{cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error("دوره‌ها در دسترس نیستند.");return r.json()});setCourses(d||[]);}
+ async function loadCourses(){const d=await fetch("/api/rahyar/products",{cache:"no-store",credentials:"include"}).then(async r=>{if(!r.ok)throw new Error("دوره‌ها در دسترس نیستند.");return r.json()});setCourses(d||[]);}
  async function loadLessons(id=courseId){if(!id)return;const d=await json("/api/admin/education/lessons?courseId="+id);setLessons(d);setLessonId(d[0]?.id||"");}
  async function loadVideos(){if(!courseId)return;const d=await json("/api/admin/education/videos?courseId="+courseId);setVideos(d);}
  async function loadStorage(){const d=await json("/api/admin/education/storage");setStorageBucket(d.bucket||"artistyar-media");setStorage(d.items||[]);}
