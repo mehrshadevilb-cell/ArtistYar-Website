@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start:standalone": "node .next/standalone/server.js"
   },
   "dependencies": {
     "@supabase/server": "^1.6.1",

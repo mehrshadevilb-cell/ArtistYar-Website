@@ -1,14 +1,24 @@
 import type { NextConfig } from "next";
 
+const longCache = {
+  key: "Cache-Control",
+  value: "public, max-age=2592000, stale-while-revalidate=86400",
+} as const;
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  // Smaller deploy + faster cold start on Render
+  output: "standalone",
   experimental: {
     optimizePackageImports: ["lucide-react", "gsap", "lenis"],
   },
   images: {
     formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 30,
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     remotePatterns: [
       { protocol: "https", hostname: "**.supabase.co" },
       { protocol: "https", hostname: "**.instagram.com" },
@@ -41,8 +51,23 @@ const nextConfig: NextConfig = {
       {
         source: "/_next/static/(.*)",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
         ],
+      },
+      {
+        source: "/artistyar-studio-hero.webp",
+        headers: [longCache],
+      },
+      {
+        source: "/instagram-covers/:path*",
+        headers: [longCache],
+      },
+      {
+        source: "/separator/:path*",
+        headers: [longCache],
       },
       {
         source: "/llms.txt",

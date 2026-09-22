@@ -3,14 +3,22 @@ services:
     name: artistyar-website
     runtime: node
     branch: main
-    buildCommand: npm ci --no-audit --no-fund && NEXT_TELEMETRY_DISABLED=1 npm run build
-    startCommand: npm start
+    # Install → build → stage standalone runtime (smaller image, faster boot)
+    buildCommand: >
+      npm ci --no-audit --no-fund &&
+      NEXT_TELEMETRY_DISABLED=1 npm run build &&
+      cp -r public .next/standalone/public &&
+      cp -r .next/static .next/standalone/.next/static
+    startCommand: node .next/standalone/server.js
+    healthCheckPath: /
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: 22
+        value: "22"
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
       - key: NODE_OPTIONS
         value: "--max-old-space-size=1536"
+      - key: PORT
+        value: "10000"
