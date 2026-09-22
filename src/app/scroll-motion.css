@@ -1,28 +1,50 @@
-/* Scroll motion — subtle Apple-like depth */
+/* Native scroll foundation: no scroll hijacking, no scrub, no scroll blur. */
 
 .scroll-stage {
+  transform: none;
   transform-origin: 50% 30%;
-  backface-visibility: hidden;
-  /* will-change only helps during active scrub; keep light by default */
+  backface-visibility: visible;
+  will-change: auto;
 }
 
-@media (min-width: 768px) {
-  .scroll-stage {
-    will-change: transform, opacity, filter;
+.scroll-depth {
+  transform: none;
+  transform-style: flat;
+  will-change: auto;
+}
+
+.parallax-layer,
+.parallax-hero {
+  transform: none;
+  will-change: auto;
+}
+
+@media (max-width: 767px) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .scroll-stage,
+  .scroll-depth,
+  .parallax-layer,
+  .parallax-hero {
+    will-change: auto;
+    filter: none !important;
   }
 }
 
-/* Mobile: no scroll blur (JS also skips) */
-@media (max-width: 767px) {
-  .scroll-stage {
+@media (prefers-reduced-motion: reduce) {
+  .scroll-stage,
+  .scroll-depth,
+  .parallax-layer,
+  .parallax-hero {
     will-change: auto;
     filter: none !important;
     transform: none !important;
-    opacity: 1 !important;
   }
 }
 
-/* Reveal: softer blur → sharp */
+/* Reveal keeps a lightweight one-time IntersectionObserver transition. */
 .reveal {
   opacity: 0;
   transform: translateY(14px);
@@ -36,65 +58,31 @@
 .reveal-in {
   opacity: 1;
   transform: none;
-  filter: blur(0);
+  filter: none;
 }
 
-.scroll-depth {
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .scroll-stage,
-  .scroll-depth {
-    will-change: auto;
-    filter: none !important;
-    transform: none !important;
-    opacity: 1 !important;
-  }
-
-  .reveal {
-    opacity: 1;
-    transform: none;
-    filter: none;
-    transition: none;
-  }
-}
-
-/* —— Mobile scroll stability —— */
-/* Prefer native scrolling; avoid smooth scroll jank on touch devices */
 @media (max-width: 767px) {
-  html {
-    scroll-behavior: auto;
-  }
-
   .reveal {
-    /* Blur during scroll is expensive on mobile GPUs */
     filter: none;
     transform: translateY(10px);
   }
 
   .reveal-in {
     filter: none;
-  }
-
-  .scroll-depth,
-  .depth-scene {
-    will-change: auto !important;
-    transform: none !important;
+    transform: none;
   }
 }
 
-/* Never let decorative layers capture gestures */
+/* Decorative layers must never capture wheel/touch/pointer input. */
 .route-ambient,
 .page-ambient,
 .assistant-ambient,
 .fa-ambient,
+.depth-scene,
 .depth-scene-grid {
   pointer-events: none !important;
 }
 
-/* Body must not lock overflow except while mobile menu is open (handled in JS) */
 html:not(.telegram-mini-app),
 body:not(.telegram-mini-app) {
   overscroll-behavior-y: auto;
