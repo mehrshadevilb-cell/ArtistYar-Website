@@ -1,18 +1,24 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Image from "next/image";
-import type { LiveProduct } from "@/components/LiveProductCard";
+import type { Metadata } from "next";
 import { SectionHeading } from "@/components/SectionHeading";
 import { StatusChip } from "@/components/StatusChip";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { SafeLink } from "@/components/SafeLink";
+import { getCatalog } from "@/lib/catalog";
+
+export const metadata: Metadata = {
+  title: "پکیج‌ها و مسیرهای آموزشی",
+  description: "مسیرهای آموزشی آرتیست‌یار و راه‌یار: تنظیم، میکس، مسترینگ، تئوری و پکیج کامل.",
+  alternates: { canonical: "/courses" },
+};
+
+export const revalidate = 60;
 
 function slugify(title: string): string {
   return title
     .trim()
     .toLowerCase()
-    .replace(/‌/g, "")
+    .replace(/\u200c/g, "")
     .replace(/[^\u0600-\u06FF\u0660-\u0669a-z0-9]+/gi, "-")
     .replace(/^-+|-+$/g, "");
 }
@@ -32,19 +38,10 @@ function coverClass(title: string): string {
   return "product-cover";
 }
 
-export default function CoursesPage() {
-  const [items, setItems] = useState<LiveProduct[]>([]);
-  const [source, setSource] = useState("در حال بارگذاری…");
-
-  useEffect(() => {
-    fetch("/api/rahyar/products")
-      .then((r) => r.json())
-      .then((data) => {
-        setSource(data.source || "unknown");
-        setItems(data.items || []);
-      })
-      .catch(() => setSource("خطا در دریافت مسیرها"));
-  }, []);
+export default async function CoursesPage() {
+  const catalog = await getCatalog();
+  const items = catalog.items || [];
+  const source = catalog.source;
 
   return (
     <section className="container-ay py-14 sm:py-16">
@@ -56,7 +53,7 @@ export default function CoursesPage() {
         />
         <div className="self-start sm:self-auto">
           <StatusChip tone={source === "rahyar" ? "ok" : "warn"}>
-            {source === "rahyar" ? "کاتالوگ زنده" : source}
+            {source === "rahyar" ? "کاتالوگ زنده" : source === "demo" ? "نمایش نمونه" : source}
           </StatusChip>
         </div>
       </div>
@@ -127,11 +124,7 @@ export default function CoursesPage() {
         })}
       </div>
 
-      {!items.length && source === "در حال بارگذاری…" ? (
-        <div className="py-20 text-center text-sm text-ink-500">در حال دریافت محصولات…</div>
-      ) : null}
-
-      {!items.length && source !== "در حال بارگذاری…" ? (
+      {!items.length ? (
         <div className="card-ay mx-auto mt-10 max-w-lg p-8 text-center">
           <p className="text-sm text-ink-300">
             فعلاً لیست مسیرها در دسترس نیست. از لینک‌های جامعه استفاده کن یا کمی بعد دوباره تلاش کن.
