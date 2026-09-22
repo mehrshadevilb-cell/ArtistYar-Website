@@ -8,10 +8,12 @@ import {
 } from "react";
 
 type ParallaxProps = {
+  /** Optional content. Decorative parallax layers may intentionally be empty. */
   children?: ReactNode;
-  /** 0 = lag, 1 = normal. Default 0.35 */
+  /** Scroll speed relative to page. 0 = sticky-ish lag, 1 = normal, >1 = faster. Default 0.35 */
   speed?: number;
   className?: string;
+  /** Also shift slightly on horizontal pointer for depth */
   pointer?: boolean;
 };
 
@@ -21,7 +23,8 @@ function prefersReducedMotion() {
 }
 
 /**
- * Lightweight parallax — rAF only while intersecting and moving; stops when idle.
+ * Lightweight parallax layer driven by scroll (and optional pointer).
+ * Uses transform + rAF; no external deps.
  */
 export function Parallax({
   children,
@@ -33,91 +36,49 @@ export function Parallax({
   const frame = useRef(0);
   const target = useRef({ y: 0, px: 0, py: 0 });
   const current = useRef({ y: 0, px: 0, py: 0 });
-  const visible = useRef(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el || prefersReducedMotion()) return;
 
-    // Skip heavy parallax on touch-primary / narrow viewports
-    if (window.matchMedia("(max-width: 767px)").matches) return;
-
     const updateTarget = () => {
       const rect = el.getBoundingClientRect();
       const viewH = window.innerHeight || 1;
+      // distance of element center from viewport center
       const centerOffset = rect.top + rect.height / 2 - viewH / 2;
-      target.current.y = centerOffset * (speed - 1) * 0.35;
-    };
-
-    const stop = () => {
-      if (frame.current) cancelAnimationFrame(frame.current);
-      frame.current = 0;
-    };
-
-    const tick = () => {
-      if (!visible.current || document.visibilityState === "hidden") {
-        frame.current = 0;
-        return;
-      }
-      const c = current.current;
-      const t = target.current;
-      c.y += (t.y - c.y) * 0.12;
-      c.px += (t.px - c.px) * 0.1;
-      c.py += (t.py - c.py) * 0.1;
-      el.style.transform = `translate3d(${c.px.toFixed(2)}px, ${c.y.toFixed(2)}px, 0)`;
-
-      const moving =
-        Math.abs(t.y - c.y) > 0.05 ||
-        Math.abs(t.px - c.px) > 0.05 ||
-        Math.abs(t.py - c.py) > 0.05;
-      if (moving) {
-        frame.current = requestAnimationFrame(tick);
-      } else {
-        frame.current = 0;
-      }
-    };
-
-    const start = () => {
-      if (frame.current || !visible.current) return;
-      frame.current = requestAnimationFrame(tick);
+      target.current.y = centerOffset * (speed - 1) * 0.45;
     };
 
     const onScroll = () => {
-      if (!visible.current) return;
       updateTarget();
-      start();
     };
 
     const onPointer = (e: PointerEvent) => {
-      if (!pointer || !visible.current) return;
+      if (!pointer) return;
       const nx = (e.clientX / window.innerWidth - 0.5) * 2;
       const ny = (e.clientY / window.innerHeight - 0.5) * 2;
-      target.current.px = nx * 8 * speed;
-      target.current.py = ny * 5 * speed;
-      start();
+      target.current.px = nx * 12 * speed;
+      target.current.py = ny * 8 * speed;
     };
 
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        visible.current = Boolean(entry?.isIntersecting);
-        if (visible.current) {
-          updateTarget();
-          start();
-        } else {
-          stop();
-        }
-      },
-      { rootMargin: "80px 0px" },
-    );
-    io.observe(el);
+    const tick = () => {
+      const c = current.current;
+      const t = target.current;
+      c.y += (t.y - c.y) * 0.08;
+      c.px += (t.px - c.px) * 0.06;
+      c.py += (t.py - c.py) * 0.06;
+      el.style.transform = `translate3d(${c.px.toFixed(2)}px, ${c.y.toFixed(2)}px, 0)`;
+      frame.current = requestAnimationFrame(tick);
+    };
 
+    updateTarget();
+    frame.current = requestAnimationFrame(tick);
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll, { passive: true });
     if (pointer) window.addEventListener("pointermove", onPointer, { passive: true });
 
     return () => {
-      stop();
-      io.disconnect();
+      cancelAnimationFrame(frame.current);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
       if (pointer) window.removeEventListener("pointermove", onPointer);
@@ -136,14 +97,13 @@ type ParallaxHeroProps = {
   className?: string;
 };
 
-/** Hero shell: light drift + fade; desktop only. */
+/** Hero shell: content drifts slower than scroll; fades slightly as you leave. */
 export function ParallaxHero({ children, className = "" }: ParallaxHeroProps) {
   const ref = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el || prefersReducedMotion()) return;
-    if (window.matchMedia("(max-width: 767px)").matches) return;
 
     let frame = 0;
     const onScroll = () => {
@@ -151,10 +111,10 @@ export function ParallaxHero({ children, className = "" }: ParallaxHeroProps) {
       frame = requestAnimationFrame(() => {
         const y = window.scrollY || 0;
         const max = Math.max(el.offsetHeight, 1);
-        const p = Math.min(y / max, 1.2);
-        el.style.setProperty("--parallax-y", `${(y * 0.18).toFixed(1)}px`);
-        el.style.setProperty("--parallax-fade", `${Math.max(0.35, 1 - p * 0.55).toFixed(3)}`);
-        el.style.setProperty("--parallax-scale", "1");
+        const p = Math.min(y / max, 1.4);
+        el.style.setProperty("--parallax-y", `${(y * 0.28).toFixed(1)}px`);
+        el.style.setProperty("--parallax-fade", `${Math.max(0, 1 - p * 0.85).toFixed(3)}`);
+        el.style.setProperty("--parallax-scale", `${(1 + p * 0.04).toFixed(4)}`);
       });
     };
 
