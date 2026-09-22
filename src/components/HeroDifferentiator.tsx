@@ -33,11 +33,11 @@ const signals = [
   },
   {
     label: "AI Music Generator",
-    detail: "ساخت ایده و جهت‌گیری موسیقی با هوش مصنوعی — به‌زودی.",
+    detail: "ریف، بیس‌لاین، ملودی و فیل درام را با زبان طبیعی بخواه و بشنو.",
     icon: Wand2,
-    href: "#",
+    href: "/ai-music",
     accent: "violet",
-    soon: true,
+    soon: false,
     extra: null as null | "arcade",
   },
 ] as const;
