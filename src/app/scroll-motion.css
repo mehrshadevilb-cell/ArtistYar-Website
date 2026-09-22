@@ -1,31 +1,49 @@
-/* Native scroll foundation: no scroll hijacking, no scrub, no scroll blur. */
+/* Scroll motion — single native document scroll + light presence effects */
+
+/*
+ * CRITICAL: only the document (html) may scroll vertically.
+ * overflow-x:hidden on a nested wrapper forces overflow-y to auto (CSS),
+ * which creates a SECOND scrollbar. Never put overflow-x:hidden on .site-root.
+ */
+html {
+  scroll-behavior: auto !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* LTR on the scrolling root keeps the native scrollbar on the physical RIGHT.
+     Body keeps dir=rtl for content. */
+  direction: ltr;
+}
+
+body {
+  overflow: visible;
+  direction: rtl;
+  min-height: 100%;
+}
+
+.site-root,
+.page-shell {
+  overflow: visible !important;
+}
 
 .scroll-stage {
-  transform: none;
   transform-origin: 50% 30%;
-  backface-visibility: visible;
-  will-change: auto;
+  backface-visibility: hidden;
 }
 
-.scroll-depth {
-  transform: none;
-  transform-style: flat;
-  will-change: auto;
+@media (min-width: 768px) {
+  .scroll-stage {
+    will-change: transform, opacity, filter;
+  }
 }
 
-.parallax-layer,
-.parallax-hero {
-  transform: none;
-  will-change: auto;
-}
-
+/* Mobile: no scroll-linked filters */
 @media (max-width: 767px) {
-  html {
-    scroll-behavior: auto;
+  .scroll-stage,
+  .scroll-depth {
+    will-change: auto;
+    filter: none !important;
   }
 
-  .scroll-stage,
-  .scroll-depth,
   .parallax-layer,
   .parallax-hero {
     will-change: auto;
@@ -42,17 +60,24 @@
     filter: none !important;
     transform: none !important;
   }
+
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    transition: none !important;
+  }
 }
 
-/* Reveal keeps a lightweight one-time IntersectionObserver transition. */
+/* Reveal — lightweight one-shot entrance (IntersectionObserver in component) */
 .reveal {
   opacity: 0;
   transform: translateY(14px);
-  filter: blur(4px);
+  filter: blur(3px);
   transition:
-    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-    filter 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.65s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .reveal-in {
@@ -73,17 +98,25 @@
   }
 }
 
-/* Decorative layers must never capture wheel/touch/pointer input. */
+/* Decorative layers never capture input */
 .route-ambient,
 .page-ambient,
 .assistant-ambient,
 .fa-ambient,
 .depth-scene,
-.depth-scene-grid {
+.depth-scene-grid,
+.scroll-depth,
+.parallax-layer {
   pointer-events: none !important;
 }
 
 html:not(.telegram-mini-app),
 body:not(.telegram-mini-app) {
   overscroll-behavior-y: auto;
+}
+
+/* Telegram: contain overscroll bounce without locking the page */
+html.telegram-mini-app,
+body.telegram-mini-app {
+  overscroll-behavior-y: contain;
 }

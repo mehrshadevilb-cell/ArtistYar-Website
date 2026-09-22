@@ -108,7 +108,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fa" dir="rtl" className={vazirmatn.variable} suppressHydrationWarning>
+    <html lang="fa" className={vazirmatn.variable} suppressHydrationWarning>
       <head>
         <meta name="enamad" content="43325481" />
         {backend ? <link rel="preconnect" href={backend} crossOrigin="anonymous" /> : null}
@@ -119,13 +119,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           charSet="utf-8"
         />
       </head>
-      <body className="font-sans antialiased">
+      <body dir="rtl" className="font-sans antialiased">
         <SmoothScroll />
         <ThemeProvider>
           <AuthProvider>
             <TelegramMiniAppBridge />
             <SiteAnalytics />
-            <div className="site-root relative min-h-screen overflow-x-hidden">
+            <div className="site-root relative min-h-screen">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-radial-fade" />
               <div className="route-ambient route-ambient-one" aria-hidden="true" />
               <div className="route-ambient route-ambient-two" aria-hidden="true" />
