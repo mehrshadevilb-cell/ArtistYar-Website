@@ -16,6 +16,18 @@ export type TelegramWebApp = {
   /** Telegram WebApp platform identifier (e.g. ios, android, web). */
   platform?: string;
   initData?: string;
+  initDataUnsafe?: {
+    user?: {
+      id?: number;
+      first_name?: string;
+      last_name?: string;
+      username?: string;
+      language_code?: string;
+      photo_url?: string;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
   ready?: () => void;
   expand?: () => void;
   disableVerticalSwipes?: () => void;
