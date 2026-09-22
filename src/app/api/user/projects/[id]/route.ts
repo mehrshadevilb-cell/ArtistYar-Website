@@ -39,7 +39,7 @@ export async function DELETE(_r:Request,ctx:{params:Promise<{id:string}>}){
  const {id}=await ctx.params;if(!await ownedProject(s.id,id))return NextResponse.json({ok:false,error:"project_not_found"},{status:404});
  if(!ecosystemDb)return NextResponse.json({ok:false,error:"ذخیره‌سازی پیکربندی نشده است."},{status:503});
  const {data:files}=await ecosystemDb.from("artistyar_project_files").select("storage_path").eq("project_id",id).eq("user_id",s.id);
- if(files?.length){const storage=ecosystemDb.storage.from(process.env.SUPABASE_BUCKET||"artistyar-media");await storage.remove(files.map(f=>f.storage_path));}
+ if(files?.length){const storage=ecosystemDb.storage.from(process.env.SUPABASE_BUCKET||"artistyar-media");const fileIds=files.map(f=>f.storage_path);const {data:versions}=await ecosystemDb.from("artistyar_project_file_versions").select("storage_path").eq("project_id",id).eq("user_id",s.id);await storage.remove([...fileIds,...(versions||[]).map(v=>v.storage_path)]);}
  const {error}=await ecosystemDb.from("artistyar_projects").delete().eq("id",id).eq("user_id",s.id);
  if(error)return NextResponse.json({ok:false,error:"حذف پروژه ناموفق بود."},{status:500});
  return NextResponse.json({ok:true});
