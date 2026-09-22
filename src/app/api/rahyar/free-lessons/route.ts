@@ -50,14 +50,14 @@ export async function GET() {
   if (lessons.length > 0) {
     return NextResponse.json(lessons, {
       headers: {
-        "Cache-Control": "no-store, max-age=0",
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
       },
     });
   }
 
   return NextResponse.json(fallbackFreeLessons, {
     headers: {
-      "Cache-Control": "no-store, max-age=0",
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
       "X-Free-Lessons-Source": "fallback",
     },
   });
