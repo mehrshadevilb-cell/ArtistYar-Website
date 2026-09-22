@@ -53,11 +53,12 @@
   transform: none;
 }
 
-@media (max-width: 767px) {
-  html {
-    scroll-behavior: auto !important;
-  }
+/* Native scroll everywhere — overrides any earlier smooth */
+html {
+  scroll-behavior: auto !important;
+}
 
+@media (max-width: 767px) {
   .reveal {
     transform: translateY(6px);
   }
@@ -79,7 +80,7 @@
 html,
 body {
   overscroll-behavior-y: auto;
-  scroll-behavior: auto;
+  scroll-behavior: auto !important;
 }
 
 html.telegram-mini-app,
