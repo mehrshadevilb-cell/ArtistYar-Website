@@ -134,80 +134,113 @@ export default function HomePage() {
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
 
+      {/*
+        Desktop: title | disk, then cards full-width under.
+        Mobile:  title → cards → disk (disk goes under cards).
+      */}
       <ScrollStage
         as="section"
         className="hero-section container-ay hero-layout-root"
         intensity="strong"
+        enterBlur={false}
+        exitBlur={false}
       >
-        <div className="hero-copy">
-          <div className="hero-kicker">
-            <span className="trust-line" aria-hidden="true" />
-            <span>آکادمی راه‌یار · ArtistYar</span>
-          </div>
+        <div className="hero-copy hero-order-title">
           <h1 className="hero-heading">
-            موسیقی را
-            <span className="block text-gold-400">درست بساز.</span>
+            تنظیم، میکس و مسترینگ
+            <br />
+            <span className="gold-shimmer">با مسیر روشن.</span>
           </h1>
-          <p className="hero-lead">
-            آموزش پروژه‌محور تنظیم، میکس و مسترینگ با مسیر روشن، تمرین واقعی و دستیار هوشمند راه‌یار AI.
-          </p>
-          <HeroActions />
-          <div className="hero-trust">
-            <span className="trust-line" aria-hidden="true" />
-            <span>کلاس آنلاین · پکیج‌های آموزشی · پشتیبانی هنرجو</span>
-          </div>
         </div>
-        <HeroDisk />
-      </ScrollStage>
 
-      <ScrollStage as="section" className="container-ay border-t border-white/[.06] py-12 sm:py-16" intensity="calm">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-2xl">
-            <p className="eyebrow">چرا آرتیست‌یار</p>
-            <h2 className="section-title mt-3">یادگیری واقعی، نه فقط تماشای آموزش</h2>
-            <p className="section-sub">
-              از تمرین شنیداری تا تحلیل پروژه و سفارش تنظیم — مسیر روشن است و راه‌یار AI کنارته.
-            </p>
-          </div>
-          <SafeLink href="/assistant" hard className="btn-primary self-start sm:self-auto">
-            شروع با راه‌یار AI
-            <ArrowLeft size={16} aria-hidden="true" />
-          </SafeLink>
+        <div className="hero-order-disk">
+          <HeroDisk />
         </div>
-        <div className="mt-10">
+
+        <div className="hero-order-cards hero-features-under-disk">
           <HeroDifferentiator />
+          <div className="hero-cta-under-cards">
+            <div className="hero-cta-stack">
+              <HeroActions />
+              <SafeLink href="/amoozesh-mix-mastering" hard className="hero-secondary-link">
+                راهنمای رایگان از پایه تا پروژه ←
+              </SafeLink>
+            </div>
+            <div className="hero-trust">
+              <span className="trust-line" />
+              <span>
+                فقط ویدیو نیست — <strong className="font-medium text-gold-400">راه‌یار</strong> تا نتیجه کنارت می‌ماند
+              </span>
+            </div>
+          </div>
         </div>
       </ScrollStage>
 
       <ScrollStage as="section" className="proof-strip border-y border-white/[.06]" intensity="calm">
-        <div className="container-ay flex flex-wrap items-center justify-between gap-4 py-6">
-          <div className="flex items-center gap-3 text-sm text-ink-300">
-            <CirclePlay size={18} className="text-gold-400" aria-hidden="true" />
-            <span>تمرین · کلاس آنلاین · پکیج · پشتیبانی</span>
+        <div className="container-ay proof-grid">
+          <div>
+            <strong>دوره دیجیتال</strong>
+            <span>دسترسی ساختاریافته</span>
           </div>
-          <div className="flex items-center gap-3 text-sm text-ink-300">
-            <Sparkles size={18} className="text-gold-400" aria-hidden="true" />
-            <span>راه‌یار AI برای عیب‌یابی و قدم بعدی</span>
+          <div>
+            <strong>کلاس آنلاین</strong>
+            <span>رزرو و یادآوری</span>
           </div>
-          <div className="flex items-center gap-3 text-sm text-ink-300">
-            <Waves size={18} className="text-gold-400" aria-hidden="true" />
-            <span>نمونه‌کار واقعی هنرجوها</span>
+          <div>
+            <strong>راه‌یار AI</strong>
+            <span>پاسخ و پشتیبانی</span>
+          </div>
+          <div className="proof-note">
+            از شروع تا نتیجه، <b>تنها نمی‌مانی.</b>
           </div>
         </div>
       </ScrollStage>
 
       <ScrollStage as="section" className="container-ay py-10 sm:py-14" intensity="calm">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="mb-5 max-w-2xl">
+          <p className="eyebrow">ARTISTYAR ECOSYSTEM</p>
+          <h2 className="mt-2 text-2xl font-medium text-sand-50 sm:text-3xl">از یادگیری تا نتیجه، یک مسیر واحد.</h2>
+          <p className="mt-3 text-sm leading-7 text-ink-400">ArtistYar فقط مجموعه‌ای از ابزارها نیست؛ یاد می‌گیری، تمرین می‌کنی، نتیجه‌ات را تحلیل می‌کنی و قدم بعدی را بر اساس عملکرد واقعی انتخاب می‌کنی.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-4">
           {[
-            { title: "مسیر روشن", body: "از پایه تا پروژه؛ بدون سردرگمی در انتخاب ابزار و روش." },
-            { title: "تمرین واقعی", body: "گوش، تصمیم و اجرا روی کار خودت — نه فقط تئوری." },
-            { title: "پشتیبانی", body: "کلاس آنلاین، پنل هنرجو و راه‌یار AI برای گیرهای روزمره." },
-          ].map((item) => (
-            <div key={item.title} className="card-ay p-5 sm:p-6">
-              <h3 className="text-base font-medium text-sand-50">{item.title}</h3>
-              <p className="mt-3 text-sm leading-7 text-ink-400">{item.body}</p>
-            </div>
+            ["01","Learn","دوره و مسیر شخصی","/learn"],
+            ["02","Practice","تمرین تطبیقی و Skill Progress","/practice"],
+            ["03","Analyze","تحلیل پروژه و AI","/ai"],
+            ["04","Improve","پروژه، فایل و قدم بعدی","/my-artistyar"],
+          ].map(([n,t,d,h]) => (
+            <SafeLink key={h} href={h} hard className="card-ay p-5 transition hover:border-gold-400/25">
+              <span className="text-[10px] text-gold-400">{n}</span>
+              <strong className="mt-3 block text-lg text-sand-50">{t}</strong>
+              <span className="mt-1 block text-xs leading-6 text-ink-500">{d}</span>
+            </SafeLink>
           ))}
+        </div>
+      </ScrollStage>
+
+      <ScrollStage as="section" className="container-ay py-10 sm:py-14" intensity="calm">
+        <div className="card-ay overflow-hidden border-gold-400/10 p-6 sm:p-8">
+          <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <p className="eyebrow">/ خدمات استودیو</p>
+              <h2 className="mt-2 text-2xl font-medium text-sand-50">
+                سفارش <span className="text-gold-400">تنظیم آثار موسیقی</span>
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-ink-400">
+                از دمو و ایده اولیه تا طراحی ساختار، انتخاب المان‌های موسیقی و آماده‌سازی پروژه برای مرحله میکس.
+                جزئیات هر پروژه قبل از شروع بررسی و مشخص می‌شود.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2 text-xs text-ink-300">
+                <span className="rounded-full border border-white/10 px-3 py-1.5">تنظیم اختصاصی</span>
+                <span className="rounded-full border border-white/10 px-3 py-1.5">ساختار آهنگ</span>
+                <span className="rounded-full border border-white/10 px-3 py-1.5">آماده‌سازی برای میکس</span>
+              </div>
+            </div>
+            <SafeLink href="/arrangement" hard className="btn-primary self-start">
+              جزئیات و سفارش
+              <ArrowLeft size={16} aria-hidden="true" />
+            </SafeLink>
+          </div>
         </div>
       </ScrollStage>
 
