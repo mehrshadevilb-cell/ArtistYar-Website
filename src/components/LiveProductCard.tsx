@@ -41,7 +41,7 @@ export function LiveProductCard({ product }: { product: LiveProduct }) {
 
   return (
     <article className="card-ay group flex h-full flex-col overflow-hidden transition hover:border-gold-500/25 hover:bg-white/[0.045]">
-      <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[0.06] bg-ink-950">
+      <div className="relative aspect-square overflow-hidden border-b border-white/[0.06] bg-ink-950">
         {hasImage ? (
           isRemote ? (
             // eslint-disable-next-line @next/next/no-img-element
