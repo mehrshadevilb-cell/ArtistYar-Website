@@ -1,0 +1,224 @@
+/* ArtistYar — site-wide Apple motion + bixa ambient
+ * Soft springs, glass depth, live press — applied across public pages
+ */
+
+:root {
+  --ay-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ay-spring-soft: cubic-bezier(0.32, 0.72, 0, 1);
+  --ay-press: 100ms;
+}
+
+/* —— Universal press feedback (pointer-down) —— */
+.btn-primary,
+.btn-ghost,
+.ay-pressable,
+.card-ay a,
+.nav-link,
+.menu-button,
+.mobile-nav-link,
+.course-card,
+.gallery-card,
+.project-card,
+.benefit-card,
+.skill-tag,
+.package-card,
+.online-card {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.btn-primary:active,
+.btn-ghost:active,
+.ay-pressable:active,
+.nav-link:active,
+.menu-button:active,
+.mobile-nav-link:active {
+  transform: scale(0.97);
+  transition: transform var(--ay-press) var(--ay-spring);
+}
+
+.card-ay:active,
+.course-card:active,
+.gallery-card:active,
+.project-card:active,
+.benefit-card:active,
+.package-card:active,
+.online-card:active {
+  transform: translateY(-1px) scale(0.995);
+  transition: transform 180ms var(--ay-spring);
+}
+
+/* —— Glass elevation for cards site-wide —— */
+.card-ay,
+.course-card,
+.gallery-card,
+.project-card,
+.benefit-card,
+.package-card,
+.online-card,
+.proof-card {
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 18px 48px -28px rgba(0, 0, 0, 0.7);
+  transition:
+    transform 0.35s var(--ay-spring),
+    border-color 0.28s ease,
+    background 0.28s ease,
+    box-shadow 0.35s ease;
+}
+
+.card-ay:hover,
+.course-card:hover,
+.gallery-card:hover,
+.project-card:hover,
+.benefit-card:hover,
+.package-card:hover,
+.online-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(201, 162, 39, 0.28);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 24px 56px -28px rgba(0, 0, 0, 0.85);
+}
+
+/* —— Soft page ambient (bixa-like orbs) on key routes —— */
+.page-ambient {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.page-ambient .orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.22;
+  will-change: transform;
+  animation: orb-drift 18s var(--ay-spring-soft) infinite alternate;
+}
+
+.page-ambient .orb-a {
+  width: min(42vw, 28rem);
+  height: min(42vw, 28rem);
+  top: -8%;
+  right: -6%;
+  background: radial-gradient(circle, rgba(201, 162, 39, 0.35), transparent 70%);
+}
+
+.page-ambient .orb-b {
+  width: min(36vw, 22rem);
+  height: min(36vw, 22rem);
+  bottom: 10%;
+  left: -8%;
+  background: radial-gradient(circle, rgba(80, 120, 180, 0.22), transparent 70%);
+  animation-delay: -6s;
+  animation-duration: 22s;
+}
+
+@keyframes orb-drift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(3%, 4%) scale(1.06); }
+}
+
+/* —— Section enter (subtle, not theatrical) —— */
+.section-reveal {
+  animation: section-rise 0.7s var(--ay-spring-soft) both;
+}
+
+@keyframes section-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* —— Practice / separate / gallery console glass —— */
+.practice-console,
+.separate-console,
+.analyzer-console,
+.gallery-stage .media-player-shell {
+  background: rgba(17, 17, 15, 0.88);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 30px 80px -45px rgba(0, 0, 0, 0.9);
+}
+
+/* —— Input focus ring soft gold —— */
+input:focus,
+textarea:focus,
+select:focus,
+.input-ay:focus {
+  outline: none;
+  border-color: rgba(201, 162, 39, 0.45) !important;
+  box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.12);
+  transition: border-color 0.2s var(--ay-spring), box-shadow 0.2s ease;
+}
+
+/* —— Links & chips —— */
+.skill-tag,
+.chip-ay {
+  transition: transform 0.2s var(--ay-spring), background 0.2s ease, border-color 0.2s ease;
+}
+
+.skill-tag:active,
+.chip-ay:active {
+  transform: scale(0.96);
+}
+
+/* —— Footer soft —— */
+.site-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* —— Reduced motion —— */
+@media (prefers-reduced-motion: reduce) {
+  .page-ambient .orb,
+  .section-reveal,
+  .card-ay,
+  .course-card,
+  .gallery-card,
+  .project-card,
+  .benefit-card {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+  .card-ay:hover,
+  .course-card:hover,
+  .gallery-card:hover,
+  .project-card:hover,
+  .benefit-card:hover {
+    transform: none;
+  }
+}
+
+/* Light mode: softer glass */
+html.light .card-ay,
+html.light .course-card,
+html.light .gallery-card,
+html.light .project-card,
+html.light .benefit-card {
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.5));
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 16px 40px -24px rgba(0, 0, 0, 0.12);
+}
+
+html.light .page-ambient .orb-a {
+  opacity: 0.12;
+}
+html.light .page-ambient .orb-b {
+  opacity: 0.08;
+}
