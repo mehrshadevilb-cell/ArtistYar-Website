@@ -4,35 +4,30 @@ import { useEffect, useRef, type CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 
 /**
- * Sonic Progress — minimal site-wide scroll feedback (bixa-like restraint).
- * Desktop: 1px vertical rail + soft playhead.
- * Mobile: thin horizontal rail under the header + soft playhead.
- * Never intercepts pointer/touch; observes native scroll only.
+ * Sonic Progress (v2) — bixa-like restraint.
+ * Invisible at rest. A hairline + soft tip only while the user is scrolling,
+ * so multi-section journeys feel continuous rather than frozen.
+ * Observes native scroll only; never captures pointer/touch.
  */
 export function SonicProgress() {
   const pathname = usePathname();
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const fillRef = useRef<HTMLDivElement | null>(null);
-  const headRef = useRef<HTMLDivElement | null>(null);
   const frame = useRef(0);
   const target = useRef(0);
   const current = useRef(0);
   const lastY = useRef(0);
   const lastT = useRef(0);
-  const velocity = useRef(0);
   const activeUntil = useRef(0);
+  const show = useRef(0); // 0..1 visibility of the cue
 
   useEffect(() => {
     const root = rootRef.current;
-    const fill = fillRef.current;
-    const head = headRef.current;
-    if (!root || !fill || !head) return;
+    if (!root) return;
 
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    // Hide on dense app shells where a progress rail competes with tools
     const hide =
       pathname?.startsWith("/admin") ||
       pathname?.startsWith("/panel") ||
@@ -44,25 +39,11 @@ export function SonicProgress() {
     }
     root.hidden = false;
 
+    // Reduced motion: no animated cue at all (content is enough)
     if (reduce) {
-      // Still show a static position marker — no easing / pulse
-      const measure = () => {
-        const max = Math.max(
-          document.documentElement.scrollHeight - window.innerHeight,
-          1,
-        );
-        const p = Math.min(1, Math.max(0, window.scrollY / max));
-        root.style.setProperty("--sp-progress", p.toFixed(4));
-        root.dataset.band = p < 0.02 ? "start" : p > 0.98 ? "end" : "mid";
-        root.dataset.active = "0";
-      };
-      measure();
-      window.addEventListener("scroll", measure, { passive: true });
-      window.addEventListener("resize", measure, { passive: true });
-      return () => {
-        window.removeEventListener("scroll", measure);
-        window.removeEventListener("resize", measure);
-      };
+      root.dataset.active = "0";
+      root.style.setProperty("--sp-show", "0");
+      return;
     }
 
     const measure = () => {
@@ -71,19 +52,16 @@ export function SonicProgress() {
         1,
       );
       const y = window.scrollY || 0;
-      const p = Math.min(1, Math.max(0, y / max));
-      target.current = p;
+      target.current = Math.min(1, Math.max(0, y / max));
 
       const now = performance.now();
-      const dt = Math.max(now - lastT.current, 1);
       const dy = Math.abs(y - lastY.current);
-      velocity.current = dy / dt;
       lastY.current = y;
       lastT.current = now;
 
-      // Active while the user is actually moving through the page
-      if (dy > 0.5) {
-        activeUntil.current = now + 420;
+      // Stay visible briefly after movement so section transitions feel continuous
+      if (dy > 0.4) {
+        activeUntil.current = now + 520;
       }
     };
 
@@ -97,31 +75,41 @@ export function SonicProgress() {
         frame.current = 0;
         return;
       }
+
       const now = performance.now();
-      // Soft lerp — feels continuous during long / multi-tick section transitions
-      const ease = 0.12;
-      current.current += (target.current - current.current) * ease;
-      if (Math.abs(target.current - current.current) < 0.00015) {
+      const wantsShow = now < activeUntil.current ? 1 : 0;
+      // Fade in faster than fade out
+      const showEase = wantsShow ? 0.22 : 0.08;
+      show.current += (wantsShow - show.current) * showEase;
+      if (Math.abs(wantsShow - show.current) < 0.002) show.current = wantsShow;
+
+      current.current += (target.current - current.current) * 0.14;
+      if (Math.abs(target.current - current.current) < 0.0002) {
         current.current = target.current;
       }
 
       const p = current.current;
+      const s = show.current;
       root.style.setProperty("--sp-progress", p.toFixed(5));
-      root.dataset.band = p < 0.02 ? "start" : p > 0.98 ? "end" : "mid";
+      root.style.setProperty("--sp-show", s.toFixed(4));
+      root.dataset.active = s > 0.05 ? "1" : "0";
 
-      const active = now < activeUntil.current;
-      root.dataset.active = active ? "1" : "0";
-
-      // Subtle intensity from velocity (capped) — micro-glow only while moving
-      const intensity = Math.min(1, velocity.current * 18);
-      root.style.setProperty("--sp-intensity", intensity.toFixed(3));
-
-      frame.current = requestAnimationFrame(tick);
+      // Keep looping while fading or still moving toward target
+      if (s > 0.001 || Math.abs(target.current - current.current) > 0.0005 || wantsShow) {
+        frame.current = requestAnimationFrame(tick);
+      } else {
+        frame.current = 0;
+      }
     };
 
     const start = () => {
       if (frame.current) return;
       frame.current = requestAnimationFrame(tick);
+    };
+
+    const onScroll = () => {
+      measure();
+      start();
     };
 
     const onVisibility = () => {
@@ -135,19 +123,18 @@ export function SonicProgress() {
     lastY.current = window.scrollY || 0;
     lastT.current = performance.now();
     measure();
-    start();
+    // Do not start visible — only appear after the first scroll
 
-    window.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", measure, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
 
-    // Recalculate after route paint / image load shifts document height
     const ro = new ResizeObserver(() => measure());
     ro.observe(document.documentElement);
 
     return () => {
       stop();
-      window.removeEventListener("scroll", measure);
+      window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", measure);
       document.removeEventListener("visibilitychange", onVisibility);
       ro.disconnect();
@@ -163,13 +150,13 @@ export function SonicProgress() {
       style={
         {
           ["--sp-progress" as string]: "0",
-          ["--sp-intensity" as string]: "0",
+          ["--sp-show" as string]: "0",
         } as CSSProperties
       }
     >
-      <div className="sonic-progress-track" />
-      <div ref={fillRef} className="sonic-progress-fill" />
-      <div ref={headRef} className="sonic-progress-head" />
+      {/* Short traveling segment — not a full-page bar */}
+      <div className="sonic-progress-segment" />
+      <div className="sonic-progress-tip" />
     </div>
   );
 }

@@ -1,9 +1,8 @@
-/* Scroll motion — subtle Apple-like depth */
+/* Scroll motion — fluid continuity, minimal depth */
 
 .scroll-stage {
   transform-origin: 50% 30%;
   backface-visibility: hidden;
-  /* will-change only helps during active scrub; keep light by default */
 }
 
 @media (min-width: 768px) {
@@ -12,7 +11,7 @@
   }
 }
 
-/* Mobile: no scroll blur (JS also skips) */
+/* Mobile: always sharp, native scroll */
 @media (max-width: 767px) {
   .scroll-stage {
     will-change: auto;
@@ -22,15 +21,15 @@
   }
 }
 
-/* Reveal: softer blur → sharp */
+/* Reveal: light lift, no heavy blur on mobile */
 .reveal {
   opacity: 0;
-  transform: translateY(14px);
-  filter: blur(4px);
+  transform: translateY(12px);
+  filter: blur(2px);
   transition:
-    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-    filter 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .reveal-in {
@@ -61,17 +60,14 @@
   }
 }
 
-/* —— Mobile scroll stability —— */
-/* Prefer native scrolling; avoid smooth scroll jank on touch devices */
 @media (max-width: 767px) {
   html {
     scroll-behavior: auto;
   }
 
   .reveal {
-    /* Blur during scroll is expensive on mobile GPUs */
     filter: none;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
 
   .reveal-in {
@@ -85,17 +81,22 @@
   }
 }
 
-/* Never let decorative layers capture gestures */
+/* Decorative layers never steal gestures */
 .route-ambient,
 .page-ambient,
 .assistant-ambient,
 .fa-ambient,
-.depth-scene-grid {
+.depth-scene-grid,
+.sonic-progress {
   pointer-events: none !important;
 }
 
-/* Body must not lock overflow except while mobile menu is open (handled in JS) */
 html:not(.telegram-mini-app),
 body:not(.telegram-mini-app) {
   overscroll-behavior-y: auto;
+}
+
+/* Section continuity: avoid hard visual cuts between stages */
+.scroll-stage + .scroll-stage {
+  margin-top: 0;
 }

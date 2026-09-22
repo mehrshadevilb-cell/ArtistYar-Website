@@ -1,163 +1,110 @@
-/* Sonic Progress — site-wide minimal scroll feedback
- * Music-inspired restraint: no labels, icons, waveforms, or numbers.
+/* Sonic Progress v2 — almost invisible, active-only
+ * No track, no labels, no numbers. A short hairline + tip
+ * that appears only while scrolling, then fades away.
  */
 
 .sonic-progress {
-  --sp-track: rgba(255, 255, 255, 0.06);
-  --sp-fill: rgba(255, 255, 255, 0.22);
-  --sp-head: rgba(201, 162, 39, 0.55);
-  --sp-head-glow: rgba(201, 162, 39, 0.28);
-  --sp-z: 60;
+  --sp-line: rgba(255, 255, 255, 0.14);
+  --sp-tip: rgba(201, 162, 39, 0.45);
+  --sp-tip-soft: rgba(201, 162, 39, 0.18);
   pointer-events: none !important;
   position: fixed;
-  z-index: var(--sp-z);
-  opacity: 0.85;
-  transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 55;
+  opacity: var(--sp-show, 0);
+  transition: none;
 }
 
 html.light .sonic-progress {
-  --sp-track: rgba(0, 0, 0, 0.06);
-  --sp-fill: rgba(0, 0, 0, 0.18);
-  --sp-head: rgba(168, 132, 31, 0.65);
-  --sp-head-glow: rgba(201, 162, 39, 0.22);
+  --sp-line: rgba(0, 0, 0, 0.12);
+  --sp-tip: rgba(168, 132, 31, 0.5);
+  --sp-tip-soft: rgba(201, 162, 39, 0.16);
 }
 
-/* —— Desktop: 1px vertical rail (start edge in RTL = right) —— */
+/* Desktop: vertical edge, short traveling segment */
 @media (min-width: 768px) {
   .sonic-progress {
-    top: 0;
-    bottom: 0;
+    top: 12%;
+    bottom: 12%;
     inset-inline-start: 0;
     width: 1px;
   }
 
-  .sonic-progress-track {
-    position: absolute;
-    inset: 0;
-    background: var(--sp-track);
-  }
-
-  .sonic-progress-fill {
+  .sonic-progress-segment {
     position: absolute;
     inset-inline: 0;
-    top: 0;
-    height: calc(var(--sp-progress, 0) * 100%);
+    /* Segment length ~14% of rail; position follows progress within the rail */
+    top: calc(var(--sp-progress, 0) * 86%);
+    height: 14%;
     background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.08),
-      var(--sp-fill) 40%,
-      rgba(201, 162, 39, 0.35)
+      transparent,
+      var(--sp-line) 30%,
+      var(--sp-line) 70%,
+      transparent
     );
-    will-change: height;
+    will-change: top, opacity;
   }
 
-  .sonic-progress-head {
+  .sonic-progress-tip {
     position: absolute;
     inset-inline-start: 50%;
-    top: calc(var(--sp-progress, 0) * 100%);
-    width: 3px;
-    height: 3px;
-    margin-inline-start: -1.5px;
-    margin-top: -1.5px;
+    top: calc(var(--sp-progress, 0) * 86% + 7%);
+    width: 2px;
+    height: 2px;
+    margin-inline-start: -1px;
+    margin-top: -1px;
     border-radius: 999px;
-    background: var(--sp-head);
-    box-shadow:
-      0 0 0 1px rgba(201, 162, 39, 0.12),
-      0 0 10px 2px var(--sp-head-glow);
-    will-change: top, box-shadow, opacity;
-    opacity: 0.7;
-    transition: opacity 0.25s ease, box-shadow 0.25s ease;
-  }
-
-  .sonic-progress[data-active="1"] .sonic-progress-head {
-    opacity: 1;
-    box-shadow:
-      0 0 0 1px rgba(201, 162, 39, 0.22),
-      0 0 calc(10px + var(--sp-intensity, 0) * 8px) calc(2px + var(--sp-intensity, 0) * 2px)
-        var(--sp-head-glow);
+    background: var(--sp-tip);
+    box-shadow: 0 0 8px 1px var(--sp-tip-soft);
+    will-change: top, opacity;
   }
 }
 
-/* —— Mobile: thin horizontal rail under safe top —— */
+/* Mobile: horizontal top edge, short segment */
 @media (max-width: 767px) {
   .sonic-progress {
     top: 0;
-    inset-inline: 0;
+    inset-inline: 8%;
     height: 1px;
-    margin-top: 0;
   }
 
-  .sonic-progress-track {
-    position: absolute;
-    inset: 0;
-    background: var(--sp-track);
-  }
-
-  .sonic-progress-fill {
+  .sonic-progress-segment {
     position: absolute;
     inset-block: 0;
-    inset-inline-start: 0;
-    width: calc(var(--sp-progress, 0) * 100%);
+    inset-inline-start: calc(var(--sp-progress, 0) * 86%);
+    width: 14%;
     background: linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.1),
-      var(--sp-fill) 50%,
-      rgba(201, 162, 39, 0.4)
+      transparent,
+      var(--sp-line) 30%,
+      var(--sp-line) 70%,
+      transparent
     );
-    will-change: width;
+    will-change: inset-inline-start, opacity;
   }
 
-  .sonic-progress-head {
+  .sonic-progress-tip {
     position: absolute;
     top: 50%;
-    inset-inline-start: calc(var(--sp-progress, 0) * 100%);
-    width: 4px;
-    height: 4px;
-    margin-top: -2px;
-    margin-inline-start: -2px;
+    inset-inline-start: calc(var(--sp-progress, 0) * 86% + 7%);
+    width: 3px;
+    height: 3px;
+    margin-top: -1.5px;
+    margin-inline-start: -1.5px;
     border-radius: 999px;
-    background: var(--sp-head);
-    box-shadow:
-      0 0 0 1px rgba(201, 162, 39, 0.15),
-      0 0 8px 1px var(--sp-head-glow);
-    will-change: inset-inline-start, box-shadow, opacity;
-    opacity: 0.65;
+    background: var(--sp-tip);
+    box-shadow: 0 0 6px 1px var(--sp-tip-soft);
+    will-change: inset-inline-start, opacity;
   }
-
-  .sonic-progress[data-active="1"] .sonic-progress-head {
-    opacity: 1;
-    box-shadow:
-      0 0 0 1px rgba(201, 162, 39, 0.25),
-      0 0 calc(8px + var(--sp-intensity, 0) * 6px) 2px var(--sp-head-glow);
-  }
-}
-
-/* Whisper at the very start/end so the rail never feels stuck or loud */
-.sonic-progress[data-band="start"] {
-  opacity: 0.4;
-}
-.sonic-progress[data-band="end"] {
-  opacity: 0.55;
-}
-.sonic-progress[data-band="mid"] {
-  opacity: 0.88;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sonic-progress-fill,
-  .sonic-progress-head {
-    transition: none !important;
-    will-change: auto !important;
-  }
-
-  .sonic-progress[data-active="1"] .sonic-progress-head {
-    box-shadow:
-      0 0 0 1px rgba(201, 162, 39, 0.15),
-      0 0 6px 1px var(--sp-head-glow);
+  .sonic-progress {
+    display: none !important;
   }
 }
 
-/* Telegram mini-app: keep ultra thin, avoid covering chat FAB */
 html.telegram-mini-app .sonic-progress {
-  opacity: 0.7;
+  /* Even quieter in Telegram WebView */
+  filter: opacity(0.7);
 }

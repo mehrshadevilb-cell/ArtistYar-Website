@@ -27,9 +27,8 @@ function clearStage(el: HTMLElement) {
 }
 
 /**
- * Soft depth on scroll.
- * Exit always uses explicit from→to so scrub reverse restores a sharp state
- * when the user scrolls back (hero no longer stays blurred).
+ * Soft depth on scroll — restrained so multi-section journeys stay fluid.
+ * Desktop only; mobile stays native and sharp.
  */
 export function ScrollStage({
   children,
@@ -64,11 +63,12 @@ export function ScrollStage({
         }
 
         const isStrong = intensity === "strong";
-        const enterY = isStrong ? 24 : 14;
-        const enterBlurPx = isStrong ? 3 : 1.25;
-        const exitBlurPx = isStrong ? 6 : 2;
-        const exitOpacity = isStrong ? 0.55 : 0.94;
-        const exitScale = isStrong ? 0.97 : 0.996;
+        // Calmer motion: less blur/opacity loss so the page never feels "locked"
+        const enterY = isStrong ? 16 : 10;
+        const enterBlurPx = isStrong ? 1.5 : 0.6;
+        const exitBlurPx = isStrong ? 2.5 : 0.8;
+        const exitOpacity = isStrong ? 0.82 : 0.96;
+        const exitScale = isStrong ? 0.985 : 0.998;
 
         const ctx = gsap.context(() => {
           gsap.set(el, { force3D: true, transformOrigin: "50% 30%" });
@@ -78,10 +78,10 @@ export function ScrollStage({
             gsap.fromTo(
               el,
               {
-                autoAlpha: 0.92,
+                autoAlpha: 0.94,
                 y: enterY,
                 filter: `blur(${enterBlurPx}px)`,
-                scale: 0.995,
+                scale: 0.997,
               },
               {
                 autoAlpha: 1,
@@ -92,9 +92,9 @@ export function ScrollStage({
                 immediateRender: false,
                 scrollTrigger: {
                   trigger: el,
-                  start: "top 92%",
-                  end: "top 70%",
-                  scrub: 0.7,
+                  start: "top 94%",
+                  end: "top 72%",
+                  scrub: 0.45,
                   invalidateOnRefresh: true,
                 },
               },
@@ -102,8 +102,6 @@ export function ScrollStage({
           }
 
           if (exitBlur) {
-            // Explicit FROM sharp → TO soft so reverse always restores sharp.
-            // onLeaveBack / onEnterBack force-clear residual filter on the hero.
             gsap.fromTo(
               el,
               {
@@ -119,17 +117,11 @@ export function ScrollStage({
                 immediateRender: false,
                 scrollTrigger: {
                   trigger: el,
-                  // Leave based on top edge for short sections (hero),
-                  // still late enough that a tiny scroll doesn't blur.
-                  start: isStrong ? "top -5%" : "bottom 38%",
-                  end: isStrong ? "bottom top" : "bottom -8%",
-                  scrub: 1,
+                  start: isStrong ? "top -8%" : "bottom 32%",
+                  end: isStrong ? "bottom top" : "bottom -12%",
+                  scrub: 0.55,
                   invalidateOnRefresh: true,
                   onLeaveBack: () => clearStage(el),
-                  onEnterBack: () => {
-                    // Coming back from below: keep progressive scrub, but
-                    // if progress is near 0 force sharp.
-                  },
                   onUpdate: (self) => {
                     if (self.progress <= 0.02) clearStage(el);
                   },
