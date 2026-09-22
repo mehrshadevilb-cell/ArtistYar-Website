@@ -87,7 +87,16 @@ export function SonicProgress() {
       }
     };
 
+    const stop = () => {
+      if (frame.current) cancelAnimationFrame(frame.current);
+      frame.current = 0;
+    };
+
     const tick = () => {
+      if (document.visibilityState === "hidden") {
+        frame.current = 0;
+        return;
+      }
       const now = performance.now();
       // Soft lerp — feels continuous during long / multi-tick section transitions
       const ease = 0.12;
@@ -110,22 +119,37 @@ export function SonicProgress() {
       frame.current = requestAnimationFrame(tick);
     };
 
+    const start = () => {
+      if (frame.current) return;
+      frame.current = requestAnimationFrame(tick);
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") stop();
+      else {
+        measure();
+        start();
+      }
+    };
+
     lastY.current = window.scrollY || 0;
     lastT.current = performance.now();
     measure();
-    frame.current = requestAnimationFrame(tick);
+    start();
 
     window.addEventListener("scroll", measure, { passive: true });
     window.addEventListener("resize", measure, { passive: true });
+    document.addEventListener("visibilitychange", onVisibility);
 
     // Recalculate after route paint / image load shifts document height
     const ro = new ResizeObserver(() => measure());
     ro.observe(document.documentElement);
 
     return () => {
-      cancelAnimationFrame(frame.current);
+      stop();
       window.removeEventListener("scroll", measure);
       window.removeEventListener("resize", measure);
+      document.removeEventListener("visibilitychange", onVisibility);
       ro.disconnect();
     };
   }, [pathname]);
