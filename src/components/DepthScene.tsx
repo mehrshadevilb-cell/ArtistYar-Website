@@ -58,18 +58,18 @@ export function DepthScene({ children, className = "" }: DepthSceneProps) {
 
       const t = target.current;
       const c = current.current;
-      c.x += (t.x - c.x) * 0.07;
-      c.y += (t.y - c.y) * 0.07;
-      c.progress += (t.progress - c.progress) * 0.08;
+      c.x += (t.x - c.x) * 0.12;
+      c.y += (t.y - c.y) * 0.12;
+      c.progress += (t.progress - c.progress) * 0.14;
 
-      el.style.setProperty("--depth-rotate-y", `${(c.x * 5).toFixed(2)}deg`);
+      el.style.setProperty("--depth-rotate-y", `${(c.x * 2.5).toFixed(2)}deg`);
       el.style.setProperty(
         "--depth-rotate-x",
-        `${(-c.y * 4 - c.progress * 5).toFixed(2)}deg`,
+        `${(-c.y * 2 - c.progress * 2.5).toFixed(2)}deg`,
       );
       el.style.setProperty(
         "--depth-shift-y",
-        `${(-c.progress * 20).toFixed(2)}px`,
+        `${(-c.progress * 10).toFixed(2)}px`,
       );
       el.style.setProperty(
         "--depth-glow",
