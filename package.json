@@ -8,8 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "start:standalone": "node .next/standalone/server.js",
-    "prebuild": "node scripts/ensure-hero.cjs"
+    "start:standalone": "node .next/standalone/server.js"
   },
   "dependencies": {
     "@supabase/server": "^1.6.1",
