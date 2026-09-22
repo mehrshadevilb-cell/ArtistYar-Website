@@ -143,7 +143,10 @@ export default function AssistantPage() {
             role: "assistant",
             error: true,
             retryText: text,
-            text: typeof data.error === "string" && !data.error.includes("<!DOCTYPE") ? `اتصال راه‌یار خطا داد: ${data.error}` : "در حال حاضر اتصال راه‌یار به مدل هوش مصنوعی آماده نیست. می‌توانی چند لحظه دیگر دوباره امتحان کنی.",
+            text:
+              typeof data.error === "string" && !data.error.includes("<!DOCTYPE")
+                ? `اتصال راه‌یار خطا داد: ${data.error}`
+                : "در حال حاضر اتصال راه‌یار به مدل هوش مصنوعی آماده نیست. می‌توانی چند لحظه دیگر دوباره امتحان کنی.",
           },
         ]);
       }
@@ -180,8 +183,16 @@ export default function AssistantPage() {
 
   return (
     <section className="assistant-stage container-ay relative py-10 sm:py-16">
+      <div className="assistant-ambient" aria-hidden="true">
+        <span className="assistant-orb assistant-orb-a" />
+        <span className="assistant-orb assistant-orb-b" />
+      </div>
       <div className="assistant-stage-lines" aria-hidden="true">
-        <i /><i /><i /><i /><i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
       </div>
       <div className="mx-auto max-w-6xl">
         <div className="assistant-intro mb-8 flex flex-col gap-6 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
@@ -210,7 +221,16 @@ export default function AssistantPage() {
               <div className="flex min-w-0 items-center gap-3">
                 <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-500 text-ink-950 shadow-[0_10px_25px_-12px_rgba(201,162,39,.9)]">
                   <Bot size={22} aria-hidden="true" />
-                  <span className={`absolute -bottom-0.5 -left-0.5 h-3 w-3 rounded-full border-2 border-[#11110f] ${connection === "ready" ? "bg-emerald-400" : connection === "loading" ? "bg-gold-300" : "bg-ink-500"}`} aria-label={statusLabel} />
+                  <span
+                    className={`absolute -bottom-0.5 -left-0.5 h-3 w-3 rounded-full border-2 border-[#11110f] ${
+                      connection === "ready"
+                        ? "bg-emerald-400"
+                        : connection === "loading"
+                          ? "bg-gold-300"
+                          : "bg-ink-500"
+                    }`}
+                    aria-label={statusLabel}
+                  />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -218,48 +238,114 @@ export default function AssistantPage() {
                     <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-ink-400">BETA</span>
                   </div>
                   <p className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-500">
-                    {connection === "ready" ? <Wifi size={12} aria-hidden="true" /> : <WifiOff size={12} aria-hidden="true" />}
+                    {connection === "ready" ? (
+                      <Wifi size={12} aria-hidden="true" />
+                    ) : (
+                      <WifiOff size={12} aria-hidden="true" />
+                    )}
                     {connectionNote || statusLabel}
                   </p>
                 </div>
               </div>
               <div className="assistant-audio-meter hidden items-end gap-0.5 sm:flex" aria-hidden="true">
-                <i /><i /><i /><i /><i /><i /><i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
               </div>
-              <button type="button" onClick={resetChat} disabled={busy} className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/[0.08] px-3 py-2 text-xs text-ink-300 transition hover:border-gold-500/40 hover:text-gold-300 disabled:cursor-not-allowed disabled:opacity-40">
+              <button
+                type="button"
+                onClick={resetChat}
+                disabled={busy}
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/[0.08] px-3 py-2 text-xs text-ink-300 transition hover:border-gold-500/40 hover:text-gold-300 disabled:cursor-not-allowed disabled:opacity-40"
+              >
                 <Plus size={15} aria-hidden="true" />
                 <span className="hidden sm:inline">گفت‌وگوی جدید</span>
                 <span className="sm:hidden">جدید</span>
               </button>
             </div>
 
-            <div className="assistant-chat-scroll assistant-console-scroll min-h-[22rem] max-h-[38rem] space-y-6 overflow-y-auto px-4 py-6 sm:px-6" aria-live="polite" aria-busy={busy}>
+            <div
+              className="assistant-chat-scroll assistant-console-scroll min-h-[22rem] max-h-[38rem] space-y-6 overflow-y-auto px-4 py-6 sm:px-6"
+              aria-live="polite"
+              aria-busy={busy}
+            >
               {messages.map((message) => (
-                <div key={message.id} className={`group flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}>
-                  <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${message.role === "user" ? "bg-white/[0.08] text-ink-300" : message.error ? "bg-red-400/10 text-red-300" : "bg-gold-500/15 text-gold-400"}`}>
-                    {message.role === "user" ? <MessageCircle size={15} aria-hidden="true" /> : <Bot size={15} aria-hidden="true" />}
+                <div
+                  key={message.id}
+                  className={`assistant-msg group flex gap-3 ${
+                    message.role === "user" ? "flex-row-reverse" : ""
+                  }`}
+                >
+                  <div
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${
+                      message.role === "user"
+                        ? "bg-white/[0.08] text-ink-300"
+                        : message.error
+                          ? "bg-red-400/10 text-red-300"
+                          : "bg-gold-500/15 text-gold-400"
+                    }`}
+                  >
+                    {message.role === "user" ? (
+                      <MessageCircle size={15} aria-hidden="true" />
+                    ) : (
+                      <Bot size={15} aria-hidden="true" />
+                    )}
                   </div>
-                  <div className={`max-w-[88%] sm:max-w-[78%] ${message.role === "user" ? "items-start" : "items-end"}`}>
-                    <div className={`rounded-2xl px-4 py-3.5 text-sm leading-7 ${message.role === "user" ? "rounded-tr-md bg-gold-500/[0.14] text-sand-50" : message.error ? "rounded-tl-md border border-red-400/20 bg-red-400/[0.06] text-sand-100" : "rounded-tl-md bg-white/[0.045] text-ink-200"}`}>
+                  <div
+                    className={`max-w-[88%] sm:max-w-[78%] ${
+                      message.role === "user" ? "items-start" : "items-end"
+                    }`}
+                  >
+                    <div
+                      className={`rounded-2xl px-4 py-3.5 text-sm leading-7 ${
+                        message.role === "user"
+                          ? "rounded-tr-md bg-gold-500/[0.14] text-sand-50"
+                          : message.error
+                            ? "rounded-tl-md border border-red-400/20 bg-red-400/[0.06] text-sand-100"
+                            : "rounded-tl-md bg-white/[0.045] text-ink-200"
+                      }`}
+                    >
                       {message.role === "assistant" && !message.error ? (
                         <MarkdownContent text={message.text} />
                       ) : (
                         <p className="leading-7">{message.text}</p>
                       )}
                     </div>
-                    <div className={`mt-1.5 flex items-center gap-2 px-1 text-[10px] text-ink-600 ${message.role === "user" ? "justify-start" : "justify-end"}`}>
+                    <div
+                      className={`mt-1.5 flex items-center gap-2 px-1 text-[10px] text-ink-600 ${
+                        message.role === "user" ? "justify-start" : "justify-end"
+                      }`}
+                    >
                       <span>{message.role === "user" ? "شما" : "راه‌یار"}</span>
                       <span aria-hidden="true">·</span>
                       <span>{formatTime()}</span>
                       {message.role === "assistant" && !message.error ? (
-                        <button type="button" onClick={() => copyMessage(message)} className="inline-flex items-center gap-1 text-ink-500 opacity-0 transition hover:text-gold-300 group-hover:opacity-100 focus:opacity-100" aria-label="کپی پاسخ">
-                          {copiedId === message.id ? <Check size={12} aria-hidden="true" /> : <Clipboard size={12} aria-hidden="true" />}
+                        <button
+                          type="button"
+                          onClick={() => copyMessage(message)}
+                          className="inline-flex items-center gap-1 text-ink-500 opacity-0 transition hover:text-gold-300 group-hover:opacity-100 focus:opacity-100"
+                          aria-label="کپی پاسخ"
+                        >
+                          {copiedId === message.id ? (
+                            <Check size={12} aria-hidden="true" />
+                          ) : (
+                            <Clipboard size={12} aria-hidden="true" />
+                          )}
                           {copiedId === message.id ? "کپی شد" : "کپی"}
                         </button>
                       ) : null}
                     </div>
                     {message.error && message.retryText ? (
-                      <button type="button" onClick={() => sendMessage(message.retryText || "")} disabled={busy} className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-red-400/20 px-2.5 py-1.5 text-xs text-red-300 transition hover:border-red-300/40 hover:bg-red-400/[0.06] disabled:opacity-40">
+                      <button
+                        type="button"
+                        onClick={() => sendMessage(message.retryText || "")}
+                        disabled={busy}
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-red-400/20 px-2.5 py-1.5 text-xs text-red-300 transition hover:border-red-300/40 hover:bg-red-400/[0.06] disabled:opacity-40"
+                      >
                         <RotateCcw size={13} aria-hidden="true" />
                         تلاش دوباره
                       </button>
@@ -269,8 +355,10 @@ export default function AssistantPage() {
               ))}
 
               {busy ? (
-                <div className="flex gap-3">
-                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gold-500/15 text-gold-400"><Bot size={15} aria-hidden="true" /></div>
+                <div className="assistant-msg flex gap-3">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gold-500/15 text-gold-400">
+                    <Bot size={15} aria-hidden="true" />
+                  </div>
                   <div className="rounded-2xl rounded-tl-md bg-white/[0.045] px-4 py-3 text-sm text-ink-400">
                     <span className="inline-flex items-center gap-1" aria-label="راه‌یار در حال فکر کردن است">
                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gold-400" />
@@ -292,7 +380,12 @@ export default function AssistantPage() {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {SUGGESTIONS.map((suggestion) => (
-                    <button key={suggestion.text} type="button" onClick={() => sendMessage(suggestion.text)} className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-3 text-right text-xs text-ink-300 transition hover:border-gold-500/35 hover:bg-gold-500/[0.06] hover:text-sand-50">
+                    <button
+                      key={suggestion.text}
+                      type="button"
+                      onClick={() => sendMessage(suggestion.text)}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-3 text-right text-xs text-ink-300 transition hover:border-gold-500/35 hover:bg-gold-500/[0.06] hover:text-sand-50"
+                    >
                       <span>{suggestion.text}</span>
                       <span className="shrink-0 text-[10px] text-gold-500">{suggestion.label}</span>
                     </button>
@@ -324,7 +417,11 @@ export default function AssistantPage() {
                 />
                 <div className="flex items-center justify-between gap-3 px-3 pb-3">
                   <span className="text-[10px] text-ink-600">Enter برای ارسال · Shift + Enter برای خط جدید</span>
-                  <button type="submit" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-xl bg-gold-500 px-3.5 text-xs font-medium text-ink-950 transition hover:bg-gold-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40" disabled={busy || !draft.trim()}>
+                  <button
+                    type="submit"
+                    className="inline-flex h-9 shrink-0 items-center gap-2 rounded-xl bg-gold-500 px-3.5 text-xs font-medium text-ink-950 transition hover:bg-gold-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={busy || !draft.trim()}
+                  >
                     {busy ? "در حال ارسال" : "ارسال"}
                     <Send size={14} className="rotate-180" aria-hidden="true" />
                   </button>
@@ -357,7 +454,9 @@ export default function AssistantPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium text-sand-100">حریم خصوصی</p>
-                  <p className="mt-2 text-[11px] leading-6 text-ink-500">پیام‌های این گفت‌وگو فقط برای ادامه همین مسیر استفاده می‌شوند.</p>
+                  <p className="mt-2 text-[11px] leading-6 text-ink-500">
+                    پیام‌های این گفت‌وگو فقط برای ادامه همین مسیر استفاده می‌شوند.
+                  </p>
                 </div>
                 <ShieldCheck size={17} className="shrink-0 text-ink-500" aria-hidden="true" />
               </div>
@@ -365,7 +464,10 @@ export default function AssistantPage() {
             {connection === "offline" ? (
               <div className="flex items-start gap-2 rounded-2xl border border-gold-500/20 bg-gold-500/[0.06] p-4 text-[11px] leading-6 text-ink-300">
                 <WifiOff size={15} className="mt-0.5 shrink-0 text-gold-400" aria-hidden="true" />
-                <span>اتصال هوش مصنوعی در حال آماده‌سازی است؛ رابط کاربری آماده است و می‌توانی بعداً دوباره امتحان کنی.</span>
+                <span>
+                  اتصال هوش مصنوعی در حال آماده‌سازی است؛ رابط کاربری آماده است و می‌توانی بعداً دوباره
+                  امتحان کنی.
+                </span>
               </div>
             ) : null}
           </aside>
