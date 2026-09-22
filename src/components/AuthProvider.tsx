@@ -13,6 +13,8 @@ import {
 
 /** Shared Telegram Mini App surface used across the site. */
 export type TelegramWebApp = {
+  /** Telegram WebApp platform identifier (e.g. ios, android, web). */
+  platform?: string;
   initData?: string;
   ready?: () => void;
   expand?: () => void;
