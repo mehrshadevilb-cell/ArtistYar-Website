@@ -9,35 +9,57 @@ export type CatalogResult = {
 const STORAGE =
   "https://ejfgbiyfqjlqddbxvqhk.supabase.co/storage/v1/object/public/artistyar-media";
 
-/** Cover images stored in Supabase public bucket */
+/** Updated package covers from Supabase public bucket (2026-09). */
 const PACKAGE_COVERS: Record<string, string> = {
-  "راه‌یار": `${STORAGE}/RahYar%20Package.JPEG`,
-  "راهیار": `${STORAGE}/RahYar%20Package.JPEG`,
-  "راه‌یار پرو": `${STORAGE}/RahYarPro%20Package.PNG`,
-  "راهیار پرو": `${STORAGE}/RahYarPro%20Package.PNG`,
+  "راه‌یار": `${STORAGE}/RahYar.png`,
+  "راهیار": `${STORAGE}/RahYar.png`,
+  "راه‌یار پرو": `${STORAGE}/RahYarPro.png`,
+  "راهیار پرو": `${STORAGE}/RahYarPro.png`,
   "تئوری موسیقی": `${STORAGE}/Theory%20Package.PNG`,
   "آرتیست‌یار": `${STORAGE}/ArtistYar%20Package.JPG`,
   "آرتیستیار": `${STORAGE}/ArtistYar%20Package.JPG`,
-  "پکیج کامل راه‌یار": `${STORAGE}/RahYar%20Package.JPEG`,
-  "پکیج کامل راهیار": `${STORAGE}/RahYar%20Package.JPEG`,
+  "پکیج کامل راه‌یار": `${STORAGE}/RahYar.png`,
+  "پکیج کامل راهیار": `${STORAGE}/RahYar.png`,
 };
 
+/** Old filenames that 400 on storage — always replace with PACKAGE_COVERS. */
+const BROKEN_COVER_MARKERS = [
+  "RahYar%20Package.JPEG",
+  "RahYar Package.JPEG",
+  "RahYarPro%20Package.PNG",
+  "RahYarPro Package.PNG",
+];
+
 function normalizeTitle(title: string) {
-  return title.replace(/‌/g, "").replace(/\s+/g, " ").trim();
+  return title.replace(/\u200c/g, "").replace(/\s+/g, " ").trim();
 }
 
 function coverFor(title: string): string | null {
   const key = normalizeTitle(title);
+  // Prefer longest exact/prefix match so "راه‌یار پرو" does not resolve to "راه‌یار".
+  let best: { len: number; url: string } | null = null;
   for (const [name, url] of Object.entries(PACKAGE_COVERS)) {
-    if (normalizeTitle(name) === key || key.includes(normalizeTitle(name))) return url;
+    const n = normalizeTitle(name);
+    if (key === n || key.includes(n)) {
+      if (!best || n.length > best.len) best = { len: n.length, url };
+    }
   }
-  return null;
+  return best?.url ?? null;
+}
+
+function isBrokenCover(url: string | null | undefined): boolean {
+  if (!url) return true;
+  return BROKEN_COVER_MARKERS.some((m) => url.includes(m));
 }
 
 function withCover(product: LiveProduct): LiveProduct {
+  const mapped = coverFor(product.title);
+  // Prefer mapped storage covers when thumbnail missing or points at deleted files.
+  if (mapped && isBrokenCover(product.thumbnail)) {
+    return { ...product, thumbnail: mapped };
+  }
   if (product.thumbnail) return product;
-  const cover = coverFor(product.title);
-  return cover ? { ...product, thumbnail: cover } : product;
+  return mapped ? { ...product, thumbnail: mapped } : product;
 }
 
 function backendBase(): string {

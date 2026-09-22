@@ -76,15 +76,11 @@ function ContentHubInner() {
         })}
       </nav>
 
-      <div className={tab === "media" ? "block" : "hidden"} aria-hidden={tab !== "media"}>
-        <MediaPage />
-      </div>
-      <div className={tab === "free" ? "block" : "hidden"} aria-hidden={tab !== "free"}>
-        <FreeEducationPage />
-      </div>
-      <div className={tab === "courses" ? "block" : "hidden"} aria-hidden={tab !== "courses"}>
-        <EducationPage />
-      </div>
+      {/* Only mount the active tab — mounting all three caused race conditions,
+          duplicate Storage fetches, and intermittent blank/crash in content hub. */}
+      {tab === "media" ? <MediaPage /> : null}
+      {tab === "free" ? <FreeEducationPage /> : null}
+      {tab === "courses" ? <EducationPage /> : null}
     </div>
   );
 }

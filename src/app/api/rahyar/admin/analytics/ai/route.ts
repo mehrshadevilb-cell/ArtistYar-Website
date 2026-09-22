@@ -20,9 +20,19 @@ export async function GET(request: Request) {
       signal: AbortSignal.timeout(60_000),
       cache: "no-store",
     });
-    const body = await response.json();
-    return NextResponse.json(body, { status: response.status });
-  } catch {
-    return NextResponse.json({ error: "analytics_ai_unavailable" }, { status: 503 });
+    const text = await response.text();
+    let body: unknown = null;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch {
+      body = {
+        error: "backend_invalid_json",
+        message: `Backend returned non-JSON for analytics AI (HTTP ${response.status}).`,
+      };
+    }
+    return NextResponse.json(body ?? { error: "empty_response" }, { status: response.status >= 500 ? 502 : response.status });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "analytics_ai_unavailable";
+    return NextResponse.json({ error: "analytics_ai_unavailable", message }, { status: 503 });
   }
 }
