@@ -200,7 +200,7 @@ export default function AssistantPage() {
         <div className="assistant-intro mb-8 flex flex-col gap-6 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold-500/20 bg-gold-500/[0.08] px-3 py-1.5 text-xs text-gold-300">
-              <Music2 size={14} aria-hidden="true" />
+              <SafeIcon name="Music2" size={14} aria-hidden="true" />
               <span>دستیار آموزشی آرتیست‌یار</span>
             </div>
             <h1 className="text-3xl font-semibold leading-[1.45] tracking-tight text-sand-50 sm:text-5xl">
@@ -212,7 +212,7 @@ export default function AssistantPage() {
             </p>
           </div>
           <div className="hidden items-center gap-2 text-xs text-ink-500 sm:flex">
-            <ShieldCheck size={15} className="text-gold-500" aria-hidden="true" />
+            <SafeIcon name="ShieldCheck" size={15} className="text-gold-500" aria-hidden="true" />
             پاسخ‌ها با تمرکز روی مسیر یادگیری تو
           </div>
         </div>
@@ -222,7 +222,7 @@ export default function AssistantPage() {
             <div className="assistant-console-header flex items-center justify-between border-b border-white/[0.07] px-4 py-4 sm:px-6">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-500 text-ink-950 shadow-[0_10px_25px_-12px_rgba(201,162,39,.9)]">
-                  <Bot size={22} aria-hidden="true" />
+                  <SafeIcon name="Bot" size={22} aria-hidden="true" />
                   <span
                     className={`absolute -bottom-0.5 -left-0.5 h-3 w-3 rounded-full border-2 border-[#11110f] ${
                       connection === "ready"
@@ -241,9 +241,9 @@ export default function AssistantPage() {
                   </div>
                   <p className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-500">
                     {connection === "ready" ? (
-                      <Wifi size={12} aria-hidden="true" />
+                      <SafeIcon name="Wifi" size={12} aria-hidden="true" />
                     ) : (
-                      <WifiOff size={12} aria-hidden="true" />
+                      <SafeIcon name="WifiOff" size={12} aria-hidden="true" />
                     )}
                     {connectionNote || statusLabel}
                   </p>
@@ -264,7 +264,7 @@ export default function AssistantPage() {
                 disabled={busy}
                 className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/[0.08] px-3 py-2 text-xs text-ink-300 transition hover:border-gold-500/40 hover:text-gold-300 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Plus size={15} aria-hidden="true" />
+                <SafeIcon name="Plus" size={15} aria-hidden="true" />
                 <span className="hidden sm:inline">گفت‌وگوی جدید</span>
                 <span className="sm:hidden">جدید</span>
               </button>
@@ -292,9 +292,9 @@ export default function AssistantPage() {
                     }`}
                   >
                     {message.role === "user" ? (
-                      <MessageCircle size={15} aria-hidden="true" />
+                      <SafeIcon name="MessageCircle" size={15} aria-hidden="true" />
                     ) : (
-                      <Bot size={15} aria-hidden="true" />
+                      <SafeIcon name="Bot" size={15} aria-hidden="true" />
                     )}
                   </div>
                   <div
@@ -333,9 +333,9 @@ export default function AssistantPage() {
                           aria-label="کپی پاسخ"
                         >
                           {copiedId === message.id ? (
-                            <Check size={12} aria-hidden="true" />
+                            <SafeIcon name="Check" size={12} aria-hidden="true" />
                           ) : (
-                            <Clipboard size={12} aria-hidden="true" />
+                            <SafeIcon name="Clipboard" size={12} aria-hidden="true" />
                           )}
                           {copiedId === message.id ? "کپی شد" : "کپی"}
                         </button>
@@ -348,7 +348,7 @@ export default function AssistantPage() {
                         disabled={busy}
                         className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-red-400/20 px-2.5 py-1.5 text-xs text-red-300 transition hover:border-red-300/40 hover:bg-red-400/[0.06] disabled:opacity-40"
                       >
-                        <RotateCcw size={13} aria-hidden="true" />
+                        <SafeIcon name="RotateCcw" size={13} aria-hidden="true" />
                         تلاش دوباره
                       </button>
                     ) : null}
@@ -359,7 +359,7 @@ export default function AssistantPage() {
               {busy ? (
                 <div className="assistant-msg flex gap-3">
                   <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gold-500/15 text-gold-400">
-                    <Bot size={15} aria-hidden="true" />
+                    <SafeIcon name="Bot" size={15} aria-hidden="true" />
                   </div>
                   <div className="rounded-2xl rounded-tl-md bg-white/[0.045] px-4 py-3 text-sm text-ink-400">
                     <span className="inline-flex items-center gap-1" aria-label="راه‌یار در حال فکر کردن است">
@@ -377,7 +377,7 @@ export default function AssistantPage() {
             {messages.length === 1 && !busy ? (
               <div className="border-t border-white/[0.07] px-4 py-4 sm:px-6">
                 <div className="mb-3 flex items-center gap-2 text-xs text-ink-500">
-                  <Lightbulb size={14} className="text-gold-500" aria-hidden="true" />
+                  <SafeIcon name="Lightbulb" size={14} className="text-gold-500" aria-hidden="true" />
                   از اینجا شروع کن
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -425,7 +425,7 @@ export default function AssistantPage() {
                     disabled={busy || !draft.trim()}
                   >
                     {busy ? "در حال ارسال" : "ارسال"}
-                    <Send size={14} className="rotate-180" aria-hidden="true" />
+                    <SafeIcon name="Send" size={14} className="rotate-180" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -435,7 +435,7 @@ export default function AssistantPage() {
           <aside className="space-y-3 lg:sticky lg:top-28">
             <div className="card-ay p-5">
               <div className="mb-4 flex items-center gap-2 text-sm font-medium text-sand-50">
-                <Sparkles size={16} className="text-gold-400" aria-hidden="true" />
+                <SafeIcon name="Sparkles" size={16} className="text-gold-400" aria-hidden="true" />
                 راه‌یار چه کمکی می‌کند؟
               </div>
               <ul className="space-y-3 text-xs leading-6 text-ink-300">
@@ -446,7 +446,7 @@ export default function AssistantPage() {
                   "راهنمای انتخاب مسیر آموزشی",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">
-                    <CheckCircle2 size={14} className="mt-1 shrink-0 text-gold-500" aria-hidden="true" />
+                    <SafeIcon name="CheckCircle2" size={14} className="mt-1 shrink-0 text-gold-500" aria-hidden="true" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -460,12 +460,12 @@ export default function AssistantPage() {
                     پیام‌های این گفت‌وگو فقط برای ادامه همین مسیر استفاده می‌شوند.
                   </p>
                 </div>
-                <ShieldCheck size={17} className="shrink-0 text-ink-500" aria-hidden="true" />
+                <SafeIcon name="ShieldCheck" size={17} className="shrink-0 text-ink-500" aria-hidden="true" />
               </div>
             </div>
             {connection === "offline" ? (
               <div className="flex items-start gap-2 rounded-2xl border border-gold-500/20 bg-gold-500/[0.06] p-4 text-[11px] leading-6 text-ink-300">
-                <WifiOff size={15} className="mt-0.5 shrink-0 text-gold-400" aria-hidden="true" />
+                <SafeIcon name="WifiOff" size={15} className="mt-0.5 shrink-0 text-gold-400" aria-hidden="true" />
                 <span>
                   اتصال هوش مصنوعی در حال آماده‌سازی است؛ رابط کاربری آماده است و می‌توانی بعداً دوباره
                   امتحان کنی.
