@@ -3,9 +3,8 @@ services:
     name: artistyar-website
     runtime: node
     branch: main
-    # Write optimized hero → install → build → stage standalone (faster cold start)
+    # Install → build → stage standalone (faster cold start)
     buildCommand: >
-      node scripts/ensure-hero.cjs &&
       npm ci --no-audit --no-fund &&
       NEXT_TELEMETRY_DISABLED=1 npm run build &&
       cp -r public .next/standalone/public &&
