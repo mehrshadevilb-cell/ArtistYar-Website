@@ -4,7 +4,11 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { PanelShell } from "@/components/PanelShell";
 
 const nav = [
-  { href: "/panel", label: "نمای کلی" },
+  { href: "/my-artistyar", label: "My ArtistYar" },
+  { href: "/learn", label: "مسیر یادگیری" },
+  { href: "/practice", label: "تمرین" },
+  { href: "/projects", label: "پروژه‌ها" },
+  { href: "/files", label: "My Files" },
   { href: "/panel/courses", label: "دوره‌های من" },
   { href: "/panel/reservations", label: "رزروها" },
   { href: "/panel/profile", label: "پروفایل و همگام‌سازی" },

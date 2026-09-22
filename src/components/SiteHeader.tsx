@@ -10,12 +10,11 @@ import { ThemeToggle } from "./ThemeToggle";
 import { SafeLink } from "./SafeLink";
 
 const coreLinks = [
-  { href: "/practice", label: "تمرین" },
-  { href: "/assistant", label: "ArtistYar AI" },
-  { href: "/ai-music", label: "تولید موسیقی AI" },
-  { href: "/music-analyzer", label: "تحلیل موسیقی" },
-  { href: "/arrangement", label: "سفارش تنظیم" },
-  { href: "/courses", label: "پکیج‌ها" },
+  { href: "/learn", label: "Learn" },
+  { href: "/practice", label: "Practice" },
+  { href: "/ai", label: "AI" },
+  { href: "/studio", label: "Studio" },
+  { href: "/my-artistyar", label: "My ArtistYar" },
 ];
 
 const secondaryLinks = [

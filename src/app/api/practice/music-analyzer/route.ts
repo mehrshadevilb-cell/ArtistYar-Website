@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { ADMIN_SESSION_COOKIE, USER_SESSION_COOKIE, verifyAdminSession, verifyUserSession } from "@/lib/server-admin-auth";
 import { createClient } from "@supabase/supabase-js";
 import { autoChat } from "@/lib/ai-providers";
+import { ecosystemDb, ownedProject, logProjectActivity } from "@/lib/user-ecosystem";
+import { recordSkillEvent } from "@/lib/practice-skill-engine";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -136,11 +138,12 @@ export async function GET() { const user = await identity(); if (!user) return N
 export async function POST(request: Request) {
   const user = await identity(); if (!user) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
   const form = await request.formData().catch(() => null); if (!form) return NextResponse.json({ ok: false, error: "invalid_form" }, { status: 400 });
+  const mode = String(form.get("mode") || "mix") === "arrangement" ? "arrangement" : "mix";
   const file = form.get("file"); if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "audio_file_required" }, { status: 400 });
   if (file.size <= 0 || file.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "file_too_large_or_empty" }, { status: 413 });
   if (!ALLOWED_AUDIO.test(file.name)) return NextResponse.json({ ok: false, error: "unsupported_audio_format" }, { status: 415 });
   const metrics = metricsOf(parseJson(String(form.get("metrics") || "{}"))); const reference = metricsOf(parseJson(String(form.get("refMetrics") || "null"))); if (!metrics) return NextResponse.json({ ok: false, error: "audio_metrics_required" }, { status: 400 });
-  const genre = String(form.get("genre") || "عمومی").slice(0, 80); const focus = String(form.get("focus") || "فول میکس").slice(0, 80); const notes = String(form.get("notes") || "").slice(0, 800); const refName = String(form.get("refName") || "reference").slice(0, 120);
+  const genre = String(form.get("genre") || "عمومی").slice(0, 80); const focus = String(form.get("focus") || "فول میکس").slice(0, 80); const notes = String(form.get("notes") || "").slice(0, 800); const refName = String(form.get("refName") || "reference").slice(0, 120); const projectId = String(form.get("projectId") || "").trim().slice(0, 80);
   const access = await entitlement(user); if (!access.admin && access.used >= access.limit) return NextResponse.json({ ok: false, code: "daily_limit_reached", ...access, remaining: 0 }, { status: 429 });
   let analysis: any = deterministicAnalysis(metrics, genre, focus, reference);
   try {
@@ -150,7 +153,26 @@ export async function POST(request: Request) {
     const parsed = parseJson(typeof raw === "string" ? raw : String(raw ?? ""));
     if (parsed && typeof parsed === "object") analysis = { ...analysis, ...parsed, matchScore: Number.isFinite(Number(parsed.matchScore)) ? clamp(Math.round(Number(parsed.matchScore)), 0, 100) : analysis.matchScore, eq: Array.isArray(parsed.eq) && parsed.eq.length ? parsed.eq : analysis.eq, arrangement: Array.isArray(parsed.arrangement) && parsed.arrangement.length ? parsed.arrangement : analysis.arrangement, roadmap: Array.isArray(parsed.roadmap) && parsed.roadmap.length ? parsed.roadmap : analysis.roadmap, source: parsed.source || "ai-assisted-v2" };
   } catch { /* deterministic analysis remains available when AI is unavailable */ }
-  if (db && !user.admin) { try { await db.from("practice_records").insert({ user_id: user.id, game_id: "music-analyzer", score: analysis.matchScore ?? 0, played_at: new Date().toISOString(), meta: { genre, focus, hasRef: Boolean(reference), analyzerVersion: "v2" } }); } catch { /* result remains valid */ } }
+  if (db && !user.admin) { try { await db.from("practice_records").insert({ user_id: user.id, game_id: "music-analyzer", score: analysis.matchScore ?? 0, played_at: new Date().toISOString(), meta: { genre, focus, hasRef: Boolean(reference), analyzerVersion: "v2", projectId: projectId || null } }); } catch { /* result remains valid */ } }
+  if (!user.admin) {
+    try {
+      const gameId = mode === "mix" ? "eq" : "personal";
+      const accuracy = Number(analysis.matchScore ?? 0);
+      await recordSkillEvent({ userId: user.id, gameId, xp: Math.round(accuracy / 5), accuracy, difficulty: 250, correct: accuracy >= 75, metadata: { source: "music_analyzer", mode, projectId: projectId || null, responseTimeMs: 0 } });
+    } catch { /* analyzer result must not fail if skill storage is unavailable */ }
+  }
+  if (projectId && ecosystemDb && !user.admin) {
+    try {
+      const project = await ownedProject(user.id, projectId);
+      if (project) {
+        const inserted = await ecosystemDb.from("artistyar_project_analyses").insert({
+          project_id: projectId, user_id: user.id, analysis_type: mode,
+          payload: { fileName: file.name, genre, focus, metrics, reference: Boolean(reference), analysis },
+        }).select("id").single();
+        if (!inserted.error) await logProjectActivity({ userId: user.id, projectId, eventType: "analysis_created", entityType: "analysis", entityId: inserted.data?.id, payload: { mode, fileName: file.name } });
+      }
+    } catch { /* project persistence is additive; never hide a valid analysis */ }
+  }
   const used = access.used + (user.admin ? 0 : 1);
   return NextResponse.json({ ok: true, metrics, analysis, quota: { ...access, used, remaining: Math.max(0, access.limit - used), tier: access.admin ? "admin" : access.pro ? "pro" : access.course ? "course" : "free" } });
 }

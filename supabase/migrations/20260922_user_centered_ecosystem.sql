@@ -1,0 +1,128 @@
+-- User-centered Music Creation & Learning Ecosystem
+create extension if not exists pgcrypto;
+
+create table if not exists public.user_learning_profiles (
+  user_id text primary key,
+  skill_level text not null default 'beginner' check (skill_level in ('beginner','intermediate','advanced','pro')),
+  goals jsonb not null default '[]'::jsonb,
+  focus_areas jsonb not null default '[]'::jsonb,
+  activity_role text not null default 'producer',
+  onboarding_completed boolean not null default false,
+  roadmap_version integer not null default 1,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.learning_roadmap_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  title text not null,
+  description text not null default '',
+  skill text not null,
+  course_slug text,
+  practice_game_id text,
+  priority integer not null default 100,
+  status text not null default 'available' check (status in ('available','in_progress','completed','skipped')),
+  source text not null default 'onboarding',
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists learning_roadmap_user_idx on public.learning_roadmap_items(user_id, priority, created_at);
+
+create table if not exists public.artistyar_projects (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  name text not null check (char_length(name) between 1 and 160),
+  description text not null default '',
+  status text not null default 'active' check (status in ('active','archived','completed')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists artistyar_projects_user_idx on public.artistyar_projects(user_id, updated_at desc);
+
+create table if not exists public.artistyar_project_files (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.artistyar_projects(id) on delete cascade,
+  user_id text not null,
+  storage_path text not null unique,
+  name text not null,
+  original_name text not null,
+  mime_type text not null default 'application/octet-stream',
+  size_bytes bigint not null default 0 check (size_bytes >= 0),
+  category text not null default 'other' check (category in ('audio','stem','mix','master','reference','ai_generation','practice','other')),
+  current_version integer not null default 1,
+  checksum text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists artistyar_project_files_project_idx on public.artistyar_project_files(project_id, updated_at desc);
+
+create table if not exists public.artistyar_project_file_versions (
+  id uuid primary key default gen_random_uuid(),
+  file_id uuid not null references public.artistyar_project_files(id) on delete cascade,
+  project_id uuid not null references public.artistyar_projects(id) on delete cascade,
+  user_id text not null,
+  version integer not null,
+  storage_path text not null,
+  size_bytes bigint not null default 0,
+  checksum text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  unique(file_id, version)
+);
+
+create table if not exists public.artistyar_project_analyses (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.artistyar_projects(id) on delete cascade,
+  user_id text not null,
+  analysis_type text not null,
+  source_file_id uuid references public.artistyar_project_files(id) on delete set null,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists artistyar_project_analyses_idx on public.artistyar_project_analyses(project_id, created_at desc);
+
+create table if not exists public.artistyar_project_generations (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.artistyar_projects(id) on delete cascade,
+  user_id text not null,
+  generation_id uuid,
+  prompt text not null default '',
+  output_url text,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists artistyar_project_generations_idx on public.artistyar_project_generations(project_id, created_at desc);
+
+create table if not exists public.artistyar_project_notes (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.artistyar_projects(id) on delete cascade,
+  user_id text not null,
+  body text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists artistyar_project_notes_idx on public.artistyar_project_notes(project_id, updated_at desc);
+
+create table if not exists public.artistyar_project_activity (
+  id bigint generated by default as identity primary key,
+  project_id uuid not null references public.artistyar_projects(id) on delete cascade,
+  user_id text not null,
+  event_type text not null,
+  entity_type text,
+  entity_id text,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists artistyar_project_activity_idx on public.artistyar_project_activity(project_id, created_at desc);
+
+alter table public.user_learning_profiles enable row level security;
+alter table public.learning_roadmap_items enable row level security;
+alter table public.artistyar_projects enable row level security;
+alter table public.artistyar_project_files enable row level security;
+alter table public.artistyar_project_file_versions enable row level security;
+alter table public.artistyar_project_analyses enable row level security;
+alter table public.artistyar_project_generations enable row level security;
+alter table public.artistyar_project_notes enable row level security;
+alter table public.artistyar_project_activity enable row level security;
