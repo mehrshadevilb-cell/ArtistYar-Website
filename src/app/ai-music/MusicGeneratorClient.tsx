@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 type JobView = {
   id: string;
@@ -49,6 +50,8 @@ function statusLabel(s: string): string {
 
 export function MusicGeneratorClient() {
   const promptId = useId();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") || "";
   const [prompt, setPrompt] = useState("");
   const [bpm, setBpm] = useState("");
   const [key, setKey] = useState("");
@@ -134,6 +137,7 @@ export function MusicGeneratorClient() {
     stopPolling();
     try {
       const body: Record<string, unknown> = { prompt: prompt.trim() };
+      if (projectId) body.projectId = projectId;
       if (bpm) body.bpm = Number(bpm);
       if (key.trim()) body.key = key.trim();
       if (bars) body.bars = Number(bars);
