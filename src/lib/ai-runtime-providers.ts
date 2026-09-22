@@ -22,15 +22,15 @@ function normalizeBase(value: string) {
 
 /** Prefer providers known for low latency for public chat. */
 const FAST_PROVIDER_ORDER: Record<string, number> = {
-  groq: 0,
-  google: 1,
-  openai: 2,
-  openrouter: 3,
-  xai: 4,
-  deepseek: 5,
-  anthropic: 6,
-  mistral: 7,
-  xkiro: 8,
+  xkiro: 0,
+  openrouter: 1,
+  groq: 2,
+  google: 3,
+  openai: 4,
+  xai: 5,
+  deepseek: 6,
+  anthropic: 7,
+  mistral: 8,
   opencode: 9,
   agentrouter: 10,
   "rahyar-gateway": 20,
@@ -105,8 +105,8 @@ export async function bootstrapRuntimeProvidersFromEnv(): Promise<number> {
 }
 
 /**
- * Fast path for chat: use env + Supabase registry defaults only.
- * Never call /models discovery on the hot path — that was adding multi-second latency.
+ * Fast path for chat: env keys are source of truth; Supabase can add extra providers.
+ * Never call /models discovery on the hot path.
  */
 export async function getRuntimeProviderPool(): Promise<AIProvider[]> {
   const now = Date.now();
@@ -114,41 +114,39 @@ export async function getRuntimeProviderPool(): Promise<AIProvider[]> {
     return poolCache.providers;
   }
 
-  let providers: AIProvider[] = [];
-  try {
-    providers = await loadRuntimeProviders();
-  } catch {
-    /* Supabase optional for public chat */
-  }
-
-  if (!providers.length) {
-    try {
-      await bootstrapRuntimeProvidersFromEnv();
-      providers = await loadRuntimeProviders();
-    } catch {
-      /* fall through to env */
-    }
-  }
-
-  // Always merge env-configured providers so new keys work without DB bootstrap.
+  // Env first — production secrets live here.
   const envProviders = getConfiguredProviders().filter((p) => Boolean(p.apiKey) || p.id === "ollama");
   const byId = new Map<string, AIProvider>();
   for (const p of envProviders) byId.set(p.id, p);
-  for (const p of providers) {
+
+  let dbProviders: AIProvider[] = [];
+  try {
+    dbProviders = await loadRuntimeProviders();
+  } catch {
+    try {
+      await bootstrapRuntimeProvidersFromEnv();
+      dbProviders = await loadRuntimeProviders();
+    } catch {
+      /* optional */
+    }
+  }
+
+  for (const p of dbProviders) {
     const existing = byId.get(p.id);
     if (!existing) {
       byId.set(p.id, p);
       continue;
     }
-    // Prefer non-empty default models from either source.
+    // Prefer ENV api key over DB (DB keys often go stale).
     const models = [
       ...new Set([...(existing.defaultModels || []), ...(p.defaultModels || [])].filter(Boolean)),
     ].slice(0, 6);
     byId.set(p.id, {
-      ...existing,
       ...p,
-      apiKey: p.apiKey || existing.apiKey,
-      defaultModels: models.length ? models : existing.defaultModels,
+      ...existing,
+      apiKey: existing.apiKey || p.apiKey,
+      defaultModels: models.length ? models : existing.defaultModels || p.defaultModels,
+      baseUrl: existing.baseUrl || p.baseUrl,
     });
   }
 
