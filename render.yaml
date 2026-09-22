@@ -3,10 +3,14 @@ services:
     name: artistyar-website
     runtime: node
     branch: main
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --no-audit --no-fund && NEXT_TELEMETRY_DISABLED=1 npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
         value: 22
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=1536"
