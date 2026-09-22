@@ -256,7 +256,7 @@ export default function ProductPage() {
         <>
           <div className="grid gap-8 lg:grid-cols-[1.1fr_.9fr] lg:items-start">
             <div>
-              <div className="relative aspect-[16/9] overflow-hidden rounded-3xl border border-white/[.07] bg-ink-950">
+              <div className="relative aspect-square overflow-hidden rounded-3xl border border-white/[.07] bg-ink-950">
                 {product.thumbnail ? (
                   <Image src={product.thumbnail} alt={product.title} fill sizes="(max-width: 1024px) 100vw, 60vw" className={`object-cover ${coverClass(product.title)}`} priority />
                 ) : (
