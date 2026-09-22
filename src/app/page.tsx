@@ -85,7 +85,7 @@ function HeroDisk() {
       <DepthScene className="hero-art">
         <div className="hero-photo-stage">
           <Image
-            src="/artistyar-studio-hero.png"
+            src="/artistyar-studio-hero.webp"
             alt=""
             fill
             priority
