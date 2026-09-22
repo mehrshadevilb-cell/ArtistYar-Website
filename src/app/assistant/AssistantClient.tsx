@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import * as Lucide from "lucide-react";
 import { MarkdownContent } from "@/components/MarkdownContent";
 
@@ -16,7 +16,7 @@ function SafeIcon({
   className?: string;
   [key: string]: unknown;
 }) {
-  const Icon = Lucide[name] as React.ComponentType<{ size?: number; className?: string; [key: string]: unknown }> | undefined;
+  const Icon = Lucide[name] as ComponentType<{ size?: number; className?: string; [key: string]: unknown }> | undefined;
   return Icon ? <Icon size={size} className={className} {...props} /> : <span aria-hidden="true" className={className} />;
 }
 
