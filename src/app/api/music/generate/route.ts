@@ -18,6 +18,7 @@ import {
   getBalance,
 } from "@/lib/music-generation/credits";
 import type { GenerationSpec } from "@/lib/music-generation/types";
+import { ecosystemDb, ownedProject, logProjectActivity } from "@/lib/user-ecosystem";
 import { PERSIAN_ERROR_MESSAGES } from "@/lib/music-generation/types";
 
 export const runtime = "nodejs";
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const prompt = String(body.prompt || "").trim();
+  const projectId = typeof body.projectId === "string" ? body.projectId.trim().slice(0, 80) : "";
   if (!prompt || prompt.length < 3) {
     return NextResponse.json({ ok: false, error: "توضیح درخواست موسیقی را بنویسید." }, { status: 400 });
   }
@@ -112,6 +114,11 @@ export async function POST(request: Request) {
       );
     }
 
+    if (projectId && !user.id.startsWith("admin:")) {
+      const project = await ownedProject(user.id, projectId);
+      if (!project) return NextResponse.json({ ok: false, error: "پروژه انتخاب‌شده معتبر نیست." }, { status: 404 });
+    }
+
     const job = await createGenerationJob({
       userId: user.id,
       prompt,
@@ -132,6 +139,12 @@ export async function POST(request: Request) {
 
     const balance = await getBalance(user.id);
     const view = publicJobView(finished);
+    if (projectId && !user.id.startsWith("admin:") && finished.status === "completed" && ecosystemDb) {
+      try {
+        const inserted = await ecosystemDb.from("artistyar_project_generations").insert({ project_id: projectId, user_id: user.id, generation_id: job.id, prompt, output_url: view.outputUrl || null, payload: { spec: view.spec || null, status: view.status } }).select("id").single();
+        if (!inserted.error) await logProjectActivity({ userId: user.id, projectId, eventType: "ai_generation_attached", entityType: "generation", entityId: inserted.data?.id, payload: { generationId: job.id } });
+      } catch { /* generated output remains valid if project persistence is unavailable */ }
+    }
 
     // Always 200 with job payload so UI can show status + errorMessage
     return NextResponse.json(
