@@ -138,6 +138,7 @@ export async function GET() { const user = await identity(); if (!user) return N
 export async function POST(request: Request) {
   const user = await identity(); if (!user) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
   const form = await request.formData().catch(() => null); if (!form) return NextResponse.json({ ok: false, error: "invalid_form" }, { status: 400 });
+  const mode = String(form.get("mode") || "mix") === "arrangement" ? "arrangement" : "mix";
   const file = form.get("file"); if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "audio_file_required" }, { status: 400 });
   if (file.size <= 0 || file.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "file_too_large_or_empty" }, { status: 413 });
   if (!ALLOWED_AUDIO.test(file.name)) return NextResponse.json({ ok: false, error: "unsupported_audio_format" }, { status: 415 });
