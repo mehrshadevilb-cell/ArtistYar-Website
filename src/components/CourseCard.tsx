@@ -19,7 +19,7 @@ export function CourseCard({ course }: { course: Course }) {
   return (
     <article className="card-ay group flex h-full flex-col overflow-hidden transition hover:border-gold-500/25 hover:bg-white/[0.045]">
       <div
-        className={`relative flex aspect-[16/10] items-end justify-between border-b border-white/[0.06] bg-gradient-to-br p-5 ${fallbackTone(course.id)}`}
+        className={`relative flex aspect-square items-end justify-between border-b border-white/[0.06] bg-gradient-to-br p-5 ${fallbackTone(course.id)}`}
       >
         <span className="text-3xl font-semibold tracking-tight text-sand-50/90">
           {course.title.slice(0, 1)}
