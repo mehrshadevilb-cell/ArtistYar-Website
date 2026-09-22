@@ -1,4 +1,4 @@
-import { listEnvDiscoveredProviders } from "@/lib/ai-env-providers";
+import { listEnvDiscoveredProviders, GENERIC_OPENAI_MODELS } from "@/lib/ai-env-providers";
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 export type AIModel = { id: string; provider: string; task?: string; rank?: number };
@@ -23,8 +23,8 @@ function pushOpenAICompat(list: AIProvider[], id: string, name: string, apiKey: 
 export function getConfiguredProviders(): AIProvider[] {
   const providers: AIProvider[] = [];
   pushOpenAICompat(providers, "openai", "OpenAI", env("OPENAI_API_KEY"), env("OPENAI_BASE_URL") || "https://api.openai.com/v1", ["gpt-4o-mini", "gpt-4o"]);
-  pushOpenAICompat(providers, "openrouter", "OpenRouter", env("OPENROUTER_API_KEY"), env("OPENROUTER_BASE_URL") || "https://openrouter.ai/api/v1", ["google/gemini-2.5-flash", "openai/gpt-4o-mini"]);
-  pushOpenAICompat(providers, "xkiro", "xKiro", env("XKIRO_API_KEY") || env("KIRA_API_KEY") || env("XTROUTER_API_KEY"), env("XKIRO_BASE_URL") || env("KIRA_BASE_URL") || "https://api.xkiro.com/v1", env("XKIRO_MODEL") ? [env("XKIRO_MODEL")] : []);
+  pushOpenAICompat(providers, "openrouter", "OpenRouter", env("OPENROUTER_API_KEY"), env("OPENROUTER_BASE_URL") || "https://openrouter.ai/api/v1", ["google/gemini-2.0-flash-exp:free", "qwen/qwen3-8b:free", "openai/gpt-4o-mini"]);
+  pushOpenAICompat(providers, "xkiro", "xKiro", env("XKIRO_API_KEY") || env("KIRA_API_KEY") || env("XTROUTER_API_KEY"), env("XKIRO_BASE_URL") || env("KIRA_BASE_URL") || "https://api.xkiro.com/v1", env("XKIRO_MODEL") ? [env("XKIRO_MODEL")] : ["qwen/qwen3.8-omni-flash:free", "qwen/qwen3-8b:free"]);
   pushOpenAICompat(providers, "opencode", "OpenCode Zen", env("OPENCODE_API_KEY") || env("OPENCODE_ZEN_API_KEY"), env("OPENCODE_BASE_URL") || env("OPENCODE_ZEN_BASE_URL") || "https://opencode.ai/zen/v1", [env("OPENCODE_MODEL") || "kimi-k2"]);
   pushOpenAICompat(providers, "agentrouter", "AgentRouter", env("AGENTROUTER_API_KEY") || env("AGENT_ROUTER_API_KEY"), env("AGENTROUTER_BASE_URL") || env("AGENT_ROUTER_BASE_URL") || "https://co.agentrouter.org/v1", [env("AGENTROUTER_MODEL") || "gpt-5.5"]);
   const anthropicKey = env("ANTHROPIC_API_KEY") || env("CLAUDE_API_KEY");
@@ -36,7 +36,18 @@ export function getConfiguredProviders(): AIProvider[] {
   pushOpenAICompat(providers, "mistral", "Mistral", env("MISTRAL_API_KEY"), env("MISTRAL_BASE_URL") || "https://api.mistral.ai/v1", ["mistral-large-latest"]);
   pushOpenAICompat(providers, "xai", "xAI Grok", env("XAI_API_KEY") || env("GROK_API_KEY"), env("XAI_BASE_URL") || "https://api.x.ai/v1", ["grok-3", "grok-3-mini"]);
   for (let i = 1; i <= 8; i++) {
-    pushOpenAICompat(providers, `custom-${i}`, env(`CUSTOM_AI_${i}_NAME`) || `Custom AI ${i}`, env(`CUSTOM_AI_${i}_API_KEY`) || env(`AI_PROVIDER_${i}_API_KEY`), env(`CUSTOM_AI_${i}_BASE_URL`) || env(`AI_PROVIDER_${i}_BASE_URL`), (env(`CUSTOM_AI_${i}_MODEL`) || env(`AI_PROVIDER_${i}_MODEL`)) ? [env(`CUSTOM_AI_${i}_MODEL`) || env(`AI_PROVIDER_${i}_MODEL`)] : undefined);
+    const customModel = env(`CUSTOM_AI_${i}_MODEL`) || env(`AI_PROVIDER_${i}_MODEL`);
+    const customModels = customModel
+      ? [customModel]
+      : (env(`CUSTOM_AI_${i}_BASE_URL`) || env(`AI_PROVIDER_${i}_BASE_URL`) ? GENERIC_OPENAI_MODELS.slice(0, 3) : undefined);
+    pushOpenAICompat(
+      providers,
+      `custom-${i}`,
+      env(`CUSTOM_AI_${i}_NAME`) || env(`AI_PROVIDER_${i}_NAME`) || `Custom AI ${i}`,
+      env(`CUSTOM_AI_${i}_API_KEY`) || env(`AI_PROVIDER_${i}_API_KEY`),
+      env(`CUSTOM_AI_${i}_BASE_URL`) || env(`AI_PROVIDER_${i}_BASE_URL`),
+      customModels,
+    );
   }
   const gw = (env("RAHYAR_AI_GATEWAY_URL") || env("RAHYAR_API_URL")).replace(/\/$/, "");
   const secret = env("RAHYAR_AI_BRIDGE_SECRET") || env("RAHYAR_AI_KEY");
@@ -195,41 +206,9 @@ function isTransientProviderError(message: string): boolean {
 }
 
 export async function autoChat(messages: ChatMessage[], preferredProvider?: string, preferredModel?: string, _clientId = "artistyar-web", signal?: AbortSignal) {
-  const errors: string[] = [];
-  const dead = new Set<string>();
-  const ranked = await buildRankedCandidates(30);
-  const ordered: RankedCandidate[] = [];
-  if (preferredProvider && preferredModel) ordered.push({ providerId: preferredProvider, modelId: preferredModel, score: 999, providerName: preferredProvider });
-  for (const c of ranked) {
-    if (preferredProvider && preferredModel && c.providerId === preferredProvider && c.modelId === preferredModel) continue;
-    ordered.push(c);
-  }
-  if (!ordered.length) {
-    for (const p of getConfiguredProviders().filter((x) => x.apiKey)) {
-      ordered.push({ providerId: p.id, modelId: p.defaultModels?.[0] || "gpt-4o-mini", score: 1, providerName: p.name });
-    }
-  }
-  if (!ordered.length) throw new Error("no_provider_configured");
-  // Keep failover bounded: the API routes are normally limited to ~60s.
-  // Sixteen × 28s could otherwise keep a single request alive for several minutes.
-  for (const c of ordered.slice(0, 4)) {
-    if (signal?.aborted) throw new Error("aborted");
-    if (dead.has(c.providerId)) continue;
-    try {
-      const result = await withTimeout(chatExactProviderModel(messages, c.providerId, c.modelId, _clientId, signal), 12000, `${c.providerId}/${c.modelId}`);
-      if (result.reply?.trim()) return result;
-      errors.push(`${c.providerId}/${c.modelId}: empty_reply`);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      errors.push(`${c.providerId}/${c.modelId}: ${msg.slice(0, 140)}`);
-      if (signal?.aborted) throw e;
-      if (/insufficient|billing|wallet|credit|credits|quota|balance|funds|invalid api key|unauthorized|provider_missing_key|401|402|403|404/i.test(msg)) dead.add(c.providerId);
-      // For transient failures, try the next provider/model rather than burning the
-      // entire request budget on repeated models from the same provider.
-      if (isTransientProviderError(msg)) dead.add(c.providerId);
-    }
-  }
-  throw new Error(`all_providers_failed:${errors.slice(0, 8).join(" | ").slice(0, 600)}`);
+  // Unified path: same multi-provider failover as public chat / assistant.
+  const { runtimeAutoChat } = await import("@/lib/ai-runtime");
+  return runtimeAutoChat(messages, preferredProvider, preferredModel, _clientId, signal);
 }
 
 export function listProviderStatus() {
