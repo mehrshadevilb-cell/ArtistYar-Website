@@ -95,20 +95,34 @@ function HeroDisk() {
         </div>
         <div className="hero-orbit orbit-a" />
         <div className="hero-orbit orbit-b" />
-        <div className="record-disc" aria-hidden="true">
-          <span className="record-groove groove-one" />
-          <span className="record-groove groove-two" />
-          <span className="record-label">AY</span>
+        <div className="record-disc">
+          <div className="record-groove groove-one" />
+          <div className="record-groove groove-two" />
+          <div className="record-label">
+            <Waves size={20} />
+            <span>RY</span>
+          </div>
         </div>
-        <span className="floating-note note-one" aria-hidden="true">
-          ♪
-        </span>
-        <span className="floating-note note-two" aria-hidden="true">
-          ♫
-        </span>
+        <div className="floating-note note-one">♪</div>
+        <div className="floating-note note-two">♫</div>
         <div className="now-playing">
-          <span className="now-playing-dot" />
-          <span>در حال ساخت</span>
+          <div className="play-icon">
+            <CirclePlay size={18} />
+          </div>
+          <div>
+            <span className="mini-label">RAHYAR</span>
+            <strong>مسیرت را ادامه بده</strong>
+          </div>
+        </div>
+        <div className="studio-session">
+          <span>جلسهٔ تمرین / ۰۱</span>
+          <strong>از شنیدن تا ساختن</strong>
+        </div>
+        <div className="studio-meter" aria-hidden="true">
+          <i /><i /><i /><i /><i /><i /><i /><i /><i /><i />
+        </div>
+        <div className="art-caption">
+          <Sparkles size={14} /> آموزش · تمرین · پیگیری
         </div>
       </DepthScene>
     </ScrollDepth>
@@ -117,12 +131,14 @@ function HeroDisk() {
 
 export default function HomePage() {
   return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }}
-      />
-      <section className="hero-section container-ay">
+    <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
+
+      <ScrollStage
+        as="section"
+        className="hero-section container-ay hero-layout-root"
+        intensity="strong"
+      >
         <div className="hero-copy">
           <div className="hero-kicker">
             <span className="trust-line" aria-hidden="true" />
@@ -142,7 +158,7 @@ export default function HomePage() {
           </div>
         </div>
         <HeroDisk />
-      </section>
+      </ScrollStage>
 
       <ScrollStage as="section" className="container-ay border-t border-white/[.06] py-12 sm:py-16" intensity="calm">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -208,18 +224,20 @@ export default function HomePage() {
       </ScrollStage>
 
       <ScrollStage as="section" id="feedback" className="container-ay py-10 sm:py-12" intensity="calm">
-        <Reveal>
-          <p className="eyebrow">بازخورد</p>
-          <h2 className="section-title mt-3">از زبان هنرجوها</h2>
-        </Reveal>
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        <div className="mb-5">
+          <p className="eyebrow">/ بازخورد</p>
+          <h2 className="mt-2 text-lg font-medium text-sand-50 sm:text-xl">
+            صدای هنرجو <span className="text-gold-400">· کوتاه</span>
+          </h2>
+        </div>
+        <div className="grid gap-2.5 sm:grid-cols-3">
           {studentFeedback.map((item, i) => (
             <Reveal key={item.name} delay={i * 25}>
-              <blockquote className="card-ay flex h-full flex-col p-5 sm:p-6">
-                <p className="flex-1 text-sm leading-7 text-ink-200">“{item.quote}”</p>
-                <footer className="mt-5 border-t border-white/[.06] pt-4 text-xs text-ink-500">
-                  <span className="text-sand-50">{item.name}</span>
-                  <span className="mt-1 block">{item.detail}</span>
+              <blockquote className="comment-card">
+                <p>«{item.quote}»</p>
+                <footer>
+                  <strong>{item.name}</strong>
+                  <span>{item.detail}</span>
                 </footer>
               </blockquote>
             </Reveal>
@@ -229,14 +247,14 @@ export default function HomePage() {
 
       <ScrollStage as="section" className="container-ay pb-4 pt-2" intensity="calm">
         <CommunityLinks
-          title="جامعه و ابزار"
-          subtitle="لینک‌های سریع برای ادامه مسیر، ابزار و نمونه‌های کوتاه."
+          title="بیرون از سایت هم همراهت هستیم"
+          subtitle="کانال پلاگین، گروه پرسش‌وپاسخ و اینستاگرام رسمی مدرس."
         />
       </ScrollStage>
 
       <ScrollStage id="quick-consultation" intensity="calm" exitBlur={false}>
         <QuickConsultationForm />
       </ScrollStage>
-    </>
+    </div>
   );
 }
