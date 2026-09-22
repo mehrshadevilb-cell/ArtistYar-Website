@@ -1,32 +1,41 @@
 import { chatWithProvider, type ChatMessage, type AIProvider } from "@/lib/ai-providers";
 import { getRuntimeProviderPool } from "@/lib/ai-runtime-providers";
+import { GENERIC_OPENAI_MODELS } from "@/lib/ai-env-providers";
 
 const cooldown = new Map<string, number>();
-/** Providers with bad keys — skip for 1 hour without re-probing every request. */
+/** Providers with bad keys / hard quota — skip for a while without re-probing every request. */
 const deadUntil = new Map<string, number>();
 
-/** Max models tried per provider on the hot path. */
-const MODELS_PER_PROVIDER = 2;
-/** Max total candidates to try before failing. */
-const MAX_CANDIDATES = 12;
+/** Models tried per provider on the hot path (configured + fallbacks). */
+const MODELS_PER_PROVIDER = 4;
+/** Try many candidates so every env provider gets a turn before failing. */
+const MAX_CANDIDATES = 28;
 
 function exhausted(message: string) {
-  return /429|402|403|rate.?limit|quota|credit|credits|insufficient|billing|balance|funds|payment required|capacity|limit/i.test(
+  return /402|credit|credits|insufficient|billing|balance|funds|payment required|quota exceeded|out of credits/i.test(
     message,
   );
+}
+
+function isRateLimit(message: string) {
+  return /429|rate.?limit|too many requests|capacity/i.test(message);
 }
 
 function isAuthError(message: string) {
-  return /invalid api key|unauthorized|401|403|api key not valid|incorrect api key|authentication|permission_denied|API_KEY_INVALID/i.test(
+  return /invalid api key|unauthorized|401|api key not valid|incorrect api key|authentication|permission_denied|API_KEY_INVALID|forbidden/i.test(
     message,
   );
 }
 
+function isModelMissing(message: string) {
+  return /not found|404|model.?not|unknown model|does not exist|invalid model/i.test(message);
+}
+
 function cooldownMs(message: string) {
-  if (isAuthError(message)) return 3_600_000;
-  if (/429|rate.?limit/i.test(message)) return 60_000;
-  if (/402|credit|credits|quota|billing|balance|funds|payment required/i.test(message)) return 3_600_000;
-  return 8_000;
+  if (isAuthError(message) || exhausted(message)) return 3_600_000;
+  if (isRateLimit(message)) return 45_000;
+  if (isModelMissing(message)) return 15 * 60_000;
+  return 6_000;
 }
 
 /** Higher = try first. Prefer instant/flash/mini free models. */
@@ -42,7 +51,7 @@ function scoreModel(modelId: string): number {
 
 function scoreProvider(providerId: string): number {
   const map: Record<string, number> = {
-    // Prefer free gateways when paid keys may be stale
+    // Prefer free/fast gateways; paid keys still used when healthy
     xkiro: 100,
     openrouter: 95,
     groq: 90,
@@ -52,6 +61,7 @@ function scoreProvider(providerId: string): number {
     deepseek: 70,
     anthropic: 60,
     agentrouter: 50,
+    opencode: 48,
     "rahyar-gateway": 40,
   };
   return map[providerId] ?? 45;
@@ -60,14 +70,18 @@ function scoreProvider(providerId: string): number {
 const FALLBACK_MODELS: Record<string, string[]> = {
   xkiro: ["qwen/qwen3.8-omni-flash:free", "qwen/qwen3-8b:free", "meta-llama/llama-3.3-70b-instruct:free"],
   openrouter: ["google/gemini-2.0-flash-exp:free", "qwen/qwen3-8b:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  groq: ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"],
+  groq: ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "gemma2-9b-it"],
   google: ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"],
   openai: ["gpt-4o-mini", "gpt-4o"],
+  deepseek: ["deepseek-chat", "deepseek-reasoner"],
+  xai: ["grok-3-mini", "grok-3"],
+  anthropic: ["claude-3-5-haiku-20241022", "claude-sonnet-4-20250514"],
+  mistral: ["mistral-small-latest", "mistral-large-latest"],
 };
 
 function pickModels(p: AIProvider): string[] {
   const configured = [...new Set((p.defaultModels || []).filter(Boolean))];
-  const fallback = FALLBACK_MODELS[p.id] || [];
+  const fallback = FALLBACK_MODELS[p.id] || (p.chatStyle === "openai" ? GENERIC_OPENAI_MODELS : []);
   const list = [...new Set([...configured, ...fallback])];
   return list
     .map((m) => ({ m, s: scoreModel(m) }))
@@ -100,6 +114,12 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string, parent?:
   });
 }
 
+/**
+ * Multi-provider failover chat.
+ * - Uses every env-configured provider from getRuntimeProviderPool()
+ * - On limit/error: skip that model, try next model, then next provider
+ * - Only permanently cools a whole provider on auth failure or hard billing exhaustion
+ */
 export async function runtimeAutoChat(
   messages: ChatMessage[],
   preferredProvider?: string,
@@ -140,17 +160,22 @@ export async function runtimeAutoChat(
   if (!limited.length) throw new Error("no_provider_configured");
 
   const errors: string[] = [];
-  const deadProviders = new Set<string>();
+  /** Providers to skip for the rest of THIS request only (rate limit / hard fail). */
+  const skipProviderThisRequest = new Set<string>();
 
   for (const candidate of limited) {
     if (signal?.aborted) throw new Error("aborted");
-    if (deadProviders.has(candidate.provider.id)) continue;
+    if (skipProviderThisRequest.has(candidate.provider.id)) continue;
 
     const key = candidate.provider.id + "::" + candidate.model;
     const until = cooldown.get(key) || 0;
     if (until > Date.now()) continue;
 
-    const timeoutMs = 8_000;
+    // Auth-dead for this process lifetime window
+    const providerDead = deadUntil.get(candidate.provider.id) || 0;
+    if (providerDead > Date.now()) continue;
+
+    const timeoutMs = 10_000;
     try {
       const reply = await withTimeout(
         chatWithProvider(candidate.provider, candidate.model, messages, signal),
@@ -165,16 +190,21 @@ export async function runtimeAutoChat(
       const message = error instanceof Error ? error.message : String(error);
       errors.push(key + "=" + message.slice(0, 120));
       cooldown.set(key, Date.now() + cooldownMs(message));
+
       if (isAuthError(message) || exhausted(message)) {
-        deadProviders.add(candidate.provider.id);
+        // Bad key or no credits — skip this provider for an hour
+        skipProviderThisRequest.add(candidate.provider.id);
         deadUntil.set(candidate.provider.id, Date.now() + 3_600_000);
-      } else if (/timeout_/i.test(message) || /not found|404|model/i.test(message)) {
-        deadProviders.add(candidate.provider.id);
+      } else if (isRateLimit(message)) {
+        // Rate limit: skip remaining models of this provider for this request only;
+        // model-level cooldown handles the next request window.
+        skipProviderThisRequest.add(candidate.provider.id);
       }
+      // timeout / 404 / model missing → only that model is cooled; try next candidate
     }
   }
 
-  throw new Error("all_providers_failed:" + errors.slice(0, 10).join(" | "));
+  throw new Error("all_providers_failed:" + errors.slice(0, 12).join(" | "));
 }
 
 export async function runtimeGenerateJson(
@@ -192,4 +222,19 @@ export async function runtimeGenerateJson(
     "artistyar-runtime-json",
     signal,
   );
+}
+
+/** Debug helper: list providers currently in the runtime pool (no secrets). */
+export async function listRuntimePoolStatus() {
+  const providers = await getRuntimeProviderPool();
+  const now = Date.now();
+  return providers.map((p) => ({
+    id: p.id,
+    name: p.name,
+    hasKey: Boolean(p.apiKey),
+    baseUrl: p.baseUrl,
+    chatStyle: p.chatStyle,
+    models: pickModels(p),
+    deadForMs: Math.max(0, (deadUntil.get(p.id) || 0) - now),
+  }));
 }
