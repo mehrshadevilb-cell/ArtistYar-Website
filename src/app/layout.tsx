@@ -19,8 +19,8 @@ import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { TelegramMiniAppBridge } from "@/components/TelegramMiniAppBridge";
 import { SmoothScroll } from "@/components/SmoothScroll";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Public marketing pages can be cached; API routes stay dynamic on their own.
+export const revalidate = 60;
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic"],
