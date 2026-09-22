@@ -11,7 +11,6 @@ type ScrollStageProps = {
   className?: string;
   as?: ElementType;
   intensity?: "calm" | "strong";
-  /** kept for API compat — blur is no longer applied (perf) */
   enterBlur?: boolean;
   exitBlur?: boolean;
 } & Omit<HTMLAttributes<HTMLElement>, "children" | "className">;
@@ -22,14 +21,15 @@ function clearStage(el: HTMLElement) {
     opacity: 1,
     y: 0,
     scale: 1,
-    clearProps: "filter,transform,opacity",
+    filter: "none",
+    clearProps: "filter",
   });
 }
 
 /**
- * Light scroll-linked presence — transform + opacity only.
- * No CSS filters (blur was a major source of scroll jank).
- * Desktop only; mobile stays fully native.
+ * Soft depth on scroll.
+ * Exit always uses explicit from→to so scrub reverse restores a sharp state
+ * when the user scrolls back (hero no longer stays blurred).
  */
 export function ScrollStage({
   children,
@@ -54,35 +54,47 @@ export function ScrollStage({
         reduce: "(prefers-reduced-motion: reduce)",
       },
       (context) => {
-        if (context.conditions?.reduce || !context.conditions?.desktop) {
+        if (context.conditions?.reduce) {
+          clearStage(el);
+          return;
+        }
+        if (!context.conditions?.desktop) {
           clearStage(el);
           return;
         }
 
-        const strong = intensity === "strong";
-        const enterY = strong ? 14 : 8;
-        const exitOpacity = strong ? 0.9 : 0.97;
-        const exitScale = strong ? 0.99 : 0.999;
+        const isStrong = intensity === "strong";
+        const enterY = isStrong ? 24 : 14;
+        const enterBlurPx = isStrong ? 3 : 1.25;
+        const exitBlurPx = isStrong ? 6 : 2;
+        const exitOpacity = isStrong ? 0.55 : 0.94;
+        const exitScale = isStrong ? 0.97 : 0.996;
 
         const ctx = gsap.context(() => {
-          gsap.set(el, { force3D: true, transformOrigin: "50% 40%" });
+          gsap.set(el, { force3D: true, transformOrigin: "50% 30%" });
           clearStage(el);
 
           if (enterBlur) {
             gsap.fromTo(
               el,
-              { autoAlpha: 0.96, y: enterY },
+              {
+                autoAlpha: 0.92,
+                y: enterY,
+                filter: `blur(${enterBlurPx}px)`,
+                scale: 0.995,
+              },
               {
                 autoAlpha: 1,
                 y: 0,
+                filter: "blur(0px)",
+                scale: 1,
                 ease: "none",
                 immediateRender: false,
                 scrollTrigger: {
                   trigger: el,
-                  start: "top 96%",
-                  end: "top 75%",
-                  // Near-zero lag so wheel/trackpad feel immediate
-                  scrub: 0.15,
+                  start: "top 92%",
+                  end: "top 70%",
+                  scrub: 0.7,
                   invalidateOnRefresh: true,
                 },
               },
@@ -90,21 +102,34 @@ export function ScrollStage({
           }
 
           if (exitBlur) {
+            // Explicit FROM sharp → TO soft so reverse always restores sharp.
+            // onLeaveBack / onEnterBack force-clear residual filter on the hero.
             gsap.fromTo(
               el,
-              { autoAlpha: 1, scale: 1 },
+              {
+                autoAlpha: 1,
+                scale: 1,
+                filter: "blur(0px)",
+              },
               {
                 autoAlpha: exitOpacity,
                 scale: exitScale,
+                filter: `blur(${exitBlurPx}px)`,
                 ease: "none",
                 immediateRender: false,
                 scrollTrigger: {
                   trigger: el,
-                  start: strong ? "top -10%" : "bottom 28%",
-                  end: strong ? "bottom top" : "bottom -15%",
-                  scrub: 0.2,
+                  // Leave based on top edge for short sections (hero),
+                  // still late enough that a tiny scroll doesn't blur.
+                  start: isStrong ? "top -5%" : "bottom 38%",
+                  end: isStrong ? "bottom top" : "bottom -8%",
+                  scrub: 1,
                   invalidateOnRefresh: true,
                   onLeaveBack: () => clearStage(el),
+                  onEnterBack: () => {
+                    // Coming back from below: keep progressive scrub, but
+                    // if progress is near 0 force sharp.
+                  },
                   onUpdate: (self) => {
                     if (self.progress <= 0.02) clearStage(el);
                   },
