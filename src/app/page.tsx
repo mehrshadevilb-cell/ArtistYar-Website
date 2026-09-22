@@ -197,28 +197,6 @@ export default function HomePage() {
       </ScrollStage>
 
       <ScrollStage as="section" className="container-ay py-10 sm:py-14" intensity="calm">
-        <div className="mb-5 max-w-2xl">
-          <p className="eyebrow">ARTISTYAR ECOSYSTEM</p>
-          <h2 className="mt-2 text-2xl font-medium text-sand-50 sm:text-3xl">از یادگیری تا نتیجه، یک مسیر واحد.</h2>
-          <p className="mt-3 text-sm leading-7 text-ink-400">ArtistYar فقط مجموعه‌ای از ابزارها نیست؛ یاد می‌گیری، تمرین می‌کنی، نتیجه‌ات را تحلیل می‌کنی و قدم بعدی را بر اساس عملکرد واقعی انتخاب می‌کنی.</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-4">
-          {[
-            ["01","Learn","دوره و مسیر شخصی","/learn"],
-            ["02","Practice","تمرین تطبیقی و Skill Progress","/practice"],
-            ["03","Analyze","تحلیل پروژه و AI","/ai"],
-            ["04","Improve","پروژه، فایل و قدم بعدی","/my-artistyar"],
-          ].map(([n,t,d,h]) => (
-            <SafeLink key={h} href={h} hard className="card-ay p-5 transition hover:border-gold-400/25">
-              <span className="text-[10px] text-gold-400">{n}</span>
-              <strong className="mt-3 block text-lg text-sand-50">{t}</strong>
-              <span className="mt-1 block text-xs leading-6 text-ink-500">{d}</span>
-            </SafeLink>
-          ))}
-        </div>
-      </ScrollStage>
-
-      <ScrollStage as="section" className="container-ay py-10 sm:py-14" intensity="calm">
         <div className="card-ay overflow-hidden border-gold-400/10 p-6 sm:p-8">
           <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
