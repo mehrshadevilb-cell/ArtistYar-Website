@@ -1,10 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ReactNode } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-gsap.registerPlugin(ScrollTrigger);
+import type { ReactNode } from "react";
 
 type ScrollDepthProps = {
   children: ReactNode;
@@ -12,65 +8,16 @@ type ScrollDepthProps = {
   intensity?: number;
 };
 
-/** Desktop-only scroll depth. Never intercepts pointer events. */
-export function ScrollDepth({ children, className = "", intensity = 1 }: ScrollDepthProps) {
-  const root = useRef<HTMLDivElement | null>(null);
-
-  useLayoutEffect(() => {
-    const el = root.current;
-    if (!el) return;
-
-    const mm = gsap.matchMedia();
-
-    mm.add(
-      {
-        desktop: "(min-width: 768px) and (prefers-reduced-motion: no-preference)",
-      },
-      ({ conditions }) => {
-        if (!conditions?.desktop) return;
-
-        const ctx = gsap.context(() => {
-          gsap.fromTo(
-            el,
-            {
-              rotateX: 5 * intensity,
-              rotateY: -2 * intensity,
-              scale: 0.985,
-              y: 28,
-              transformPerspective: 1200,
-              transformOrigin: "50% 50%",
-            },
-            {
-              rotateX: -3 * intensity,
-              rotateY: 2 * intensity,
-              scale: 1,
-              y: 0,
-              ease: "none",
-              scrollTrigger: {
-                trigger: el,
-                start: "top bottom",
-                end: "bottom top",
-                scrub: 0.8,
-                invalidateOnRefresh: true,
-              },
-            },
-          );
-        }, el);
-
-        return () => ctx.revert();
-      },
-    );
-
-    return () => mm.revert();
-  }, [intensity]);
-
+/**
+ * Static compatibility shell.
+ *
+ * The previous GSAP 3D scroll timeline is intentionally disabled. Keeping the
+ * wrapper preserves the existing page structure without intercepting or
+ * slowing native scrolling.
+ */
+export function ScrollDepth({ children, className = "" }: ScrollDepthProps) {
   return (
-    <div
-      ref={root}
-      className={`scroll-depth ${className}`.trim()}
-      style={{ transformStyle: "preserve-3d", willChange: "transform", pointerEvents: "none" }}
-      aria-hidden="true"
-    >
+    <div className={`scroll-depth ${className}`.trim()}>
       {children}
     </div>
   );
