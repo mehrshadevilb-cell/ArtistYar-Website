@@ -1,1 +1,178 @@
-RESTORE_FROM_ARTIFACT
+/**
+ * ArtistYar — Apple-inspired design system
+ * Materials, depth, instant press feedback, interruptible motion, Telegram safe areas.
+ */
+
+:root {
+  --ay-bg: #0b0b0a;
+  --ay-elevated: rgba(28, 28, 26, 0.72);
+  --ay-glass: rgba(255, 255, 255, 0.04);
+  --ay-glass-border: rgba(255, 255, 255, 0.08);
+  --ay-gold: #c9a227;
+  --ay-sand: #f5f0e6;
+  --ay-ink: #8a857c;
+  --ay-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ay-spring-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --ay-press: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Instant press feedback — Apple-style scale */
+.btn-primary,
+.btn-ghost,
+.nav-link,
+.card-ay,
+.menu-button,
+.mobile-nav-link,
+.skill-tag {
+  transition:
+    transform 0.18s var(--ay-press),
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.25s ease;
+}
+
+.btn-primary:active,
+.btn-ghost:active,
+.nav-link:active,
+.menu-button:active,
+.mobile-nav-link:active {
+  transform: scale(0.97);
+}
+
+.card-ay:active {
+  transform: scale(0.99);
+}
+
+/* Elevated glass material */
+.card-ay {
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  border: 1px solid var(--ay-glass-border);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 20px 50px -28px rgba(0, 0, 0, 0.75);
+}
+
+/* Header glass */
+.site-header {
+  background: rgba(11, 11, 10, 0.72);
+  backdrop-filter: blur(24px) saturate(1.35);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.site-header .container-ay {
+  min-height: 4.25rem;
+}
+
+/* Primary button glow */
+.btn-primary {
+  box-shadow:
+    0 0 0 1px rgba(201, 162, 39, 0.15),
+    0 10px 28px -12px rgba(201, 162, 39, 0.45);
+}
+
+.btn-primary:hover {
+  box-shadow:
+    0 0 0 1px rgba(201, 162, 39, 0.25),
+    0 14px 36px -10px rgba(201, 162, 39, 0.55);
+}
+
+/* Mobile menu — spring open */
+.mobile-menu {
+  transition:
+    max-height 0.42s var(--ay-spring),
+    opacity 0.28s ease,
+    border-color 0.2s ease;
+}
+
+.mobile-nav-link {
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-nav-link:active {
+  background: rgba(201, 162, 39, 0.08);
+}
+
+/* Focus rings */
+.btn-primary:focus-visible,
+.btn-ghost:focus-visible,
+.nav-link:focus-visible,
+.menu-button:focus-visible,
+.mobile-nav-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #0b0b0a, 0 0 0 4px rgba(201, 162, 39, 0.55);
+}
+
+/* Floating assistant — interruptible */
+.floating-assistant {
+  transition: transform 0.35s var(--ay-spring-soft), opacity 0.25s ease;
+}
+
+.floating-assistant button {
+  transition: transform 0.2s var(--ay-press), box-shadow 0.25s ease;
+}
+
+.floating-assistant button:active {
+  transform: scale(0.94);
+}
+
+/* Section rhythm */
+.section-title {
+  letter-spacing: -0.02em;
+}
+
+/* Smooth scroll native — no Lenis takeover */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .btn-primary,
+  .btn-ghost,
+  .nav-link,
+  .card-ay,
+  .menu-button,
+  .mobile-nav-link,
+  .mobile-menu,
+  .floating-assistant {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Telegram mini-app safe areas */
+.telegram-mini-app .site-header {
+  padding-top: var(--tg-safe-top, 0px);
+}
+
+.telegram-mini-app .floating-assistant {
+  bottom: calc(1rem + var(--tg-safe-bottom, 0px));
+}
+
+/* Touch targets */
+@media (max-width: 1023px) {
+  .btn-primary,
+  .btn-ghost {
+    min-height: 2.85rem;
+  }
+  .menu-button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
+/* Input 16px to avoid iOS zoom */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
