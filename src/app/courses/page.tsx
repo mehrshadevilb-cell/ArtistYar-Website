@@ -67,7 +67,7 @@ export default async function CoursesPage() {
               key={key}
               className="card-ay group flex h-full flex-col overflow-hidden transition hover:border-gold-500/25 hover:bg-white/[.035]"
             >
-              <div className="relative aspect-[16/10] overflow-hidden border-b border-white/[.06]">
+              <div className="relative aspect-square overflow-hidden border-b border-white/[.06]">
                 {item.thumbnail ? (
                   <>
                     <Image
