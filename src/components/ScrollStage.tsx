@@ -11,6 +11,7 @@ type ScrollStageProps = {
   className?: string;
   as?: ElementType;
   intensity?: "calm" | "strong";
+  /** kept for API compat — blur is no longer applied (perf) */
   enterBlur?: boolean;
   exitBlur?: boolean;
 } & Omit<HTMLAttributes<HTMLElement>, "children" | "className">;
@@ -21,14 +22,14 @@ function clearStage(el: HTMLElement) {
     opacity: 1,
     y: 0,
     scale: 1,
-    filter: "none",
-    clearProps: "filter",
+    clearProps: "filter,transform,opacity",
   });
 }
 
 /**
- * Soft depth on scroll — restrained so multi-section journeys stay fluid.
- * Desktop only; mobile stays native and sharp.
+ * Light scroll-linked presence — transform + opacity only.
+ * No CSS filters (blur was a major source of scroll jank).
+ * Desktop only; mobile stays fully native.
  */
 export function ScrollStage({
   children,
@@ -53,48 +54,35 @@ export function ScrollStage({
         reduce: "(prefers-reduced-motion: reduce)",
       },
       (context) => {
-        if (context.conditions?.reduce) {
-          clearStage(el);
-          return;
-        }
-        if (!context.conditions?.desktop) {
+        if (context.conditions?.reduce || !context.conditions?.desktop) {
           clearStage(el);
           return;
         }
 
-        const isStrong = intensity === "strong";
-        // Calmer motion: less blur/opacity loss so the page never feels "locked"
-        const enterY = isStrong ? 16 : 10;
-        const enterBlurPx = isStrong ? 1.5 : 0.6;
-        const exitBlurPx = isStrong ? 2.5 : 0.8;
-        const exitOpacity = isStrong ? 0.82 : 0.96;
-        const exitScale = isStrong ? 0.985 : 0.998;
+        const strong = intensity === "strong";
+        const enterY = strong ? 14 : 8;
+        const exitOpacity = strong ? 0.9 : 0.97;
+        const exitScale = strong ? 0.99 : 0.999;
 
         const ctx = gsap.context(() => {
-          gsap.set(el, { force3D: true, transformOrigin: "50% 30%" });
+          gsap.set(el, { force3D: true, transformOrigin: "50% 40%" });
           clearStage(el);
 
           if (enterBlur) {
             gsap.fromTo(
               el,
-              {
-                autoAlpha: 0.94,
-                y: enterY,
-                filter: `blur(${enterBlurPx}px)`,
-                scale: 0.997,
-              },
+              { autoAlpha: 0.96, y: enterY },
               {
                 autoAlpha: 1,
                 y: 0,
-                filter: "blur(0px)",
-                scale: 1,
                 ease: "none",
                 immediateRender: false,
                 scrollTrigger: {
                   trigger: el,
-                  start: "top 94%",
-                  end: "top 72%",
-                  scrub: 0.45,
+                  start: "top 96%",
+                  end: "top 75%",
+                  // Near-zero lag so wheel/trackpad feel immediate
+                  scrub: 0.15,
                   invalidateOnRefresh: true,
                 },
               },
@@ -104,22 +92,17 @@ export function ScrollStage({
           if (exitBlur) {
             gsap.fromTo(
               el,
-              {
-                autoAlpha: 1,
-                scale: 1,
-                filter: "blur(0px)",
-              },
+              { autoAlpha: 1, scale: 1 },
               {
                 autoAlpha: exitOpacity,
                 scale: exitScale,
-                filter: `blur(${exitBlurPx}px)`,
                 ease: "none",
                 immediateRender: false,
                 scrollTrigger: {
                   trigger: el,
-                  start: isStrong ? "top -8%" : "bottom 32%",
-                  end: isStrong ? "bottom top" : "bottom -12%",
-                  scrub: 0.55,
+                  start: strong ? "top -10%" : "bottom 28%",
+                  end: strong ? "bottom top" : "bottom -15%",
+                  scrub: 0.2,
                   invalidateOnRefresh: true,
                   onLeaveBack: () => clearStage(el),
                   onUpdate: (self) => {

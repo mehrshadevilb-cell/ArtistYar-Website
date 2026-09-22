@@ -1,52 +1,31 @@
-/* Scroll motion — fluid continuity, minimal depth */
+/* Scroll motion — native-first, light presence only */
 
 .scroll-stage {
-  transform-origin: 50% 30%;
+  transform-origin: 50% 40%;
   backface-visibility: hidden;
 }
 
-@media (min-width: 768px) {
-  .scroll-stage {
-    will-change: transform, opacity, filter;
-  }
+/* Never force permanent will-change (promotes too many layers) */
+.scroll-stage,
+.scroll-depth {
+  will-change: auto;
 }
 
-/* Mobile: always sharp, native scroll */
+/* Mobile / reduce: always sharp, zero scroll transforms */
 @media (max-width: 767px) {
-  .scroll-stage {
-    will-change: auto;
+  .scroll-stage,
+  .scroll-depth {
     filter: none !important;
     transform: none !important;
     opacity: 1 !important;
   }
 }
 
-/* Reveal: light lift, no heavy blur on mobile */
-.reveal {
-  opacity: 0;
-  transform: translateY(12px);
-  filter: blur(2px);
-  transition:
-    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-    filter 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.reveal-in {
-  opacity: 1;
-  transform: none;
-  filter: blur(0);
-}
-
-.scroll-depth {
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .scroll-stage,
-  .scroll-depth {
-    will-change: auto;
+  .scroll-depth,
+  .parallax-layer,
+  .parallax-hero {
     filter: none !important;
     transform: none !important;
     opacity: 1 !important;
@@ -60,24 +39,27 @@
   }
 }
 
+/* Reveal: opacity + translate only — no blur (cheaper, still cinematic) */
+.reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
 @media (max-width: 767px) {
   html {
-    scroll-behavior: auto;
+    scroll-behavior: auto !important;
   }
 
   .reveal {
-    filter: none;
-    transform: translateY(8px);
-  }
-
-  .reveal-in {
-    filter: none;
-  }
-
-  .scroll-depth,
-  .depth-scene {
-    will-change: auto !important;
-    transform: none !important;
+    transform: translateY(6px);
   }
 }
 
@@ -86,17 +68,22 @@
 .page-ambient,
 .assistant-ambient,
 .fa-ambient,
+.depth-scene,
 .depth-scene-grid,
-.sonic-progress {
+.sonic-progress,
+.scroll-depth,
+.parallax-layer {
   pointer-events: none !important;
 }
 
-html:not(.telegram-mini-app),
-body:not(.telegram-mini-app) {
+html,
+body {
   overscroll-behavior-y: auto;
+  scroll-behavior: auto;
 }
 
-/* Section continuity: avoid hard visual cuts between stages */
-.scroll-stage + .scroll-stage {
-  margin-top: 0;
+html.telegram-mini-app,
+body.telegram-mini-app {
+  /* Keep Telegram viewport stable but do not lock overscroll globally */
+  overscroll-behavior-y: contain;
 }

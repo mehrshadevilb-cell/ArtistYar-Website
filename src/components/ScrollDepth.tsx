@@ -12,7 +12,10 @@ type ScrollDepthProps = {
   intensity?: number;
 };
 
-/** Desktop-only scroll depth. Never intercepts pointer events. */
+/**
+ * Desktop-only gentle vertical drift. No 3D rotate / scale (those felt sticky).
+ * Never intercepts pointer events.
+ */
 export function ScrollDepth({ children, className = "", intensity = 1 }: ScrollDepthProps) {
   const root = useRef<HTMLDivElement | null>(null);
 
@@ -29,28 +32,20 @@ export function ScrollDepth({ children, className = "", intensity = 1 }: ScrollD
       ({ conditions }) => {
         if (!conditions?.desktop) return;
 
+        const y = Math.min(18, 14 * intensity);
+
         const ctx = gsap.context(() => {
           gsap.fromTo(
             el,
+            { y: y },
             {
-              rotateX: 5 * intensity,
-              rotateY: -2 * intensity,
-              scale: 0.985,
-              y: 28,
-              transformPerspective: 1200,
-              transformOrigin: "50% 50%",
-            },
-            {
-              rotateX: -3 * intensity,
-              rotateY: 2 * intensity,
-              scale: 1,
-              y: 0,
+              y: -y * 0.35,
               ease: "none",
               scrollTrigger: {
                 trigger: el,
                 start: "top bottom",
                 end: "bottom top",
-                scrub: 0.8,
+                scrub: 0.2,
                 invalidateOnRefresh: true,
               },
             },
@@ -68,7 +63,7 @@ export function ScrollDepth({ children, className = "", intensity = 1 }: ScrollD
     <div
       ref={root}
       className={`scroll-depth ${className}`.trim()}
-      style={{ transformStyle: "preserve-3d", willChange: "transform", pointerEvents: "none" }}
+      style={{ pointerEvents: "none" }}
       aria-hidden="true"
     >
       {children}
