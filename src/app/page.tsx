@@ -1,6 +1,5 @@
 import Image from "next/image";
 import type { Metadata } from "next";
-import dynamic from "next/dynamic";
 import { ArrowLeft, CirclePlay, Sparkles, Waves } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
 import { DepthScene } from "@/components/DepthScene";
@@ -10,6 +9,7 @@ import { SafeLink } from "@/components/SafeLink";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { HeroDifferentiator } from "@/components/HeroDifferentiator";
 import { ScrollStage } from "@/components/ScrollStage";
+import dynamic from "next/dynamic";
 
 const HomeLiveCourses = dynamic(() =>
   import("@/components/HomeLiveCourses").then((m) => m.HomeLiveCourses),
@@ -75,8 +75,45 @@ const homepageCoursesJsonLd = {
     { "@type": "ListItem", position: 1, name: "دوره جامع تنظیم، میکس و مسترینگ", url: "/courses" },
     { "@type": "ListItem", position: 2, name: "دوره تئوری موسیقی", url: "/courses" },
     { "@type": "ListItem", position: 3, name: "کلاس آنلاین تنظیم، میکس و مسترینگ", url: "/online" },
+    { "@type": "ListItem", position: 4, name: "راهنمای آموزش تنظیم، میکس و مسترینگ", url: "/amoozesh-mix-mastering" },
   ],
 };
+
+function HeroDisk() {
+  return (
+    <ScrollDepth className="hero-scroll-depth" intensity={0.55}>
+      <DepthScene className="hero-art">
+        <div className="hero-photo-stage">
+          <Image
+            src="/artistyar-studio-hero.png"
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 767px) 100vw, (max-width: 1024px) 60vw, 42vw"
+            className="hero-photo"
+          />
+        </div>
+        <div className="hero-orbit orbit-a" />
+        <div className="hero-orbit orbit-b" />
+        <div className="record-disc" aria-hidden="true">
+          <span className="record-groove groove-one" />
+          <span className="record-groove groove-two" />
+          <span className="record-label">AY</span>
+        </div>
+        <span className="floating-note note-one" aria-hidden="true">
+          ♪
+        </span>
+        <span className="floating-note note-two" aria-hidden="true">
+          ♫
+        </span>
+        <div className="now-playing">
+          <span className="now-playing-dot" />
+          <span>در حال ساخت</span>
+        </div>
+      </DepthScene>
+    </ScrollDepth>
+  );
+}
 
 export default function HomePage() {
   return (
@@ -104,35 +141,10 @@ export default function HomePage() {
             <span>کلاس آنلاین · پکیج‌های آموزشی · پشتیبانی هنرجو</span>
           </div>
         </div>
-
-        <ScrollDepth className="hero-scroll-depth" intensity={0.55}>
-          <DepthScene className="hero-art">
-            <div className="hero-orbit orbit-a" aria-hidden="true" />
-            <div className="hero-orbit orbit-b" aria-hidden="true" />
-            <div className="record-disc" aria-hidden="true">
-              <span className="record-groove groove-one" />
-              <span className="record-groove groove-two" />
-              <span className="record-label">AY</span>
-            </div>
-            <span className="floating-note note-one" aria-hidden="true">
-              ♪
-            </span>
-            <span className="floating-note note-two" aria-hidden="true">
-              ♫
-            </span>
-            <div className="now-playing">
-              <span className="now-playing-dot" />
-              <span>در حال ساخت</span>
-            </div>
-          </DepthScene>
-        </ScrollDepth>
+        <HeroDisk />
       </section>
 
-      <ScrollStage
-        as="section"
-        className="container-ay border-t border-white/[.06] py-12 sm:py-16"
-        intensity="calm"
-      >
+      <ScrollStage as="section" className="container-ay border-t border-white/[.06] py-12 sm:py-16" intensity="calm">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <p className="eyebrow">چرا آرتیست‌یار</p>
