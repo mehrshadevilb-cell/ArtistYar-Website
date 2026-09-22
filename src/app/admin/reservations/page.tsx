@@ -15,7 +15,7 @@ export default function AdminReservationsPage() {
 
   async function load() {
     setLoading(true); setError("");
-    try { const response = await fetch("/api/rahyar/admin/reservations", { cache: "no-store" }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "دریافت رزروها ناموفق بود."); setRows(Array.isArray(data) ? data : []); }
+    try { const response = await fetch("/api/rahyar/admin/reservations", { cache: "no-store", credentials: "include" }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "دریافت رزروها ناموفق بود."); setRows(Array.isArray(data) ? data : []); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "دریافت رزروها ناموفق بود."); }
     finally { setLoading(false); }
   }
@@ -25,7 +25,7 @@ export default function AdminReservationsPage() {
     const notes = action === "reject" ? window.prompt("دلیل رد رزرو را وارد کن:", "مدرک پرداخت قابل تأیید نیست") : null;
     if (action === "reject" && notes === null) return;
     setBusy(row.id); setError(""); setMessage("");
-    try { const response = await fetch("/api/rahyar/admin/reservations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: row.id, action, notes }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || data.detail || "عملیات ناموفق بود."); setMessage(data.message || "عملیات انجام شد."); setRows((items) => items.filter((item) => item.id !== row.id)); }
+    try { const response = await fetch("/api/rahyar/admin/reservations", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: row.id, action, notes }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || data.detail || "عملیات ناموفق بود."); setMessage(data.message || "عملیات انجام شد."); setRows((items) => items.filter((item) => item.id !== row.id)); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "عملیات ناموفق بود."); }
     finally { setBusy(null); }
   }

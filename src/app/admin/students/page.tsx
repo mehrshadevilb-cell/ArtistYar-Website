@@ -70,7 +70,7 @@ function readableError(value: unknown, fallback: string, message?: unknown) {
 }
 
 function csvCell(value: string | number | null | undefined) {
-  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+  return `\"${String(value ?? "").replaceAll('\"', '\"\"')}\"`;
 }
 
 function formatBytes(n?: number) {
@@ -231,20 +231,7 @@ export default function AdminStudentsPage() {
 
   function exportCsv() {
     const rows = [
-      [
-        "شناسه",
-        "نام",
-        "موبایل",
-        "ایمیل",
-        "منبع",
-        "دوره‌های Spot",
-        "فعال‌سازی Spot",
-        "تماشا",
-        "دانلود",
-        "تلگرام",
-        "سطح",
-        "تاریخ",
-      ],
+      ["شناسه", "نام", "موبایل", "ایمیل", "منبع", "دوره‌های Spot", "فعال‌سازی Spot", "تماشا", "دانلود", "تلگرام", "سطح", "تاریخ"],
       ...filtered.map((student) => [
         student.id,
         student.full_name,
@@ -379,6 +366,7 @@ export default function AdminStudentsPage() {
         </p>
       ) : null}
 
+      <p className="text-[11px] text-ink-500 md:hidden">جدول را به چپ و راست بکشید تا ستون‌های بیشتر را ببینید.</p>
       <div className="card-ay overflow-x-auto">
         <table className="w-full min-w-[1200px] text-right text-sm">
           <thead className="border-b border-white/[.06] text-xs text-ink-500">
@@ -485,88 +473,59 @@ export default function AdminStudentsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-2 text-xs text-ink-400">
                 نام کامل
-                <input
-                  className="input-ay"
-                  value={draft.full_name}
-                  onChange={(event) => setDraft({ ...draft, full_name: event.target.value })}
-                  required
-                />
+                <input className="input-ay" value={draft.full_name} onChange={(e) => setDraft({ ...draft, full_name: e.target.value })} required />
               </label>
               <label className="space-y-2 text-xs text-ink-400">
                 موبایل
-                <input
-                  className="input-ay"
-                  dir="ltr"
-                  value={draft.phone || ""}
-                  onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
-                />
+                <input className="input-ay" value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} dir="ltr" />
               </label>
               <label className="space-y-2 text-xs text-ink-400">
                 ایمیل
-                <input
-                  className="input-ay"
-                  dir="ltr"
-                  value={draft.email || ""}
-                  onChange={(event) => setDraft({ ...draft, email: event.target.value })}
-                />
+                <input className="input-ay" value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} dir="ltr" />
               </label>
               <label className="space-y-2 text-xs text-ink-400">
                 سطح
-                <input
-                  className="input-ay"
-                  value={draft.level || ""}
-                  onChange={(event) => setDraft({ ...draft, level: event.target.value })}
-                />
+                <input className="input-ay" value={draft.level} onChange={(e) => setDraft({ ...draft, level: e.target.value })} />
+              </label>
+              <label className="space-y-2 text-xs text-ink-400">
+                سابقه (سال)
+                <input className="input-ay" type="number" min={0} value={draft.experience_years} onChange={(e) => setDraft({ ...draft, experience_years: Number(e.target.value) || 0 })} />
+              </label>
+              <label className="flex items-center gap-2 self-end text-sm text-ink-300">
+                <input type="checkbox" checked={draft.is_active} onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })} />
+                فعال
               </label>
             </div>
-            <label className="space-y-2 text-xs text-ink-400">
-              سابقه به سال
-              <input
-                className="input-ay"
-                type="number"
-                min={0}
-                max={80}
-                value={draft.experience_years}
-                onChange={(event) => setDraft({ ...draft, experience_years: Number(event.target.value) })}
-              />
+            <label className="block space-y-2 text-xs text-ink-400">
+              بیو
+              <textarea className="input-ay min-h-24" value={draft.bio} onChange={(e) => setDraft({ ...draft, bio: e.target.value })} />
             </label>
-            <label className="space-y-2 text-xs text-ink-400">
-              بیوگرافی
-              <textarea
-                className="input-ay min-h-28"
-                value={draft.bio || ""}
-                onChange={(event) => setDraft({ ...draft, bio: event.target.value })}
-              />
-            </label>
-            <label className="flex items-center gap-3 rounded-xl border border-white/[.07] bg-white/[.02] p-3 text-sm text-ink-300">
-              <input
-                type="checkbox"
-                checked={draft.is_active}
-                onChange={(event) => setDraft({ ...draft, is_active: event.target.checked })}
-              />
-              حساب هنرجو فعال باشد
-            </label>
-            <button className="btn-primary w-full gap-2" disabled={loading}>
+            <button type="submit" className="btn-primary gap-2" disabled={loading}>
               <Save size={16} />
-              ذخیره پروفایل
+              {loading ? "در حال ذخیره…" : "ذخیره"}
             </button>
           </form>
         </div>
       ) : null}
+
       {proTarget ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true">
-          <div className="card-ay w-full max-w-md space-y-5 p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div><p className="eyebrow text-gold-300">PRACTICE PRO</p><h3 className="mt-2 text-lg font-medium text-sand-50">افزودن اشتراک به هنرجو</h3><p className="mt-2 text-sm text-ink-400">{proTarget.full_name}</p></div>
-              <button type="button" className="text-ink-400" onClick={() => setProTarget(null)} aria-label="بستن"><X size={18} /></button>
+          <div className="card-ay w-full max-w-md space-y-4 p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-sand-50">فعال‌سازی Practice Pro</h3>
+              <button type="button" className="text-ink-400" onClick={() => setProTarget(null)} aria-label="بستن">
+                <X size={18} />
+              </button>
             </div>
-            <label className="block space-y-2 text-xs text-ink-400">مدت اشتراک
-              <select value={proMonths} onChange={(event) => setProMonths(Number(event.target.value))} className="input-ay">
-                {[1, 2, 3, 6, 12].map((month) => <option key={month} value={month}>{month} ماه</option>)}
-              </select>
+            <p className="text-sm text-ink-400">{proTarget.full_name}</p>
+            <label className="space-y-2 text-xs text-ink-400">
+              تعداد ماه
+              <input className="input-ay" type="number" min={1} max={24} value={proMonths} onChange={(e) => setProMonths(Number(e.target.value) || 1)} />
             </label>
-            <p className="rounded-xl border border-gold-400/15 bg-gold-400/[.05] p-3 text-xs leading-6 text-ink-300">اشتراک از همین لحظه فعال می‌شود و سقف تمرین روزانه هنرجو را افزایش می‌دهد. اگر اشتراک فعال داشته باشد، مدت جدید به پایان اشتراک فعلی اضافه می‌شود.</p>
-            <div className="flex gap-2"><button type="button" className="btn-primary flex-1" disabled={proBusy} onClick={() => void grantPracticePro()}>{proBusy ? "در حال فعال‌سازی…" : "فعال‌سازی Pro"}</button><button type="button" className="btn-ghost" disabled={proBusy} onClick={() => setProTarget(null)}>انصراف</button></div>
+            <button type="button" className="btn-primary w-full gap-2" disabled={proBusy} onClick={() => void grantPracticePro()}>
+              <Crown size={16} />
+              {proBusy ? "در حال فعال‌سازی…" : "فعال‌سازی"}
+            </button>
           </div>
         </div>
       ) : null}

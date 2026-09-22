@@ -1,15 +1,29 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { withTimeout, isAbortError } from "@/lib/admin-ai-timeout";
 
-type Tab = "chat" | "project" | "plugins" | "models" | "monitor" | "control";
+type Tab = "chat" | "models" | "system";
 type Message = { role: "user" | "assistant"; content: string; provider?: string | null; model?: string | null };
 type Conversation = { id: string; title: string; archived: boolean; created_at: string; updated_at: string; messages?: Message[] };
+type AiModel = {
+  id: string;
+  provider?: string;
+  model?: string;
+  enabled?: boolean;
+  preferred?: boolean;
+  priority?: number;
+  status?: string;
+};
 
 async function readApiResponse(response: Response) {
   const text = await response.text();
   let json: Record<string, any> = {};
-  try { json = text ? JSON.parse(text) : {}; } catch { json = {}; }
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = {};
+  }
   if (response.status === 401 && typeof window !== "undefined") {
     const next = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     window.location.assign(`/login?next=${encodeURIComponent(next)}`);
@@ -21,59 +35,81 @@ async function readApiResponse(response: Response) {
 }
 
 async function chatApi(body?: Record<string, unknown>, signal?: AbortSignal) {
-  const response = await fetch("/api/admin/assistant", {
-    method: body ? "POST" : "GET",
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    credentials: "include",
-    cache: "no-store",
-    signal,
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-  return readApiResponse(response);
+  const t = withTimeout(signal, body ? 90000 : 25000);
+  try {
+    const response = await fetch("/api/admin/assistant", {
+      method: body ? "POST" : "GET",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      credentials: "include",
+      cache: "no-store",
+      signal: t.signal,
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    return await readApiResponse(response);
+  } catch (e) {
+    if (isAbortError(e)) throw new Error("زمان درخواست به پایان رسید. دوباره تلاش کنید.");
+    throw e;
+  } finally {
+    t.clear();
+  }
 }
 
-async function control(section?: string, body?: Record<string, unknown>) {
-  const url = section && !body ? `/api/admin/ai-control?section=${encodeURIComponent(section)}` : "/api/admin/ai-control";
-  const response = await fetch(url, {
-    method: body ? "POST" : "GET",
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    credentials: "include",
-    cache: "no-store",
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-  return readApiResponse(response);
+async function modelsApi(body?: Record<string, unknown>) {
+  const t = withTimeout(undefined, body ? 60000 : 25000);
+  try {
+    const response = await fetch("/api/admin/assistant/models", {
+      method: body ? "POST" : "GET",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      credentials: "include",
+      cache: "no-store",
+      signal: t.signal,
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    return await readApiResponse(response);
+  } catch (e) {
+    if (isAbortError(e)) throw new Error("زمان درخواست به پایان رسید. دوباره تلاش کنید.");
+    throw e;
+  } finally {
+    t.clear();
+  }
 }
 
-async function platform(section?: string, body?: Record<string, unknown>) {
-  const url = section && !body ? `/api/admin/ai-platform?section=${section}` : "/api/admin/ai-platform";
-  const response = await fetch(url, {
-    method: body ? "POST" : "GET",
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    credentials: "include",
-    cache: "no-store",
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-  return readApiResponse(response);
+async function diagnosticsApi() {
+  const t = withTimeout(undefined, 25000);
+  try {
+    const response = await fetch("/api/admin/diagnostics", {
+      credentials: "include",
+      cache: "no-store",
+      signal: t.signal,
+    });
+    const text = await response.text();
+    let json: any = {};
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error("پاسخ diagnostics نامعتبر است.");
+    }
+    if (response.status === 401 && typeof window !== "undefined") {
+      window.location.assign(`/login?next=${encodeURIComponent("/admin/ai")}`);
+    }
+    if (!response.ok && !json.checks) throw new Error(json.error || json.message || `HTTP ${response.status}`);
+    return json;
+  } catch (e) {
+    if (isAbortError(e)) throw new Error("زمان درخواست به پایان رسید. دوباره تلاش کنید.");
+    throw e;
+  } finally {
+    t.clear();
+  }
 }
 
-const TABS: { id: Tab; label: string; hashes: string[] }[] = [
-  { id: "chat", label: "Chat", hashes: ["chat", "workspace", "assistant", "dev", "agent"] },
-  { id: "project", label: "Project", hashes: ["project", "memory"] },
-  { id: "plugins", label: "Plugins", hashes: ["plugins", "skills", "connectors"] },
-  { id: "models", label: "Models", hashes: ["models"] },
-  { id: "monitor", label: "Monitor", hashes: ["monitor", "cost", "usage"] },
-  { id: "control", label: "Control", hashes: ["control"] },
+const TABS: { id: Tab; label: string }[] = [
+  { id: "chat", label: "گفتگو" },
+  { id: "models", label: "مدل‌ها" },
+  { id: "system", label: "وضعیت سیستم" },
 ];
 
-function tabFromHash(hash: string): Tab | null {
-  const key = hash.replace(/^#/, "").toLowerCase();
-  if (!key) return null;
-  return TABS.find((t) => t.hashes.includes(key) || t.id === key)?.id || null;
-}
-
-export default function AdminAiPlatformPage() {
+export default function AdminAiPage() {
   const [tab, setTab] = useState<Tab>("chat");
-  const [chatMode, setChatMode] = useState<"chat" | "agent">("chat");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [active, setActive] = useState<Conversation | null>(null);
   const [input, setInput] = useState("");
@@ -81,43 +117,13 @@ export default function AdminAiPlatformPage() {
   const [sending, setSending] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
-  const [platformError, setPlatformError] = useState("");
+  const [models, setModels] = useState<AiModel[]>([]);
+  const [modelsBusy, setModelsBusy] = useState(false);
+  const [modelsError, setModelsError] = useState("");
+  const [diag, setDiag] = useState<any>(null);
+  const [diagError, setDiagError] = useState("");
+  const [diagLoading, setDiagLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const [devTask, setDevTask] = useState("");
-  const [devSkill, setDevSkill] = useState("bugfix");
-  const [devParallel, setDevParallel] = useState(false);
-  const [devApply, setDevApply] = useState(false);
-  const [devRunning, setDevRunning] = useState(false);
-  const [devResult, setDevResult] = useState<any>(null);
-  const [skills, setSkills] = useState<any[]>([]);
-  const [connectors, setConnectors] = useState<any[]>([]);
-  const [models, setModels] = useState<any[]>([]);
-  const [memory, setMemory] = useState<any[]>([]);
-  const [activity, setActivity] = useState<Array<{ id: string; at: string; kind: string; message: string; detail?: string }>>([]);
-  const [usage, setUsage] = useState<any>(null);
-  const [controlData, setControlData] = useState<any[]>([]);
-  const [skillUrl, setSkillUrl] = useState("");
-  const [skillInstalling, setSkillInstalling] = useState(false);
-  const [memKey, setMemKey] = useState("");
-  const [memValue, setMemValue] = useState("");
-  const [sectionLoading, setSectionLoading] = useState(false);
-  const hashSynced = useRef(false);
-  const activityPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const sectionRequestRef = useRef(0);
-
-  useEffect(() => {
-    const apply = () => { const fromHash = tabFromHash(window.location.hash); if (fromHash) setTab(fromHash); };
-    apply();
-    hashSynced.current = true;
-    window.addEventListener("hashchange", apply);
-    return () => window.removeEventListener("hashchange", apply);
-  }, []);
-
-  useEffect(() => {
-    if (!hashSynced.current) return;
-    const next = `#${tab}`;
-    if (window.location.hash !== next) window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${next}`);
-  }, [tab]);
 
   async function open(id: string) {
     if (sending) return;
@@ -125,57 +131,57 @@ export default function AdminAiPlatformPage() {
       const json = await chatApi({ action: "get", conversationId: id });
       setActive(json.conversation);
       setError("");
-    } catch (e) { setError(e instanceof Error ? e.message : "خطا"); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "خطا");
+    }
   }
 
-  async function loadChat() {
+  const loadChat = useCallback(async () => {
     try {
       setLoading(true);
       const json = await chatApi();
       setConversations(json.conversations || []);
       if (json.conversations?.[0]) await open(json.conversations[0].id);
-    } catch (e) { setError(e instanceof Error ? e.message : "خطا"); }
-    finally { setLoading(false); }
-  }
-
-  useEffect(() => { void loadChat(); }, []);
-
-  async function refreshActivity() {
-    try { setActivity((await platform("activity")).activity || []); } catch { /* */ }
-  }
-
-  const loadSection = useCallback(async (id: Tab) => {
-    const requestId = ++sectionRequestRef.current;
-    setSectionLoading(true);
-    setPlatformError("");
-    try {
-      if (id === "plugins") {
-        const [sk, cn] = await Promise.all([platform("skills"), platform("connectors")]);
-        if (requestId === sectionRequestRef.current) { setSkills(sk.skills || []); setConnectors(cn.connectors || []); }
-      } else if (id === "project") {
-        const [mem, act] = await Promise.all([platform("memory"), platform("activity")]);
-        if (requestId === sectionRequestRef.current) { setMemory(mem.memory || []); setActivity(act.activity || []); }
-      } else if (id === "models") {
-        const result = await platform("models");
-        if (requestId === sectionRequestRef.current) setModels(result.models || []);
-      } else if (id === "monitor") {
-        const result = await platform("cost");
-        if (requestId === sectionRequestRef.current) setUsage(result.usage || result);
-      } else if (id === "control") {
-        const result = await control("providers");
-        if (requestId === sectionRequestRef.current) setControlData(result.items || result.providers || []);
-      } else if (id === "chat") {
-        const result = await platform("skills");
-        if (requestId === sectionRequestRef.current) setSkills(result.skills || []);
-      }
     } catch (e) {
-      if (requestId === sectionRequestRef.current) setPlatformError(e instanceof Error ? e.message : "خطا");
+      setError(e instanceof Error ? e.message : "خطا");
     } finally {
-      if (requestId === sectionRequestRef.current) setSectionLoading(false);
+      setLoading(false);
     }
   }, []);
 
-  useEffect(() => { void loadSection(tab); }, [tab, loadSection]);
+  useEffect(() => {
+    void loadChat();
+  }, [loadChat]);
+
+  async function loadModels() {
+    setModelsBusy(true);
+    setModelsError("");
+    try {
+      const json = await modelsApi();
+      setModels(json.models || []);
+    } catch (e) {
+      setModelsError(e instanceof Error ? e.message : "بارگذاری مدل‌ها ناموفق بود");
+    } finally {
+      setModelsBusy(false);
+    }
+  }
+
+  async function loadDiag() {
+    setDiagLoading(true);
+    setDiagError("");
+    try {
+      setDiag(await diagnosticsApi());
+    } catch (e) {
+      setDiagError(e instanceof Error ? e.message : "دریافت وضعیت ناموفق بود");
+    } finally {
+      setDiagLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (tab === "models") void loadModels();
+    if (tab === "system") void loadDiag();
+  }, [tab]);
 
   async function create() {
     if (creating) return;
@@ -185,8 +191,11 @@ export default function AdminAiPlatformPage() {
       setConversations((items) => [json.conversation, ...items]);
       setActive({ ...json.conversation, messages: [] });
       setError("");
-    } catch (e) { setError(e instanceof Error ? e.message : "خطا"); }
-    finally { setCreating(false); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "خطا");
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function send(event?: FormEvent) {
@@ -208,232 +217,222 @@ export default function AdminAiPlatformPage() {
       });
     } catch (e) {
       setActive((c) => (c ? { ...c, messages: (c.messages || []).filter((m) => m !== optimistic) } : c));
-      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "خطا");
+      setInput(content);
+      if (controller.signal.aborted) setError("ارسال لغو شد.");
+      else setError(e instanceof Error ? e.message : "خطا");
     } finally {
       setSending(false);
       abortRef.current = null;
     }
   }
 
-  async function runAgent() {
-    const task = devTask.trim();
-    if (!task || devRunning) return;
-    setDevRunning(true);
-    setDevResult(null);
-    setPlatformError("");
-    if (activityPollRef.current) clearInterval(activityPollRef.current);
-    activityPollRef.current = setInterval(() => { void refreshActivity(); }, 1500);
+  async function syncModels() {
+    setModelsBusy(true);
+    setModelsError("");
     try {
-      const json = await platform(undefined, { action: "dev_run", task, skillId: devSkill, parallel: devParallel, apply: devApply });
-      setDevResult(json.result);
-      if (json.error) setPlatformError(json.error);
-      if (json.result && !json.result.ok && json.result.error) setPlatformError(json.result.error);
-      await refreshActivity();
-    } catch (e) { setPlatformError(e instanceof Error ? e.message : "خطا"); }
-    finally {
-      setDevRunning(false);
-      if (activityPollRef.current) { clearInterval(activityPollRef.current); activityPollRef.current = null; }
-      await refreshActivity();
+      const json = await modelsApi({ action: "sync" });
+      setModels(json.models || []);
+    } catch (e) {
+      setModelsError(e instanceof Error ? e.message : "همگام‌سازی ناموفق بود");
+    } finally {
+      setModelsBusy(false);
     }
   }
 
-  async function installSkill() {
-    if (!skillUrl.trim() || skillInstalling) return;
-    setSkillInstalling(true);
-    setPlatformError("");
+  async function toggleModel(model: AiModel, enabled: boolean) {
+    setModelsBusy(true);
+    setModelsError("");
     try {
-      const json = await platform(undefined, { action: "skill_install", url: skillUrl.trim() });
-      setSkills(json.skills || []);
-      setSkillUrl("");
-      await refreshActivity();
-    } catch (e) { setPlatformError(e instanceof Error ? e.message : "خطا"); }
-    finally { setSkillInstalling(false); }
-  }
-
-  async function saveMemory() {
-    if (!memKey.trim() || !memValue.trim()) return;
-    try {
-      await platform(undefined, { action: "memory_upsert", scope: "project", key: memKey.trim(), value: memValue.trim() });
-      setMemKey(""); setMemValue("");
-      setMemory((await platform("memory")).memory || []);
-    } catch (e) { setPlatformError(e instanceof Error ? e.message : "خطا"); }
-  }
-
-  async function syncModels() {
-    try { setModels((await platform(undefined, { action: "sync_models" })).models || []); }
-    catch (e) { setPlatformError(e instanceof Error ? e.message : "خطا"); }
+      await modelsApi({ id: model.id, enabled });
+      await loadModels();
+    } catch (e) {
+      setModelsError(e instanceof Error ? e.message : "به‌روزرسانی مدل ناموفق بود");
+      setModelsBusy(false);
+    }
   }
 
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-6xl flex-col gap-4 p-3 sm:p-4" dir="rtl">
       <header>
-        <p className="text-[11px] uppercase tracking-wide text-ink-500">Admin AI · Grok-style</p>
+        <p className="text-[11px] uppercase tracking-wide text-ink-500">Admin AI</p>
         <h1 className="mt-1 text-lg font-medium text-sand-50">دستیار ادمین</h1>
-        <p className="mt-1 text-xs text-ink-500">Chat عامل‌محور · Project · Plugins (Skills + Connectors){sectionLoading ? " · بارگذاری…" : ""}</p>
+        <p className="mt-1 text-xs text-ink-500">گفتگو · مدل‌ها · تشخیص سیستم</p>
       </header>
 
       <nav className="flex flex-wrap gap-2 border-b border-white/10 pb-3">
         {TABS.map((t) => (
-          <button key={t.id} type="button" onClick={() => setTab(t.id)} className={`rounded-full px-3 py-1.5 text-xs transition ${tab === t.id ? "border border-gold-400/30 bg-gold-400/20 text-gold-300" : "border border-white/10 text-ink-400 hover:text-sand-50"}`}>{t.label}</button>
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={`rounded-full px-3 py-1.5 text-xs transition ${
+              tab === t.id ? "border border-gold-400/30 bg-gold-400/20 text-gold-300" : "border border-white/10 text-ink-400 hover:text-sand-50"
+            }`}
+          >
+            {t.label}
+          </button>
         ))}
       </nav>
 
-      {platformError ? <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs text-red-300">{platformError}</div> : null}
-
       {tab === "chat" ? (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/10 p-2">
-            <div className="grid grid-cols-2 gap-1 rounded-xl bg-white/[.03] p-1">
-              <button type="button" onClick={() => setChatMode("chat")} className={`rounded-lg px-3 py-1.5 text-xs ${chatMode === "chat" ? "bg-gold-400/20 text-gold-300" : "text-ink-400"}`}>گفتگو</button>
-              <button type="button" onClick={() => setChatMode("agent")} className={`rounded-lg px-3 py-1.5 text-xs ${chatMode === "agent" ? "bg-gold-400/20 text-gold-300" : "text-ink-400"}`}>Agent / Codex</button>
+        <div className="grid min-h-[58vh] gap-4 lg:grid-cols-[220px_1fr]">
+          <aside className="space-y-2 rounded-2xl border border-white/10 bg-black/10 p-3">
+            <button type="button" onClick={create} disabled={creating} className="btn-ghost w-full !py-2 text-xs">
+              گفتگوی جدید
+            </button>
+            <div className="max-h-[50vh] space-y-1 overflow-y-auto">
+              {conversations.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => void open(c.id)}
+                  className={`block w-full rounded-xl px-3 py-2 text-right text-xs ${
+                    active?.id === c.id ? "bg-white/10 text-sand-50" : "text-ink-400 hover:bg-white/5"
+                  }`}
+                >
+                  {c.title || "گفتگو"}
+                </button>
+              ))}
             </div>
-            {chatMode === "agent" ? (
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-400">
-                <select value={devSkill} onChange={(e) => setDevSkill(e.target.value)} className="rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-sand-50">
-                  {(skills.length ? skills : [{ id: "bugfix", name: "Bug Fix" }, { id: "feature", name: "Feature" }, { id: "code-review", name: "Code Review" }, { id: "docs", name: "Docs" }, { id: "refactor", name: "Refactor" }]).map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.name || s.id}</option>
-                  ))}
-                </select>
-                <label className="flex items-center gap-1"><input type="checkbox" checked={devApply} onChange={(e) => setDevApply(e.target.checked)} /> اعمال روی repo</label>
-                <label className="flex items-center gap-1"><input type="checkbox" checked={devParallel} onChange={(e) => setDevParallel(e.target.checked)} /> parallel</label>
-              </div>
-            ) : null}
-          </div>
+          </aside>
 
-          {chatMode === "chat" ? (
-            <div className="grid min-h-[58vh] gap-4 lg:grid-cols-[220px_1fr]">
-              <aside className="hidden space-y-2 rounded-2xl border border-white/10 bg-black/10 p-3 lg:block">
-                <button type="button" onClick={create} disabled={creating} className="btn-ghost w-full !py-2 text-xs">گفتگوی جدید</button>
-                <div className="max-h-[50vh] space-y-1 overflow-y-auto">
-                  {conversations.map((c) => (
-                    <button key={c.id} type="button" onClick={() => open(c.id)} className={`block w-full rounded-xl px-3 py-2 text-right text-xs ${active?.id === c.id ? "bg-white/10 text-sand-50" : "text-ink-400 hover:bg-white/5"}`}>{c.title || "گفتگو"}</button>
-                  ))}
+          <section className="flex min-h-[58vh] flex-col rounded-2xl border border-white/10 bg-black/10">
+            <div className="flex-1 space-y-4 overflow-y-auto p-4">
+              {loading ? <p className="text-sm text-ink-500">در حال بارگذاری…</p> : null}
+              {!loading && !(active?.messages || []).length ? (
+                <div className="py-14 text-center">
+                  <h2 className="text-xl font-medium text-sand-50">چه کاری برایت انجام بدهم؟</h2>
+                  <button type="button" onClick={create} className="btn-primary mt-5">
+                    شروع گفتگو
+                  </button>
                 </div>
-              </aside>
-              <section className="flex min-h-[58vh] flex-col rounded-2xl border border-white/10 bg-black/10">
-                <div className="flex-1 space-y-4 overflow-y-auto p-4">
-                  {loading ? <p className="text-sm text-ink-500">در حال بارگذاری…</p> : null}
-                  {!loading && !(active?.messages || []).length ? (
-                    <div className="py-14 text-center">
-                      <h2 className="text-xl font-medium text-sand-50">چه کاری برایت انجام بدهم؟</h2>
-                      <p className="mt-2 text-sm text-ink-500">برای کدنویسی مثل Codex، حالت Agent را روشن کن</p>
-                      <button type="button" onClick={create} className="btn-primary mt-5">شروع گفتگو</button>
+              ) : null}
+              {(active?.messages || []).map((message, index) => (
+                <div
+                  key={index}
+                  className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-7 ${
+                    message.role === "user" ? "mr-auto bg-white/10 text-sand-50" : "ml-auto border border-white/10 bg-black/10 text-ink-200"
+                  }`}
+                >
+                  <div className="whitespace-pre-wrap">{message.content}</div>
+                  {message.provider ? (
+                    <div className="mt-2 text-[10px] text-ink-600">
+                      {message.provider} · {message.model}
                     </div>
                   ) : null}
-                  {(active?.messages || []).map((message, index) => (
-                    <div key={index} className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-7 ${message.role === "user" ? "mr-auto bg-white/10 text-sand-50" : "ml-auto border border-white/10 bg-black/10 text-ink-200"}`}>
-                      <div className="whitespace-pre-wrap">{message.content}</div>
-                      {message.provider ? <div className="mt-2 text-[10px] text-ink-600">{message.provider} · {message.model}</div> : null}
-                    </div>
-                  ))}
-                  {error ? <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs text-red-300">{error}</div> : null}
                 </div>
-                <form onSubmit={send} className="border-t border-white/10 p-3">
-                  <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
-                    <textarea value={input} onChange={(e) => setInput(e.target.value)} disabled={!active || sending} rows={2} placeholder={active ? "پیام خود را بنویس…" : "اول یک گفتگو بساز"} className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-2 text-sm text-sand-50 outline-none placeholder:text-ink-600" onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }} />
-                    {sending ? <button type="button" className="btn-ghost !py-2 text-xs" onClick={() => abortRef.current?.abort()}>توقف</button> : <button type="submit" disabled={!active || !input.trim()} className="btn-primary !py-2 text-xs">ارسال</button>}
-                  </div>
-                </form>
-              </section>
+              ))}
+              {error ? <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-xs text-red-300">{error}</div> : null}
             </div>
-          ) : (
-            <section className="space-y-4 rounded-2xl border border-white/10 bg-black/10 p-4">
-              <div>
-                <h2 className="text-sm font-medium text-sand-50">Coding Agent · مثل Codex / Claude Code</h2>
-                <p className="mt-1 text-[11px] leading-6 text-ink-500">تسک را بنویس؛ Agent با skill انتخاب‌شده روی repo کار می‌کند. برای PR واقعی «اعمال روی repo» را روشن کن (GITHUB_TOKEN روی Render).</p>
+            <form onSubmit={send} className="border-t border-white/10 p-3">
+              <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  disabled={!active || sending}
+                  rows={2}
+                  placeholder={active ? "پیام خود را بنویس…" : "اول یک گفتگو بساز"}
+                  className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-2 text-sm text-sand-50 outline-none placeholder:text-ink-600"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void send();
+                    }
+                  }}
+                />
+                {sending ? (
+                  <button type="button" className="btn-ghost !py-2 text-xs" onClick={() => abortRef.current?.abort()}>
+                    توقف
+                  </button>
+                ) : (
+                  <button type="submit" disabled={!active || !input.trim()} className="btn-primary !py-2 text-xs">
+                    ارسال
+                  </button>
+                )}
               </div>
-              <textarea value={devTask} onChange={(e) => setDevTask(e.target.value)} rows={5} placeholder="مثلاً: باگ صفحه analytics را پیدا و fix کن و draft PR بساز" className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-sand-50 outline-none placeholder:text-ink-600" />
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={runAgent} disabled={devRunning || !devTask.trim()} className="btn-primary !py-2 text-xs">{devRunning ? "در حال اجرا…" : "اجرای Agent"}</button>
-                <button type="button" onClick={() => void refreshActivity()} className="btn-ghost !py-2 text-xs">تازه‌سازی Activity</button>
-              </div>
-              {devResult ? <pre className="max-h-64 overflow-auto rounded-xl border border-white/10 bg-black/30 p-3 text-[11px] text-ink-300 whitespace-pre-wrap">{typeof devResult === "string" ? devResult : JSON.stringify(devResult, null, 2)}</pre> : null}
-              <div className="space-y-2">
-                <h3 className="text-xs text-ink-400">Activity</h3>
-                {activity.slice(0, 12).map((a) => (
-                  <div key={a.id} className="rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-[11px]"><span className="text-gold-400">{a.kind}</span><span className="mx-2 text-ink-500">{a.at?.slice(11, 19)}</span><span className="text-ink-300">{a.message}</span></div>
-                ))}
-                {!activity.length ? <p className="text-[11px] text-ink-600">هنوز رویدادی نیست.</p> : null}
-              </div>
-            </section>
-          )}
+            </form>
+          </section>
         </div>
       ) : null}
 
-      {tab === "project" ? (
-        <section className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
-            <h2 className="text-sm font-medium text-sand-50">حافظه پروژه</h2>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input value={memKey} onChange={(e) => setMemKey(e.target.value)} placeholder="key" className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
-              <input value={memValue} onChange={(e) => setMemValue(e.target.value)} placeholder="value" className="flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" />
-              <button type="button" onClick={saveMemory} className="btn-primary !py-2 text-xs">ذخیره</button>
-            </div>
-            <div className="max-h-80 space-y-2 overflow-y-auto">
-              {memory.map((item: any) => (
-                <div key={item.id || item.key} className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs"><div className="font-medium text-sand-50">{item.key}</div><div className="mt-1 text-ink-400">{item.value}</div></div>
-              ))}
-              {!memory.length ? <p className="text-[11px] text-ink-600">حافظه‌ای ثبت نشده.</p> : null}
-            </div>
-          </div>
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
-            <div className="flex items-center justify-between"><h2 className="text-sm font-medium text-sand-50">Activity پروژه</h2><button type="button" onClick={() => void refreshActivity()} className="btn-ghost !px-2 !py-1 text-[11px]">تازه‌سازی</button></div>
-            <div className="max-h-96 space-y-2 overflow-y-auto">
-              {activity.map((a) => (
-                <div key={a.id} className="rounded-xl border border-white/5 bg-black/20 px-3 py-2 text-[11px]"><div className="flex gap-2"><span className="text-gold-400">{a.kind}</span><span className="text-ink-600">{a.at}</span></div><p className="mt-1 text-ink-300">{a.message}</p></div>
-              ))}
-              {!activity.length ? <p className="text-[11px] text-ink-600">رویدادی نیست.</p> : null}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {tab === "plugins" ? (
-        <section className="space-y-6">
-          <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
-            <h2 className="text-sm font-medium text-sand-50">نصب Skill از GitHub</h2>
-            <p className="mt-1 text-[11px] leading-6 text-ink-500">لینک کامل ریپو یا raw — مثلاً <span className="text-ink-400" dir="ltr">https://github.com/nextlevelbuilder/ui-ux-pro-max-skill</span></p>
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <input value={skillUrl} onChange={(e) => setSkillUrl(e.target.value)} placeholder="https://github.com/owner/repo" className="flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-sand-50" dir="ltr" />
-              <button type="button" onClick={installSkill} disabled={skillInstalling || !skillUrl.trim()} className="btn-primary !py-2 text-xs">{skillInstalling ? "در حال نصب…" : "نصب Skill"}</button>
-            </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              {skills.map((s: any) => (
-                <div key={s.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs"><div className="flex items-center justify-between gap-2"><span className="font-medium text-sand-50">{s.name}</span><span className="text-[10px] text-ink-500">{s.source || "builtin"} · v{s.version}</span></div><p className="mt-1 text-ink-400">{s.description}</p></div>
-              ))}
-              {!skills.length ? <p className="text-[11px] text-ink-600">Skillی نیست.</p> : null}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
-            <h2 className="text-sm font-medium text-sand-50">Connectors</h2>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {connectors.map((c: any) => (
-                <div key={c.id} className="rounded-xl border border-white/10 bg-black/20 p-4 text-xs"><div className="flex items-center justify-between"><h3 className="font-medium text-sand-50">{c.name || c.id}</h3><span className={c.status === "connected" || c.configured ? "text-emerald-400" : "text-ink-500"}>{c.status || (c.configured ? "connected" : "missing")}</span></div>{c.hint ? <p className="mt-2 text-ink-500">{c.hint}</p> : null}</div>
-              ))}
-              {!connectors.length ? <p className="text-[11px] text-ink-600">کانکتوری گزارش نشد.</p> : null}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       {tab === "models" ? (
-        <section className="space-y-3">
-          <div className="flex justify-between"><h2 className="text-sm font-medium text-sand-50">مدل‌های فعال (env رندر)</h2><button type="button" onClick={syncModels} className="btn-ghost !py-1.5 text-xs">Sync</button></div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {models.map((m: any) => (
-              <div key={`${m.provider_id || m.provider}-${m.model_id || m.id}`} className="rounded-xl border border-white/10 bg-black/10 p-3 text-xs"><div className="text-sand-50">{m.model_id || m.id || m.model}</div><div className="mt-1 text-ink-500">{m.provider_id || m.provider}</div></div>
+        <section className="space-y-4 rounded-2xl border border-white/10 bg-black/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-medium text-sand-50">Model Registry</h2>
+              <p className="mt-1 text-[11px] text-ink-500">مدل‌های فعال برای مسیریابی دستیار ادمین</p>
+            </div>
+            <div className="flex gap-2">
+              <button type="button" className="btn-ghost !py-2 text-xs" onClick={() => void loadModels()} disabled={modelsBusy}>
+                تازه‌سازی
+              </button>
+              <button type="button" className="btn-primary !py-2 text-xs" onClick={() => void syncModels()} disabled={modelsBusy}>
+                Sync از env
+              </button>
+            </div>
+          </div>
+          {modelsError ? <p className="rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-xs text-red-300">{modelsError}</p> : null}
+          {modelsBusy && !models.length ? <p className="text-sm text-ink-500">در حال بارگذاری…</p> : null}
+          <div className="space-y-2">
+            {models.map((m) => (
+              <div key={m.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 p-3 text-xs">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-sand-50" dir="ltr">
+                    {m.provider || "?"} / {m.model || m.id}
+                  </p>
+                  <p className="mt-1 text-ink-500">
+                    priority {m.priority ?? "—"} · {m.status || "—"}
+                    {m.preferred ? " · preferred" : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className={`btn-ghost !py-1.5 !px-3 text-[11px] ${m.enabled ? "!text-emerald-300" : "!text-ink-500"}`}
+                  disabled={modelsBusy}
+                  onClick={() => void toggleModel(m, !m.enabled)}
+                >
+                  {m.enabled ? "فعال" : "غیرفعال"}
+                </button>
+              </div>
             ))}
-            {!models.length ? <p className="text-[11px] text-ink-600">مدلی لیست نشد — Sync بزن.</p> : null}
+            {!modelsBusy && !models.length ? <p className="text-sm text-ink-500">مدلی ثبت نشده. Sync از env را بزن.</p> : null}
           </div>
         </section>
       ) : null}
 
-      {tab === "monitor" ? (
-        <section className="rounded-2xl border border-white/10 bg-black/10 p-4 text-xs text-ink-300"><h2 className="mb-3 text-sm font-medium text-sand-50">Usage / Cost</h2><pre className="max-h-96 overflow-auto whitespace-pre-wrap">{usage ? JSON.stringify(usage, null, 2) : "داده‌ای نیست"}</pre></section>
-      ) : null}
-
-      {tab === "control" ? (
-        <section className="space-y-3 text-xs text-ink-400"><h2 className="text-sm font-medium text-sand-50">Control plane</h2><pre className="max-h-96 overflow-auto rounded-xl border border-white/10 bg-black/20 p-3">{JSON.stringify(controlData, null, 2)}</pre></section>
+      {tab === "system" ? (
+        <section className="space-y-4 rounded-2xl border border-white/10 bg-black/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-medium text-sand-50">تشخیص سیستم</h2>
+              <p className="mt-1 text-[11px] text-ink-500">همان چک‌های /admin/system — برای رفع سریع env</p>
+            </div>
+            <button type="button" className="btn-ghost !py-2 text-xs" onClick={() => void loadDiag()} disabled={diagLoading}>
+              بررسی دوباره
+            </button>
+          </div>
+          {diagError ? <p className="rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-xs text-red-300">{diagError}</p> : null}
+          {diagLoading && !diag ? <p className="text-sm text-ink-500">در حال بررسی…</p> : null}
+          {diag ? (
+            <div className={`rounded-xl border p-3 text-xs ${diag.ok ? "border-emerald-400/20 bg-emerald-400/5 text-emerald-200" : "border-amber-400/20 bg-amber-400/5 text-amber-200"}`}>
+              {diag.ok ? "همه چک‌ها سبز هستند." : "یک یا چند اتصال ناقص است."}
+              {diag.backend ? <p className="mt-1 text-ink-500">backend: {diag.backend}</p> : null}
+            </div>
+          ) : null}
+          <div className="space-y-2">
+            {(diag?.checks || []).map((check: any) => (
+              <div key={check.id} className="rounded-xl border border-white/10 p-3 text-xs">
+                <p className={check.ok ? "text-emerald-300" : "text-red-300"}>
+                  {check.ok ? "✓" : "✗"} {check.label}
+                </p>
+                <p className="mt-1 text-ink-400">{check.detail}</p>
+              </div>
+            ))}
+          </div>
+          <a href="/admin/system" className="btn-ghost inline-flex !py-2 text-xs">
+            صفحه کامل وضعیت سیستم
+          </a>
+        </section>
       ) : null}
     </main>
   );
