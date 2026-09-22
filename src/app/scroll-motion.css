@@ -60,3 +60,42 @@
     transition: none;
   }
 }
+
+/* —— Mobile scroll stability —— */
+/* Prefer native scrolling; avoid smooth scroll jank on touch devices */
+@media (max-width: 767px) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .reveal {
+    /* Blur during scroll is expensive on mobile GPUs */
+    filter: none;
+    transform: translateY(10px);
+  }
+
+  .reveal-in {
+    filter: none;
+  }
+
+  .scroll-depth,
+  .depth-scene {
+    will-change: auto !important;
+    transform: none !important;
+  }
+}
+
+/* Never let decorative layers capture gestures */
+.route-ambient,
+.page-ambient,
+.assistant-ambient,
+.fa-ambient,
+.depth-scene-grid {
+  pointer-events: none !important;
+}
+
+/* Body must not lock overflow except while mobile menu is open (handled in JS) */
+html:not(.telegram-mini-app),
+body:not(.telegram-mini-app) {
+  overscroll-behavior-y: auto;
+}

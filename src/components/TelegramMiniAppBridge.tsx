@@ -3,6 +3,25 @@
 import { useEffect } from "react";
 import type { TelegramWebApp } from "./AuthProvider";
 
+/**
+ * Only activate Telegram Mini App chrome when we are actually inside Telegram.
+ * The official telegram-web-app.js script exposes a stub WebApp object in normal
+ * browsers (platform "unknown", empty initData). Treating that as a real Mini App
+ * applied overscroll-behavior:none and other locks that made mobile scrolling feel
+ * sticky or frozen.
+ */
+function isRealTelegramWebApp(app: TelegramWebApp | undefined): app is TelegramWebApp {
+  if (!app) return false;
+  const platform = String(app.platform || "").toLowerCase();
+  if (platform === "unknown" || platform === "") {
+    // Real Telegram always provides initData (or a user in initDataUnsafe) inside the client.
+    const hasInit = Boolean(app.initData && app.initData.length > 0);
+    const hasUser = Boolean(app.initDataUnsafe && (app.initDataUnsafe as { user?: unknown }).user);
+    return hasInit || hasUser;
+  }
+  return true;
+}
+
 /** Prepare the same website for Telegram Mini App and normal browser use. */
 export function TelegramMiniAppBridge() {
   useEffect(() => {
@@ -13,8 +32,8 @@ export function TelegramMiniAppBridge() {
 
     const connect = () => {
       app = window.Telegram?.WebApp;
-      if (!app) {
-        if (attempts++ < 100) poll = window.setTimeout(connect, 50);
+      if (!isRealTelegramWebApp(app)) {
+        if (attempts++ < 40) poll = window.setTimeout(connect, 75);
         return;
       }
 
@@ -36,6 +55,7 @@ export function TelegramMiniAppBridge() {
 
       app.ready?.();
       app.expand?.();
+      // Only disable vertical swipes inside a confirmed Telegram client.
       app.disableVerticalSwipes?.();
       app.setHeaderColor?.("#10100e");
       app.setBackgroundColor?.("#10100e");
