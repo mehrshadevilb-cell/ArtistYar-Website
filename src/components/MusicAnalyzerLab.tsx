@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft, BarChart3, CheckCircle2, Gauge, Loader2,
   LockKeyhole, Music2, Sparkles, Target, Upload, Waves, Layers,
@@ -107,6 +108,8 @@ function EnergySparkline({ points }: { points: ArrangementFeatures["energyTimeli
 
 export default function MusicAnalyzerLab() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") || "";
   const isAdmin = user?.role === "admin";
   const inputRef = useRef<HTMLInputElement>(null);
   const refInputRef = useRef<HTMLInputElement>(null);
@@ -209,6 +212,7 @@ export default function MusicAnalyzerLab() {
       form.set("genre", genre);
       form.set("focus", mode === "mix" ? mixFocus : arrFocus);
       form.set("notes", notes);
+      if (projectId) form.set("projectId", projectId);
       const res = await fetch("/api/practice/music-analyzer", { method: "POST", body: form, credentials: "include" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
