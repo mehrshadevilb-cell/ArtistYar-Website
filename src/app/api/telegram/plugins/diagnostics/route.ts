@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getPluginWebhookInfo, pluginTokenConfigured, telegramBytes } from "@/lib/telegram-plugin-sync";
+import { getPluginWebhookInfo, getPluginChannelAdminStatus, pluginTokenConfigured, telegramBytes } from "@/lib/telegram-plugin-sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,6 +73,13 @@ export async function GET(request: Request) {
     out.webhook = await getPluginWebhookInfo();
   } catch (error) {
     out.webhook_error =
+      error instanceof Error ? error.message : String(error);
+  }
+
+  try {
+    out.channel_admin = await getPluginChannelAdminStatus();
+  } catch (error) {
+    out.channel_admin_error =
       error instanceof Error ? error.message : String(error);
   }
 
