@@ -10,7 +10,7 @@ const dbUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL |
 const dbSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const db = dbUrl && dbSecret ? createClient(dbUrl, dbSecret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 const MIX_FREE_DAILY_LIMIT = 1;
-const MIX_PRO_DAILY_LIMIT = 40;
+const MIX_PRO_DAILY_LIMIT = 0; // Pro is subscription-based; no daily analysis cap while active.
 
 function mixDayStart() {
   const d = new Date();
