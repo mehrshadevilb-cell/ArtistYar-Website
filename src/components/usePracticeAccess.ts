@@ -6,7 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 export type PracticeAccess = {
   loading: boolean;
   pro: boolean;
-  stageLimit: number;
+  stageLimit: number; // 0 means unlimited for Pro.
   subscriptionDays: number;
   proExpiresAt: string | null;
 };
