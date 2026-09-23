@@ -303,7 +303,7 @@ async function google(bytes: Buffer | null, mime: string, fileName: string, capt
   throw new Error(last);
 }
 
-async function anthropic(imageData: string, fileName: string, caption: string, models: string[]) {
+async function anthropic(imageData: string | null, fileName: string, caption: string, models: string[]) {
   const k = (process.env.ANTHROPIC_API_KEY || "").trim();
   if (!k) throw new Error("anthropic_not_configured");
   let last = "anthropic_no_working_model";
