@@ -520,71 +520,151 @@ function modelPool(prefix: string, singleName: string, defaults: readonly string
   return Array.from(new Set([...configured, ...(single ? [single] : []), ...defaults].filter(Boolean)));
 }
 
+function modelSpeedScore(model: string) {
+  const value = String(model || "").toLowerCase();
+  let score = 0;
+  if (/(flash|lite|mini|haiku|small|fast|instant)/i.test(value)) score += 40;
+  if (/(pro|max|opus|sonnet|large|70b|72b|405b)/i.test(value)) score -= 10;
+  return score;
+}
+
+async function discoverOpenAICompatibleModels(apiKey: string, baseUrl: string) {
+  const base = validBaseUrl(baseUrl, "");
+  if (!base) return [];
+  try {
+    const res = await fetch(base + "/models", {
+      headers: { authorization: "Bearer " + apiKey, accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !Array.isArray(data?.data)) return [];
+    return data.data
+      .map((item: any) => String(item?.id || "").trim())
+      .filter(Boolean);
+  } catch (error) {
+    console.warn("telegram_plugin_model_discovery_failed", clean(error instanceof Error ? error.message : String(error), 200));
+    return [];
+  }
+}
+
+async function discoverAnthropicModels(apiKey: string) {
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/models", {
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !Array.isArray(data?.data)) return [];
+    return data.data.map((item: any) => String(item?.id || "").trim()).filter(Boolean);
+  } catch (error) {
+    console.warn("telegram_plugin_anthropic_model_discovery_failed", clean(error instanceof Error ? error.message : String(error), 200));
+    return [];
+  }
+}
+
 async function identify(imageFileId: string, fileName: string, caption: string) {
-  // ONLY the Telegram photo is downloaded for AI vision. Documents (ZIP/RAR/VST/etc.) are never opened, extracted, or downloaded; their filename is metadata only.
-  // If Telegram refuses the photo, keep the pipeline alive with filename+caption AI.
+  // Only the Telegram photo is downloaded for vision. Documents are metadata only.
   let image: { bytes: Buffer; contentType: string } | null = null;
-  let visionError = "";
   try {
     const downloaded = await telegramBytes(imageFileId);
     if (!downloaded.contentType.startsWith("image/")) throw new Error("telegram_photo_not_image");
     image = downloaded;
   } catch (error) {
-    visionError = clean(error instanceof Error ? error.message : String(error), 300);
-    console.warn("telegram_plugin_vision_unavailable", visionError);
+    console.warn("telegram_plugin_vision_unavailable", clean(error instanceof Error ? error.message : String(error), 300));
   }
 
   const dataUrl = image
     ? "data:" + image.contentType + ";base64," + image.bytes.toString("base64")
     : null;
 
-  const googleKey = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
-  const candidates: Array<() => Promise<AiResult>> = [];
+  type Candidate = { provider: string; model: string; run: () => Promise<AiResult> };
+  const candidates: Candidate[] = [];
 
+  const googleKey = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
   if (googleKey) {
-    candidates.push(() => google(
-      image?.bytes || null,
-      image?.contentType || "image/jpeg",
-      fileName,
-      caption,
-      modelPool("PLUGIN_AI_GEMINI", "PLUGIN_AI_GEMINI_MODEL", ["gemini-3.6-flash", "gemini-3.1-pro-preview"])
-    ));
+    let live: string[] = [];
+    try {
+      const catalog = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(googleKey),
+        { cache: "no-store", signal: AbortSignal.timeout(10000) }
+      );
+      const catalogData = await catalog.json().catch(() => null);
+      if (catalog.ok && Array.isArray(catalogData?.models)) {
+        live = catalogData.models
+          .filter((m: any) => Array.isArray(m?.supportedGenerationMethods) && m.supportedGenerationMethods.includes("generateContent"))
+          .map((m: any) => String(m?.name || "").replace(/^models\//, "").trim())
+          .filter(Boolean);
+      }
+    } catch (error) {
+      console.warn("telegram_plugin_google_model_catalog_unavailable", clean(error instanceof Error ? error.message : String(error), 200));
+    }
+    const models = Array.from(new Set([
+      ...modelPool("PLUGIN_AI_GEMINI", "PLUGIN_AI_GEMINI_MODEL", []),
+      ...live,
+    ]));
+    for (const model of models) {
+      candidates.push({
+        provider: "google",
+        model,
+        run: () => google(image?.bytes || null, image?.contentType || "image/jpeg", fileName, caption, [model]),
+      });
+    }
   }
 
   const openaiKey = (process.env.OPENAI_API_KEY || "").trim();
   if (openaiKey) {
-    candidates.push(() => openAICompatible(
-      "openai",
-      openaiKey,
-      process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
-      modelPool("PLUGIN_AI_OPENAI", "OPENAI_MODEL", [process.env.PLUGIN_AI_VISION_MODEL || "", "gpt-4o-mini"]),
-      dataUrl,
-      fileName,
-      caption
-    ));
+    const base = validBaseUrl(process.env.OPENAI_BASE_URL || "", "https://api.openai.com/v1");
+    if (base) {
+      const discovered = await discoverOpenAICompatibleModels(openaiKey, base);
+      const models = Array.from(new Set([
+        ...modelPool("PLUGIN_AI_OPENAI", "OPENAI_MODEL", [process.env.PLUGIN_AI_VISION_MODEL || "", "gpt-4o-mini"]),
+        ...discovered,
+      ]));
+      for (const model of models) {
+        candidates.push({
+          provider: "openai",
+          model,
+          run: () => openAICompatible("openai", openaiKey, base, [model], dataUrl, fileName, caption),
+        });
+      }
+    }
   }
 
   const openrouterKey = (process.env.OPENROUTER_API_KEY || "").trim();
   if (openrouterKey) {
-    candidates.push(() => openAICompatible(
-      "openrouter",
-      openrouterKey,
-      process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
-      modelPool("PLUGIN_AI_OPENROUTER", "OPENROUTER_MODEL", ["google/gemini-2.5-flash"]),
-      dataUrl,
-      fileName,
-      caption
-    ));
+    const base = validBaseUrl(process.env.OPENROUTER_BASE_URL || "", "https://openrouter.ai/api/v1");
+    if (base) {
+      const discovered = await discoverOpenAICompatibleModels(openrouterKey, base);
+      const models = Array.from(new Set([
+        ...modelPool("PLUGIN_AI_OPENROUTER", "OPENROUTER_MODEL", []),
+        ...discovered,
+      ]));
+      for (const model of models) {
+        candidates.push({
+          provider: "openrouter",
+          model,
+          run: () => openAICompatible("openrouter", openrouterKey, base, [model], dataUrl, fileName, caption),
+        });
+      }
+    }
   }
 
   const anthropicKey = (process.env.ANTHROPIC_API_KEY || "").trim();
   if (anthropicKey) {
-    candidates.push(() => anthropic(
-      dataUrl,
-      fileName,
-      caption,
-      modelPool("PLUGIN_AI_ANTHROPIC", "ANTHROPIC_MODEL", ["claude-sonnet-4-20250514"])
-    ));
+    const discovered = await discoverAnthropicModels(anthropicKey);
+    const models = Array.from(new Set([
+      ...modelPool("PLUGIN_AI_ANTHROPIC", "ANTHROPIC_MODEL", []),
+      ...discovered,
+    ]));
+    for (const model of models) {
+      candidates.push({
+        provider: "anthropic",
+        model,
+        run: () => anthropic(dataUrl, fileName, caption, [model]),
+      });
+    }
   }
 
   const compatibleProviders = [
@@ -607,30 +687,75 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
       console.warn("telegram_plugin_invalid_provider_base_url", provider, baseName);
       continue;
     }
-    const models = modelPool("PLUGIN_AI_" + provider.toUpperCase(), modelName, defaults);
-    if (!models.length) continue;
-    candidates.push(() => openAICompatible(provider, apiKey, base, models, dataUrl, fileName, caption));
+
+    // Never require manual model configuration. Ask the provider for its live
+    // model catalog, then merge configured/default models as a fallback.
+    const discovered = await discoverOpenAICompatibleModels(apiKey, base);
+    const models = Array.from(new Set([
+      ...modelPool("PLUGIN_AI_" + provider.toUpperCase(), modelName, defaults),
+      ...discovered,
+    ]));
+
+    for (const model of models) {
+      candidates.push({
+        provider,
+        model,
+        run: () => openAICompatible(provider, apiKey, base, [model], dataUrl, fileName, caption),
+      });
+    }
   }
 
   if (!candidates.length) throw new Error("no_plugin_vision_ai_configured");
 
-  // No manual model choice and no message-ID rotation. Providers are attempted
-  // automatically; each model learns from success, failure and latency in this
-  // running process, with unhealthy models temporarily cooled down.
-  let last = "plugin_ai_failed";
+  // Global automatic routing:
+  // 1) temporarily cooled/failed models are deprioritized;
+  // 2) historically successful/fast models are preferred;
+  // 3) lightweight/fast model families break ties;
+  // 4) every configured provider participates, not just Google.
+  const ordered = candidates
+    .filter(candidate => {
+      const h = healthFor(candidate.provider, candidate.model);
+      return h.cooldownUntil <= Date.now();
+    })
+    .sort((a, b) => {
+      const score = (candidate: Candidate) => {
+        const h = healthFor(candidate.provider, candidate.model);
+        const attempts = h.ok + h.fail;
+        const success = attempts ? h.ok / attempts : 0.5;
+        const latency = 1 / Math.max(500, h.latencyMs);
+        return success * 1000 + latency * 1000000 + modelSpeedScore(candidate.model);
+      };
+      return score(b) - score(a);
+    });
+
   const failures: string[] = [];
-  for (const run of candidates) {
+  for (const candidate of ordered) {
     try {
-      return await run();
+      return await candidate.run();
     } catch (error) {
-      last = clean(error instanceof Error ? error.message : error, 300);
-      failures.push(last);
+      const message = clean(error instanceof Error ? error.message : String(error), 300);
+      failures.push(candidate.provider + ":" + candidate.model + ":" + message);
     }
   }
-  // Never hide the real provider failure behind only the last attempted model.
-  // This makes diagnostics actionable when several configured providers fail
-  // in the same request (for example an expired key plus an unavailable model).
-  throw new Error("plugin_ai_all_providers_failed:" + failures.join(" | "));
+
+  // If every model is currently cooling down, allow the least-bad candidate
+  // to probe again instead of deadlocking the queue.
+  if (!ordered.length) {
+    const retry = candidates.slice().sort((a, b) => {
+      const ha = healthFor(a.provider, a.model);
+      const hb = healthFor(b.provider, b.model);
+      return ha.cooldownUntil - hb.cooldownUntil;
+    })[0];
+    if (retry) {
+      try {
+        return await retry.run();
+      } catch (error) {
+        failures.push(retry.provider + ":" + retry.model + ":" + clean(error instanceof Error ? error.message : String(error), 300));
+      }
+    }
+  }
+
+  throw new Error("plugin_ai_all_models_failed:" + failures.slice(0, 20).join(" | "));
 }
 function esc(v: string) { return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function tag(v: string) { return String(v || "").trim().replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "").slice(0, 48); }
