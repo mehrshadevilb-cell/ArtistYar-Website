@@ -53,24 +53,32 @@ security definer
 set search_path = public
 as $$
 declare
-  claimed integer;
+  available integer;
 begin
+  -- Serialize concurrent workers on both rows.
   perform 1
   from public.telegram_plugin_ingest_queue
   where id in (p_photo_id, p_document_id)
   order by id
   for update;
 
-  update public.telegram_plugin_ingest_queue
-  set processing_at = now()
+  select count(*)::integer into available
+  from public.telegram_plugin_ingest_queue
   where id in (p_photo_id, p_document_id)
     and (
       processing_at is null
       or processing_at < now() - interval '10 minutes'
     );
 
-  get diagnostics claimed = row_count;
-  return claimed = 2;
+  if available < 2 then
+    return false;
+  end if;
+
+  update public.telegram_plugin_ingest_queue
+  set processing_at = now()
+  where id in (p_photo_id, p_document_id);
+
+  return true;
 end;
 $$;
 
