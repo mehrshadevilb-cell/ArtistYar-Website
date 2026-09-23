@@ -86,7 +86,7 @@ function httpsDownload(urlValue: string) {
   });
 }
 
-export async function telegramBytes(fileId: string, recoveryChatId?: string) {
+export async function telegramBytes(fileId: string) {
   let last = "telegram_file_download_failed";
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -164,22 +164,20 @@ function looksPersian(text: string) {
 
 function sanitizeCaption(raw: string) {
   let value = String(raw || "").replace(/\r/g, "").trim();
-
   value = value.replace(/\[[^\]]*\]\(tg:\/\/emoji\?[^)]*\)/gi, "");
   value = value.replace(/tg:\/\/emoji[^\s)]+/gi, "");
-
-  value = value.replace(/https?:\/\/[^\s)]+/gi, match => {
-    const lower = match.toLowerCase();
-    return (lower.includes("artistyaar.ir") || lower.includes("t.me/proaudios")) ? match : "";
-  });
-
-  value = value.replace(/\[([^\]]+)\]\((?!https?:\/\/(?:www\.)?artistyaar\.ir|https?:\/\/t\.me\/proaudios)[^)]*\)/gi, "");
+  value = value.replace(/\[[^\]]+\]\((?:https?:\/\/|tg:\/\/|t\.me\/)[^)]*\)/gi, "");
+  value = value.replace(/https?:\/\/[^\s)]+/gi, "");
+  value = value.replace(/(?:https?:\/\/)?(?:www\.)?t\.me\/[A-Za-z0-9_+\/-]+/gi, "");
+  value = value.replace(/(?:https?:\/\/)?(?:www\.)?telegram\.me\/[A-Za-z0-9_+\/-]+/gi, "");
+  value = value.replace(/@[A-Za-z0-9_]{4,}/g, "");
   value = value.split("\n").filter(line => {
     const t = line.trim();
     return !/(BEATTALK|ДРАМ КИТЫ|Видеокурсы по музыке|beat talk|драм киты)/i.test(t);
   }).join("\n");
-
-  return value.replace(/\n{3,}/g, "\n\n").trim().slice(0, 3500);
+  value = value.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  if (!value) return "";
+  return (value + "\n\n🎛️ ArtistYar — https://artistyaar.ir\n📢 Channel: @ProAudios").slice(0, 1000);
 }
 
 function captionFacts(caption: string) {
@@ -355,8 +353,9 @@ function modelPool(prefix: string, singleName: string, defaults: readonly string
   return Array.from(new Set([...configured, ...(single ? [single] : []), ...defaults].filter(Boolean)));
 }
 
-async function identify(imageFileId: string, fileName: string, caption: string, recoveryChatId?: string) {
-  const image = await telegramBytes(imageFileId, recoveryChatId);
+async function identify(imageFileId: string, fileName: string, caption: string) {
+  // ONLY the Telegram photo is downloaded for AI vision. Documents (ZIP/RAR/VST/etc.) are never opened, extracted, or downloaded; their filename is metadata only.
+  const image = await telegramBytes(imageFileId);
   if (!image.contentType.startsWith("image/")) throw new Error("telegram_photo_not_image");
   const dataUrl = "data:" + image.contentType + ";base64," + image.bytes.toString("base64");
 
@@ -469,7 +468,12 @@ function makeCaption(p: PluginData) {
   return lines.filter(Boolean).join("\n").slice(0, 3900);
 }
 async function editCaption(chatId: string | number, messageId: number, caption: string) {
-  try { await tg("editMessageCaption", { chat_id: chatId, message_id: messageId, caption, parse_mode: "HTML" }); } catch {}
+  return tg("editMessageCaption", {
+    chat_id: chatId,
+    message_id: messageId,
+    caption: caption.slice(0, 1024),
+    parse_mode: "HTML",
+  });
 }
 export async function processPluginPair(photo: TgMessage, doc: TgMessage) {
   if (!db) throw new Error("supabase_not_configured");
@@ -480,7 +484,7 @@ export async function processPluginPair(photo: TgMessage, doc: TgMessage) {
   const fileName = clean(doc.document?.file_name, 240);
   const caption = clean(photo.caption || doc.caption, 1200);
   const ai = await identify(photoFileId, fileName, caption, chatId);
-  const p = ai.data;
+  const p = enforceCaptionFacts(ai.data, caption);
   const postUrl = photo.chat?.username ? "https://t.me/" + photo.chat.username + "/" + photo.message_id : null;
   const result = await db.from("telegram_plugin_posts").upsert({
     channel_id: chatId, photo_message_id: photo.message_id, document_message_id: doc.message_id,
@@ -612,7 +616,14 @@ export async function processPendingPluginPairs(limit = 5) {
     if (!best) continue;
 
     try {
-      const result = await processPluginPair(rowToPhoto(photo), rowToDocument(best));
+      const claim = await db.rpc("claim_telegram_plugin_pair", {
+        p_photo_id: photo.id,
+        p_document_id: best.id,
+      });
+      if (claim.error) throw new Error("plugin_pair_claim_failed:" + claim.error.message);
+      if (!claim.data) continue;
+
+      await processPluginPair(rowToPhoto(photo), rowToDocument(best));
       const deleted = await db.from("telegram_plugin_ingest_queue")
         .delete()
         .in("id", [photo.id, best.id]);
