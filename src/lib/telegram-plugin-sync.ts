@@ -807,7 +807,15 @@ export async function processPendingPluginPairs(limit = 5) {
 }
 
 export async function setPluginWebhook(urlValue: string, secretToken?: string) {
-  return tg("setWebhook", { url: urlValue, allowed_updates: ["channel_post", "edited_channel_post"], drop_pending_updates: false, ...(secretToken ? { secret_token: secretToken } : {}) });
+  // Only new channel posts are relevant. In particular, do not subscribe to
+  // edited_channel_post: editing the source caption below would otherwise feed
+  // our own edit back into the ingestion queue.
+  return tg("setWebhook", {
+    url: urlValue,
+    allowed_updates: ["channel_post"],
+    drop_pending_updates: false,
+    ...(secretToken ? { secret_token: secretToken } : {}),
+  });
 }
 export async function getPluginWebhookInfo() { return tg("getWebhookInfo", {}); }
 export async function getPluginChannelAdminStatus() {
