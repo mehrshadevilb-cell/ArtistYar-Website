@@ -8,7 +8,12 @@ function authorized(request: Request) {
   const key = (process.env.WEB_ADMIN_API_KEY || "").trim();
   if (!key) return false;
   const url = new URL(request.url);
-  return request.headers.get("x-web-admin-key") === key || url.searchParams.get("key") === key;
+  const provided =
+    request.headers.get("x-web-admin-key") ||
+    request.headers.get("x-admin-api-key") ||
+    url.searchParams.get("key") ||
+    "";
+  return provided === key;
 }
 
 export async function GET(request: Request) {
