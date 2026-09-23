@@ -471,36 +471,6 @@ async function identify(imageFileId: string, fileName: string, caption: string, 
   throw new Error(last);
 }
 function esc(v: string) { return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-function sanitizeCaption(raw: string) {
-  let value = String(raw || "").replace(/\\r/g, "").trim();
-
-  // Remove tg:// emoji entities and Telegram-only emoji links.
-  value = value.replace(/\\[[^\\]]*\\]\\(tg:\/\/emoji\\?[^)]*\\)/gi, "");
-  value = value.replace(/tg:\/\/emoji[^\\s)]+/gi, "");
-
-  // Remove every URL except ArtistYar and the source ProAudios channel.
-  value = value.replace(/https?:\\/\\/[^\\s)]+/gi, match => {
-    const lower = match.toLowerCase();
-    return (lower.includes("artistyaar.ir") || lower.includes("t.me/proaudios")) ? match : "";
-  });
-  value = value.replace(/\\[[^\\]]+\\]\\((?!https?:\\/\\/(?:www\\.)?artistyaar\\.ir|https?:\\/\\/t\\.me\\/proaudios)[^)]*\\)/gi, "");
-  value = value.replace(/(^|\\s)https?:\\/\\/[^\\s]+/gi, (m) => {
-    const lower = m.toLowerCase();
-    return (lower.includes("artistyaar.ir") || lower.includes("t.me/proaudios")) ? m : " ";
-  });
-
-  // Remove common promotional lines left after link stripping.
-  value = value.split("\\n").filter(line => {
-    const t = line.trim();
-    if (!t) return true;
-    if (/^(beattalk|видеокурсы|beat\\s*talk|драм\\s*киты)/i.test(t)) return false;
-    if (/^https?:\\/\\/t\\.me\\/(?!proaudios\\b)/i.test(t)) return false;
-    return true;
-  }).join("\\n");
-
-  value = value.replace(/\\n{3,}/g, "\\n\\n").trim();
-  return value.slice(0, 3500);
-}
 function makeCaption(p: PluginData) {
   const translated = sanitizeCaption(p.translatedCaption || "");
   if (translated) {
