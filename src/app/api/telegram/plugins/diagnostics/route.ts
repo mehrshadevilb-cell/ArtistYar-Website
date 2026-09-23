@@ -43,6 +43,9 @@ export async function GET(request: Request) {
     webhook_secret_configured: Boolean(
       (process.env.TELEGRAM_PLUGIN_WEBHOOK_SECRET || "").trim()
     ),
+    webhook_secret_mode: (process.env.TELEGRAM_PLUGIN_WEBHOOK_SECRET || "").trim()
+      ? "explicit"
+      : "unsigned-fallback",
     google_ai_configured: Boolean(
       (
         process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
