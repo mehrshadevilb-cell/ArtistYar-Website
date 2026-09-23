@@ -716,14 +716,6 @@ function modelPool(prefix: string, singleName: string, defaults: readonly string
   return Array.from(new Set([...configured, ...(single ? [single] : []), ...defaults].filter(Boolean)));
 }
 
-function modelSpeedScore(model: string) {
-  const value = String(model || "").toLowerCase();
-  let score = 0;
-  if (/(flash|lite|mini|haiku|small|fast|instant)/i.test(value)) score += 40;
-  if (/(pro|max|opus|sonnet|large|70b|72b|405b)/i.test(value)) score -= 10;
-  return score;
-}
-
 async function discoverOpenAICompatibleModels(apiKey: string, baseUrl: string) {
   const base = validBaseUrl(baseUrl, "");
   if (!base) return [];
