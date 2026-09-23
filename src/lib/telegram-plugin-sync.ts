@@ -29,7 +29,7 @@ function siteUrl() {
   return (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
 }
 function clean(v: unknown, max = 500) {
-  return String(v ?? "").replace(/[\\u0000-\\u001f]/g, " ").replace(/\\s+/g, " ").trim().slice(0, max);
+  return String(v ?? "").replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
 async function tg(method: string, body: Record<string, unknown>) {
   const t = botToken();
@@ -54,7 +54,7 @@ async function telegramBytes(fileId: string) {
   return { bytes: Buffer.from(await res.arrayBuffer()), contentType: res.headers.get("content-type") || "application/octet-stream" };
 }
 function parseJson(text: string): PluginData {
-  const raw = text.trim().replace(/^\`\`\`json\\s*/i, "").replace(/^\`\`\`\\s*/i, "").replace(/\\s*\`\`\`$/i, "");
+  const raw = text.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
   const p = JSON.parse(raw);
   const arr = (v: unknown, max: number) => Array.isArray(v) ? v.map(x => clean(x, 180)).filter(Boolean).slice(0, max) : [];
   return {
@@ -126,7 +126,7 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
   throw new Error(last);
 }
 function esc(v: string) { return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-function tag(v: string) { return v.replace(/[^\\p{L}\\p{N}_-]/gu, "").slice(0, 40) || "plugin"; }
+function tag(v: string) { return v.replace(/[^\p{L}\p{N}_-]/gu, "").slice(0, 40) || "plugin"; }
 function makeCaption(p: PluginData) {
   const lines = [
     "🎛️ <b>" + esc(p.title) + "</b>",
