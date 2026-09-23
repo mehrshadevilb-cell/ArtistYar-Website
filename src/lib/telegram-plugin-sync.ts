@@ -241,6 +241,168 @@ function envList(name: string) {
 
 type AiHealth = { ok: number; fail: number; latencyMs: number; lastUsed: number; cooldownUntil: number };
 const AI_HEALTH = new Map<string, AiHealth>();
+const AI_DISCOVERY_CACHE = new Map<string, { expiresAt: number; models: string[]; baseUrl: string }>();
+const AI_DISCOVERY_TTL_MS = 5 * 60 * 1000;
+
+function providerNameFromEnvKey(keyName: string) {
+  return keyName.replace(/_API_KEY$/i, "").replace(/^PLUGIN_AI_/i, "").toLowerCase();
+}
+
+function discoverEnvCompatibleProviders() {
+  const known = new Set([
+    "openai", "openrouter", "anthropic", "google", "gemini",
+    "groq", "xai", "mistral", "together", "fireworks",
+    "agentrouter", "xkiro", "bytez", "deepseek",
+  ]);
+  const out: Array<{ id: string; keyName: string; baseName: string; modelName: string; baseUrl: string }> = [];
+  for (const keyName of Object.keys(process.env)) {
+    if (!/_API_KEY$/i.test(keyName) || !String(process.env[keyName] || "").trim()) continue;
+    const id = providerNameFromEnvKey(keyName);
+    if (!id || known.has(id)) continue;
+    const upper = id.toUpperCase();
+    const baseName = upper + "_BASE_URL";
+    const modelName = upper + "_MODEL";
+    const baseUrl = validBaseUrl(
+      process.env[baseName] || "",
+      ""
+    );
+    if (!baseUrl) continue;
+    out.push({ id, keyName, baseName, modelName, baseUrl });
+  }
+  return out;
+}
+
+async function discoverCachedModels(provider: string, apiKey: string, baseUrl: string) {
+  const cacheKey = provider + "|" + baseUrl;
+  const cached = AI_DISCOVERY_CACHE.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.models;
+  const models = await discoverOpenAICompatibleModels(apiKey, baseUrl);
+  AI_DISCOVERY_CACHE.set(cacheKey, { expiresAt: Date.now() + AI_DISCOVERY_TTL_MS, models, baseUrl });
+  return models;
+}
+
+function modelSpeedScore(model: string) {
+  const value = String(model || "").toLowerCase();
+  let score = 0;
+  if (/(flash|lite|mini|haiku|small|fast|instant)/i.test(value)) score += 40;
+  if (/(pro|max|opus|sonnet|large|70b|72b|405b)/i.test(value)) score -= 10;
+  return score;
+}
+
+export async function getAiRoutingDiagnostics() {
+  const providers: any[] = [];
+  const addProvider = async (id: string, keyName: string, baseName: string, modelName: string, fallbackBase = "") => {
+    const apiKey = (process.env[keyName] || "").trim();
+    if (!apiKey) return;
+    const base = validBaseUrl(process.env[baseName] || "", fallbackBase);
+    if (!base) {
+      providers.push({ provider: id, configured: true, base_url_configured: false, models: [] });
+      return;
+    }
+    let discovered: string[] = [];
+    let discoveryError = "";
+    try {
+      discovered = await discoverCachedModels(id, apiKey, base);
+    } catch (error) {
+      discoveryError = clean(error instanceof Error ? error.message : String(error), 180);
+    }
+    const configured = modelPool("PLUGIN_AI_" + id.toUpperCase(), modelName, []);
+    const models = Array.from(new Set([...configured, ...discovered]));
+    providers.push({
+      provider: id,
+      configured: true,
+      base_url_configured: true,
+      discovered_model_count: discovered.length,
+      models: rankModels(id, models).slice(0, 100).map(model => {
+        const h = healthFor(id, model);
+        const attempts = h.ok + h.fail;
+        return {
+          model,
+          state: h.cooldownUntil > Date.now() ? "cooldown" : attempts ? (h.ok > h.fail ? "healthy" : "degraded") : "unprobed",
+          success_count: h.ok,
+          failure_count: h.fail,
+          success_ratio: attempts ? Number((h.ok / attempts).toFixed(3)) : null,
+          latency_ms: Math.round(h.latencyMs),
+          cooldown_until: h.cooldownUntil || null,
+          last_used: h.lastUsed || null,
+          speed_score: modelSpeedScore(model),
+        };
+      }),
+      discovery_error: discoveryError || null,
+    });
+  };
+
+  const googleKey = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
+  if (googleKey) {
+    let discovered: string[] = [];
+    let errorMessage = "";
+    try {
+      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(googleKey), { cache: "no-store", signal: AbortSignal.timeout(10000) });
+      const data = await res.json().catch(() => null);
+      if (res.ok && Array.isArray(data?.models)) {
+        discovered = data.models
+          .filter((m: any) => Array.isArray(m?.supportedGenerationMethods) && m.supportedGenerationMethods.includes("generateContent"))
+          .map((m: any) => String(m?.name || "").replace(/^models\//, "").trim())
+          .filter(Boolean);
+      } else {
+        errorMessage = clean(data?.error?.message || ("google_http_" + res.status), 180);
+      }
+    } catch (error) {
+      errorMessage = clean(error instanceof Error ? error.message : String(error), 180);
+    }
+    const configured = modelPool("PLUGIN_AI_GEMINI", "PLUGIN_AI_GEMINI_MODEL", []);
+    const models = Array.from(new Set([...configured, ...discovered]));
+    providers.push({
+      provider: "google",
+      configured: true,
+      base_url_configured: true,
+      discovered_model_count: discovered.length,
+      models: rankModels("google", models).slice(0, 100).map(model => {
+        const h = healthFor("google", model);
+        const attempts = h.ok + h.fail;
+        return {
+          model,
+          state: h.cooldownUntil > Date.now() ? "cooldown" : attempts ? (h.ok > h.fail ? "healthy" : "degraded") : "unprobed",
+          success_count: h.ok,
+          failure_count: h.fail,
+          success_ratio: attempts ? Number((h.ok / attempts).toFixed(3)) : null,
+          latency_ms: Math.round(h.latencyMs),
+          cooldown_until: h.cooldownUntil || null,
+          last_used: h.lastUsed || null,
+          speed_score: modelSpeedScore(model),
+        };
+      }),
+      discovery_error: errorMessage || null,
+    });
+  }
+
+  await addProvider("openai", "OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_MODEL", "https://api.openai.com/v1");
+  await addProvider("openrouter", "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENROUTER_MODEL", "https://openrouter.ai/api/v1");
+  await addProvider("anthropic", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL", "");
+  const compatible = [
+    ["groq","GROQ_API_KEY","GROQ_BASE_URL","GROQ_MODEL","https://api.groq.com/openai/v1"],
+    ["xai","XAI_API_KEY","XAI_BASE_URL","XAI_MODEL","https://api.x.ai/v1"],
+    ["mistral","MISTRAL_API_KEY","MISTRAL_BASE_URL","MISTRAL_MODEL","https://api.mistral.ai/v1"],
+    ["together","TOGETHER_API_KEY","TOGETHER_BASE_URL","TOGETHER_MODEL","https://api.together.xyz/v1"],
+    ["fireworks","FIREWORKS_API_KEY","FIREWORKS_BASE_URL","FIREWORKS_MODEL","https://api.fireworks.ai/inference/v1"],
+    ["agentrouter","AGENTROUTER_API_KEY","AGENTROUTER_BASE_URL","AGENTROUTER_MODEL","https://co.agentrouter.org/v1"],
+    ["xkiro","XKIRO_API_KEY","XKIRO_BASE_URL","XKIRO_MODEL","https://api.xkiro.com/v1"],
+    ["bytez","BYTEZ_API_KEY","BYTEZ_BASE_URL","BYTEZ_MODEL","https://api.bytez.com/models/v2/openai/v1"],
+    ["deepseek","DEEPSEEK_API_KEY","DEEPSEEK_BASE_URL","DEEPSEEK_MODEL","https://api.deepseek.com/v1"],
+  ] as const;
+  for (const [id, keyName, baseName, modelName, fallback] of compatible) {
+    await addProvider(id, keyName, baseName, modelName, fallback);
+  }
+  for (const p of discoverEnvCompatibleProviders()) {
+    await addProvider(p.id, p.keyName, p.baseName, p.modelName, p.baseUrl);
+  }
+  return {
+    generated_at: new Date().toISOString(),
+    routing: "measured_success_rate_then_latency_then_model_speed",
+    providers,
+  };
+}
+
 
 function healthKey(provider: string, model: string) {
   return provider + ":" + model;
@@ -705,6 +867,22 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
     }
   }
 
+
+  // Also discover any OpenAI-compatible provider configured in ENV, even if it
+  // was not known when this integration was written.
+  for (const p of discoverEnvCompatibleProviders()) {
+    const apiKey = (process.env[p.keyName] || "").trim();
+    const models = await discoverCachedModels(p.id, apiKey, p.baseUrl);
+    const configured = modelPool("PLUGIN_AI_" + p.id.toUpperCase(), p.modelName, []);
+    for (const model of Array.from(new Set([...configured, ...models]))) {
+      candidates.push({
+        provider: p.id,
+        model,
+        run: () => openAICompatible(p.id, apiKey, p.baseUrl, [model], dataUrl, fileName, caption),
+      });
+    }
+  }
+
   if (!candidates.length) throw new Error("no_plugin_vision_ai_configured");
 
   // Global automatic routing:
@@ -819,7 +997,22 @@ export async function processPluginPair(photo: TgMessage, doc: TgMessage) {
   const finalCaption = makeCaption(p);
   // The photo is the original public post we enrich. Never edit/repost the
   // companion document: it must remain the original downloadable file message.
-  await editCaption(photo.chat?.id || chatId, photo.message_id, finalCaption);
+  try {
+    await editCaption(photo.chat?.id || chatId, photo.message_id, finalCaption);
+  } catch (error) {
+    const message = clean(error instanceof Error ? error.message : String(error), 300);
+    if (/message to edit not found|message not found/i.test(message)) {
+      // The source message may have been deleted/expired before the worker ran.
+      // This is terminal for Telegram editing, not a retryable AI/queue failure.
+      await db.from("telegram_plugin_posts").update({
+        status: "published",
+        error_message: "source_message_not_found",
+        updated_at: new Date().toISOString(),
+      }).eq("id", result.data?.id);
+      return { id: result.data?.id, title: p.title, edit_skipped: true };
+    }
+    throw error;
+  }
   return { id: result.data?.id, title: p.title };
 }
 export async function enqueuePluginMessage(message: TgMessage) {
