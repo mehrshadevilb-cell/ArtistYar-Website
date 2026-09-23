@@ -172,7 +172,7 @@ function parseJson(text: string): PluginData {
     translatedCaption: clean(p.translated_caption, 3500),
   };
 }
-const SYSTEM_BASE = "You are ArtistYar's automatic Telegram plugin content engine. Identify a music-production plugin from the available image, filename and caption. FACT PRIORITY: explicit caption facts first, then filename, then visible image text. Never contradict explicit facts. Preserve exact product/developer names, versions, formats, platforms, technical terms and factual meaning. Never invent unknown values. Remove promotional noise and all external links; the final caption must keep only ArtistYar and @ProAudios references added by the application. Return JSON only with title, developer, version, category, formats, platforms, description, features, tags, translated_caption. Use concise natural Persian for description/features and conventional English for product/developer/technical names. Category examples: Synthesizer, EQ, Compressor, Reverb, Delay, Saturation, Distortion, Limiter, Dynamics, Instrument, Sampler, Utility, Mastering, Bundle, Other.";
+const SYSTEM_BASE = "You are ArtistYar's automatic Telegram plugin editor. Produce a clean, premium, information-dense Persian caption for a professional music-production plugin. FACT PRIORITY: explicit source caption > filename > visible image text. Never contradict or embellish source facts. Preserve exact product/developer names, version numbers, formats, operating systems, technical terms and factual meaning. Never invent missing specifications, prices, links, features or compatibility. Remove spam, reseller language, repeated emojis, promotional claims and ALL external links/usernames; the application adds the only ArtistYar/ProAudios footer. Return JSON only with title, developer, version, category, formats, platforms, description, features, tags, translated_caption. Keep description/features concise and technically useful. translated_caption must read naturally in Persian, not like machine translation: use short paragraphs, clear labels when useful, minimal emojis, no hype, no redundant restatement. Prefer 1-2 short paragraphs plus at most 4 compact feature bullets. Keep the complete translated_caption under 850 characters so the final Telegram caption remains comfortably below the platform limit. Use conventional English for product/developer/technical names. Category examples: Synthesizer, EQ, Compressor, Reverb, Delay, Saturation, Distortion, Limiter, Dynamics, Instrument, Sampler, Utility, Mastering, Bundle, Other.";
 
 function buildAiSystem(caption: string) {
   if (String(caption || "").trim()) {
@@ -204,6 +204,9 @@ function sanitizeCaption(raw: string) {
     return !/(BEATTALK|ДРАМ КИТЫ|Видеокурсы по музыке|beat talk|драм киты)/i.test(t);
   }).join("\n");
   value = value.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  // Keep Telegram captions compact and scannable. Remove empty bullet noise
+  // without changing factual wording supplied by the model.
+  value = value.split("\n").map(line => line.trimEnd()).filter((line, i, arr) => line || arr[i - 1]).join("\n").trim();
   if (!value) return "";
   return (value + "\n\n🎛️ ArtistYar — https://artistyaar.ir\n📢 Channel: @ProAudios").slice(0, 1000);
 }
