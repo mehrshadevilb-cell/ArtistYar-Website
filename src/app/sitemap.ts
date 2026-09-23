@@ -9,7 +9,7 @@ const publicRoutes: { path: string; priority: number; changeFrequency: "weekly" 
   { path: "/free-player", priority: 0.9, changeFrequency: "monthly" },
   { path: "/practice", priority: 0.88, changeFrequency: "weekly" },
   { path: "/online", priority: 0.85, changeFrequency: "monthly" },
-  { path: "/gallery", priority: 0.8, changeFrequency: "weekly" },
+  { path: "/gallery", priority: 0.8, changeFrequency: "weekly" },\n  { path: "/plugins", priority: 0.82, changeFrequency: "daily" },
   { path: "/about", priority: 0.75, changeFrequency: "monthly" },
   { path: "/contact", priority: 0.7, changeFrequency: "monthly" },
   { path: "/track", priority: 0.5, changeFrequency: "monthly" },
