@@ -29,7 +29,7 @@ function collectIds(...values: Array<string | null | undefined>) {
 
 async function findActivePro(userIds: string[]) {
   if (!db || !userIds.length) return null;
-  const { data } = await db
+  const { data, error } = await db
     .from("practice_subscriptions")
     .select("id,expires_at,created_at,status,user_id")
     .in("user_id", userIds)
@@ -37,6 +37,7 @@ async function findActivePro(userIds: string[]) {
     .gt("expires_at", new Date().toISOString())
     .order("expires_at", { ascending: false })
     .limit(1);
+  if (error) throw new Error(`practice_subscription_query_failed: ${error.message}`);
   return data?.[0] || null;
 }
 
@@ -44,12 +45,13 @@ async function countDailyUsage(userIds: string[]) {
   if (!db || !userIds.length) return 0;
   const start = new Date(`${dayKey()}T00:00:00.000Z`);
   const end = new Date(start.getTime() + 86400000);
-  const { data } = await db
+  const { data, error } = await db
     .from("practice_records")
     .select("id")
     .in("user_id", userIds)
     .gte("played_at", start.toISOString())
     .lt("played_at", end.toISOString());
+  if (error) throw new Error(`practice_daily_usage_query_failed: ${error.message}`);
   return data?.length || 0;
 }
 
