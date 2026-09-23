@@ -20,6 +20,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!db) return NextResponse.json({ ok: false, error: "payment_store_not_configured" }, { status: 503 });
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > 16 * 1024) return NextResponse.json({ ok: false, error: "درخواست بیش از حد بزرگ است." }, { status: 413 });
   const body = await request.json().catch(() => ({}));
   const userId = String(body.userId || "").trim();
   const reference = String(body.reference || "").trim().slice(0, 120);
@@ -33,6 +35,6 @@ export async function POST(request: Request) {
     amount_toman: 40000,
     status: "pending",
   });
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
+  if (error) return NextResponse.json({ ok: false, error: "ثبت درخواست پرداخت ناموفق بود." }, { status: 503 });
   return NextResponse.json({ ok: true });
 }
