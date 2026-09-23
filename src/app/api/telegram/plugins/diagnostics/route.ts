@@ -90,7 +90,7 @@ export async function GET(request: Request) {
       db
         .from("telegram_plugin_ingest_queue")
         .select(
-          "id,channel_id,message_id,kind,file_name,mime_type,file_size,caption,received_at"
+          "id,channel_id,message_id,kind,file_id,file_name,mime_type,file_size,caption,received_at"
         )
         .order("received_at", { ascending: false })
         .limit(10),
