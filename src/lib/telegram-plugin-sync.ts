@@ -216,7 +216,7 @@ async function openAICompatible(
   apiKey: string,
   baseUrl: string,
   models: string[],
-  imageData: string,
+  imageData: string | null,
   fileName: string,
   caption: string,
 ) {
@@ -239,10 +239,12 @@ async function openAICompatible(
           max_tokens: 1200,
           messages: [
             { role: "system", content: SYSTEM },
-            { role: "user", content: [
-              { type: "text", text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") },
-              { type: "image_url", image_url: { url: imageData } },
-            ] },
+            { role: "user", content: imageData
+              ? [
+                  { type: "text", text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") },
+                  { type: "image_url", image_url: { url: imageData } },
+                ]
+              : "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") + "\nIMPORTANT: Telegram image download is unavailable. Identify only from filename/caption and translate the caption faithfully; do not invent visual facts." },
           ],
         }),
         signal: AbortSignal.timeout(30000),
@@ -265,7 +267,7 @@ async function openAICompatible(
   throw new Error(last);
 }
 
-async function google(bytes: Buffer, mime: string, fileName: string, caption: string, models: string[]) {
+async function google(bytes: Buffer | null, mime: string, fileName: string, caption: string, models: string[]) {
   const k = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
   if (!k) throw new Error("google_not_configured");
   let last = "google_no_working_model";
@@ -276,8 +278,8 @@ async function google(bytes: Buffer, mime: string, fileName: string, caption: st
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: SYSTEM }] },
           contents: [{ role: "user", parts: [
-            { text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") },
-            { inline_data: { mime_type: mime || "image/jpeg", data: bytes.toString("base64") } },
+            { text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") + (bytes ? "" : "\nIMPORTANT: Telegram image download is unavailable. Identify only from filename/caption and translate the caption faithfully; do not invent visual facts.") },
+            ...(bytes ? [{ inline_data: { mime_type: mime || "image/jpeg", data: bytes.toString("base64") } }] : []),
           ] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 1200, responseMimeType: "application/json" },
         }),
@@ -305,10 +307,10 @@ async function anthropic(imageData: string, fileName: string, caption: string, m
   const k = (process.env.ANTHROPIC_API_KEY || "").trim();
   if (!k) throw new Error("anthropic_not_configured");
   let last = "anthropic_no_working_model";
-  const comma = imageData.indexOf(",");
-  const meta = imageData.slice(5, comma);
+  const comma = imageData ? imageData.indexOf(",") : -1;
+  const meta = imageData && comma >= 0 ? imageData.slice(5, comma) : "";
   const mediaType = (meta.split(";")[0] || "image/jpeg");
-  const base64 = imageData.slice(comma + 1);
+  const base64 = imageData && comma >= 0 ? imageData.slice(comma + 1) : "";
   for (const model of models) {
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -323,8 +325,8 @@ async function anthropic(imageData: string, fileName: string, caption: string, m
           max_tokens: 1200,
           system: SYSTEM,
           messages: [{ role: "user", content: [
-            { type: "text", text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") },
-            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+            { type: "text", text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") + (imageData ? "" : "\nIMPORTANT: Telegram image download is unavailable. Identify only from filename/caption and translate the caption faithfully; do not invent visual facts.") },
+            ...(imageData ? [{ type: "image", source: { type: "base64", media_type: mediaType, data: base64 } }] : []),
           ] }],
         }),
         signal: AbortSignal.timeout(30000),
@@ -355,17 +357,29 @@ function modelPool(prefix: string, singleName: string, defaults: readonly string
 
 async function identify(imageFileId: string, fileName: string, caption: string) {
   // ONLY the Telegram photo is downloaded for AI vision. Documents (ZIP/RAR/VST/etc.) are never opened, extracted, or downloaded; their filename is metadata only.
-  const image = await telegramBytes(imageFileId);
-  if (!image.contentType.startsWith("image/")) throw new Error("telegram_photo_not_image");
-  const dataUrl = "data:" + image.contentType + ";base64," + image.bytes.toString("base64");
+  // If Telegram refuses the photo, keep the pipeline alive with filename+caption AI.
+  let image: { bytes: Buffer; contentType: string } | null = null;
+  let visionError = "";
+  try {
+    const downloaded = await telegramBytes(imageFileId);
+    if (!downloaded.contentType.startsWith("image/")) throw new Error("telegram_photo_not_image");
+    image = downloaded;
+  } catch (error) {
+    visionError = clean(error instanceof Error ? error.message : String(error), 300);
+    console.warn("telegram_plugin_vision_unavailable", visionError);
+  }
+
+  const dataUrl = image
+    ? "data:" + image.contentType + ";base64," + image.bytes.toString("base64")
+    : null;
 
   const googleKey = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
   const candidates: Array<() => Promise<AiResult>> = [];
 
   if (googleKey) {
     candidates.push(() => google(
-      image.bytes,
-      image.contentType,
+      image?.bytes || null,
+      image?.contentType || "image/jpeg",
       fileName,
       caption,
       modelPool("PLUGIN_AI_GEMINI", "PLUGIN_AI_GEMINI_MODEL", ["gemini-2.5-flash", "gemini-2.5-pro"])
