@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -14,22 +15,42 @@ type Plugin = {
   file_name?: string | null; created_at: string;
 };
 
-async function getPlugins(search = "", category = ""): Promise<Plugin[]> {
-  const base = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
-  try {
-    const params = new URLSearchParams({ limit: "60" });
-    if (search) params.set("q", search);
-    if (category) params.set("category", category);
-    const res = await fetch(base + "/api/plugins?" + params.toString(), {
-      cache: "no-store",
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!res.ok) return [];
-    const data = await res.json().catch(() => null);
-    return Array.isArray(data?.items) ? data.items : [];
-  } catch { return []; }
-}
+async function getPlugins(search = "", category = ""): Promise<{ items: Plugin[]; unavailable: boolean }> {
+  const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
+  const key = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  if (!url || !key) return { items: [], unavailable: true };
 
+  try {
+    const db = createClient(url, key, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    let query = db
+      .from("telegram_plugin_posts")
+      .select("id,title,developer,version,category,formats,platforms,description,features,tags,telegram_photo_file_id,telegram_post_url,file_name,created_at")
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .limit(60);
+
+    const safeSearch = search.replace(/[%_]/g, "").slice(0, 80);
+    const safeCategory = category.slice(0, 80);
+    if (safeSearch) {
+      query = query.or(
+        "title.ilike.%" + safeSearch + "%,developer.ilike.%" + safeSearch + "%,description.ilike.%" + safeSearch + "%",
+      );
+    }
+    if (safeCategory) query = query.eq("category", safeCategory);
+
+    const result = await query;
+    if (result.error) {
+      console.error("plugins_page_query_failed", result.error.message);
+      return { items: [], unavailable: true };
+    }
+    return { items: (result.data || []) as Plugin[], unavailable: false };
+  } catch (error) {
+    console.error("plugins_page_load_failed", error);
+    return { items: [], unavailable: true };
+  }
+}
 function CoverArt() {
   return (
     <div aria-hidden="true" className="relative min-h-[280px] overflow-hidden rounded-[28px] border border-white/[.08] bg-[#090909] shadow-2xl sm:min-h-[340px]">
@@ -61,7 +82,8 @@ export default async function PluginsPage({ searchParams }: { searchParams?: Pro
   const params = searchParams ? await searchParams : {};
   const search = (params.q || "").trim();
   const category = (params.category || "").trim();
-  const items = await getPlugins(search, category);
+  const result = await getPlugins(search, category);
+  const items = result.items;
   const categories = Array.from(new Set(items.map(p => p.category).filter(Boolean))).slice(0, 12);
 
   return (
@@ -114,7 +136,14 @@ export default async function PluginsPage({ searchParams }: { searchParams?: Pro
         <a href="https://t.me/ProAudios" target="_blank" rel="noopener noreferrer" className="btn-ghost hidden sm:inline-flex">کانال ProAudios ↗</a>
       </div>
 
-      {!items.length ? (
+      {result.unavailable ? (
+        <div className="card-ay p-10 text-center">
+          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-red-300/15 bg-red-300/[.05] text-lg">!</div>
+          <h2 className="text-lg font-semibold text-sand-50">کتابخانه موقتاً در دسترس نیست</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-ink-400">اتصال کتابخانه پلاگین برقرار نشد. چند لحظه دیگر دوباره تلاش کنید.</p>
+          <Link href="/plugins" className="btn-primary mt-5 inline-flex">تلاش دوباره</Link>
+        </div>
+      ) : !items.length ? (
         <div className="card-ay p-10 text-center">
           <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-gold-300/15 bg-gold-300/[.05] text-xl">⌕</div>
           <h2 className="text-lg font-semibold text-sand-50">موردی پیدا نشد</h2>
