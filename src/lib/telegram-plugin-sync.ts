@@ -378,7 +378,41 @@ export async function getAiRoutingDiagnostics() {
 
   await addProvider("openai", "OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_MODEL", "https://api.openai.com/v1");
   await addProvider("openrouter", "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENROUTER_MODEL", "https://openrouter.ai/api/v1");
-  await addProvider("anthropic", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL", "");
+
+  const anthropicKey = (process.env.ANTHROPIC_API_KEY || "").trim();
+  if (anthropicKey) {
+    let discovered: string[] = [];
+    let discoveryError = "";
+    try {
+      discovered = await discoverAnthropicModels(anthropicKey);
+    } catch (error) {
+      discoveryError = clean(error instanceof Error ? error.message : String(error), 180);
+    }
+    const configured = modelPool("PLUGIN_AI_ANTHROPIC", "ANTHROPIC_MODEL", []);
+    const models = Array.from(new Set([...configured, ...discovered]));
+    providers.push({
+      provider: "anthropic",
+      configured: true,
+      base_url_configured: true,
+      discovered_model_count: discovered.length,
+      models: rankModels("anthropic", models).slice(0, 100).map(model => {
+        const h = healthFor("anthropic", model);
+        const attempts = h.ok + h.fail;
+        return {
+          model,
+          state: h.cooldownUntil > Date.now() ? "cooldown" : attempts ? (h.ok > h.fail ? "healthy" : "degraded") : "unprobed",
+          success_count: h.ok,
+          failure_count: h.fail,
+          success_ratio: attempts ? Number((h.ok / attempts).toFixed(3)) : null,
+          latency_ms: Math.round(h.latencyMs),
+          cooldown_until: h.cooldownUntil || null,
+          last_used: h.lastUsed || null,
+          speed_score: modelSpeedScore(model),
+        };
+      }),
+      discovery_error: discoveryError || null,
+    });
+  }
   const compatible = [
     ["groq","GROQ_API_KEY","GROQ_BASE_URL","GROQ_MODEL","https://api.groq.com/openai/v1"],
     ["xai","XAI_API_KEY","XAI_BASE_URL","XAI_MODEL","https://api.x.ai/v1"],
