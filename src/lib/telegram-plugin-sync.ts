@@ -196,28 +196,36 @@ function looksPersian(text: string) {
 }
 
 function sanitizeCaption(raw: string) {
-  return String(raw || "")
-    .replace(/\\[[^\\]]*\\]\\(tg:\\/\\/emoji[^)]*\\)/gi, "")
-    .replace(/https?:\\/\\/(?!artistyaar\\.ir(?:[\\/]|$)|t\\.me\\/ProAudios(?:[\\/]|$))[^\\s)]+/gi, "")
-    .replace(/https?:\\/\\/t\\.me\\/(?!ProAudios(?:[\\/]|$))[^\\s)]+/gi, "")
-    .replace(/\\[([^\\]]+)\\]\\((https?:\\/\\/[^)]+)\\)/gi, (m, label, href) =>
-      /artistyaar\\.ir|t\\.me\\/ProAudios/i.test(href) ? label + " " + href : label
-    )
-    .replace(/(?:BEATTALK|ДРАМ КИТЫ|Видеокурсы по музыке|beat talk|драм киты)/gi, "")
-    .replace(/\\n{3,}/g, "\\n\\n")
-    .trim()
-    .slice(0, 3500);
+  let value = String(raw || "").replace(/\r/g, "").trim();
+
+  value = value.replace(/\[[^\]]*\]\(tg:\/\/emoji\?[^)]*\)/gi, "");
+  value = value.replace(/tg:\/\/emoji[^\s)]+/gi, "");
+
+  value = value.replace(/https?:\/\/[^\s)]+/gi, match => {
+    const lower = match.toLowerCase();
+    return (lower.includes("artistyaar.ir") || lower.includes("t.me/proaudios")) ? match : "";
+  });
+
+  value = value.replace(/\[([^\]]+)\]\((?!https?:\/\/(?:www\.)?artistyaar\.ir|https?:\/\/t\.me\/proaudios)[^)]*\)/gi, "");
+  value = value.split("\n").filter(line => {
+    const t = line.trim();
+    return !/(BEATTALK|ДРАМ КИТЫ|Видеокурсы по музыке|beat talk|драм киты)/i.test(t);
+  }).join("\n");
+
+  return value.replace(/\n{3,}/g, "\n\n").trim().slice(0, 3500);
 }
 
 function captionFacts(caption: string) {
   const source = String(caption || "");
-  const version = source.match(/(?:version|v(?:ersion)?)[\\s:_-]*(\\d+(?:\\.\\d+){1,4})/i)?.[1]
-    || source.match(/\\bv(\\d+(?:\\.\\d+){1,4})\\b/i)?.[1]
+  const version = source.match(/(?:version|v(?:ersion)?)[\s:_-]*(\d+(?:\.\d+){1,4})/i)?.[1]
+    || source.match(/\bv(\d+(?:\.\d+){1,4})\b/i)?.[1]
     || "";
-  const formats = Array.from(new Set((source.match(/\\b(?:AU|AAX|VST3?|STANDALONE|CLAP|LV2)\\b/gi) || []).map(v => v.toUpperCase())));
+  const formats = Array.from(new Set(
+    (source.match(/\b(?:AU|AAX|VST3?|STANDALONE|CLAP|LV2)\b/gi) || []).map(v => v.toUpperCase())
+  ));
   const platforms = [
-    /(?:mac|macos|os x|\\bapple\\b|🍏)/i.test(source) ? "macOS" : "",
-    /(?:windows|win\\.?|\\bpc\\b)/i.test(source) ? "Windows" : "",
+    /(?:mac|macos|os x|\bapple\b|🍏)/i.test(source) ? "macOS" : "",
+    /(?:windows|win\.?|\bpc\b)/i.test(source) ? "Windows" : "",
     /(?:linux)/i.test(source) ? "Linux" : "",
   ].filter(Boolean);
   return { version, formats, platforms };
