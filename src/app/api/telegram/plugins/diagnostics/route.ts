@@ -69,6 +69,17 @@ export async function GET(request: Request) {
       openrouter: (process.env.PLUGIN_AI_OPENROUTER_MODELS || process.env.OPENROUTER_MODEL || "").split(",").map(v => v.trim()).filter(Boolean),
       anthropic: (process.env.PLUGIN_AI_ANTHROPIC_MODELS || process.env.ANTHROPIC_MODEL || "").split(",").map(v => v.trim()).filter(Boolean),
     },
+    ai_providers_configured: {
+      google: Boolean((process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim()),
+      openai: Boolean((process.env.OPENAI_API_KEY || "").trim()),
+      openrouter: Boolean((process.env.OPENROUTER_API_KEY || "").trim()),
+      anthropic: Boolean((process.env.ANTHROPIC_API_KEY || "").trim()),
+      groq: Boolean((process.env.GROQ_API_KEY || "").trim()),
+      xai: Boolean((process.env.XAI_API_KEY || "").trim()),
+      mistral: Boolean((process.env.MISTRAL_API_KEY || "").trim()),
+      together: Boolean((process.env.TOGETHER_API_KEY || "").trim()),
+      fireworks: Boolean((process.env.FIREWORKS_API_KEY || "").trim()),
+    },
   };
 
   try {
