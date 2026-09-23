@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@/styles/practice-shell.css";
 
 export const metadata: Metadata = {
   title: "تمرین‌خانه تولید موسیقی | آرتیست‌یار",
@@ -7,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function PracticeLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <div className="practice-root" dir="rtl">{children}</div>;
 }

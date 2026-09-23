@@ -1,0 +1,54 @@
+/* Phase 7 — Practice shell: mobile-first, RTL-safe, reduced-motion */
+
+.practice-shell {
+  min-height: 60vh;
+}
+
+.practice-shell .card-ay {
+  min-height: 44px;
+}
+
+.practice-sticky-actions {
+  position: sticky;
+  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  margin-inline: -0.5rem;
+  padding: 0.75rem;
+  background: linear-gradient(to top, rgba(11, 13, 18, 0.96), rgba(11, 13, 18, 0.85));
+  backdrop-filter: blur(8px);
+}
+
+@media (min-width: 640px) {
+  .practice-sticky-actions {
+    bottom: 0;
+    margin-inline: 0;
+    border-radius: 1rem;
+  }
+}
+
+@keyframes practice-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.practice-playing-indicator {
+  animation: practice-pulse 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .practice-playing-indicator {
+    animation: none;
+  }
+}
+
+.practice-shell button:focus-visible,
+.practice-shell a:focus-visible {
+  outline: 2px solid rgba(251, 191, 36, 0.7);
+  outline-offset: 2px;
+}
+
+@media (max-width: 374px) {
+  .practice-shell h1 {
+    font-size: 1.125rem;
+  }
+}
