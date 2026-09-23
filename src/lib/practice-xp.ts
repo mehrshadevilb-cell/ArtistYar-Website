@@ -1,0 +1,48 @@
+/** Phase 6 — authoritative XP (server-side). */
+export type XpInput = {
+  correct: boolean;
+  accuracy: number;
+  difficulty: number;
+  responseTimeMs?: number | null;
+  rated?: boolean;
+  recentPerfectEasyCount?: number;
+  workoutBonus?: boolean;
+  challengeBonus?: boolean;
+};
+const MAX_ROUND_XP = 45;
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+export function calculateRoundXp(input: XpInput): number {
+  if (input.rated === false) return 0;
+  const difficulty = clamp(Number(input.difficulty) || 1, 1, 500);
+  const accuracy = clamp(Number(input.accuracy) || 0, 0, 100);
+  const rt = input.responseTimeMs != null && input.responseTimeMs > 0 ? input.responseTimeMs : null;
+  if (!input.correct) {
+    return difficulty < 120 ? -12 : difficulty < 250 ? -8 : -5;
+  }
+  let xp = 8 + Math.round(difficulty / 25);
+  if (accuracy >= 100) xp += 6;
+  else if (accuracy >= 85) xp += 3;
+  if (rt != null) {
+    if (rt < 2500) xp += 4;
+    else if (rt < 4000) xp += 2;
+    else if (rt > 8000) xp -= 2;
+  }
+  const easySpam = Number(input.recentPerfectEasyCount) || 0;
+  if (difficulty < 100 && accuracy >= 100 && easySpam >= 5) xp = Math.min(xp, 3);
+  if (input.workoutBonus) xp += 5;
+  if (input.challengeBonus) xp += 8;
+  return clamp(xp, 0, MAX_ROUND_XP);
+}
+export function calculateWorkoutCompletionXp(accuracyPercent: number, slots: number): number {
+  const base = 25 + Math.min(40, slots * 8);
+  const acc = clamp(accuracyPercent, 0, 100);
+  return Math.round(base * (0.5 + acc / 200));
+}
+export function calculateChallengeXp(correctCount: number, total: number, difficulty: number): number {
+  const ratio = total > 0 ? correctCount / total : 0;
+  const base = Math.round(20 + difficulty / 20);
+  return clamp(Math.round(base * ratio * 1.4), 0, 80);
+}
+export { MAX_ROUND_XP };
