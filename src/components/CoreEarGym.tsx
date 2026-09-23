@@ -233,7 +233,8 @@ export function CoreEarGym({ onBack, initialGame, onComplete, title }: { onBack?
     setLoading(true);
     setAnswer(null);
     setResult(null);
-    setLastPlayed(false);\n    setSubmitError(null);
+    setLastPlayed(false);
+    setSubmitError(null);
     sessionId.current ||= globalThis.crypto?.randomUUID?.() || String(Date.now());
 
     if (!user?.id) {
@@ -416,7 +417,8 @@ export function CoreEarGym({ onBack, initialGame, onComplete, title }: { onBack?
                 <Play size={14} fill="currentColor" /> پخش
               </button>
             </div>
-            {audioError ? <p className="mt-3 text-xs text-red-300">{audioError}</p> : null}\n            {submitError ? <p className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/[.05] p-3 text-xs leading-6 text-amber-100">{submitError}</p> : null}
+            {audioError ? <p className="mt-3 text-xs text-red-300">{audioError}</p> : null}
+            {submitError ? <p className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/[.05] p-3 text-xs leading-6 text-amber-100">{submitError}</p> : null}
 
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               {q.options.map((o) => {
