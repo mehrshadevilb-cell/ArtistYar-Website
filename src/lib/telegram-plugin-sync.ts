@@ -482,7 +482,7 @@ export async function processPluginPair(photo: TgMessage, doc: TgMessage) {
   if (!chatId || !photoFileId || !docFileId) throw new Error("plugin_pair_missing_media");
   const fileName = clean(doc.document?.file_name, 240);
   const caption = clean(photo.caption || doc.caption, 1200);
-  const ai = await identify(photoFileId, fileName, caption, chatId);
+  const ai = await identify(photoFileId, fileName, caption);
   const p = enforceCaptionFacts(ai.data, caption);
   const postUrl = photo.chat?.username ? "https://t.me/" + photo.chat.username + "/" + photo.message_id : null;
   const result = await db.from("telegram_plugin_posts").upsert({
@@ -633,8 +633,18 @@ export async function processPendingPluginPairs(limit = 5) {
         p_photo_id: photo.id,
         p_document_id: best.id,
       });
-      if (claim.error) throw new Error("plugin_pair_claim_failed:" + claim.error.message);
-      if (!claim.data) continue;
+
+      if (claim.error) {
+        const missingClaimFunction =
+          /claim_telegram_plugin_pair|function .* does not exist|schema cache/i.test(claim.error.message || "");
+        if (!missingClaimFunction) {
+          throw new Error("plugin_pair_claim_failed:" + claim.error.message);
+        }
+        // Backward-compatible fallback while the Supabase migration is being applied.
+        console.warn("telegram_plugin_pair_claim_unavailable", claim.error.message);
+      } else if (!claim.data) {
+        continue;
+      }
 
       await processPluginPair(rowToPhoto(photo), rowToDocument(best));
       const deleted = await db.from("telegram_plugin_ingest_queue")
