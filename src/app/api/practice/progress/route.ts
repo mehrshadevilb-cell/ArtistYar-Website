@@ -30,6 +30,10 @@ type QuotaResult = {
   error?: string;
 };
 
+type RefundResult =
+  | { ok: true; alreadyRefunded?: boolean }
+  | { ok: false; error: string };
+
 async function consumeDailyStage(userId: string, isPro: boolean): Promise<QuotaResult> {
   const db = await getDb();
   if (!db) throw new Error("practice_store_unavailable");
@@ -50,19 +54,46 @@ async function consumeDailyStage(userId: string, isPro: boolean): Promise<QuotaR
   };
 }
 
-/** Refund only the exact consumption token — cannot refund another request's quota. */
-async function refundDailyStage(userId: string, consumptionId: string | null): Promise<void> {
-  if (!consumptionId) return;
-  try {
-    const db = await getDb();
-    if (!db) return;
-    await db.rpc("refund_practice_daily_stage", {
-      p_user_id: userId,
-      p_consumption_id: consumptionId,
-    });
-  } catch {
-    /* best-effort */
+/**
+ * Refund only the exact consumption token — cannot refund another request's quota.
+ * Never swallows failures: caller must fail-closed if ok=false when a token was held.
+ */
+async function refundDailyStage(
+  userId: string,
+  consumptionId: string | null,
+): Promise<RefundResult> {
+  if (!consumptionId) {
+    return { ok: true };
   }
+  const db = await getDb();
+  if (!db) {
+    return { ok: false, error: "practice_store_unavailable" };
+  }
+  const { data, error } = await db.rpc("refund_practice_daily_stage", {
+    p_user_id: userId,
+    p_consumption_id: consumptionId,
+  });
+  if (error) {
+    return { ok: false, error: `refund_practice_daily_stage_failed: ${error.message}` };
+  }
+  const row = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+  if (row.ok === false) {
+    return { ok: false, error: String(row.error || "refund_rejected") };
+  }
+  return { ok: true, alreadyRefunded: Boolean(row.alreadyRefunded) };
+}
+
+function quotaRefundFailedResponse(refundError: string, saveError?: string) {
+  return NextResponse.json(
+    {
+      ok: false,
+      code: "quota_refund_failed",
+      error: "بازگشت سهمیه روزانه ناموفق بود. مرحله مصرف‌شده ممکن است باقی مانده باشد.",
+      refundError,
+      ...(saveError ? { saveError } : {}),
+    },
+    { status: 503 },
+  );
 }
 
 async function isProUser(userIds: string[]) {
@@ -220,10 +251,17 @@ export async function POST(request: Request) {
     }
 
     const accuracy = claims
-      ? verifiedCorrect ? 100 : 0
+      ? verifiedCorrect
+        ? 100
+        : 0
       : Number.isFinite(Number(body.accuracy))
-        ? Math.max(0, Math.min(100, Number(body.accuracy) <= 1 ? Number(body.accuracy) * 100 : Number(body.accuracy)))
-        : verifiedCorrect ? 100 : 0;
+        ? Math.max(
+            0,
+            Math.min(100, Number(body.accuracy) <= 1 ? Number(body.accuracy) * 100 : Number(body.accuracy)),
+          )
+        : verifiedCorrect
+          ? 100
+          : 0;
 
     const streak = verifiedCorrect ? 1 : 0;
     const bestScore = Math.max(0, Math.min(45, score));
@@ -258,8 +296,11 @@ export async function POST(request: Request) {
       }
 
       if (itemKey && (await isDuplicateSubmission(userId, itemKey))) {
-        await refundDailyStage(userId, heldConsumptionId);
+        const refund = await refundDailyStage(userId, heldConsumptionId);
         heldConsumptionId = null;
+        if (!refund.ok) {
+          return quotaRefundFailedResponse(refund.error, "duplicate_round_after_consume");
+        }
         return NextResponse.json({ ok: false, error: "duplicate_round", code: "duplicate" }, { status: 409 });
       }
     }
@@ -287,13 +328,16 @@ export async function POST(request: Request) {
         },
       });
     } catch (saveErr) {
-      await refundDailyStage(userId, heldConsumptionId);
-      heldConsumptionId = null;
       const msg = saveErr instanceof Error ? saveErr.message : String(saveErr);
+      const refund = await refundDailyStage(userId, heldConsumptionId);
+      heldConsumptionId = null;
+      if (!refund.ok) {
+        return quotaRefundFailedResponse(refund.error, msg);
+      }
       if (/duplicate|unique|23505/i.test(msg)) {
         return NextResponse.json({ ok: false, error: "duplicate_round", code: "duplicate" }, { status: 409 });
       }
-      throw saveErr;
+      return NextResponse.json({ ok: false, error: msg, code: "save_failed" }, { status: 503 });
     }
 
     try {
