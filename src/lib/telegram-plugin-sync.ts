@@ -61,11 +61,32 @@ function imageMimeFromPath(filePath: string, header: string | null) {
 }
 
 async function telegramBytes(fileId: string) {
-  const file = await telegramGetFile(fileId);
-  const res = await fetch(file.url, { cache: "no-store", signal: AbortSignal.timeout(30000) });
-  if (!res.ok) throw new Error("telegram_file_download_failed_" + res.status);
-  const bytes = Buffer.from(await res.arrayBuffer());
-  return { bytes, contentType: imageMimeFromPath(file.filePath, res.headers.get("content-type")) };
+  let last = "telegram_file_download_failed";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      // Always request a fresh file_path. Telegram file URLs are temporary;
+      // an old queued file_path can expire even though the file_id is still
+      // present in our queue.
+      const file = await telegramGetFile(fileId);
+      const res = await fetch(file.url, {
+        cache: "no-store",
+        headers: { accept: "image/*,*/*;q=0.8" },
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) {
+        const bytes = Buffer.from(await res.arrayBuffer());
+        return {
+          bytes,
+          contentType: imageMimeFromPath(file.filePath, res.headers.get("content-type")),
+        };
+      }
+      last = "telegram_file_download_failed_" + res.status;
+    } catch (error) {
+      last = error instanceof Error ? error.message : String(error);
+    }
+    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 700 * (attempt + 1)));
+  }
+  throw new Error(last);
 }
 function parseJson(text: string): PluginData {
   const raw = text.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
