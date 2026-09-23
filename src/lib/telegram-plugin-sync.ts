@@ -682,6 +682,22 @@ export async function setPluginWebhook(urlValue: string, secretToken?: string) {
   return tg("setWebhook", { url: urlValue, allowed_updates: ["channel_post", "edited_channel_post"], drop_pending_updates: false, ...(secretToken ? { secret_token: secretToken } : {}) });
 }
 export async function getPluginWebhookInfo() { return tg("getWebhookInfo", {}); }
+export async function getPluginChannelAdminStatus() {
+  const me = await tg("getMe", {});
+  const chatId = configuredChannel();
+  const member = await tg("getChatMember", {
+    chat_id: chatId,
+    user_id: Number(me?.id),
+  });
+  return {
+    bot_id: me?.id,
+    bot_username: me?.username,
+    status: member?.status,
+    can_edit_messages: member?.can_edit_messages ?? false,
+    can_post_messages: member?.can_post_messages ?? false,
+    can_delete_messages: member?.can_delete_messages ?? false,
+  };
+}
 export async function pluginImageResponse(fileId: string) {
   const file = await telegramGetFile(fileId);
   const res = await fetch(file.url, { cache: "no-store", signal: AbortSignal.timeout(20000) });
