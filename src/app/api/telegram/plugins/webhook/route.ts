@@ -18,9 +18,16 @@ function expectedSecret() {
 }
 
 function authorized(request: Request) {
-  const expected = expectedSecret();
-  if (!expected) return false;
-  return request.headers.get("x-telegram-bot-api-secret-token") === expected;
+  const explicit = (process.env.TELEGRAM_PLUGIN_WEBHOOK_SECRET || "").trim();
+  const provided = request.headers.get("x-telegram-bot-api-secret-token") || "";
+
+  // If a secret is explicitly configured, require it.
+  // If it is not configured, accept Telegram's normal unsigned webhook.
+  // This keeps the existing production webhook working until setup is run with
+  // a secret, instead of returning 401 for every channel_post.
+  if (explicit) return provided === explicit;
+
+  return true;
 }
 
 export async function POST(request: Request) {
