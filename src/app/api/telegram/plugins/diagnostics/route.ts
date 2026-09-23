@@ -32,6 +32,7 @@ export async function GET(request: Request) {
       })
     : null;
 
+  const requestedProcess = new URL(request.url).searchParams.get("process") === "1";
   const out: Record<string, unknown> = {
     ok: true,
     telegram_bot_token_configured: pluginTokenConfigured(),
@@ -54,6 +55,12 @@ export async function GET(request: Request) {
         /\/$/,
         ""
       ),
+    ai_model_pools: {
+      google: (process.env.PLUGIN_AI_GEMINI_MODELS || process.env.PLUGIN_AI_GEMINI_MODEL || "").split(",").map(v => v.trim()).filter(Boolean),
+      openai: (process.env.PLUGIN_AI_OPENAI_MODELS || process.env.PLUGIN_AI_VISION_MODEL || process.env.OPENAI_MODEL || "").split(",").map(v => v.trim()).filter(Boolean),
+      openrouter: (process.env.PLUGIN_AI_OPENROUTER_MODELS || process.env.OPENROUTER_MODEL || "").split(",").map(v => v.trim()).filter(Boolean),
+      anthropic: (process.env.PLUGIN_AI_ANTHROPIC_MODELS || process.env.ANTHROPIC_MODEL || "").split(",").map(v => v.trim()).filter(Boolean),
+    },
   };
 
   try {
@@ -64,6 +71,18 @@ export async function GET(request: Request) {
   }
 
   if (db) {
+    if (requestedProcess) {
+      try {
+        const { processPendingPluginPairs } = await import("@/lib/telegram-plugin-sync");
+        out.process = await processPendingPluginPairs(1);
+      } catch (error) {
+        out.process = {
+          processed: 0,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+
     const [queue, posts] = await Promise.all([
       db
         .from("telegram_plugin_ingest_queue")
