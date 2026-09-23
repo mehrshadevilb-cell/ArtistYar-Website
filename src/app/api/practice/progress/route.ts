@@ -26,10 +26,10 @@ type QuotaResult = {
   consumed: number;
   remaining: number | null;
   dailyLimit: number | null;
+  consumptionId: string | null;
   error?: string;
 };
 
-/** Atomic Free daily-stage consume via DB RPC. Pro/admin: allowed without consuming. Fail closed on errors. */
 async function consumeDailyStage(userId: string, isPro: boolean): Promise<QuotaResult> {
   const db = await getDb();
   if (!db) throw new Error("practice_store_unavailable");
@@ -45,18 +45,23 @@ async function consumeDailyStage(userId: string, isPro: boolean): Promise<QuotaR
     consumed: Number(row.consumed) || 0,
     remaining: row.remaining == null ? null : Number(row.remaining),
     dailyLimit: row.dailyLimit == null ? null : Number(row.dailyLimit),
+    consumptionId: row.consumptionId ? String(row.consumptionId) : null,
     error: row.error ? String(row.error) : undefined,
   };
 }
 
-/** Refund one Free stage after a failed save (best-effort). */
-async function refundDailyStage(userId: string): Promise<void> {
+/** Refund only the exact consumption token — cannot refund another request's quota. */
+async function refundDailyStage(userId: string, consumptionId: string | null): Promise<void> {
+  if (!consumptionId) return;
   try {
     const db = await getDb();
     if (!db) return;
-    await db.rpc("refund_practice_daily_stage", { p_user_id: userId });
+    await db.rpc("refund_practice_daily_stage", {
+      p_user_id: userId,
+      p_consumption_id: consumptionId,
+    });
   } catch {
-    /* best-effort refund */
+    /* best-effort */
   }
 }
 
@@ -141,12 +146,11 @@ export async function POST(request: Request) {
   const requestedUserId = String(body.userId || "").slice(0, 120);
   const auth = await authorizedUser(request, requestedUserId);
   if (!auth) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-
   if (!auth.admin && requestedUserId && requestedUserId !== auth.id) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
-  let quotaConsumed = false;
+  let heldConsumptionId: string | null = null;
   const userId = auth.id;
 
   try {
@@ -165,12 +169,8 @@ export async function POST(request: Request) {
           ? String(metadata.fingerprint).slice(0, 240)
           : null;
 
-    // 1) Duplicate check BEFORE quota consume
     if (itemKey && (await isDuplicateSubmission(userId, itemKey))) {
-      return NextResponse.json(
-        { ok: false, error: "duplicate_round", code: "duplicate" },
-        { status: 409 },
-      );
+      return NextResponse.json({ ok: false, error: "duplicate_round", code: "duplicate" }, { status: 409 });
     }
 
     const coreQuestion = metadata.source === "core_ear_gym";
@@ -203,11 +203,9 @@ export async function POST(request: Request) {
     const rated = metadata.rated !== false;
 
     let score: number;
-    if (claims) {
-      score = verifiedCorrect ? 20 : 0;
-    } else if (!rated) {
-      score = 0;
-    } else {
+    if (claims) score = verifiedCorrect ? 20 : 0;
+    else if (!rated) score = 0;
+    else {
       score = calculateRoundXp({
         correct: verifiedCorrect,
         accuracy: verifiedCorrect ? 100 : 0,
@@ -222,18 +220,13 @@ export async function POST(request: Request) {
     }
 
     const accuracy = claims
-      ? verifiedCorrect
-        ? 100
-        : 0
+      ? verifiedCorrect ? 100 : 0
       : Number.isFinite(Number(body.accuracy))
         ? Math.max(0, Math.min(100, Number(body.accuracy) <= 1 ? Number(body.accuracy) * 100 : Number(body.accuracy)))
-        : verifiedCorrect
-          ? 100
-          : 0;
+        : verifiedCorrect ? 100 : 0;
 
     const streak = verifiedCorrect ? 1 : 0;
     const bestScore = Math.max(0, Math.min(45, score));
-
     const pro = auth.admin || (await isProUser(userIds));
 
     let quota: QuotaResult = {
@@ -242,17 +235,15 @@ export async function POST(request: Request) {
       consumed: 0,
       remaining: pro ? null : FREE_DAILY,
       dailyLimit: pro ? null : FREE_DAILY,
+      consumptionId: null,
     };
 
-    // 2) Atomic daily quota — only rated Free stages
     if (rated) {
       quota = await consumeDailyStage(userId, pro);
-      if (!pro && quota.allowed) quotaConsumed = true;
+      if (!pro && quota.allowed && quota.consumptionId) heldConsumptionId = quota.consumptionId;
 
       if (!quota.allowed) {
-        if (quota.error) {
-          throw new Error(`quota_rpc_error: ${quota.error}`);
-        }
+        if (quota.error) throw new Error(`quota_rpc_error: ${quota.error}`);
         return NextResponse.json(
           {
             ok: false,
@@ -266,18 +257,13 @@ export async function POST(request: Request) {
         );
       }
 
-      // Concurrent duplicate race after consume
       if (itemKey && (await isDuplicateSubmission(userId, itemKey))) {
-        if (quotaConsumed) await refundDailyStage(userId);
-        quotaConsumed = false;
-        return NextResponse.json(
-          { ok: false, error: "duplicate_round", code: "duplicate" },
-          { status: 409 },
-        );
+        await refundDailyStage(userId, heldConsumptionId);
+        heldConsumptionId = null;
+        return NextResponse.json({ ok: false, error: "duplicate_round", code: "duplicate" }, { status: 409 });
       }
     }
 
-    // 3) Persist; refund if insert fails
     let row;
     try {
       row = await savePracticeResult({
@@ -301,14 +287,11 @@ export async function POST(request: Request) {
         },
       });
     } catch (saveErr) {
-      if (quotaConsumed) await refundDailyStage(userId);
-      quotaConsumed = false;
+      await refundDailyStage(userId, heldConsumptionId);
+      heldConsumptionId = null;
       const msg = saveErr instanceof Error ? saveErr.message : String(saveErr);
       if (/duplicate|unique|23505/i.test(msg)) {
-        return NextResponse.json(
-          { ok: false, error: "duplicate_round", code: "duplicate" },
-          { status: 409 },
-        );
+        return NextResponse.json({ ok: false, error: "duplicate_round", code: "duplicate" }, { status: 409 });
       }
       throw saveErr;
     }
@@ -321,17 +304,10 @@ export async function POST(request: Request) {
         accuracy,
         difficulty,
         correct: verifiedCorrect,
-        metadata: {
-          ...metadata,
-          itemKey,
-          verifiedCorrect,
-          streak,
-          responseTimeMs,
-          rated,
-        },
+        metadata: { ...metadata, itemKey, verifiedCorrect, streak, responseTimeMs, rated },
       });
     } catch {
-      /* skill store optional */
+      /* optional */
     }
 
     return NextResponse.json({
