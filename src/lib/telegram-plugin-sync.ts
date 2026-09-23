@@ -498,7 +498,7 @@ function makeCaption(p: PluginData) {
     p.tags.length ? "\n" + p.tags.map(x => "#" + tag(x)).join(" ") : "",
     "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir",
   ];
-  return lines.filter(Boolean).join("\\n").slice(0, 3900);
+  return lines.filter(Boolean).join("\n").slice(0, 3900);
 }
 async function editCaption(chatId: string | number, messageId: number, caption: string) {
   try { await tg("editMessageCaption", { chat_id: chatId, message_id: messageId, caption, parse_mode: "HTML" }); } catch {}
