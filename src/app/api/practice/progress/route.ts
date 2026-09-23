@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     const pro = auth.admin || await isProUser(userId, telegramId);
     let usedToday = 0;
     if (!pro) {
-      usedToday = await dailyUsage(userId);
+      usedToday = await dailyUsage(userId, gameId);
       if (usedToday >= 5) return NextResponse.json({ ok: false, code: "daily_limit_reached", pro: false, dailyLimit: 5, used: usedToday, remaining: 0 }, { status: 429 });
     }
     const row = await savePracticeResult({
