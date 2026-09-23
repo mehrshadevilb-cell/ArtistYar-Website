@@ -45,7 +45,11 @@ export function PracticeProBanner({ onUpgrade }: Props) {
     };
   }, [user?.id, user?.role]);
 
-  if (!ready) return null;
+  if (!ready) {
+    return (
+      <div className="min-h-[96px] animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" aria-hidden />
+    );
+  }
 
   if (pro) {
     return (
@@ -68,7 +72,7 @@ export function PracticeProBanner({ onUpgrade }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-gold-400/25 bg-gradient-to-l from-gold-400/[.14] to-white/[.03] p-5">
+    <div className="rounded-2xl border border-gold-400/25 bg-gradient-to-l from-gold-400/[.14] to-white/[0.03] p-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
           <span className="eyebrow">PRACTICE PRO · ۴۰٬۰۰۰ تومان / ماه</span>
