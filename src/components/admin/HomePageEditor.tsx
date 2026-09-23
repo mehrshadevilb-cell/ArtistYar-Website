@@ -155,7 +155,7 @@ export function HomePageEditor() {
               </label>
               <label className="block text-xs text-ink-400">
                 توضیح
-                <input className="input-ay mt-1 text-sm" value={s.subtitle} onChange={(e) => updateSection(s.id, { title: e.target.value })} />
+                <input className="input-ay mt-1 text-sm" value={s.subtitle} onChange={(e) => updateSection(s.id, { subtitle: e.target.value })} />
               </label>
             </div>
           </div>
