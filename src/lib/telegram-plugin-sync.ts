@@ -298,12 +298,14 @@ function recordAiFailure(provider: string, model: string, latencyMs: number, sta
 }
 
 function validBaseUrl(value: string, fallback: string) {
-  const candidate = String(value || "").trim().replace(/\/$/, "");
+  const raw = String(value || "").trim();
+  if (!raw) return fallback;
+  const candidate = raw.replace(/\/$/, "");
   try {
     const parsed = new URL(candidate);
     if (parsed.protocol === "http:" || parsed.protocol === "https:") return candidate;
   } catch {}
-  return fallback;
+  throw new Error("invalid_provider_base_url");
 }
 
 function modelPrompt(caption: string, fileName: string, imageAvailable: boolean) {
@@ -358,6 +360,10 @@ async function openAICompatible(
       if (!res.ok) {
         recordAiFailure(provider, model, Date.now() - startedAt, res.status);
         last = clean(data?.error?.message || (provider + "_http_" + res.status), 240);
+        // Authentication/authorization failures invalidate the provider
+        // configuration; trying every model with the same bad key only wastes
+        // time. Move immediately to the next configured provider.
+        if (res.status === 401 || res.status === 403) throw new Error(last);
         continue;
       }
       const text = data?.choices?.[0]?.message?.content;
@@ -401,6 +407,7 @@ async function google(bytes: Buffer | null, mime: string, fileName: string, capt
       if (!res.ok) {
         recordAiFailure("google", model, Date.now() - startedAt, res.status);
         last = clean(data?.error?.message || ("google_http_" + res.status), 240);
+        if (res.status === 401 || res.status === 403) throw new Error(last);
         continue;
       }
       const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "";
@@ -454,6 +461,7 @@ async function anthropic(imageData: string | null, fileName: string, caption: st
       if (!res.ok) {
         recordAiFailure("anthropic", model, Date.now() - startedAt, res.status);
         last = clean(data?.error?.message || ("anthropic_http_" + res.status), 240);
+        if (res.status === 401 || res.status === 403) throw new Error(last);
         continue;
       }
       const text = data?.content?.filter((x: any) => x?.type === "text").map((x: any) => x.text).join("") || "";
@@ -778,11 +786,8 @@ export async function processPendingPluginPairs(limit = 5) {
       });
 
       if (claim.error) {
-        const missingClaimFunction =
-          /claim_telegram_plugin_pair|function .* does not exist|schema cache/i.test(claim.error.message || "");
-        if (!missingClaimFunction) {
-          throw new Error("plugin_pair_claim_failed:" + claim.error.message);
-        }
+        // Atomic pair claiming is mandatory in production. Never fall back to
+        // an unclaimed read/process path because webhook + cron workers can race.
         throw new Error("plugin_pair_claim_failed:" + claim.error.message);
       } else if (!claim.data) {
         continue;
