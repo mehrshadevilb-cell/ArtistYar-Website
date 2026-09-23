@@ -250,6 +250,9 @@ export async function POST(request: Request) {
       if (!pro && quota.allowed) quotaConsumed = true;
 
       if (!quota.allowed) {
+        if (quota.error) {
+          throw new Error(`quota_rpc_error: ${quota.error}`);
+        }
         return NextResponse.json(
           {
             ok: false,
@@ -260,6 +263,16 @@ export async function POST(request: Request) {
             remaining: 0,
           },
           { status: 429 },
+        );
+      }
+
+      // Concurrent duplicate race after consume
+      if (itemKey && (await isDuplicateSubmission(userId, itemKey))) {
+        if (quotaConsumed) await refundDailyStage(userId);
+        quotaConsumed = false;
+        return NextResponse.json(
+          { ok: false, error: "duplicate_round", code: "duplicate" },
+          { status: 409 },
         );
       }
     }
@@ -289,6 +302,14 @@ export async function POST(request: Request) {
       });
     } catch (saveErr) {
       if (quotaConsumed) await refundDailyStage(userId);
+      quotaConsumed = false;
+      const msg = saveErr instanceof Error ? saveErr.message : String(saveErr);
+      if (/duplicate|unique|23505/i.test(msg)) {
+        return NextResponse.json(
+          { ok: false, error: "duplicate_round", code: "duplicate" },
+          { status: 409 },
+        );
+      }
       throw saveErr;
     }
 
