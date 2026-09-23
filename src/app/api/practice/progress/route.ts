@@ -16,7 +16,7 @@ async function dailyUsage(userId: string, gameId: string) {
   const db = createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } });
   const start = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
   const end = new Date(start.getTime() + 86400000);
-  const { data } = await db.from("practice_records").select("id").eq("user_id", userId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
+  const { data } = await db.from("practice_records").select("id").eq("user_id", userId).eq("game_id", gameId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
   return data?.length || 0;
 }
 
