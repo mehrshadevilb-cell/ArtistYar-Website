@@ -45,7 +45,7 @@ const moreItems = [
   { href: "/about", label: "درباره آکادمی" },
   { href: "/online", label: "کلاس آنلاین" },
   { href: "/free-player", label: "آموزش رایگان" },
-  { href: "/gallery", label: "گالری خروجی‌ها" },
+  { href: "/gallery", label: "گالری خروجی‌ها" },\n  { href: "/plugins", label: "VST و پلاگین‌ها" },
   { href: "/#feedback", label: "بازخورد هنرجوها" },
   { href: "/#quick-consultation", label: "مشاوره رایگان" },
   { href: "/track", label: "پیگیری سفارش" },
