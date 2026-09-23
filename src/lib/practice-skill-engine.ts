@@ -4,9 +4,7 @@ const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
-// Mirrors MAX_SESSION_SCORE in practice-progress.ts: xp for a single event is
-// client-supplied (see /api/practice/progress), so it must be bounded here
-// too or a crafted request can inflate total_xp/overall_level indefinitely.
+// XP is server-calculated in /api/practice/progress; still clamp here as defense-in-depth.
 const MAX_EVENT_XP = 300;
 
 export type SkillKey = "ear_training" | "harmony" | "mixing" | "dynamics" | "stereo" | "critical_listening";
@@ -31,10 +29,35 @@ const GAME_SKILLS: Record<string, SkillKey> = {
   reverb: "mixing", saturation: "mixing", masking: "critical_listening",
   transient: "dynamics", voicing: "harmony", personal: "critical_listening",
   "pro-reverb": "mixing", "pro-saturation": "mixing", "pro-masking": "critical_listening", "pro-transient": "dynamics",
+  "sg-freq-detect": "ear_training", "sg-eq-peak": "mixing", "sg-eq-cut": "mixing",
+  "sg-eq-match": "mixing", "sg-filter-expert": "mixing", "sg-bass-detective": "ear_training",
+  "sg-compressionist": "dynamics", "sg-dr-compressor": "dynamics", "sg-loudness-db": "dynamics",
+  "sg-pan-train": "stereo", "sg-stereo-width": "stereo", "sg-sonar-beast": "ear_training",
+  "sg-comp-match": "dynamics", "sg-comp-thresh": "dynamics", "sg-comp-release": "dynamics",
+  "sg-makeup": "dynamics", "sg-comp-compare": "dynamics",
+  "sg-delay-detect": "mixing", "sg-delay-match": "mixing", "sg-reverb-type": "mixing",
+  "sg-reverb-match": "mixing", "sg-predelay": "mixing", "sg-decay": "mixing",
+  "sg-wetdry": "mixing", "sg-spatial": "stereo",
+  "sg-dist-detect": "mixing", "sg-sat-detect": "mixing", "sg-dist-amount": "mixing",
+  "sg-feedback-freq": "ear_training", "sg-harmonic-nl": "mixing",
+  "sg-balance-memory": "mixing", "sg-balance-recreate": "mixing",
+  "sg-mix-vocal": "mixing", "sg-mix-masking": "critical_listening",
+  "sg-mix-freq-conflict": "mixing", "sg-mix-eq": "mixing", "sg-mix-level": "mixing",
+  "sg-mix-pan": "stereo", "sg-mix-stereo": "stereo", "sg-mix-clarity": "critical_listening",
+  "sg-mix-ab": "critical_listening",
+  "user-audio": "critical_listening", "user-audio-eq": "mixing", "user-audio-comp": "dynamics",
+  "daily-challenge": "critical_listening", "workout": "critical_listening",
 };
 
 export function skillForGame(gameId: string): SkillKey {
-  return GAME_SKILLS[gameId] || "critical_listening";
+  if (GAME_SKILLS[gameId]) return GAME_SKILLS[gameId];
+  // Prefix fallbacks for sg-* without exact map
+  if (gameId.startsWith("sg-eq") || gameId.startsWith("sg-filter") || gameId.startsWith("sg-reverb") || gameId.startsWith("sg-delay") || gameId.startsWith("sg-dist") || gameId.startsWith("sg-sat") || gameId.startsWith("sg-mix") || gameId.startsWith("sg-balance")) return "mixing";
+  if (gameId.startsWith("sg-comp") || gameId.includes("loudness") || gameId.includes("makeup") || gameId.includes("transient")) return "dynamics";
+  if (gameId.includes("pan") || gameId.includes("stereo") || gameId.includes("spatial") || gameId.includes("phase")) return "stereo";
+  if (gameId.includes("freq") || gameId.includes("bass") || gameId.includes("sonar") || gameId.includes("tone")) return "ear_training";
+  if (gameId.includes("theory") || gameId.includes("voicing") || gameId.includes("chord")) return "harmony";
+  return "critical_listening";
 }
 
 export function skillLevel(xp: number) {
@@ -63,8 +86,6 @@ function calcSkill(events: EventRow[]) {
         return sum + clamp(Number(e.accuracy) || 0, 0, 100) * weight;
       }, 0) / events.reduce((sum, e) => sum + (0.5 + clamp(Number(e.difficulty) || 1, 1, 500) / 500), 0)
     : 0;
-  // A skill rating is intentionally independent from XP. XP is progression/gamification;
-  // rating represents demonstrated listening ability and adapts to recent performance.
   const base = 250 + accuracy * 2.1 + recentAccuracy * 1.2 + consistency * 0.7 + Math.min(80, difficult * 0.16) - (reactionMs ? Math.max(0, reactionMs - 2200) / 120 : 0);
   const rating = Math.round(clamp(base + (difficultyWeightedAccuracy - accuracy) * 0.55, 1, 500));
   const confidence = Math.round(clamp(35 + attempts * 2 + consistency * 0.35, 0, 100));

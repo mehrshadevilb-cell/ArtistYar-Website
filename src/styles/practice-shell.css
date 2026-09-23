@@ -1,0 +1,8 @@
+.practice-shell { min-height: 60vh; }
+.practice-shell .card-ay { min-height: 44px; }
+.practice-root { min-height: 100%; }
+.practice-shell button:focus-visible,
+.practice-shell a:focus-visible {
+  outline: 2px solid rgba(251, 191, 36, 0.7);
+  outline-offset: 2px;
+}

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import "@/styles/practice-shell.css";
 
 export const metadata: Metadata = {
   title: "تمرین‌خانه تولید موسیقی | آرتیست‌یار",
-  description: "تمرین‌های کوتاه و تعاملی برای تقویت گوش، میکس، تنظیم و تصمیم‌های حرفه‌ای تولید موسیقی.",
+  description: "تمرین‌های کوتاه و تعاملی برای تقویت گوش و میکس.",
   alternates: { canonical: "/practice" },
 };
 
 export default function PracticeLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <div className="practice-root" dir="rtl">{children}</div>;
 }

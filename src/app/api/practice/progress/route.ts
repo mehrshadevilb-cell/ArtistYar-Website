@@ -4,93 +4,370 @@ import { recordSkillEvent } from "@/lib/practice-skill-engine";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, USER_SESSION_COOKIE, verifyAdminSession, verifyUserSession } from "@/lib/server-admin-auth";
 import { verifyPracticeQuestionToken } from "@/lib/practice-question-token";
+import { PRACTICE_FREE_DAILY_STAGE_LIMIT } from "@/lib/practice-types";
+import { calculateRoundXp } from "@/lib/practice-xp";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function dailyUsage(userId: string, gameId: string) {
+const FREE_DAILY = PRACTICE_FREE_DAILY_STAGE_LIMIT || 5;
+
+async function getDb() {
   const { createClient } = await import("@supabase/supabase-js");
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  if (!url || !secret) return 0;
-  const db = createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } });
-  const start = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
-  const end = new Date(start.getTime() + 86400000);
-  const { data } = await db.from("practice_records").select("id").eq("user_id", userId).eq("game_id", gameId).gte("played_at", start.toISOString()).lt("played_at", end.toISOString());
-  return data?.length || 0;
+  if (!url || !secret) return null;
+  return createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
-async function isProUser(userId: string, telegramId?: string) {
-  const { createClient } = await import("@supabase/supabase-js");
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-  const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  if (!url || !secret) return false;
-  const db = createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } });
-  const ids = [...new Set([userId, telegramId || ""].filter(Boolean))];
-  const { data } = await db.from("practice_subscriptions").select("id").in("user_id", ids).eq("status", "active").gt("expires_at", new Date().toISOString()).limit(1);
+type QuotaResult = {
+  allowed: boolean;
+  pro: boolean;
+  consumed: number;
+  remaining: number | null;
+  dailyLimit: number | null;
+  consumptionId: string | null;
+  error?: string;
+};
+
+type RefundResult =
+  | { ok: true; alreadyRefunded?: boolean }
+  | { ok: false; error: string };
+
+async function consumeDailyStage(userId: string, isPro: boolean): Promise<QuotaResult> {
+  const db = await getDb();
+  if (!db) throw new Error("practice_store_unavailable");
+  const { data, error } = await db.rpc("consume_practice_daily_stage", {
+    p_user_id: userId,
+    p_is_pro: isPro,
+  });
+  if (error) throw new Error(`consume_practice_daily_stage_failed: ${error.message}`);
+  const row = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+  return {
+    allowed: Boolean(row.allowed),
+    pro: Boolean(row.pro),
+    consumed: Number(row.consumed) || 0,
+    remaining: row.remaining == null ? null : Number(row.remaining),
+    dailyLimit: row.dailyLimit == null ? null : Number(row.dailyLimit),
+    consumptionId: row.consumptionId ? String(row.consumptionId) : null,
+    error: row.error ? String(row.error) : undefined,
+  };
+}
+
+/**
+ * Refund only the exact consumption token — cannot refund another request's quota.
+ * Never swallows failures: caller must fail-closed if ok=false when a token was held.
+ */
+async function refundDailyStage(
+  userId: string,
+  consumptionId: string | null,
+): Promise<RefundResult> {
+  if (!consumptionId) {
+    return { ok: true };
+  }
+  const db = await getDb();
+  if (!db) {
+    return { ok: false, error: "practice_store_unavailable" };
+  }
+  const { data, error } = await db.rpc("refund_practice_daily_stage", {
+    p_user_id: userId,
+    p_consumption_id: consumptionId,
+  });
+  if (error) {
+    return { ok: false, error: `refund_practice_daily_stage_failed: ${error.message}` };
+  }
+  const row = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+  if (row.ok === false) {
+    return { ok: false, error: String(row.error || "refund_rejected") };
+  }
+  return { ok: true, alreadyRefunded: Boolean(row.alreadyRefunded) };
+}
+
+function quotaRefundFailedResponse(refundError: string, saveError?: string) {
+  return NextResponse.json(
+    {
+      ok: false,
+      code: "quota_refund_failed",
+      error: "بازگشت سهمیه روزانه ناموفق بود. مرحله مصرف‌شده ممکن است باقی مانده باشد.",
+      refundError,
+      ...(saveError ? { saveError } : {}),
+    },
+    { status: 503 },
+  );
+}
+
+async function isProUser(userIds: string[]) {
+  const db = await getDb();
+  if (!db || !userIds.length) return false;
+  const { data, error } = await db
+    .from("practice_subscriptions")
+    .select("id")
+    .in("user_id", userIds)
+    .eq("status", "active")
+    .gt("expires_at", new Date().toISOString())
+    .limit(1);
+  if (error) throw new Error(`practice_subscription_query_failed: ${error.message}`);
   return Boolean(data?.length);
 }
 
-async function authorizedUser(request: Request, requestedId: string) {
+async function isDuplicateSubmission(userId: string, itemKey: string | null) {
+  if (!itemKey || itemKey.length < 4) return false;
+  const db = await getDb();
+  if (!db) throw new Error("practice_store_unavailable");
+  const since = new Date(Date.now() - 3600_000).toISOString();
+  const { data: recent, error } = await db
+    .from("practice_records")
+    .select("id,metadata")
+    .eq("user_id", userId)
+    .gte("played_at", since)
+    .limit(40);
+  if (error) throw new Error(`practice_duplicate_query_failed: ${error.message}`);
+  return (recent || []).some((r) => {
+    const m = r.metadata as Record<string, unknown> | null;
+    return m && String(m.itemKey || "") === itemKey;
+  });
+}
+
+async function authorizedUser(_request: Request, requestedId: string) {
   const store = await cookies();
   const admin = verifyAdminSession(store.get(ADMIN_SESSION_COOKIE)?.value);
-  if (admin) return { id: requestedId, admin: true, username: admin.username, fullName: admin.username, telegramId: "" };
+  if (admin) {
+    return {
+      id: requestedId || admin.username,
+      admin: true,
+      username: admin.username,
+      fullName: admin.username,
+      telegramId: "",
+    };
+  }
   const session = verifyUserSession(store.get(USER_SESSION_COOKIE)?.value);
-  if (!session || session.id !== requestedId) return null;
-  return { id: session.id, admin: false, username: session.username, fullName: session.fullName, telegramId: session.telegramId || "" };
+  if (!session) return null;
+  return {
+    id: session.id,
+    admin: false,
+    username: session.username || session.id,
+    fullName: session.fullName || session.username || session.id,
+    telegramId: session.telegramId || "",
+  };
 }
 
 export async function GET(request: Request) {
   const userId = new URL(request.url).searchParams.get("userId")?.trim();
   if (!userId) return NextResponse.json({ ok: false, error: "شناسه کاربر لازم است." }, { status: 400 });
   if (!hasPracticeStore()) return NextResponse.json({ ok: false, error: "ذخیره‌سازی تمرین تنظیم نشده است." }, { status: 503 });
-  if (!await authorizedUser(request, userId)) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  try { return NextResponse.json({ ok: true, ...(await getPracticeProfile(userId)) }); }
-  catch (error) { return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "خطای ذخیره‌سازی" }, { status: 503 }); }
+  const auth = await authorizedUser(request, userId);
+  if (!auth || (auth.id !== userId && !auth.admin)) {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+  try {
+    return NextResponse.json({ ok: true, ...(await getPracticeProfile(userId)) });
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, error: error instanceof Error ? error.message : "خطای ذخیره‌سازی" },
+      { status: 503 },
+    );
+  }
 }
 
 export async function POST(request: Request) {
-  if (!hasPracticeStore()) return NextResponse.json({ ok: false, error: "ذخیره‌سازی تمرین تنظیم نشده است." }, { status: 503 });
+  if (!hasPracticeStore()) {
+    return NextResponse.json({ ok: false, error: "ذخیره‌سازی تمرین تنظیم نشده است." }, { status: 503 });
+  }
   const body = await request.json().catch(() => ({}));
-  if (!body.userId) return NextResponse.json({ ok: false, error: "شناسه کاربر لازم است." }, { status: 400 });
-  const requestedUserId = String(body.userId).slice(0, 120);
+  const requestedUserId = String(body.userId || "").slice(0, 120);
   const auth = await authorizedUser(request, requestedUserId);
   if (!auth) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!auth.admin && requestedUserId && requestedUserId !== auth.id) {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+
+  let heldConsumptionId: string | null = null;
+  const userId = auth.id;
 
   try {
-    const userId = auth.id;
     const telegramId = auth.telegramId;
+    const userIds = [...new Set([userId, telegramId].filter(Boolean))];
     const gameId = String(body.gameId || "unknown").slice(0, 80);
-    const metadata = typeof body.metadata === "object" && body.metadata ? body.metadata as Record<string, unknown> : {};
+    const metadata =
+      typeof body.metadata === "object" && body.metadata
+        ? (body.metadata as Record<string, unknown>)
+        : {};
+
+    const itemKey =
+      typeof metadata.itemKey === "string"
+        ? metadata.itemKey.slice(0, 240)
+        : typeof metadata.fingerprint === "string"
+          ? String(metadata.fingerprint).slice(0, 240)
+          : null;
+
+    if (itemKey && (await isDuplicateSubmission(userId, itemKey))) {
+      return NextResponse.json({ ok: false, error: "duplicate_round", code: "duplicate" }, { status: 409 });
+    }
+
     const coreQuestion = metadata.source === "core_ear_gym";
-    const claims = coreQuestion ? verifyPracticeQuestionToken(metadata.verificationToken, userId) : null;
-    if (coreQuestion && (!claims || claims.gameId !== gameId || claims.fingerprint !== String(metadata.itemKey || ""))) {
-      return NextResponse.json({ ok: false, error: "سؤال تمرین معتبر نیست یا منقضی شده است." }, { status: 422 });
+    const claims = coreQuestion
+      ? verifyPracticeQuestionToken(metadata.verificationToken, userId)
+      : null;
+    if (
+      coreQuestion &&
+      (!claims || claims.gameId !== gameId || claims.fingerprint !== String(metadata.itemKey || ""))
+    ) {
+      return NextResponse.json(
+        { ok: false, error: "سؤال تمرین معتبر نیست یا منقضی شده است." },
+        { status: 422 },
+      );
     }
-    const verifiedCorrect = claims ? String(metadata.answer ?? "") === claims.answer : Boolean(metadata.correct);
-    const score = claims ? (verifiedCorrect ? 20 : 0) : Number.isFinite(Number(body.score)) ? Math.max(-8, Math.min(20, Math.round(Number(body.score)))) : 0;
-    const accuracy = claims ? (verifiedCorrect ? 100 : 0) : Number.isFinite(Number(body.accuracy)) ? Math.max(0, Math.min(100, Number(body.accuracy))) : 0;
-    const streak = claims ? (verifiedCorrect ? 1 : 0) : Number.isFinite(Number(body.streak)) ? Math.max(0, Math.min(1, Math.round(Number(body.streak)))) : 0;
-    const bestScore = claims ? score : Number.isFinite(Number(body.bestScore)) ? Math.max(0, Math.min(20, Math.round(Number(body.bestScore)))) : 0;
-    const pro = auth.admin || await isProUser(userId, telegramId);
-    let usedToday = 0;
-    if (!pro) {
-      usedToday = await dailyUsage(userId, gameId);
-      if (usedToday >= 5) return NextResponse.json({ ok: false, code: "daily_limit_reached", pro: false, dailyLimit: 5, used: usedToday, remaining: 0 }, { status: 429 });
+
+    const verifiedCorrect = claims
+      ? String(metadata.answer ?? "") === claims.answer
+      : Boolean(metadata.correct);
+
+    const difficulty = Math.max(
+      1,
+      Math.min(500, Number(claims?.difficulty || metadata.difficulty || body.difficulty || 1)),
+    );
+    const responseTimeMs =
+      Number(metadata.responseTimeMs) > 0
+        ? Math.min(60000, Math.round(Number(metadata.responseTimeMs)))
+        : null;
+
+    const rated = metadata.rated !== false;
+
+    let score: number;
+    if (claims) score = verifiedCorrect ? 20 : 0;
+    else if (!rated) score = 0;
+    else {
+      score = calculateRoundXp({
+        correct: verifiedCorrect,
+        accuracy: verifiedCorrect ? 100 : 0,
+        difficulty,
+        responseTimeMs,
+        rated: true,
+        recentPerfectEasyCount: Number(metadata.recentPerfectEasyCount) || 0,
+        workoutBonus: metadata.source === "workout",
+        challengeBonus: metadata.source === "daily_challenge",
+      });
+      score = Math.max(-12, Math.min(45, score));
     }
-    const row = await savePracticeResult({
-      user_id: userId,
-      username: auth.username.slice(0, 120),
-      full_name: auth.fullName.slice(0, 160),
-      game_id: gameId,
-      score, accuracy, streak, best_score: bestScore,
-      metadata: { ...metadata, verifiedCorrect, ...(claims ? { difficulty: claims.difficulty } : {}), ...(telegramId ? { telegramId } : {}) },
-    });
+
+    const accuracy = claims
+      ? verifiedCorrect
+        ? 100
+        : 0
+      : Number.isFinite(Number(body.accuracy))
+        ? Math.max(
+            0,
+            Math.min(100, Number(body.accuracy) <= 1 ? Number(body.accuracy) * 100 : Number(body.accuracy)),
+          )
+        : verifiedCorrect
+          ? 100
+          : 0;
+
+    const streak = verifiedCorrect ? 1 : 0;
+    const bestScore = Math.max(0, Math.min(45, score));
+    const pro = auth.admin || (await isProUser(userIds));
+
+    let quota: QuotaResult = {
+      allowed: true,
+      pro,
+      consumed: 0,
+      remaining: pro ? null : FREE_DAILY,
+      dailyLimit: pro ? null : FREE_DAILY,
+      consumptionId: null,
+    };
+
+    if (rated) {
+      quota = await consumeDailyStage(userId, pro);
+      if (!pro && quota.allowed && quota.consumptionId) heldConsumptionId = quota.consumptionId;
+
+      if (!quota.allowed) {
+        if (quota.error) throw new Error(`quota_rpc_error: ${quota.error}`);
+        return NextResponse.json(
+          {
+            ok: false,
+            code: "daily_limit_reached",
+            pro: false,
+            dailyLimit: quota.dailyLimit ?? FREE_DAILY,
+            used: quota.consumed,
+            remaining: 0,
+          },
+          { status: 429 },
+        );
+      }
+
+      if (itemKey && (await isDuplicateSubmission(userId, itemKey))) {
+        const refund = await refundDailyStage(userId, heldConsumptionId);
+        heldConsumptionId = null;
+        if (!refund.ok) {
+          return quotaRefundFailedResponse(refund.error, "duplicate_round_after_consume");
+        }
+        return NextResponse.json({ ok: false, error: "duplicate_round", code: "duplicate" }, { status: 409 });
+      }
+    }
+
+    let row;
     try {
-      await recordSkillEvent({ userId, gameId, xp: Math.max(0, score), accuracy, difficulty: Number(claims?.difficulty || metadata.difficulty || 0), correct: verifiedCorrect, metadata: { ...metadata, verifiedCorrect, streak } });
-    } catch {}
-    return NextResponse.json({ ok: true, row, pro, unlimited: pro, remaining: pro ? null : Math.max(0, 5 - usedToday - 1) });
+      row = await savePracticeResult({
+        user_id: userId,
+        username: String(auth.username).slice(0, 120),
+        full_name: String(auth.fullName).slice(0, 160),
+        game_id: gameId,
+        score,
+        accuracy,
+        streak,
+        best_score: bestScore,
+        metadata: {
+          ...metadata,
+          itemKey,
+          verifiedCorrect,
+          difficulty,
+          responseTimeMs,
+          serverXp: score,
+          rated,
+          ...(telegramId ? { telegramId } : {}),
+        },
+      });
+    } catch (saveErr) {
+      const msg = saveErr instanceof Error ? saveErr.message : String(saveErr);
+      const refund = await refundDailyStage(userId, heldConsumptionId);
+      heldConsumptionId = null;
+      if (!refund.ok) {
+        return quotaRefundFailedResponse(refund.error, msg);
+      }
+      if (/duplicate|unique|23505/i.test(msg)) {
+        return NextResponse.json({ ok: false, error: "duplicate_round", code: "duplicate" }, { status: 409 });
+      }
+      return NextResponse.json({ ok: false, error: msg, code: "save_failed" }, { status: 503 });
+    }
+
+    try {
+      await recordSkillEvent({
+        userId,
+        gameId,
+        xp: Math.max(0, score),
+        accuracy,
+        difficulty,
+        correct: verifiedCorrect,
+        metadata: { ...metadata, itemKey, verifiedCorrect, streak, responseTimeMs, rated },
+      });
+    } catch {
+      /* optional */
+    }
+
+    return NextResponse.json({
+      ok: true,
+      row,
+      pro,
+      unlimited: pro,
+      score,
+      remaining: pro ? null : quota.remaining,
+      dailyLimit: pro ? null : quota.dailyLimit ?? FREE_DAILY,
+      used: pro ? null : quota.consumed,
+    });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "ذخیره ناموفق بود." }, { status: 503 });
+    return NextResponse.json(
+      { ok: false, error: error instanceof Error ? error.message : "ذخیره ناموفق بود." },
+      { status: 503 },
+    );
   }
 }
