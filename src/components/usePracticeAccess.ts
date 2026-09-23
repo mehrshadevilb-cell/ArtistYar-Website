@@ -16,7 +16,7 @@ export function usePracticeAccess() {
   const [access, setAccess] = useState<PracticeAccess>({
     loading: true,
     pro: user?.role === "admin",
-    stageLimit: user?.role === "admin" ? 500 : 5,
+    stageLimit: user?.role === "admin" ? 0 : 5,
     subscriptionDays: 0,
     proExpiresAt: null,
   });
