@@ -1,0 +1,4 @@
+2026-09-23T22:40Z
+Production was still serving the old throw-on-invalid-base-url build.
+Main already returns empty string and skips bad providers.
+This file exists only to trigger an auto-deploy so processPendingPluginPairs stops failing with invalid_provider_base_url.
