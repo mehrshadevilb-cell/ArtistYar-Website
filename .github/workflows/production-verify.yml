@@ -1,0 +1,43 @@
+name: Production Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: production-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Source scan
+        run: node scripts/scan-codebase.js
+
+      - name: Production build
+        run: NEXT_TELEMETRY_DISABLED=1 npm run build
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev
+
+      - name: Verify generated standalone output
+        run: test -f .next/standalone/server.js
