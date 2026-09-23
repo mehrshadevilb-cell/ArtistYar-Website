@@ -184,9 +184,55 @@ function parseJson(text: string): PluginData {
     translatedCaption: clean(p.translated_caption, 3500),
   };
 }
-const SYSTEM = "Identify a music-production plugin from the image, filename and caption. The Telegram caption is the primary source when it contains product facts. Translate the complete useful caption into natural Persian when it is not already Persian, preserving factual meaning, product/developer/technical names, version, formats and platform details. Remove promotional content, unrelated channel links, and external links from translated_caption. Keep only links to artistyaar.ir and the source channel @ProAudios. Return JSON only with title, developer, version, category, formats, platforms, description, features, tags, translated_caption. Never invent facts; unknown values must be empty. translated_caption should be a clean Persian-ready Telegram caption, not a new invented description. Use concise Persian for description/features and conventional English for product/developer/technical names. Category examples: Synthesizer, EQ, Compressor, Reverb, Delay, Saturation, Distortion, Limiter, Dynamics, Instrument, Sampler, Utility, Mastering, Bundle, Other.";
+const SYSTEM = "Identify a music-production plugin from the image, filename and caption. FACT PRIORITY: use explicit facts in the Telegram caption first, then filename, then visible image text; never contradict an explicit caption fact. The Telegram caption is the primary source. translated_caption must be a faithful Persian translation/cleanup of the useful original caption, not an invented replacement. If the caption is already Persian, preserve it and only clean promotional noise. Preserve exact product/developer names, version, formats, platform, technical terms and factual meaning. Remove promotional content and unrelated links. Keep only links to artistyaar.ir and the source channel t.me/ProAudios. Never invent unknown values. Return JSON only with title, developer, version, category, formats, platforms, description, features, tags, translated_caption. Use concise Persian for description/features and conventional English for product/developer/technical names. Category examples: Synthesizer, EQ, Compressor, Reverb, Delay, Saturation, Distortion, Limiter, Dynamics, Instrument, Sampler, Utility, Mastering, Bundle, Other."
 
 type AiResult = { data: PluginData; provider: string; model: string };
+
+function looksPersian(text: string) {
+  const value = String(text || "");
+  const fa = (value.match(/[\u0600-\u06ff]/g) || []).length;
+  const latin = (value.match(/[A-Za-z]/g) || []).length;
+  return fa >= 8 && fa >= Math.max(1, latin * 0.35);
+}
+
+function sanitizeCaption(raw: string) {
+  return String(raw || "")
+    .replace(/\\[[^\\]]*\\]\\(tg:\\/\\/emoji[^)]*\\)/gi, "")
+    .replace(/https?:\\/\\/(?!artistyaar\\.ir(?:[\\/]|$)|t\\.me\\/ProAudios(?:[\\/]|$))[^\\s)]+/gi, "")
+    .replace(/https?:\\/\\/t\\.me\\/(?!ProAudios(?:[\\/]|$))[^\\s)]+/gi, "")
+    .replace(/\\[([^\\]]+)\\]\\((https?:\\/\\/[^)]+)\\)/gi, (m, label, href) =>
+      /artistyaar\\.ir|t\\.me\\/ProAudios/i.test(href) ? label + " " + href : label
+    )
+    .replace(/(?:BEATTALK|ДРАМ КИТЫ|Видеокурсы по музыке|beat talk|драм киты)/gi, "")
+    .replace(/\\n{3,}/g, "\\n\\n")
+    .trim()
+    .slice(0, 3500);
+}
+
+function captionFacts(caption: string) {
+  const source = String(caption || "");
+  const version = source.match(/(?:version|v(?:ersion)?)[\\s:_-]*(\\d+(?:\\.\\d+){1,4})/i)?.[1]
+    || source.match(/\\bv(\\d+(?:\\.\\d+){1,4})\\b/i)?.[1]
+    || "";
+  const formats = Array.from(new Set((source.match(/\\b(?:AU|AAX|VST3?|STANDALONE|CLAP|LV2)\\b/gi) || []).map(v => v.toUpperCase())));
+  const platforms = [
+    /(?:mac|macos|os x|\\bapple\\b|🍏)/i.test(source) ? "macOS" : "",
+    /(?:windows|win\\.?|\\bpc\\b)/i.test(source) ? "Windows" : "",
+    /(?:linux)/i.test(source) ? "Linux" : "",
+  ].filter(Boolean);
+  return { version, formats, platforms };
+}
+
+function enforceCaptionFacts(data: PluginData, rawCaption: string): PluginData {
+  const facts = captionFacts(rawCaption);
+  return {
+    ...data,
+    version: facts.version || data.version,
+    formats: facts.formats.length ? facts.formats : data.formats,
+    platforms: facts.platforms.length ? facts.platforms : data.platforms,
+    translatedCaption: sanitizeCaption(data.translatedCaption || ""),
+  };
+}
 
 function envList(name: string) {
   return (process.env[name] || "").split(",").map(v => v.trim()).filter(Boolean);
