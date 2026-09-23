@@ -3,7 +3,7 @@ import "@/styles/practice-shell.css";
 
 export const metadata: Metadata = {
   title: "تمرین‌خانه تولید موسیقی | آرتیست‌یار",
-  description: "تمرین‌های کوتاه و تعاملی برای تقویت گوش، میکس، تنظیم و تصمیم‌های حرفه‌ای تولید موسیقی.",
+  description: "تمرین‌های کوتاه و تعاملی برای تقویت گوش و میکس.",
   alternates: { canonical: "/practice" },
 };
 
