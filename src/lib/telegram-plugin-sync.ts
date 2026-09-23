@@ -587,15 +587,12 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
   // running process, with unhealthy models temporarily cooled down.
   let last = "plugin_ai_failed";
   const failures: string[] = [];
-  const providerNames = ["google", "openai", "openrouter", "anthropic", "groq", "xai", "mistral", "together", "fireworks", "agentrouter", "xkiro", "bytez", "deepseek"];
-  for (let index = 0; index < candidates.length; index++) {
-    const run = candidates[index];
-    const provider = providerNames[index] || "provider";
+  for (const run of candidates) {
     try {
       return await run();
     } catch (error) {
       last = clean(error instanceof Error ? error.message : error, 300);
-      failures.push(provider + ":" + last);
+      failures.push(last);
     }
   }
   // Never hide the real provider failure behind only the last attempted model.
