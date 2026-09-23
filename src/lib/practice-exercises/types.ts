@@ -1,8 +1,9 @@
-export type AnswerMode = "choice" | "ab" | "slider" | "multi";
+export type AnswerMode = "choice" | "ab" | "slider" | "multi" | "match";
 export type PracticeSkillKey =
   | "frequency" | "eq" | "dynamics" | "spatial" | "time" | "tone" | "balance" | "quality";
 export type SoundGymExerciseId = string;
 export type AudioProgram =
+  | { kind: "tone"; frequency: number; type?: OscillatorType; duration?: number }
   | { kind: "noise"; seconds: number; color?: "white" | "pink" | "brown" }
   | { kind: "harmonic"; fundamental: number; partials: number[]; duration?: number }
   | { kind: "percussion"; hits: number; spacing: number; toneHz: number }
@@ -22,8 +23,17 @@ export type AudioProgram =
 export type DspChain =
   | { type: "none" }
   | { type: "peaking"; frequency: number; gainDb: number; q?: number }
+  | { type: "lowshelf"; frequency: number; gainDb: number }
+  | { type: "highshelf"; frequency: number; gainDb: number }
+  | { type: "lowpass"; frequency: number; q?: number }
+  | { type: "highpass"; frequency: number; q?: number }
+  | { type: "bandpass"; frequency: number; q?: number }
+  | { type: "compressor"; threshold: number; ratio: number; attack: number; release: number; knee?: number }
   | { type: "gain"; gainDb: number }
   | { type: "pan"; value: number }
+  | { type: "width"; amount: number }
+  | { type: "delay"; timeSec: number; feedback?: number; mix?: number }
+  | { type: "distort"; drive: number; style?: string }
   | { type: "stack"; nodes: DspChain[] }
   | Record<string, unknown>;
 export type RoundOption = { id: string; label: string; dsp?: DspChain };
@@ -53,4 +63,12 @@ export type ExerciseDefinition = {
   supportsAb: boolean;
   keyboardHints?: string;
   generate: (difficulty: number, seed: number) => GeneratedRound;
+};
+export type SessionStats = {
+  rounds: number;
+  correct: number;
+  streak: number;
+  bestStreak: number;
+  totalXp: number;
+  lastResponseMs: number | null;
 };
