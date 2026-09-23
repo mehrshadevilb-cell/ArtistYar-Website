@@ -479,6 +479,7 @@ async function identify(imageFileId: string, fileName: string, caption: string, 
   throw new Error(last);
 }
 function esc(v: string) { return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function tag(v: string) { return String(v || "").trim().replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "").slice(0, 48); }
 function makeCaption(p: PluginData) {
   const translated = sanitizeCaption(p.translatedCaption || "");
   if (translated) {
