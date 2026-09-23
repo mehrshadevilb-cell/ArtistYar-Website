@@ -32,20 +32,21 @@ async function globalDailyUsage(userIds: string[]) {
     .in("user_id", userIds)
     .gte("played_at", start.toISOString())
     .lt("played_at", end.toISOString());
-  if (error) return 0;
+  if (error) throw new Error(`practice_daily_usage_query_failed: ${error.message}`);
   return data?.length || 0;
 }
 
 async function isProUser(userIds: string[]) {
   const db = await getDb();
   if (!db || !userIds.length) return false;
-  const { data } = await db
+  const { data, error } = await db
     .from("practice_subscriptions")
     .select("id")
     .in("user_id", userIds)
     .eq("status", "active")
     .gt("expires_at", new Date().toISOString())
     .limit(1);
+  if (error) throw new Error(`practice_subscription_query_failed: ${error.message}`);
   return Boolean(data?.length);
 }
 
@@ -54,12 +55,13 @@ async function isDuplicateSubmission(userId: string, itemKey: string | null) {
   const db = await getDb();
   if (!db) return false;
   const since = new Date(Date.now() - 3600_000).toISOString();
-  const { data: recent } = await db
+  const { data: recent, error } = await db
     .from("practice_records")
     .select("id,metadata")
     .eq("user_id", userId)
     .gte("played_at", since)
     .limit(40);
+  if (error) throw new Error(`practice_duplicate_query_failed: ${error.message}`);
   return (recent || []).some((r) => {
     const m = r.metadata as Record<string, unknown> | null;
     return m && String(m.itemKey || "") === itemKey;
