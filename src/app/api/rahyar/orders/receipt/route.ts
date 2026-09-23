@@ -12,6 +12,10 @@ export async function POST(request: Request) {
     const phone = incoming.get("phone");
     const receipt = incoming.get("receipt");
     const paymentId = new URL(request.url).searchParams.get("payment_id");
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 12 * 1024 * 1024) {
+      return NextResponse.json({ ok: false, error: "حجم درخواست رسید بیش از حد مجاز است." }, { status: 413 });
+    }
 
     if (typeof phone !== "string" || !phone.trim() || !(receipt instanceof File)) {
       return NextResponse.json(
@@ -47,8 +51,7 @@ export async function POST(request: Request) {
 
     const data = await response.json().catch(() => ({ detail: "پاسخ نامعتبر از سرور پرداخت" }));
     if (!response.ok) {
-      const detail = typeof data?.detail === "string" ? data.detail : "ارسال رسید ناموفق بود.";
-      return NextResponse.json({ ok: false, error: detail }, { status: response.status });
+      return NextResponse.json({ ok: false, error: "ارسال رسید ناموفق بود." }, { status: response.status >= 500 ? 502 : response.status });
     }
 
     return NextResponse.json(data);
