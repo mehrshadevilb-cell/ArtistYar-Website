@@ -8,7 +8,7 @@ import { verifyPracticeQuestionToken } from "@/lib/practice-question-token";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function dailyUsage(userId: string) {
+async function dailyUsage(userId: string, gameId: string) {
   const { createClient } = await import("@supabase/supabase-js");
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
