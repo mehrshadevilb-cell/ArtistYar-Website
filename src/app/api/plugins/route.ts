@@ -23,6 +23,11 @@ export async function GET(request: Request) {
   if (search) query = query.or("title.ilike.%" + search.replace(/[%_]/g, "") + "%,developer.ilike.%" + search.replace(/[%_]/g, "") + "%,description.ilike.%" + search.replace(/[%_]/g, "") + "%");
   if (category) query = query.eq("category", category);
   const result = await query;
-  if (result.error) return NextResponse.json({ ok: false, error: "plugin_query_failed" }, { status: 500 });
-  return NextResponse.json({ ok: true, items: result.data || [] });
+  if (result.error) {
+    console.error("plugins_query_failed", result.error.message);
+    return NextResponse.json({ ok: false, items: [], error: "plugin_query_failed" }, { status: 503 });
+  }
+  return NextResponse.json({ ok: true, items: result.data || [] }, {
+    headers: { "cache-control": "private, no-store, max-age=0" },
+  });
 }
