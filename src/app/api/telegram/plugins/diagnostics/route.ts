@@ -45,7 +45,9 @@ export async function GET(request: Request) {
     ),
     webhook_secret_mode: (process.env.TELEGRAM_PLUGIN_WEBHOOK_SECRET || "").trim()
       ? "explicit"
-      : "unsigned-fallback",
+      : pluginTokenConfigured()
+        ? "token-derived"
+        : "missing",
     google_ai_configured: Boolean(
       (
         process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
@@ -100,7 +102,7 @@ export async function GET(request: Request) {
       db
         .from("telegram_plugin_ingest_queue")
         .select(
-          "id,channel_id,message_id,kind,file_id,file_name,mime_type,file_size,caption,received_at"
+          "id,channel_id,message_id,kind,file_id,file_name,mime_type,file_size,caption,received_at,processing_at"
         )
         .order("received_at", { ascending: false })
         .limit(10),
@@ -115,6 +117,17 @@ export async function GET(request: Request) {
 
     out.queue_error = queue.error?.message || null;
     out.queue = queue.data || [];
+    const now = Date.now();
+    const queueRows = queue.data || [];
+    out.queue_health = {
+      pending: queueRows.filter(row => !row.processing_at).length,
+      processing: queueRows.filter(row => Boolean(row.processing_at)).length,
+      stale_processing: queueRows.filter(row => {
+        const at = row.processing_at ? new Date(row.processing_at).getTime() : 0;
+        return at > 0 && now - at > 10 * 60 * 1000;
+      }).length,
+      retryable_stale_lock_window_ms: 10 * 60 * 1000,
+    };
     out.posts_error = posts.error?.message || null;
     out.posts = posts.data || [];
 
@@ -143,6 +156,14 @@ export async function GET(request: Request) {
     }
   }
 
+  const channelAdmin = out.channel_admin as any;
+  if (channelAdmin && channelAdmin.required_permissions_ok === false) {
+    out.ok = false;
+    out.configuration_errors = [
+      "telegram_bot_must_be_channel_administrator",
+      "telegram_bot_requires_can_edit_messages",
+    ];
+  }
   return NextResponse.json(out, {
     headers: { "cache-control": "no-store" },
   });
