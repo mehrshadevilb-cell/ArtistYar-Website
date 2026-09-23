@@ -14,6 +14,7 @@ type TgMessage = {
 type PluginData = {
   title: string; developer: string; version: string; category: string;
   formats: string[]; platforms: string[]; description: string; features: string[]; tags: string[];
+  translatedCaption?: string;
 };
 
 const TG = "https://api.telegram.org";
@@ -180,9 +181,10 @@ function parseJson(text: string): PluginData {
     developer: clean(p.developer, 120), version: clean(p.version, 80),
     category: clean(p.category, 80) || "Other", formats: arr(p.formats, 10), platforms: arr(p.platforms, 10),
     description: clean(p.description, 1800), features: arr(p.features, 8), tags: arr(p.tags, 15),
+    translatedCaption: clean(p.translated_caption, 3500),
   };
 }
-const SYSTEM = "Identify a music-production plugin from the image, filename and caption. Return JSON only with title, developer, version, category, formats, platforms, description, features, tags. Never invent facts; unknown values must be empty. Use concise Persian for description/features and conventional English for product/developer/technical names. Category examples: Synthesizer, EQ, Compressor, Reverb, Delay, Saturation, Distortion, Limiter, Dynamics, Instrument, Sampler, Utility, Mastering, Bundle, Other.";
+const SYSTEM = "Identify a music-production plugin from the image, filename and caption. The Telegram caption is the primary source when it contains product facts. Translate the complete useful caption into natural Persian when it is not already Persian, preserving factual meaning, product/developer/technical names, version, formats and platform details. Remove promotional content, unrelated channel links, and external links from translated_caption. Keep only links to artistyaar.ir and the source channel @ProAudios. Return JSON only with title, developer, version, category, formats, platforms, description, features, tags, translated_caption. Never invent facts; unknown values must be empty. translated_caption should be a clean Persian-ready Telegram caption, not a new invented description. Use concise Persian for description/features and conventional English for product/developer/technical names. Category examples: Synthesizer, EQ, Compressor, Reverb, Delay, Saturation, Distortion, Limiter, Dynamics, Instrument, Sampler, Utility, Mastering, Bundle, Other.";
 
 type AiResult = { data: PluginData; provider: string; model: string };
 
@@ -423,8 +425,43 @@ async function identify(imageFileId: string, fileName: string, caption: string, 
   throw new Error(last);
 }
 function esc(v: string) { return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-function tag(v: string) { return v.replace(/[^\p{L}\p{N}_-]/gu, "").slice(0, 40) || "plugin"; }
+function sanitizeCaption(raw: string) {
+  let value = String(raw || "").replace(/\\r/g, "").trim();
+
+  // Remove tg:// emoji entities and Telegram-only emoji links.
+  value = value.replace(/\\[[^\\]]*\\]\\(tg:\/\/emoji\\?[^)]*\\)/gi, "");
+  value = value.replace(/tg:\/\/emoji[^\\s)]+/gi, "");
+
+  // Remove every URL except ArtistYar and the source ProAudios channel.
+  value = value.replace(/https?:\\/\\/[^\\s)]+/gi, match => {
+    const lower = match.toLowerCase();
+    return (lower.includes("artistyaar.ir") || lower.includes("t.me/proaudios")) ? match : "";
+  });
+  value = value.replace(/\\[[^\\]]+\\]\\((?!https?:\\/\\/(?:www\\.)?artistyaar\\.ir|https?:\\/\\/t\\.me\\/proaudios)[^)]*\\)/gi, "");
+  value = value.replace(/(^|\\s)https?:\\/\\/[^\\s]+/gi, (m) => {
+    const lower = m.toLowerCase();
+    return (lower.includes("artistyaar.ir") || lower.includes("t.me/proaudios")) ? m : " ";
+  });
+
+  // Remove common promotional lines left after link stripping.
+  value = value.split("\\n").filter(line => {
+    const t = line.trim();
+    if (!t) return true;
+    if (/^(beattalk|видеокурсы|beat\\s*talk|драм\\s*киты)/i.test(t)) return false;
+    if (/^https?:\\/\\/t\\.me\\/(?!proaudios\\b)/i.test(t)) return false;
+    return true;
+  }).join("\\n");
+
+  value = value.replace(/\\n{3,}/g, "\\n\\n").trim();
+  return value.slice(0, 3500);
+}
 function makeCaption(p: PluginData) {
+  const translated = sanitizeCaption(p.translatedCaption || "");
+  if (translated) {
+    const footer = "\\n\\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir";
+    return (translated + footer).slice(0, 3900);
+  }
+
   const lines = [
     "🎛️ <b>" + esc(p.title) + "</b>",
     p.developer ? "🏷 <b>Developer:</b> " + esc(p.developer) : "",
@@ -432,11 +469,12 @@ function makeCaption(p: PluginData) {
     p.category ? "🎚 <b>Category:</b> " + esc(p.category) : "",
     p.formats.length ? "🔌 <b>Format:</b> " + esc(p.formats.join(" / ")) : "",
     p.platforms.length ? "💻 <b>Platform:</b> " + esc(p.platforms.join(" / ")) : "",
-    p.description ? "\n" + esc(p.description) : "",
-    p.features.length ? "\n✨ <b>ویژگی‌ها</b>\n" + p.features.slice(0, 6).map(x => "• " + esc(x)).join("\n") : "",
-    p.tags.length ? "\n" + p.tags.map(x => "#" + tag(x)).join(" ") : "",
+    p.description ? "\\n" + esc(p.description) : "",
+    p.features.length ? "\\n✨ <b>ویژگی‌ها</b>\\n" + p.features.slice(0, 6).map(x => "• " + esc(x)).join("\\n") : "",
+    p.tags.length ? "\\n" + p.tags.map(x => "#" + tag(x)).join(" ") : "",
+    "\\n\\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir",
   ];
-  return lines.filter(Boolean).join("\n").slice(0, 1000);
+  return lines.filter(Boolean).join("\\n").slice(0, 3900);
 }
 async function editCaption(chatId: string | number, messageId: number, caption: string) {
   try { await tg("editMessageCaption", { chat_id: chatId, message_id: messageId, caption, parse_mode: "HTML" }); } catch {}
