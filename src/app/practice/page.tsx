@@ -1,3 +1,8 @@
 "use client";
 
-export { default } from "@/components/PracticeEngine";
+import PracticeEngine from "@/components/PracticeEngine";
+
+/** /practice — always mounts the Persian Practice hub. */
+export default function PracticePage() {
+  return <PracticeEngine />;
+}
