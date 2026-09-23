@@ -67,62 +67,240 @@ function parseJson(text: string): PluginData {
 }
 const SYSTEM = "Identify a music-production plugin from the image, filename and caption. Return JSON only with title, developer, version, category, formats, platforms, description, features, tags. Never invent facts; unknown values must be empty. Use concise Persian for description/features and conventional English for product/developer/technical names. Category examples: Synthesizer, EQ, Compressor, Reverb, Delay, Saturation, Distortion, Limiter, Dynamics, Instrument, Sampler, Utility, Mastering, Bundle, Other.";
 
-async function openAI(imageData: string, fileName: string, caption: string) {
-  const k = (process.env.OPENAI_API_KEY || "").trim();
-  if (!k) throw new Error("openai_not_configured");
-  const model = (process.env.PLUGIN_AI_VISION_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini").trim();
-  const base = (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
-  const res = await fetch(base + "/chat/completions", {
-    method: "POST", headers: { authorization: "Bearer " + k, "content-type": "application/json" },
-    body: JSON.stringify({ model, temperature: 0.1, max_tokens: 1200, messages: [
-      { role: "system", content: SYSTEM },
-      { role: "user", content: [
-        { type: "text", text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") },
-        { type: "image_url", image_url: { url: imageData } },
-      ] },
-    ] }),
-    signal: AbortSignal.timeout(30000),
-  });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(clean(data?.error?.message || ("openai_http_" + res.status), 240));
-  const text = data?.choices?.[0]?.message?.content;
-  if (!text) throw new Error("openai_empty_reply");
-  return { data: parseJson(String(text)), provider: "openai", model };
+type AiResult = { data: PluginData; provider: string; model: string };
+
+function envList(name: string) {
+  return (process.env[name] || "").split(",").map(v => v.trim()).filter(Boolean);
 }
 
-async function google(bytes: Buffer, mime: string, fileName: string, caption: string) {
+async function openAICompatible(
+  provider: string,
+  apiKey: string,
+  baseUrl: string,
+  models: string[],
+  imageData: string,
+  fileName: string,
+  caption: string,
+) {
+  let last = provider + "_no_working_model";
+  for (const model of models) {
+    try {
+      const res = await fetch(baseUrl.replace(/\/$/, "") + "/chat/completions", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer " + apiKey,
+          "content-type": "application/json",
+          ...(provider === "openrouter" ? {
+            "HTTP-Referer": siteUrl(),
+            "X-Title": "ArtistYar Plugin Library",
+          } : {}),
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.1,
+          max_tokens: 1200,
+          messages: [
+            { role: "system", content: SYSTEM },
+            { role: "user", content: [
+              { type: "text", text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") },
+              { type: "image_url", image_url: { url: imageData } },
+            ] },
+          ],
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        last = clean(data?.error?.message || (provider + "_http_" + res.status), 240);
+        continue;
+      }
+      const text = data?.choices?.[0]?.message?.content;
+      if (!text) {
+        last = provider + "_empty_reply";
+        continue;
+      }
+      return { data: parseJson(String(text)), provider, model } satisfies AiResult;
+    } catch (error) {
+      last = clean(error instanceof Error ? error.message : error, 240);
+    }
+  }
+  throw new Error(last);
+}
+
+async function google(bytes: Buffer, mime: string, fileName: string, caption: string, models: string[]) {
   const k = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
   if (!k) throw new Error("google_not_configured");
-  const model = (process.env.PLUGIN_AI_GEMINI_MODEL || "gemini-2.5-flash").trim();
-  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(k), {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM }] },
-      contents: [{ role: "user", parts: [
-        { text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") },
-        { inline_data: { mime_type: mime || "image/jpeg", data: bytes.toString("base64") } },
-      ] }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 1200, responseMimeType: "application/json" },
-    }),
-    signal: AbortSignal.timeout(30000),
-  });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(clean(data?.error?.message || ("google_http_" + res.status), 240));
-  const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "";
-  if (!text) throw new Error("google_empty_reply");
-  return { data: parseJson(text), provider: "google", model };
+  let last = "google_no_working_model";
+  for (const model of models) {
+    try {
+      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(k), {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM }] },
+          contents: [{ role: "user", parts: [
+            { text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") },
+            { inline_data: { mime_type: mime || "image/jpeg", data: bytes.toString("base64") } },
+          ] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 1200, responseMimeType: "application/json" },
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        last = clean(data?.error?.message || ("google_http_" + res.status), 240);
+        continue;
+      }
+      const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "";
+      if (!text) {
+        last = "google_empty_reply";
+        continue;
+      }
+      return { data: parseJson(text), provider: "google", model } satisfies AiResult;
+    } catch (error) {
+      last = clean(error instanceof Error ? error.message : error, 240);
+    }
+  }
+  throw new Error(last);
+}
+
+async function anthropic(imageData: string, fileName: string, caption: string, models: string[]) {
+  const k = (process.env.ANTHROPIC_API_KEY || "").trim();
+  if (!k) throw new Error("anthropic_not_configured");
+  let last = "anthropic_no_working_model";
+  const comma = imageData.indexOf(",");
+  const meta = imageData.slice(5, comma);
+  const mediaType = (meta.split(";")[0] || "image/jpeg");
+  const base64 = imageData.slice(comma + 1);
+  for (const model of models) {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": k,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 1200,
+          system: SYSTEM,
+          messages: [{ role: "user", content: [
+            { type: "text", text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") },
+            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+          ] }],
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        last = clean(data?.error?.message || ("anthropic_http_" + res.status), 240);
+        continue;
+      }
+      const text = data?.content?.filter((x: any) => x?.type === "text").map((x: any) => x.text).join("") || "";
+      if (!text) {
+        last = "anthropic_empty_reply";
+        continue;
+      }
+      return { data: parseJson(text), provider: "anthropic", model } satisfies AiResult;
+    } catch (error) {
+      last = clean(error instanceof Error ? error.message : error, 240);
+    }
+  }
+  throw new Error(last);
+}
+
+function modelPool(prefix: string, singleName: string, defaults: string[]) {
+  const configured = envList(prefix + "_MODELS");
+  const single = (process.env[singleName] || "").trim();
+  return Array.from(new Set([...configured, ...(single ? [single] : []), ...defaults].filter(Boolean)));
 }
 
 async function identify(imageFileId: string, fileName: string, caption: string) {
   const image = await telegramBytes(imageFileId);
   const dataUrl = "data:" + image.contentType + ";base64," + image.bytes.toString("base64");
-  const attempts = [
-    () => google(image.bytes, image.contentType, fileName, caption),
-    () => openAI(dataUrl, fileName, caption),
-  ];
+
+  const googleKey = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
+  const candidates: Array<() => Promise<AiResult>> = [];
+
+  if (googleKey) {
+    candidates.push(() => google(
+      image.bytes,
+      image.contentType,
+      fileName,
+      caption,
+      modelPool("PLUGIN_AI_GEMINI", "PLUGIN_AI_GEMINI_MODEL", ["gemini-2.5-flash", "gemini-2.5-pro"])
+    ));
+  }
+
+  const openaiKey = (process.env.OPENAI_API_KEY || "").trim();
+  if (openaiKey) {
+    candidates.push(() => openAICompatible(
+      "openai",
+      openaiKey,
+      process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
+      modelPool("PLUGIN_AI_OPENAI", "OPENAI_MODEL", ["gpt-4o-mini"]),
+      dataUrl,
+      fileName,
+      caption
+    ));
+  }
+
+  const openrouterKey = (process.env.OPENROUTER_API_KEY || "").trim();
+  if (openrouterKey) {
+    candidates.push(() => openAICompatible(
+      "openrouter",
+      openrouterKey,
+      process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+      modelPool("PLUGIN_AI_OPENROUTER", "OPENROUTER_MODEL", ["google/gemini-2.5-flash"]),
+      dataUrl,
+      fileName,
+      caption
+    ));
+  }
+
+  const anthropicKey = (process.env.ANTHROPIC_API_KEY || "").trim();
+  if (anthropicKey) {
+    candidates.push(() => anthropic(
+      dataUrl,
+      fileName,
+      caption,
+      modelPool("PLUGIN_AI_ANTHROPIC", "ANTHROPIC_MODEL", ["claude-sonnet-4-20250514"])
+    ));
+  }
+
+  const compatibleProviders = [
+    ["groq", "GROQ_API_KEY", "GROQ_BASE_URL", "GROQ_MODEL", "https://api.groq.com/openai/v1", ["meta-llama/llama-4-scout-17b-16e-instruct"]],
+    ["xai", "XAI_API_KEY", "XAI_BASE_URL", "XAI_MODEL", "https://api.x.ai/v1", ["grok-4-1-fast-reasoning"]],
+    ["mistral", "MISTRAL_API_KEY", "MISTRAL_BASE_URL", "MISTRAL_MODEL", "https://api.mistral.ai/v1", ["pixtral-large-latest"]],
+    ["together", "TOGETHER_API_KEY", "TOGETHER_BASE_URL", "TOGETHER_MODEL", "https://api.together.xyz/v1", ["Qwen/Qwen2.5-VL-72B-Instruct"]],
+    ["fireworks", "FIREWORKS_API_KEY", "FIREWORKS_BASE_URL", "FIREWORKS_MODEL", "https://api.fireworks.ai/inference/v1", ["accounts/fireworks/models/qwen2p5-vl-32b-instruct"]],
+    ["agentrouter", "AGENTROUTER_API_KEY", "AGENTROUTER_BASE_URL", "AGENTROUTER_MODEL", "https://co.agentrouter.org/v1", ["gpt-5.5"]],
+    ["xkiro", "XKIRO_API_KEY", "XKIRO_BASE_URL", "XKIRO_MODEL", "https://api.xkiro.com/v1", []],
+    ["bytez", "BYTEZ_API_KEY", "BYTEZ_BASE_URL", "BYTEZ_MODEL", "https://api.bytez.com/models/v2/openai/v1", []],
+    ["deepseek", "DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL", "https://api.deepseek.com/v1", []],
+  ] as const;
+
+  for (const [provider, keyName, baseName, modelName, defaultBase, defaults] of compatibleProviders) {
+    const apiKey = (process.env[keyName] || "").trim();
+    if (!apiKey) continue;
+    const base = process.env[baseName] || defaultBase;
+    const models = modelPool("PLUGIN_AI_" + provider.toUpperCase(), modelName, defaults);
+    if (!models.length) continue;
+    candidates.push(() => openAICompatible(provider, apiKey, base, models, dataUrl, fileName, caption));
+  }
+
+  if (!candidates.length) throw new Error("no_plugin_vision_ai_configured");
+
+  // Rotate the first provider by Telegram message ID so one provider/model is
+  // not permanently preferred. Every configured provider/model remains a
+  // fallback if earlier candidates fail.
+  const offset = Math.abs(Number(imageFileId.slice(-6).replace(/\D/g, "") || "0")) % candidates.length;
+  const rotated = candidates.slice(offset).concat(candidates.slice(0, offset));
+
   let last = "plugin_ai_failed";
-  for (const run of attempts) {
-    try { return await run(); } catch (e) { last = clean(e instanceof Error ? e.message : e, 240); }
+  for (const run of rotated) {
+    try { return await run(); }
+    catch (error) { last = clean(error instanceof Error ? error.message : error, 300); }
   }
   throw new Error(last);
 }
