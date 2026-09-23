@@ -524,7 +524,7 @@ export function DailyVoicingLab({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-ink-500">هر روز یک voicing جدید بر اساس تاریخ. امروز را روی پیانو تکرار کن. \n            </p>
+          <p className="text-xs text-ink-500">هر روز یک voicing جدید بر اساس تاریخ. امروز را روی پیانو تکرار کن. </p>
           <button
             type="button"
             className="btn-primary !px-4 !py-2 text-xs"
