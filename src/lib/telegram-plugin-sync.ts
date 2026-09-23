@@ -37,13 +37,34 @@ function clean(v: unknown, max = 500) {
 async function tg(method: string, body: Record<string, unknown>) {
   const t = botToken();
   if (!t) throw new Error("telegram_bot_token_missing");
-  const res = await fetch(TG + "/bot" + t + "/" + method, {
-    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-    cache: "no-store", signal: AbortSignal.timeout(15000),
-  });
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data?.ok) throw new Error(clean(data?.description || ("telegram_" + method + "_failed"), 240));
-  return data.result;
+  let last = "telegram_" + method + "_failed";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(TG + "/bot" + t + "/" + method, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        cache: "no-store",
+        signal: AbortSignal.timeout(15000),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) return data.result;
+      const description = clean(data?.description || last, 240);
+      last = description;
+      if (![429, 500, 502, 503, 504].includes(res.status) || attempt >= 2) {
+        throw new Error(description);
+      }
+      const retryAfter = Number(data?.parameters?.retry_after || 0);
+      const waitMs = retryAfter > 0 ? Math.min(15000, retryAfter * 1000) : 700 * (attempt + 1);
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+    } catch (error) {
+      if (attempt >= 2) throw error;
+      last = clean(error instanceof Error ? error.message : String(error), 240);
+      if (!/fetch failed|timeout|timed out|aborted|network/i.test(last)) throw error;
+      await new Promise(resolve => setTimeout(resolve, 700 * (attempt + 1)));
+    }
+  }
+  throw new Error(last);
 }
 export async function telegramGetFile(fileId: string) {
   const file = await tg("getFile", { file_id: fileId });
@@ -582,12 +603,18 @@ function makeCaption(p: PluginData) {
   return lines.filter(Boolean).join("\n").slice(0, 1000);
 }
 async function editCaption(chatId: string | number, messageId: number, caption: string) {
-  return tg("editMessageCaption", {
-    chat_id: chatId,
-    message_id: messageId,
-    caption: caption.slice(0, 1024),
-    parse_mode: "HTML",
-  });
+  try {
+    return await tg("editMessageCaption", {
+      chat_id: chatId,
+      message_id: messageId,
+      caption: caption.slice(0, 1024),
+      parse_mode: "HTML",
+    });
+  } catch (error) {
+    const message = clean(error instanceof Error ? error.message : String(error), 300);
+    if (/message is not modified/i.test(message)) return true;
+    throw error;
+  }
 }
 export async function processPluginPair(photo: TgMessage, doc: TgMessage) {
   if (!db) throw new Error("supabase_not_configured");
@@ -611,8 +638,9 @@ export async function processPluginPair(photo: TgMessage, doc: TgMessage) {
   }, { onConflict: "channel_id,document_message_id" }).select("id").single();
   if (result.error) throw new Error("plugin_db_insert_failed:" + result.error.message);
   const finalCaption = makeCaption(p);
+  // The photo is the original public post we enrich. Never edit/repost the
+  // companion document: it must remain the original downloadable file message.
   await editCaption(photo.chat?.id || chatId, photo.message_id, finalCaption);
-  await editCaption(doc.chat?.id || chatId, doc.message_id, finalCaption);
   return { id: result.data?.id, title: p.title };
 }
 export async function enqueuePluginMessage(message: TgMessage) {
@@ -755,8 +783,7 @@ export async function processPendingPluginPairs(limit = 5) {
         if (!missingClaimFunction) {
           throw new Error("plugin_pair_claim_failed:" + claim.error.message);
         }
-        // Backward-compatible fallback while the Supabase migration is being applied.
-        console.warn("telegram_plugin_pair_claim_unavailable", claim.error.message);
+        throw new Error("plugin_pair_claim_failed:" + claim.error.message);
       } else if (!claim.data) {
         continue;
       }
