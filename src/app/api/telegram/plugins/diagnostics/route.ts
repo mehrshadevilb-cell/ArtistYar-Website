@@ -124,10 +124,7 @@ export async function GET(request: Request) {
         out.probe = { ok: false, error: "no_photo_in_queue" };
       } else {
         try {
-          const recovered = await telegramBytes(
-            latestPhoto.file_id,
-            String(latestPhoto.channel_id)
-          );
+          const recovered = await telegramBytes(latestPhoto.file_id);
           out.probe = {
             ok: true,
             message_id: Number(latestPhoto.message_id),
