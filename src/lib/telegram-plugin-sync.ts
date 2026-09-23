@@ -238,7 +238,7 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
       "openai",
       openaiKey,
       process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
-      modelPool("PLUGIN_AI_OPENAI", "OPENAI_MODEL", ["gpt-4o-mini"]),
+      modelPool("PLUGIN_AI_OPENAI", "OPENAI_MODEL", [process.env.PLUGIN_AI_VISION_MODEL || "", "gpt-4o-mini"]),
       dataUrl,
       fileName,
       caption
