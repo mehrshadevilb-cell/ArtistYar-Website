@@ -586,11 +586,22 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
   // automatically; each model learns from success, failure and latency in this
   // running process, with unhealthy models temporarily cooled down.
   let last = "plugin_ai_failed";
-  for (const run of candidates) {
-    try { return await run(); }
-    catch (error) { last = clean(error instanceof Error ? error.message : error, 300); }
+  const failures: string[] = [];
+  const providerNames = ["google", "openai", "openrouter", "anthropic", "groq", "xai", "mistral", "together", "fireworks", "agentrouter", "xkiro", "bytez", "deepseek"];
+  for (let index = 0; index < candidates.length; index++) {
+    const run = candidates[index];
+    const provider = providerNames[index] || "provider";
+    try {
+      return await run();
+    } catch (error) {
+      last = clean(error instanceof Error ? error.message : error, 300);
+      failures.push(provider + ":" + last);
+    }
   }
-  throw new Error(last);
+  // Never hide the real provider failure behind only the last attempted model.
+  // This makes diagnostics actionable when several configured providers fail
+  // in the same request (for example an expired key plus an unavailable model).
+  throw new Error("plugin_ai_all_providers_failed:" + failures.join(" | "));
 }
 function esc(v: string) { return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function tag(v: string) { return String(v || "").trim().replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "").slice(0, 48); }
