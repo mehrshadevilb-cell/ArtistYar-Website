@@ -7,8 +7,38 @@ alter table public.telegram_plugin_ingest_queue
 create index if not exists telegram_plugin_queue_file_idx
   on public.telegram_plugin_ingest_queue(channel_id, kind, file_id);
 
+-- Remove duplicate exact-file queue events before enforcing uniqueness.
+delete from public.telegram_plugin_ingest_queue q
+where q.id in (
+  select id
+  from (
+    select id,
+           row_number() over (
+             partition by channel_id, kind, file_id
+             order by received_at desc, id desc
+           ) as rn
+    from public.telegram_plugin_ingest_queue
+  ) d
+  where d.rn > 1
+);
+
 create unique index if not exists telegram_plugin_queue_file_unique
   on public.telegram_plugin_ingest_queue(channel_id, kind, file_id);
+
+-- Remove duplicate catalog rows before enforcing uniqueness.
+delete from public.telegram_plugin_posts p
+where p.id in (
+  select id
+  from (
+    select id,
+           row_number() over (
+             partition by channel_id, telegram_file_id
+             order by updated_at desc, created_at desc, id desc
+           ) as rn
+    from public.telegram_plugin_posts
+  ) d
+  where d.rn > 1
+);
 
 create unique index if not exists telegram_plugin_posts_file_unique
   on public.telegram_plugin_posts(channel_id, telegram_file_id);
