@@ -28,14 +28,14 @@ const PracticeChunkLoading = () => (
 
 
 const CoreEarGym = dynamic(() => import("@/components/CoreEarGym").then((m) => m.CoreEarGym), { ssr: false, loading: () => <PracticeChunkLoading /> });
-const TheoryLab = dynamic(() => import("@/components/TheoryLab").then((m) => m.TheoryLab), { ssr: false });
-const ProArcadeLab = dynamic(() => import("@/components/ProArcadeLab").then((m) => m.ProArcadeLab), { ssr: false });
-const DailyVoicingLab = dynamic(() => import("@/components/DailyVoicingLab").then((m) => m.DailyVoicingLab), { ssr: false });
-const AdaptiveWorkoutLab = dynamic(() => import("@/components/AdaptiveWorkoutLab").then((m) => m.AdaptiveWorkoutLab), { ssr: false });
-const SoundGymLab = dynamic(() => import("@/components/SoundGymLab").then((m) => m.SoundGymLab), { ssr: false });
-const UserAudioLab = dynamic(() => import("@/components/UserAudioLab").then((m) => m.UserAudioLab), { ssr: false });
-const PracticeProfileLab = dynamic(() => import("@/components/PracticeProfileLab").then((m) => m.PracticeProfileLab), { ssr: false });
-const DailyChallengeLab = dynamic(() => import("@/components/DailyChallengeLab").then((m) => m.DailyChallengeLab), { ssr: false });
+const TheoryLab = dynamic(() => import("@/components/TheoryLab").then((m) => m.TheoryLab), { ssr: false, loading: () => <PracticeChunkLoading /> });
+const ProArcadeLab = dynamic(() => import("@/components/ProArcadeLab").then((m) => m.ProArcadeLab), { ssr: false, loading: () => <PracticeChunkLoading /> });
+const DailyVoicingLab = dynamic(() => import("@/components/DailyVoicingLab").then((m) => m.DailyVoicingLab), { ssr: false, loading: () => <PracticeChunkLoading /> });
+const AdaptiveWorkoutLab = dynamic(() => import("@/components/AdaptiveWorkoutLab").then((m) => m.AdaptiveWorkoutLab), { ssr: false, loading: () => <PracticeChunkLoading /> });
+const SoundGymLab = dynamic(() => import("@/components/SoundGymLab").then((m) => m.SoundGymLab), { ssr: false, loading: () => <PracticeChunkLoading /> });
+const UserAudioLab = dynamic(() => import("@/components/UserAudioLab").then((m) => m.UserAudioLab), { ssr: false, loading: () => <PracticeChunkLoading /> });
+const PracticeProfileLab = dynamic(() => import("@/components/PracticeProfileLab").then((m) => m.PracticeProfileLab), { ssr: false, loading: () => <PracticeChunkLoading /> });
+const DailyChallengeLab = dynamic(() => import("@/components/DailyChallengeLab").then((m) => m.DailyChallengeLab), { ssr: false, loading: () => <PracticeChunkLoading /> });
 
 type TabId = "today" | "ear" | "lab" | "music" | "progress";
 type ViewId =
