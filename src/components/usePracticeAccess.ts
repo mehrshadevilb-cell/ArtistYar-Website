@@ -42,7 +42,7 @@ export function usePracticeAccess() {
         setAccess({
           loading: false,
           pro: Boolean(d?.pro),
-          stageLimit: Math.max(1, Number(d?.stageLimit) || 5),
+          stageLimit: d?.pro ? 0 : Math.max(1, Number(d?.stageLimit) || 5),
           subscriptionDays: Math.max(0, Number(d?.subscriptionDays) || 0),
           proExpiresAt: d?.proExpiresAt || null,
         });
