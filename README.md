@@ -92,3 +92,5 @@ cp .env.example .env.local
 # ARTISTYAR_ADMIN_* و حداقل یک AI key را در .env.local پر کن
 npm run dev
 ```
+
+<!-- Production verification workflow is enforced by .github/workflows/production-verify.yml. -->
