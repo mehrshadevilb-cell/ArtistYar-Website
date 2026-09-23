@@ -209,7 +209,7 @@ async function anthropic(imageData: string, fileName: string, caption: string, m
   throw new Error(last);
 }
 
-function modelPool(prefix: string, singleName: string, defaults: string[]) {
+function modelPool(prefix: string, singleName: string, defaults: readonly string[]) {
   const configured = envList(prefix + "_MODELS");
   const single = (process.env[singleName] || "").trim();
   return Array.from(new Set([...configured, ...(single ? [single] : []), ...defaults].filter(Boolean)));
