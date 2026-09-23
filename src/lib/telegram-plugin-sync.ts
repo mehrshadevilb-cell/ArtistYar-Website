@@ -187,19 +187,29 @@ export async function enqueuePluginMessage(message: TgMessage) {
     file_size: message.document?.file_size || null, caption: clean(message.caption, 1200),
   }, { onConflict: "channel_id,message_id", ignoreDuplicates: true }).select("*").maybeSingle();
   if (inserted.error) throw new Error("plugin_queue_insert_failed:" + inserted.error.message);
-  if (!inserted.data) return { duplicate: true };
+
+  // Telegram retries a webhook after a transient 5xx. When that happens the
+  // queue row already exists, so do not stop at "duplicate": load the existing
+  // row and try pairing/processing again.
+  const current = inserted.data || (await db.from("telegram_plugin_ingest_queue")
+    .select("*")
+    .eq("channel_id", chatId)
+    .eq("message_id", message.message_id)
+    .maybeSingle()).data;
+  if (!current) throw new Error("plugin_queue_row_missing_after_upsert");
+
   const opposite = kind === "photo" ? "document" : "photo";
   const cutoff = new Date(Date.now() - 120000).toISOString();
   const matches = await db.from("telegram_plugin_ingest_queue").select("*").eq("channel_id", chatId).eq("kind", opposite).gte("received_at", cutoff).order("received_at", { ascending: false }).limit(5);
   if (matches.error) throw new Error("plugin_queue_match_failed:" + matches.error.message);
   const match = matches.data?.[0];
   if (!match) return { queued: true };
-  const photoRow = kind === "photo" ? inserted.data : match;
-  const docRow = kind === "document" ? inserted.data : match;
+  const photoRow = kind === "photo" ? current : match;
+  const docRow = kind === "document" ? current : match;
   const photo: TgMessage = { message_id: Number(photoRow.message_id), chat: message.chat, caption: photoRow.caption, photo: [{ file_id: photoRow.file_id, width: 1, height: 1 }] };
   const doc: TgMessage = { message_id: Number(docRow.message_id), chat: message.chat, caption: docRow.caption, document: { file_id: docRow.file_id, file_name: docRow.file_name || undefined, mime_type: docRow.mime_type || undefined, file_size: docRow.file_size || undefined } };
   const result = await processPluginPair(photo, doc);
-  await db.from("telegram_plugin_ingest_queue").delete().in("id", [inserted.data.id, match.id]);
+  await db.from("telegram_plugin_ingest_queue").delete().in("id", [current.id, match.id]);
   return { processed: true, result };
 }
 export async function setPluginWebhook(urlValue: string, secretToken?: string) {
