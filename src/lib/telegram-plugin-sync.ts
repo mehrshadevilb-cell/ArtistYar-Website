@@ -477,6 +477,9 @@ export async function enqueuePluginMessage(message: TgMessage) {
   const kind = message.document ? "document" : message.photo ? "photo" : null;
   if (!kind) return { ignored: true };
 
+  // Ignore temporary recovery posts created by the 404 CDN fallback.
+  if ((message.caption || "").includes("ARTISTYAR_INTERNAL_RECOVERY")) return { ignored: true };
+
   const fileId = kind === "document"
     ? message.document!.file_id
     : message.photo![message.photo!.length - 1].file_id;
