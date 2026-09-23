@@ -20,9 +20,13 @@ async function getPlugins(search = "", category = ""): Promise<Plugin[]> {
     const params = new URLSearchParams({ limit: "60" });
     if (search) params.set("q", search);
     if (category) params.set("category", category);
-    const res = await fetch(base + "/api/plugins?" + params.toString(), { cache: "no-store" });
-    const data = await res.json();
-    return data?.items || [];
+    const res = await fetch(base + "/api/plugins?" + params.toString(), {
+      cache: "no-store",
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => null);
+    return Array.isArray(data?.items) ? data.items : [];
   } catch { return []; }
 }
 
