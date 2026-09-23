@@ -180,38 +180,127 @@ export async function enqueuePluginMessage(message: TgMessage) {
   if (configured.startsWith("@") && username && configured.toLowerCase() !== username.toLowerCase()) return { ignored: true };
   const kind = message.document ? "document" : message.photo ? "photo" : null;
   if (!kind) return { ignored: true };
-  const fileId = kind === "document" ? message.document!.file_id : message.photo![message.photo!.length - 1].file_id;
+
+  const fileId = kind === "document"
+    ? message.document!.file_id
+    : message.photo![message.photo!.length - 1].file_id;
+
   const inserted = await db.from("telegram_plugin_ingest_queue").upsert({
-    channel_id: chatId, message_id: message.message_id, kind, file_id: fileId,
-    file_name: message.document?.file_name || null, mime_type: message.document?.mime_type || null,
-    file_size: message.document?.file_size || null, caption: clean(message.caption, 1200),
+    channel_id: chatId,
+    message_id: message.message_id,
+    kind,
+    file_id: fileId,
+    file_name: message.document?.file_name || null,
+    mime_type: message.document?.mime_type || null,
+    file_size: message.document?.file_size || null,
+    caption: clean(message.caption, 1200),
   }, { onConflict: "channel_id,message_id", ignoreDuplicates: true }).select("*").maybeSingle();
+
   if (inserted.error) throw new Error("plugin_queue_insert_failed:" + inserted.error.message);
 
-  // Telegram retries a webhook after a transient 5xx. When that happens the
-  // queue row already exists, so do not stop at "duplicate": load the existing
-  // row and try pairing/processing again.
+  // Telegram may retry a webhook after a 5xx. Reuse the existing queue row
+  // instead of treating the retry as a terminal duplicate.
   const current = inserted.data || (await db.from("telegram_plugin_ingest_queue")
     .select("*")
     .eq("channel_id", chatId)
     .eq("message_id", message.message_id)
     .maybeSingle()).data;
-  if (!current) throw new Error("plugin_queue_row_missing_after_upsert");
 
-  const opposite = kind === "photo" ? "document" : "photo";
-  const cutoff = new Date(Date.now() - 120000).toISOString();
-  const matches = await db.from("telegram_plugin_ingest_queue").select("*").eq("channel_id", chatId).eq("kind", opposite).gte("received_at", cutoff).order("received_at", { ascending: false }).limit(5);
-  if (matches.error) throw new Error("plugin_queue_match_failed:" + matches.error.message);
-  const match = matches.data?.[0];
-  if (!match) return { queued: true };
-  const photoRow = kind === "photo" ? current : match;
-  const docRow = kind === "document" ? current : match;
-  const photo: TgMessage = { message_id: Number(photoRow.message_id), chat: message.chat, caption: photoRow.caption, photo: [{ file_id: photoRow.file_id, width: 1, height: 1 }] };
-  const doc: TgMessage = { message_id: Number(docRow.message_id), chat: message.chat, caption: docRow.caption, document: { file_id: docRow.file_id, file_name: docRow.file_name || undefined, mime_type: docRow.mime_type || undefined, file_size: docRow.file_size || undefined } };
-  const result = await processPluginPair(photo, doc);
-  await db.from("telegram_plugin_ingest_queue").delete().in("id", [current.id, match.id]);
-  return { processed: true, result };
+  if (!current) throw new Error("plugin_queue_row_missing_after_upsert");
+  return { queued: true, kind: current.kind, message_id: Number(current.message_id) };
 }
+
+function rowToPhoto(row: any): TgMessage {
+  return {
+    message_id: Number(row.message_id),
+    chat: { id: Number(row.channel_id) },
+    caption: row.caption || "",
+    photo: [{ file_id: row.file_id, width: 1, height: 1 }],
+  };
+}
+
+function rowToDocument(row: any): TgMessage {
+  return {
+    message_id: Number(row.message_id),
+    chat: { id: Number(row.channel_id) },
+    caption: row.caption || "",
+    document: {
+      file_id: row.file_id,
+      file_name: row.file_name || undefined,
+      mime_type: row.mime_type || undefined,
+      file_size: row.file_size || undefined,
+    },
+  };
+}
+
+export async function processPendingPluginPairs(limit = 5) {
+  if (!db) throw new Error("supabase_not_configured");
+  const safeLimit = Math.max(1, Math.min(limit, 10));
+  const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
+  const photos = await db.from("telegram_plugin_ingest_queue")
+    .select("*")
+    .eq("kind", "photo")
+    .gte("received_at", cutoff)
+    .order("received_at", { ascending: true })
+    .limit(50);
+  if (photos.error) throw new Error("plugin_photo_queue_read_failed:" + photos.error.message);
+
+  const documents = await db.from("telegram_plugin_ingest_queue")
+    .select("*")
+    .eq("kind", "document")
+    .gte("received_at", cutoff)
+    .order("received_at", { ascending: true })
+    .limit(50);
+  if (documents.error) throw new Error("plugin_document_queue_read_failed:" + documents.error.message);
+
+  const docsByChannel = new Map<string, any[]>();
+  for (const row of documents.data || []) {
+    const key = String(row.channel_id);
+    const list = docsByChannel.get(key) || [];
+    list.push(row);
+    docsByChannel.set(key, list);
+  }
+
+  let processed = 0;
+  const errors: Array<{ photo_message_id: number; document_message_id: number; error: string }> = [];
+
+  for (const photo of photos.data || []) {
+    if (processed >= safeLimit) break;
+    const channelDocs = docsByChannel.get(String(photo.channel_id)) || [];
+    const photoTime = new Date(photo.received_at).getTime();
+
+    // Match the nearest document posted within 2 minutes of the image.
+    let best: any = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const doc of channelDocs) {
+      const distance = Math.abs(new Date(doc.received_at).getTime() - photoTime);
+      if (distance <= 120000 && distance < bestDistance) {
+        best = doc;
+        bestDistance = distance;
+      }
+    }
+    if (!best) continue;
+
+    try {
+      const result = await processPluginPair(rowToPhoto(photo), rowToDocument(best));
+      const deleted = await db.from("telegram_plugin_ingest_queue")
+        .delete()
+        .in("id", [photo.id, best.id]);
+      if (deleted.error) throw new Error("plugin_queue_cleanup_failed:" + deleted.error.message);
+      processed++;
+    } catch (error) {
+      errors.push({
+        photo_message_id: Number(photo.message_id),
+        document_message_id: Number(best.message_id),
+        error: clean(error instanceof Error ? error.message : error, 500),
+      });
+    }
+  }
+
+  return { processed, errors, pending_checked: (photos.data || []).length };
+}
+
 export async function setPluginWebhook(urlValue: string, secretToken?: string) {
   return tg("setWebhook", { url: urlValue, allowed_updates: ["channel_post", "edited_channel_post"], drop_pending_updates: false, ...(secretToken ? { secret_token: secretToken } : {}) });
 }
