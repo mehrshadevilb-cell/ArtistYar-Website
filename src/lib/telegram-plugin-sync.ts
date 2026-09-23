@@ -1,4 +1,5 @@
-import { createHash } from "crypto";\n
+import { createHash } from "crypto";
+
 import { createClient } from "@supabase/supabase-js";
 
 type TgMessage = {
