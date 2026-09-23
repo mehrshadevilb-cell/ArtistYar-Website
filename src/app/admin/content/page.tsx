@@ -2,14 +2,16 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BookOpen, FolderOpen, GraduationCap, LayoutGrid } from "lucide-react";
+import { BookOpen, FolderOpen, GraduationCap, LayoutGrid, Home } from "lucide-react";
 import MediaPage from "../media/page";
 import FreeEducationPage from "../free-education/page";
 import EducationPage from "../education/page";
+import { HomePageEditor } from "@/components/admin/HomePageEditor";
 
-type TabId = "media" | "free" | "courses";
+type TabId = "media" | "free" | "courses" | "homepage";
 
 const TABS: { id: TabId; label: string; hint: string; icon: typeof FolderOpen }[] = [
+  { id: "homepage", label: "صفحه اصلی", hint: "نمایش · ترتیب · متن بخش‌ها", icon: Home },
   { id: "media", label: "رسانه و گالری", hint: "نمونه‌کار · ProdBy · فایل‌های عمومی", icon: FolderOpen },
   { id: "free", label: "آموزش رایگان", hint: "ویدیو، فصل، انتشار عمومی", icon: BookOpen },
   { id: "courses", label: "دوره‌های آموزشی", hint: "اتصال ویدیو به Course / Lesson", icon: GraduationCap },
@@ -17,9 +19,11 @@ const TABS: { id: TabId; label: string; hint: string; icon: typeof FolderOpen }[
 
 function tabFromQuery(raw: string | null): TabId {
   const v = (raw || "").toLowerCase().trim();
+  if (v === "homepage" || v === "home") return "homepage";
   if (v === "free" || v === "free-education" || v === "videos" || v === "video") return "free";
   if (v === "courses" || v === "education" || v === "course") return "courses";
-  return "media";
+  if (v === "media") return "media";
+  return "homepage";
 }
 
 function ContentHubInner() {
@@ -34,7 +38,7 @@ function ContentHubInner() {
 
   function select(id: TabId) {
     setTab(id);
-    const url = id === "media" ? "/admin/content" : `/admin/content?tab=${id}`;
+    const url = id === "homepage" ? "/admin/content" : `/admin/content?tab=${id}`;
     router.replace(url, { scroll: false });
   }
 
@@ -47,7 +51,7 @@ function ContentHubInner() {
           مدیریت محتوا
         </h2>
         <p className="mt-2 max-w-3xl text-sm leading-7 text-ink-400">
-          رسانه، آموزش رایگان و ویدیوهای دوره در یک پنل. لینک‌های قدیمی منو به همین‌جا منتقل شده‌اند.
+          صفحه اصلی، رسانه، آموزش رایگان و ویدیوهای دوره در یک پنل.
         </p>
       </div>
 
@@ -76,8 +80,7 @@ function ContentHubInner() {
         })}
       </nav>
 
-      {/* Only mount the active tab — mounting all three caused race conditions,
-          duplicate Storage fetches, and intermittent blank/crash in content hub. */}
+      {tab === "homepage" ? <HomePageEditor /> : null}
       {tab === "media" ? <MediaPage /> : null}
       {tab === "free" ? <FreeEducationPage /> : null}
       {tab === "courses" ? <EducationPage /> : null}
@@ -85,15 +88,9 @@ function ContentHubInner() {
   );
 }
 
-export default function AdminContentHubPage() {
+export default function AdminContentPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="rounded-2xl border border-white/10 bg-black/10 p-8 text-sm text-ink-500">
-          در حال بارگذاری مرکز محتوا…
-        </div>
-      }
-    >
+    <Suspense fallback={<p className="text-sm text-ink-400">بارگذاری…</p>}>
       <ContentHubInner />
     </Suspense>
   );
