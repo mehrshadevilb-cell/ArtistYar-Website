@@ -100,43 +100,10 @@ export async function telegramBytes(fileId: string, recoveryChatId?: string) {
         };
       }
 
-      // Telegram can occasionally return a valid file_path while the public
-      // download endpoint answers 404. Re-materialize the same Telegram-hosted
-      // photo with sendPhoto, download the returned file_id, then remove the
-      // temporary channel post. This keeps the original image out of Supabase
-      // Storage and does not expose the bot token to an AI provider.
-      if (native.status === 404 && recoveryChatId) {
-        try {
-          const recovered = await tg("sendPhoto", {
-            chat_id: recoveryChatId,
-            photo: fileId,
-            caption: "ARTISTYAR_INTERNAL_RECOVERY",
-            disable_notification: true,
-          });
-          const recoveredFileId = recovered?.photo?.at(-1)?.file_id;
-          const recoveredMessageId = Number(recovered?.message_id || 0);
-          if (recoveredFileId) {
-            const recoveredFile = await telegramGetFile(recoveredFileId);
-            const recoveredDownload = await httpsDownload(recoveredFile.url);
-            if (recoveredDownload.status >= 200 && recoveredDownload.status < 300) {
-              if (recoveredMessageId) {
-                try {
-                  await tg("deleteMessage", { chat_id: recoveryChatId, message_id: recoveredMessageId });
-                } catch {}
-              }
-              return {
-                bytes: recoveredDownload.bytes,
-                contentType: imageMimeFromPath(recoveredFile.filePath, recoveredDownload.contentType),
-              };
-            }
-          }
-          if (recoveredMessageId) {
-            try {
-              await tg("deleteMessage", { chat_id: recoveryChatId, message_id: recoveredMessageId });
-            } catch {}
-          }
-        } catch {}
-      }
+      // IMPORTANT: never send recovery media back to the source channel.
+      // A channel_id is not a safe recovery destination: doing so republishes
+      // the source image and can create an ingestion loop/spam. If Telegram's
+      // CDN returns 404, retry the original file only; do not post anything.
 
       let nativeDetail = "";
       if (native.status === 404) {
