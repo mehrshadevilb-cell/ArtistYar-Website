@@ -825,13 +825,18 @@ export async function getPluginChannelAdminStatus() {
     chat_id: chatId,
     user_id: Number(me?.id),
   });
+  const isAdmin = member?.status === "administrator" || member?.status === "creator";
+  const canEdit = Boolean(member?.can_edit_messages);
   return {
     bot_id: me?.id,
     bot_username: me?.username,
     status: member?.status,
-    can_edit_messages: member?.can_edit_messages ?? false,
+    is_administrator: isAdmin,
+    can_edit_messages: canEdit,
     can_post_messages: member?.can_post_messages ?? false,
     can_delete_messages: member?.can_delete_messages ?? false,
+    required_permissions_ok: isAdmin && canEdit,
+    required_permissions: ["administrator", "can_edit_messages"],
   };
 }
 export async function pluginImageResponse(fileId: string) {
