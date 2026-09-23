@@ -12,6 +12,7 @@ import "./taste-ui.css";
 import "./light-mode-fix.css";
 import "./click-fix.css";
 import "./scroll-motion.css";
+import "./ui-nav-overflow-fix.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SiteHeader } from "@/components/SiteHeader";
