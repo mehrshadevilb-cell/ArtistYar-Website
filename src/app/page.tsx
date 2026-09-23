@@ -11,9 +11,6 @@ import { HeroDifferentiator } from "@/components/HeroDifferentiator";
 import { ScrollStage } from "@/components/ScrollStage";
 import dynamic from "next/dynamic";
 
-const HomeLiveCourses = dynamic(() =>
-  import("@/components/HomeLiveCourses").then((m) => m.HomeLiveCourses),
-);
 const HomeStudentWorks = dynamic(() =>
   import("@/components/HomeStudentWorks").then((m) => m.HomeStudentWorks),
 );
@@ -134,10 +131,6 @@ export default function HomePage() {
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageCoursesJsonLd) }} />
 
-      {/*
-        Desktop: title | disk, then cards full-width under.
-        Mobile:  title → cards → disk (disk goes under cards).
-      */}
       <ScrollStage
         as="section"
         className="hero-section container-ay hero-layout-root"
@@ -197,37 +190,61 @@ export default function HomePage() {
       </ScrollStage>
 
       <ScrollStage as="section" className="container-ay py-10 sm:py-14" intensity="calm">
-        <div className="card-ay overflow-hidden border-gold-400/10 p-6 sm:p-8">
-          <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div>
-              <p className="eyebrow">/ خدمات استودیو</p>
-              <h2 className="mt-2 text-2xl font-medium text-sand-50">
-                سفارش <span className="text-gold-400">تنظیم آثار موسیقی</span>
-              </h2>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-ink-400">
-                از دمو و ایده اولیه تا طراحی ساختار، انتخاب المان‌های موسیقی و آماده‌سازی پروژه برای مرحله میکس.
-                جزئیات هر پروژه قبل از شروع بررسی و مشخص می‌شود.
-              </p>
-              <div className="mt-5 flex flex-wrap gap-2 text-xs text-ink-300">
-                <span className="rounded-full border border-white/10 px-3 py-1.5">تنظیم اختصاصی</span>
-                <span className="rounded-full border border-white/10 px-3 py-1.5">ساختار آهنگ</span>
-                <span className="rounded-full border border-white/10 px-3 py-1.5">آماده‌سازی برای میکس</span>
+        <div className="mb-5">
+          <p className="eyebrow">/ خدمات استودیو</p>
+          <h2 className="mt-2 text-2xl font-medium text-sand-50 sm:text-3xl">
+            خدمات حرفه‌ای <span className="text-gold-400">استودیو</span>
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-7 text-ink-400">
+            از تنظیم تا میکس و مسترینگ — پروژه را تا خروجی قابل انتشار جلو می‌بریم.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="card-ay overflow-hidden border-gold-400/10 p-6 sm:p-7">
+            <div className="flex flex-col gap-4 h-full">
+              <div className="flex-1">
+                <h3 className="text-lg font-medium text-sand-50">
+                  سفارش <span className="text-gold-400">تنظیم آثار موسیقی</span>
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-ink-400">
+                  از دمو و ایده اولیه تا طراحی ساختار، انتخاب المان‌های موسیقی و آماده‌سازی پروژه برای مرحله میکس.
+                  جزئیات هر پروژه قبل از شروع بررسی و مشخص می‌شود.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2 text-xs text-ink-300">
+                  <span className="rounded-full border border-white/10 px-3 py-1.5">تنظیم اختصاصی</span>
+                  <span className="rounded-full border border-white/10 px-3 py-1.5">ساختار آهنگ</span>
+                  <span className="rounded-full border border-white/10 px-3 py-1.5">آماده‌سازی برای میکس</span>
+                </div>
               </div>
+              <SafeLink href="/arrangement" hard className="btn-primary self-start">
+                جزئیات و سفارش
+                <ArrowLeft size={16} aria-hidden="true" />
+              </SafeLink>
             </div>
-            <SafeLink href="/arrangement" hard className="btn-primary self-start">
-              جزئیات و سفارش
-              <ArrowLeft size={16} aria-hidden="true" />
-            </SafeLink>
+          </div>
+          <div className="card-ay overflow-hidden border-gold-400/10 p-6 sm:p-7">
+            <div className="flex flex-col gap-4 h-full">
+              <div className="flex-1">
+                <h3 className="text-lg font-medium text-sand-50">
+                  <span className="text-gold-400">میکس و مسترینگ</span>
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-ink-400">
+                  بالانس، فضاسازی، کنترل داینامیک و مستر نهایی برای پلتفرم‌های استریم و انتشار.
+                  پروژه با مرجع و سبک موردنظر شما پیش می‌رود.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2 text-xs text-ink-300">
+                  <span className="rounded-full border border-white/10 px-3 py-1.5">میکس حرفه‌ای</span>
+                  <span className="rounded-full border border-white/10 px-3 py-1.5">مسترینگ</span>
+                  <span className="rounded-full border border-white/10 px-3 py-1.5">آماده‌سازی انتشار</span>
+                </div>
+              </div>
+              <SafeLink href="/studio#mix-mastering" hard className="btn-primary self-start">
+                جزئیات و سفارش
+                <ArrowLeft size={16} aria-hidden="true" />
+              </SafeLink>
+            </div>
           </div>
         </div>
-      </ScrollStage>
-
-      <ScrollStage id="courses" className="scroll-mt-24" intensity="calm" exitBlur={false}>
-        <div className="container-ay pb-4">
-          <p className="eyebrow">مسیرهای آموزشی</p>
-          <h2 className="section-title mt-3">پکیج‌ها و کلاس‌ها</h2>
-        </div>
-        <HomeLiveCourses />
       </ScrollStage>
 
       <ScrollStage intensity="calm" exitBlur={false}>

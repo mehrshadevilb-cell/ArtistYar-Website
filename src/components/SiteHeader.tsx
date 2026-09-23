@@ -3,46 +3,64 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, ArrowUpLeft, Bot } from "lucide-react";
+import { Menu, X, ArrowUpLeft, Bot, ChevronDown, Wrench } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { useAuth } from "./AuthProvider";
 import { ThemeToggle } from "./ThemeToggle";
 import { SafeLink } from "./SafeLink";
 
-const coreLinks = [
-  { href: "/learn", label: "Learn" },
-  { href: "/practice", label: "Practice" },
-  { href: "/ai", label: "AI" },
-  { href: "/studio", label: "Studio" },
-  { href: "/my-artistyar", label: "My ArtistYar" },
-];
+/** Desktop + mobile order (RTL visual right → left) */
+const primaryNav = [
+  { href: "/my-artistyar", label: "داشبورد" },
+  { href: "/practice", label: "تمرین" },
+] as const;
 
-const secondaryLinks = [
+const toolsItems = [
+  { href: "/ai", label: "فضای AI" },
+  { href: "/music-analyzer", label: "تحلیل موسیقی" },
+  { href: "/ai-music", label: "تولید موسیقی" },
+  { href: "/studio", label: "استودیو" },
+  { href: "/separate", label: "جداسازی وکال" },
+  { href: "/arrangement", label: "سفارش تنظیم" },
+] as const;
+
+const afterToolsNav = [
+  { href: "/assistant", label: "راه‌یار AI", icon: true },
+  { href: "/courses", label: "پکیج‌های آموزشی" },
+  { href: "/faq", label: "پرسش‌های متداول" },
+] as const;
+
+const moreItems = [
+  { href: "/about", label: "درباره آکادمی" },
   { href: "/online", label: "کلاس آنلاین" },
   { href: "/free-player", label: "آموزش رایگان" },
-  { href: "/separate", label: "جداسازی وکال" },
   { href: "/gallery", label: "گالری خروجی‌ها" },
-  { href: "/faq", label: "سؤالات متداول" },
-];
-
-const moreLinks = [
-  { href: "/about", label: "درباره آکادمی" },
-  { href: "/#projects", label: "نمونه‌کارها" },
   { href: "/#feedback", label: "بازخورد هنرجوها" },
-  { href: "/faq", label: "سؤالات متداول" },
   { href: "/#quick-consultation", label: "مشاوره رایگان" },
   { href: "/track", label: "پیگیری سفارش" },
-];
+] as const;
+
+function isActive(pathname: string, href: string) {
+  if (href.startsWith("/#")) return false;
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(href + "/");
+}
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const toolsRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, ready } = useAuth();
   const panelHref = user?.role === "admin" ? "/admin" : "/panel";
 
   useEffect(() => {
     setOpen(false);
+    setToolsOpen(false);
+    setMoreOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -61,6 +79,33 @@ export function SiteHeader() {
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!toolsOpen && !moreOpen) return;
+    const onPointer = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (toolsOpen && toolsRef.current && !toolsRef.current.contains(t)) {
+        setToolsOpen(false);
+      }
+      if (moreOpen && moreRef.current && !moreRef.current.contains(t)) {
+        setMoreOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setToolsOpen(false);
+        setMoreOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [toolsOpen, moreOpen]);
+
+  const toolsActive = toolsItems.some((item) => isActive(pathname, item.href));
+
   return (
     <header className="site-header sticky top-0 z-50">
       <div className="container-ay flex min-h-[64px] items-center justify-between gap-3">
@@ -73,35 +118,116 @@ export function SiteHeader() {
         </Link>
 
         <nav aria-label="ناوبری اصلی" className="hidden items-center gap-0.5 lg:flex">
-          {coreLinks.map((link) => (
+          {primaryNav.map((link) => (
             <SafeLink
               key={link.href}
               href={link.href}
-              hard={link.href === "/courses" || link.href === "/assistant"}
-              className={`nav-link ${pathname === link.href ? "nav-link-active" : ""}`}
-              aria-current={pathname === link.href ? "page" : undefined}
+              className={`nav-link ${isActive(pathname, link.href) ? "nav-link-active" : ""}`}
+              aria-current={isActive(pathname, link.href) ? "page" : undefined}
             >
               {link.label}
             </SafeLink>
           ))}
-          <SafeLink href="/faq" className={`nav-link ${pathname === "/faq" ? "nav-link-active" : ""}`}>
-            FAQ
-          </SafeLink>
-          <SafeLink href="/about" className="nav-link">
-            بیشتر
-          </SafeLink>
+
+          <div className="relative" ref={toolsRef}>
+            <button
+              type="button"
+              className={`nav-link inline-flex items-center gap-1 ${toolsActive || toolsOpen ? "nav-link-active" : ""}`}
+              aria-expanded={toolsOpen}
+              aria-haspopup="menu"
+              onClick={() => {
+                setToolsOpen((v) => !v);
+                setMoreOpen(false);
+              }}
+            >
+              <Wrench size={14} aria-hidden className="opacity-70" />
+              ابزار
+              <ChevronDown
+                size={14}
+                aria-hidden
+                className={`transition-transform duration-200 ${toolsOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {toolsOpen ? (
+              <div
+                role="menu"
+                className="nav-dropdown absolute top-full right-0 z-50 mt-1 min-w-[13rem] rounded-xl border border-white/10 bg-ink-950/95 p-1.5 shadow-xl backdrop-blur-xl"
+              >
+                {toolsItems.map((item) => (
+                  <SafeLink
+                    key={item.href}
+                    href={item.href}
+                    role="menuitem"
+                    className={`block rounded-lg px-3 py-2 text-sm transition hover:bg-white/[0.06] hover:text-gold-300 ${
+                      isActive(pathname, item.href) ? "text-gold-400" : "text-sand-100"
+                    }`}
+                    onClick={() => setToolsOpen(false)}
+                  >
+                    {item.label}
+                  </SafeLink>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {afterToolsNav.map((link) => (
+            <SafeLink
+              key={link.href}
+              href={link.href}
+              hard={link.href === "/assistant"}
+              className={`nav-link inline-flex items-center gap-1.5 ${
+                isActive(pathname, link.href) ? "nav-link-active" : ""
+              }`}
+              aria-current={isActive(pathname, link.href) ? "page" : undefined}
+            >
+              {"icon" in link && link.icon ? <Bot size={14} aria-hidden className="opacity-80" /> : null}
+              {link.label}
+            </SafeLink>
+          ))}
+
+          <div className="relative" ref={moreRef}>
+            <button
+              type="button"
+              className={`nav-link inline-flex items-center gap-1 ${moreOpen ? "nav-link-active" : ""}`}
+              aria-expanded={moreOpen}
+              aria-haspopup="menu"
+              onClick={() => {
+                setMoreOpen((v) => !v);
+                setToolsOpen(false);
+              }}
+            >
+              درباره آکادمی
+              <ChevronDown
+                size={14}
+                aria-hidden
+                className={`transition-transform duration-200 ${moreOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {moreOpen ? (
+              <div
+                role="menu"
+                className="nav-dropdown absolute top-full left-0 z-50 mt-1 min-w-[13rem] rounded-xl border border-white/10 bg-ink-950/95 p-1.5 shadow-xl backdrop-blur-xl"
+              >
+                {moreItems.map((item) => (
+                  <SafeLink
+                    key={item.href + item.label}
+                    href={item.href}
+                    role="menuitem"
+                    className={`block rounded-lg px-3 py-2 text-sm transition hover:bg-white/[0.06] hover:text-gold-300 ${
+                      isActive(pathname, item.href) ? "text-gold-400" : "text-sand-100"
+                    }`}
+                    onClick={() => setMoreOpen(false)}
+                  >
+                    {item.label}
+                  </SafeLink>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </nav>
 
         <div className="hidden items-center gap-2.5 md:flex">
           <ThemeToggle />
-          <SafeLink
-            href="/assistant"
-            hard
-            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-gold-400 transition hover:bg-white/[0.05] hover:text-gold-300"
-          >
-            <Bot size={14} aria-hidden />
-            راه‌یار AI
-          </SafeLink>
           {ready && user ? (
             <Link href={panelHref} className="btn-ghost !px-4 !py-2 text-xs">
               پنل من
@@ -141,11 +267,10 @@ export function SiteHeader() {
           aria-label="ناوبری موبایل"
           className="container-ay flex max-h-[min(70dvh,32rem)] flex-col gap-0.5 overflow-y-auto overscroll-contain py-4 pb-[max(1rem,var(--tg-safe-bottom))]"
         >
-          {[...coreLinks, ...secondaryLinks, ...moreLinks].map((link) => (
+          {primaryNav.map((link) => (
             <SafeLink
-              key={link.href + link.label}
+              key={link.href}
               href={link.href}
-              hard={link.href === "/courses" || link.href === "/assistant"}
               onClick={() => setOpen(false)}
               tabIndex={open ? 0 : -1}
               className="mobile-nav-link"
@@ -153,12 +278,66 @@ export function SiteHeader() {
               {link.label}
             </SafeLink>
           ))}
+
+          <p className="mobile-nav-group-label px-4 pt-3 pb-1 text-[10px] font-medium tracking-wider text-ink-500">
+            ابزار
+          </p>
+          {toolsItems.map((item) => (
+            <SafeLink
+              key={item.href}
+              href={item.href}
+              onClick={() => setOpen(false)}
+              tabIndex={open ? 0 : -1}
+              className="mobile-nav-link"
+            >
+              {item.label}
+            </SafeLink>
+          ))}
+
+          {afterToolsNav.map((link) => (
+            <SafeLink
+              key={link.href}
+              href={link.href}
+              hard={link.href === "/assistant"}
+              onClick={() => setOpen(false)}
+              tabIndex={open ? 0 : -1}
+              className="mobile-nav-link"
+            >
+              {link.label}
+            </SafeLink>
+          ))}
+
+          <p className="mobile-nav-group-label px-4 pt-3 pb-1 text-[10px] font-medium tracking-wider text-ink-500">
+            درباره آکادمی
+          </p>
+          {moreItems.map((item) => (
+            <SafeLink
+              key={item.href + item.label}
+              href={item.href}
+              onClick={() => setOpen(false)}
+              tabIndex={open ? 0 : -1}
+              className="mobile-nav-link"
+            >
+              {item.label}
+            </SafeLink>
+          ))}
+
           {ready && user ? (
-            <Link href={panelHref} onClick={() => setOpen(false)} tabIndex={open ? 0 : -1} className="mobile-nav-link">
+            <Link
+              href={panelHref}
+              onClick={() => setOpen(false)}
+              tabIndex={open ? 0 : -1}
+              className="mobile-nav-link"
+            >
               پنل من
             </Link>
           ) : (
-            <Link href="/login" onClick={() => setOpen(false)} tabIndex={open ? 0 : -1} className="mobile-nav-link">
+            <Link
+              href="/login"
+              onClick={() => setOpen(false)}
+              tabIndex={open ? 0 : -1}
+              className="mobile-nav-link"
+            >
               ورود هنرجو
             </Link>
           )}
