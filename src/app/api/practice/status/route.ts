@@ -99,7 +99,7 @@ export async function GET(request: Request) {
     ok: true, registered: true, dailyLimit, used,
     remaining: pro ? 0 : Math.max(0, dailyLimit - used), pro,
     stageLimit, subscriptionDays,
-    remainingStages: pro ? 0 : Math.max(0, stageLimit - used),
+    remainingStages: pro ? null : Math.max(0, stageLimit - used),
     proPriceToman: PRO_PRICE_TOMAN, proExpiresAt: sub?.expires_at || null,
   });
 }
