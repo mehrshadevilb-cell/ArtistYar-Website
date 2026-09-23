@@ -16,7 +16,18 @@ import {
 import dynamic from "next/dynamic";
 import { PracticeProBanner } from "@/components/PracticeProBanner";
 
-const CoreEarGym = dynamic(() => import("@/components/CoreEarGym").then((m) => m.CoreEarGym), { ssr: false });
+const PracticeChunkLoading = () => (
+  <section className="container-ay py-10" dir="rtl">
+    <div className="card-ay animate-pulse p-8 text-center">
+      <div className="mx-auto h-5 w-40 rounded bg-white/[.06]" />
+      <div className="mx-auto mt-4 h-4 w-72 max-w-full rounded bg-white/[.04]" />
+      <div className="mx-auto mt-6 h-11 w-36 rounded-xl bg-white/[.05]" />
+    </div>
+  </section>
+);
+
+
+const CoreEarGym = dynamic(() => import("@/components/CoreEarGym").then((m) => m.CoreEarGym), { ssr: false, loading: () => <PracticeChunkLoading /> });
 const TheoryLab = dynamic(() => import("@/components/TheoryLab").then((m) => m.TheoryLab), { ssr: false });
 const ProArcadeLab = dynamic(() => import("@/components/ProArcadeLab").then((m) => m.ProArcadeLab), { ssr: false });
 const DailyVoicingLab = dynamic(() => import("@/components/DailyVoicingLab").then((m) => m.DailyVoicingLab), { ssr: false });
