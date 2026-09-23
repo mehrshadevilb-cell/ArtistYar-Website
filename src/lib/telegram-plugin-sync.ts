@@ -447,10 +447,9 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
 function esc(v: string) { return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function tag(v: string) { return String(v || "").trim().replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "").slice(0, 48); }
 function makeCaption(p: PluginData) {
-  const translated = sanitizeCaption(p.translatedCaption || "");
+  const translated = p.translatedCaption || "";
   if (translated) {
-    const footer = "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir";
-    return (translated + footer).slice(0, 3900);
+    return (esc(translated) + "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\n📢 Channel: @ProAudios").slice(0, 1000);
   }
 
   const lines = [
@@ -465,7 +464,7 @@ function makeCaption(p: PluginData) {
     p.tags.length ? "\n" + p.tags.map(x => "#" + tag(x)).join(" ") : "",
     "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir",
   ];
-  return lines.filter(Boolean).join("\n").slice(0, 3900);
+  return lines.filter(Boolean).join("\n").slice(0, 1000);
 }
 async function editCaption(chatId: string | number, messageId: number, caption: string) {
   return tg("editMessageCaption", {
@@ -517,6 +516,20 @@ export async function enqueuePluginMessage(message: TgMessage) {
   const fileId = kind === "document"
     ? message.document!.file_id
     : message.photo![message.photo!.length - 1].file_id;
+
+  // Exact Telegram file dedupe: a repeated webhook/post for the same media must not
+  // create another queue item or trigger another AI run.
+  const duplicate = await db.from("telegram_plugin_ingest_queue")
+    .select("id,message_id")
+    .eq("channel_id", chatId)
+    .eq("kind", kind)
+    .eq("file_id", fileId)
+    .limit(1)
+    .maybeSingle();
+  if (duplicate.error) throw new Error("plugin_queue_dedupe_check_failed:" + duplicate.error.message);
+  if (duplicate.data && Number(duplicate.data.message_id) !== Number(message.message_id)) {
+    return { ignored: true, duplicate: true, original_message_id: Number(duplicate.data.message_id) };
+  }
 
   const inserted = await db.from("telegram_plugin_ingest_queue").upsert({
     channel_id: chatId,
