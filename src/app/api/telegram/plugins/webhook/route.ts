@@ -36,7 +36,10 @@ export async function POST(request: Request) {
   }
 
   const update = await request.json().catch(() => null);
-  const message = update?.channel_post || update?.edited_channel_post;
+  // Only ingest newly published channel posts. Our own editMessageCaption call
+  // produces edited_channel_post; re-ingesting it would create orphan queue rows
+  // and can retrigger the pipeline.
+  const message = update?.channel_post;
   if (!message) return NextResponse.json({ ok: true, ignored: true });
 
   // Telegram must receive a successful webhook response even if our internal
@@ -64,13 +67,15 @@ export async function POST(request: Request) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("telegram_plugin_queue_failed", error);
 
-    // Never return 500 to Telegram for an internal queue failure. The update
-    // is acknowledged; the diagnostic detail is kept server-side.
+    // A queue/database failure must be visible to Telegram as a failed webhook
+    // delivery so Telegram retries the update. The DB unique constraints make
+    // those retries idempotent; acknowledging here would permanently lose posts.
     return NextResponse.json({
-      ok: true,
+      ok: false,
       accepted: false,
       queued: false,
       error: "plugin_queue_failed",
-    });
+      detail: detail.slice(0, 240),
+    }, { status: 500 });
   }
 }
