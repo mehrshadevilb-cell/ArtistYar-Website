@@ -86,7 +86,7 @@ function httpsDownload(urlValue: string) {
   });
 }
 
-async function telegramBytes(fileId: string, recoveryChatId?: string) {
+export async function telegramBytes(fileId: string, recoveryChatId?: string) {
   let last = "telegram_file_download_failed";
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
