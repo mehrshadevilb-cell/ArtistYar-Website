@@ -1,4 +1,5 @@
-const base = String(process.env.TELEGRAM_PLUGIN_PROCESS_URL || process.env.RENDER_EXTERNAL_URL || "").replace(/\/$/, "");
+const rawBase = String(process.env.TELEGRAM_PLUGIN_PROCESS_URL || process.env.RENDER_EXTERNAL_URL || "").replace(/\/$/, "");
+const base = rawBase ? (/^https?:\/\//i.test(rawBase) ? rawBase : "http://" + rawBase) : "";
 const key = String(process.env.WEB_ADMIN_API_KEY || "").trim();
 
 if (!base || !key) {
