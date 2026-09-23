@@ -120,20 +120,37 @@ export default async function PluginsPage({ searchParams }: { searchParams?: Pro
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((p) => (
             <article key={p.id} className="group overflow-hidden rounded-[22px] border border-white/[.07] bg-white/[.018] transition duration-300 hover:-translate-y-1 hover:border-gold-300/20 hover:bg-white/[.03]">
-              <div className="relative aspect-[16/10] overflow-hidden bg-[#0b0b0b]">
+              <div className="relative aspect-[16/10] overflow-hidden bg-[#080808]">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(214,174,92,.20),transparent_30%),radial-gradient(circle_at_20%_85%,rgba(74,94,180,.14),transparent_34%)]" />
                 {p.telegram_photo_file_id ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={"/api/plugins/image?file_id=" + encodeURIComponent(p.telegram_photo_file_id)} alt={p.title} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" />
-                ) : <div className="h-full w-full bg-[radial-gradient(circle_at_50%_35%,rgba(214,174,92,.18),transparent_35%)]" />}
-                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent" />
+                  <img
+                    src={"/api/plugins/image?file_id=" + encodeURIComponent(p.telegram_photo_file_id)}
+                    alt={p.title + " cover"}
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    className="relative h-full w-full object-cover transition duration-700 group-hover:scale-[1.035]"
+                  />
+                ) : null}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
+                <div className="absolute left-4 top-4 max-w-[72%] rounded-xl border border-white/10 bg-black/45 px-3 py-2 backdrop-blur-md">
+                  <p className="truncate text-[10px] font-medium uppercase tracking-[.16em] text-white/55">ARTISTYAR PLUGIN</p>
+                  <p className="mt-0.5 truncate text-sm font-semibold text-white">{p.title}</p>
+                </div>
                 <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
                   <span className="rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[10px] text-white/80 backdrop-blur">{p.category}</span>
                   {p.version ? <span className="rounded-full border border-gold-300/20 bg-black/55 px-2.5 py-1 text-[10px] text-gold-200 backdrop-blur">v{p.version}</span> : null}
                 </div>
               </div>
               <div className="p-5">
-                <h2 className="text-lg font-semibold leading-7 text-sand-50">{p.title}</h2>
-                {p.developer ? <p className="mt-0.5 text-xs font-medium text-gold-300">{p.developer}</p> : null}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="truncate text-lg font-semibold leading-7 text-sand-50">{p.title}</h2>
+                    {p.developer ? <p className="mt-0.5 truncate text-xs font-medium text-gold-300">{p.developer}</p> : null}
+                  </div>
+                  <span className="shrink-0 rounded-lg border border-white/[.07] bg-white/[.025] px-2 py-1 text-[9px] uppercase tracking-[.12em] text-ink-500">Plugin</span>
+                </div>
                 {p.description ? <p className="mt-3 line-clamp-3 text-sm leading-7 text-ink-400">{p.description}</p> : null}
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {(p.formats || []).slice(0, 4).map(x => <span key={x} className="rounded-lg border border-white/[.07] bg-white/[.025] px-2 py-1 text-[10px] text-ink-300">{x}</span>)}
@@ -146,8 +163,8 @@ export default async function PluginsPage({ searchParams }: { searchParams?: Pro
                   </div>
                 ) : null}
                 <div className="mt-5 flex gap-2">
-                  <Link href={"/api/plugins/download?id=" + encodeURIComponent(p.id)} className="btn-primary flex-1 text-center">دانلود</Link>
-                  {p.telegram_post_url ? <a href={p.telegram_post_url} target="_blank" rel="noopener noreferrer" className="btn-ghost">Telegram</a> : null}
+                  <Link href={"/api/plugins/download?id=" + encodeURIComponent(p.id)} className="btn-primary flex-1 text-center">دانلود پلاگین</Link>
+                  {p.telegram_post_url ? <a href={p.telegram_post_url} target="_blank" rel="noopener noreferrer" className="btn-ghost">پست تلگرام</a> : null}
                 </div>
               </div>
             </article>
