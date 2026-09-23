@@ -213,9 +213,9 @@ function learningFeedback(q: Question, ok: boolean) {
   return "برای phase فقط به بلندی نگاه نکن؛ مرکز تصویر و استحکام low-end را در حالت stereo و mono مقایسه کن.";
 }
 
-export function CoreEarGym({ onBack }: { onBack?: () => void }) {
+export function CoreEarGym({ onBack, initialGame, onComplete, title }: { onBack?: () => void; initialGame?: GameId; onComplete?: (result: { gameId: GameId; correct: boolean }) => void; title?: string }) {
   const { user, ready } = useAuth();
-  const [game, setGame] = useState<GameId>("tone");
+  const [game, setGame] = useState<GameId>(initialGame || "tone");
   const [q, setQ] = useState<Question | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -224,7 +224,7 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
   const [guestMode, setGuestMode] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
-  const [lastPlayed, setLastPlayed] = useState(false);
+  const [lastPlayed, setLastPlayed] = useState(false);\n  const [submitError, setSubmitError] = useState<string | null>(null);
   const started = useRef(0);
   const sessionId = useRef("");
 
@@ -232,7 +232,7 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
     setLoading(true);
     setAnswer(null);
     setResult(null);
-    setLastPlayed(false);
+    setLastPlayed(false);\n    setSubmitError(null);
     sessionId.current ||= globalThis.crypto?.randomUUID?.() || String(Date.now());
 
     if (!user?.id) {
@@ -346,7 +346,7 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
         <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="eyebrow text-cyan-200">CORE EAR GYM · ADAPTIVE</p>
-            <h2 className="mt-2 text-xl font-semibold text-sand-50">تمرین واقعی گوش</h2>
+            <h2 className="mt-2 text-xl font-semibold text-sand-50">{title || "تمرین واقعی گوش"}</h2>
             <p className="mt-1 text-xs leading-6 text-ink-500">
               هر پاسخ فقط سختی را تعیین نمی‌کند؛ بخشی از پروفایل مهارت شنیداری توست.
             </p>
@@ -399,7 +399,7 @@ export function CoreEarGym({ onBack }: { onBack?: () => void }) {
                 <Play size={14} fill="currentColor" /> پخش
               </button>
             </div>
-            {audioError ? <p className="mt-3 text-xs text-red-300">{audioError}</p> : null}
+            {audioError ? <p className="mt-3 text-xs text-red-300">{audioError}</p> : null}\n            {submitError ? <p className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/[.05] p-3 text-xs leading-6 text-amber-100">{submitError}</p> : null}
 
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               {q.options.map((o) => {
