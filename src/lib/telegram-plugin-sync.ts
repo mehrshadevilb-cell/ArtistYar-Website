@@ -305,7 +305,9 @@ function validBaseUrl(value: string, fallback: string) {
     const parsed = new URL(candidate);
     if (parsed.protocol === "http:" || parsed.protocol === "https:") return candidate;
   } catch {}
-  throw new Error("invalid_provider_base_url");
+  // A malformed optional provider URL must never abort the entire AI chain.
+  // Skip that provider and let the next healthy configured provider run.
+  return "";
 }
 
 function modelPrompt(caption: string, fileName: string, imageAvailable: boolean) {
@@ -569,6 +571,10 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
     const apiKey = (process.env[keyName] || "").trim();
     if (!apiKey) continue;
     const base = validBaseUrl(process.env[baseName] || "", defaultBase);
+    if (!base) {
+      console.warn("telegram_plugin_invalid_provider_base_url", provider, baseName);
+      continue;
+    }
     const models = modelPool("PLUGIN_AI_" + provider.toUpperCase(), modelName, defaults);
     if (!models.length) continue;
     candidates.push(() => openAICompatible(provider, apiKey, base, models, dataUrl, fileName, caption));
@@ -800,6 +806,13 @@ export async function processPendingPluginPairs(limit = 5) {
       if (deleted.error) throw new Error("plugin_queue_cleanup_failed:" + deleted.error.message);
       processed++;
     } catch (error) {
+      // Release the pair immediately on failure. The atomic claim remains the
+      // race-safety mechanism, while failed AI/Telegram calls become retryable
+      // without waiting for the 10-minute stale-lock window.
+      await db.from("telegram_plugin_ingest_queue")
+        .update({ processing_at: null })
+        .in("id", [photo.id, best.id])
+        .catch(() => undefined);
       errors.push({
         photo_message_id: Number(photo.message_id),
         document_message_id: Number(best.message_id),
