@@ -136,6 +136,10 @@ async function entitlement(user: Identity) { if (user.admin) return { limit: UNL
 export async function GET() { const user = await identity(); if (!user) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 }); const access = await entitlement(user); return NextResponse.json({ ok: true, ...access, remaining: Math.max(0, access.limit - access.used), tier: access.admin ? "admin" : access.pro ? "pro" : access.course ? "course" : "free" }); }
 
 export async function POST(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > MAX_BYTES + 2 * 1024 * 1024) {
+    return NextResponse.json({ ok: false, error: "درخواست صوتی از سقف ۵۰ مگابایت بیشتر است." }, { status: 413 });
+  }
   const user = await identity(); if (!user) return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
   const form = await request.formData().catch(() => null); if (!form) return NextResponse.json({ ok: false, error: "invalid_form" }, { status: 400 });
   const mode = String(form.get("mode") || "mix") === "arrangement" ? "arrangement" : "mix";
