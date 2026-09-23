@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getPluginWebhookInfo, pluginTokenConfigured } from "@/lib/telegram-plugin-sync";
+import { getPluginWebhookInfo, pluginTokenConfigured, telegramGetFile } from "@/lib/telegram-plugin-sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,7 +32,10 @@ export async function GET(request: Request) {
       })
     : null;
 
-  const requestedProcess = new URL(request.url).searchParams.get("process") === "1";
+  const params = new URL(request.url).searchParams;
+  const requestedProcess = params.get("process") === "1";
+  const requestedProbe = params.get("probe") === "1";
+
   const out: Record<string, unknown> = {
     ok: true,
     telegram_bot_token_configured: pluginTokenConfigured(),
@@ -104,6 +107,40 @@ export async function GET(request: Request) {
     out.queue = queue.data || [];
     out.posts_error = posts.error?.message || null;
     out.posts = posts.data || [];
+
+    if (requestedProbe && !queue.error) {
+      const latestPhoto = (queue.data || []).find(row => row.kind === "photo");
+      if (!latestPhoto) {
+        out.probe = { ok: false, error: "no_photo_in_queue" };
+      } else {
+        try {
+          const file = await telegramGetFile(latestPhoto.file_id);
+          const response = await fetch(file.url, {
+            cache: "no-store",
+            redirect: "follow",
+            signal: AbortSignal.timeout(30000),
+          });
+          const body = response.ok
+            ? ""
+            : (await response.text().catch(() => "")).slice(0, 300);
+          out.probe = {
+            ok: response.ok,
+            message_id: Number(latestPhoto.message_id),
+            file_path: file.filePath,
+            http_status: response.status,
+            content_type: response.headers.get("content-type"),
+            content_length: response.headers.get("content-length"),
+            response_body: body,
+          };
+        } catch (error) {
+          out.probe = {
+            ok: false,
+            message_id: Number(latestPhoto.message_id),
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      }
+    }
   }
 
   return NextResponse.json(out, {
