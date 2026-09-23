@@ -7,7 +7,14 @@ import type { PracticeSkillKey } from "@/lib/practice-types";
 export type SoundGymExerciseId =
   | "freq-detect" | "eq-peak" | "eq-cut" | "eq-match" | "filter-expert"
   | "bass-detective" | "compressionist" | "dr-compressor" | "loudness-db"
-  | "pan-train" | "stereo-width" | "sonar-beast";
+  | "pan-train" | "stereo-width" | "sonar-beast"
+  // Phase 3 — Dynamics
+  | "comp-match" | "comp-thresh" | "comp-release" | "makeup-gain" | "comp-compare"
+  // Phase 3 — Time & Space
+  | "delay-detect" | "delay-match" | "reverb-type" | "reverb-match"
+  | "predelay" | "decay" | "wetdry" | "spatial-compare"
+  // Phase 3 — Audio Quality
+  | "dist-detect" | "sat-detect" | "dist-amount" | "feedback-freq" | "harmonic-nl";
 
 export type AnswerMode = "choice" | "ab" | "match";
 
@@ -30,6 +37,9 @@ export type DspChain =
   | { type: "gain"; gainDb: number }
   | { type: "pan"; value: number }
   | { type: "width"; amount: number }
+  | { type: "delay"; timeSec: number; feedback?: number; mix?: number }
+  | { type: "reverb"; decay: number; mix: number; preDelay?: number; room?: "room" | "hall" | "plate" | "chamber" }
+  | { type: "distort"; drive: number; style?: "soft" | "hard" | "tape" | "fuzz" }
   | { type: "stack"; nodes: DspChain[] };
 
 export type RoundOption = {
