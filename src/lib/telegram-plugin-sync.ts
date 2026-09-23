@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import https from "https";
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -60,17 +61,59 @@ function imageMimeFromPath(filePath: string, header: string | null) {
   return "image/jpeg";
 }
 
+function httpsDownload(urlValue: string) {
+  return new Promise<{ bytes: Buffer; status: number; contentType: string | null }>((resolve, reject) => {
+    const req = https.get(urlValue, {
+      headers: {
+        accept: "image/*,*/*;q=0.8",
+        "accept-encoding": "identity",
+        "user-agent": "ArtistYar-Telegram-Plugin-Sync/1.0",
+      },
+      timeout: 30000,
+    }, response => {
+      const chunks: Buffer[] = [];
+      response.on("data", chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+      response.on("end", () => resolve({
+        bytes: Buffer.concat(chunks),
+        status: response.statusCode || 0,
+        contentType: response.headers["content-type"] || null,
+      }));
+      response.on("error", reject);
+    });
+    req.on("timeout", () => req.destroy(new Error("telegram_file_download_timeout")));
+    req.on("error", reject);
+  });
+}
+
 async function telegramBytes(fileId: string) {
   let last = "telegram_file_download_failed";
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      // Always request a fresh file_path. Telegram file URLs are temporary;
-      // an old queued file_path can expire even though the file_id is still
-      // present in our queue.
       const file = await telegramGetFile(fileId);
+
+      const native = await httpsDownload(file.url);
+      if (native.status >= 200 && native.status < 300) {
+        return {
+          bytes: native.bytes,
+          contentType: imageMimeFromPath(file.filePath, native.contentType),
+        };
+      }
+
+      let nativeDetail = "";
+      if (native.status === 404) {
+        const body = native.bytes.toString("utf8").slice(0, 240);
+        nativeDetail = body ? ":" + body.replace(/\s+/g, " ").trim() : "";
+      }
+      last = "telegram_file_download_failed_" + native.status + nativeDetail;
+
       const res = await fetch(file.url, {
         cache: "no-store",
-        headers: { accept: "image/*,*/*;q=0.8" },
+        redirect: "follow",
+        headers: {
+          accept: "image/*,*/*;q=0.8",
+          "accept-encoding": "identity",
+          "user-agent": "ArtistYar-Telegram-Plugin-Sync/1.0",
+        },
         signal: AbortSignal.timeout(30000),
       });
       if (res.ok) {
@@ -80,14 +123,16 @@ async function telegramBytes(fileId: string) {
           contentType: imageMimeFromPath(file.filePath, res.headers.get("content-type")),
         };
       }
-      last = "telegram_file_download_failed_" + res.status;
+      const body = res.status === 404 ? (await res.text().catch(() => "")).slice(0, 240) : "";
+      last = "telegram_file_download_failed_" + res.status + (body ? ":" + body.replace(/\s+/g, " ").trim() : "");
     } catch (error) {
-      last = error instanceof Error ? error.message : String(error);
+      last = clean(error instanceof Error ? error.message : String(error), 300);
     }
-    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 700 * (attempt + 1)));
+    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 900 * (attempt + 1)));
   }
   throw new Error(last);
 }
+
 function parseJson(text: string): PluginData {
   const raw = text.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
   const p = JSON.parse(raw);
