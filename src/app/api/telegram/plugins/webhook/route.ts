@@ -1,6 +1,6 @@
 
 import { NextResponse } from "next/server";
-import { enqueuePluginMessage } from "@/lib/telegram-plugin-sync";
+import { enqueuePluginMessage, pluginWebhookSecret } from "@/lib/telegram-plugin-sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
