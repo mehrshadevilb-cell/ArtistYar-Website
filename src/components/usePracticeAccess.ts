@@ -23,7 +23,7 @@ export function usePracticeAccess() {
 
   useEffect(() => {
     if (user?.role === "admin") {
-      setAccess({ loading: false, pro: true, stageLimit: 500, subscriptionDays: 500, proExpiresAt: null });
+      setAccess({ loading: false, pro: true, stageLimit: 0, subscriptionDays: 0, proExpiresAt: null });
       return;
     }
 
