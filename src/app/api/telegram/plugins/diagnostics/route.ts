@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getPluginWebhookInfo, getPluginChannelAdminStatus, pluginTokenConfigured, telegramBytes } from "@/lib/telegram-plugin-sync";
+import { getPluginWebhookInfo, getPluginChannelAdminStatus, pluginTokenConfigured, telegramBytes, getAiRoutingDiagnostics } from "@/lib/telegram-plugin-sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,13 +63,21 @@ export async function GET(request: Request) {
         /\/$/,
         ""
       ),
-    ai_model_pools: {
-      google: (process.env.PLUGIN_AI_GEMINI_MODELS || process.env.PLUGIN_AI_GEMINI_MODEL || "").split(",").map(v => v.trim()).filter(Boolean),
-      openai: (process.env.PLUGIN_AI_OPENAI_MODELS || process.env.PLUGIN_AI_VISION_MODEL || process.env.OPENAI_MODEL || "").split(",").map(v => v.trim()).filter(Boolean),
-      openrouter: (process.env.PLUGIN_AI_OPENROUTER_MODELS || process.env.OPENROUTER_MODEL || "").split(",").map(v => v.trim()).filter(Boolean),
-      anthropic: (process.env.PLUGIN_AI_ANTHROPIC_MODELS || process.env.ANTHROPIC_MODEL || "").split(",").map(v => v.trim()).filter(Boolean),
-    },
+    ai_model_pools: "discovery_pending",
   };
+
+  try {
+    const routing = await getAiRoutingDiagnostics();
+    out.ai_routing = routing;
+    out.ai_model_pools = Object.fromEntries(
+      (routing.providers || []).map((provider: any) => [
+        provider.provider,
+        (provider.models || []).map((model: any) => model.model),
+      ])
+    );
+  } catch (error) {
+    out.ai_routing_error = error instanceof Error ? error.message : String(error);
+  }
 
   try {
     out.webhook = await getPluginWebhookInfo();
