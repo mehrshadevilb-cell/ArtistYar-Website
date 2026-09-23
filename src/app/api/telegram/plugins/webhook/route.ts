@@ -32,11 +32,15 @@ export async function POST(request: Request) {
   const message = update?.channel_post || update?.edited_channel_post;
   if (!message) return NextResponse.json({ ok: true, ignored: true });
 
+  // Telegram must receive a successful webhook response even if our internal
+  // queue/database has a transient problem. Otherwise Telegram retries the
+  // same update and can create duplicate work.
   try {
-    // Webhook must ACK Telegram quickly. Heavy Telegram downloads, AI vision,
-    // Supabase writes and caption edits happen after the response.
     const result = await enqueuePluginMessage(message);
 
+    // Do the expensive Telegram download + AI vision + DB publish after the
+    // webhook response has been prepared. Any processing failure is logged and
+    // the queue row remains available for the explicit processor endpoint.
     after(async () => {
       try {
         const processed = await processPendingPluginPairs(5);
@@ -48,13 +52,18 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ ok: true, result });
+    return NextResponse.json({ ok: true, accepted: true, result });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    console.error("telegram_plugin_queue", error);
-    return NextResponse.json(
-      { ok: false, error: "plugin_queue_failed", detail: detail.slice(0, 500) },
-      { status: 500 }
-    );
+    console.error("telegram_plugin_queue_failed", error);
+
+    // Never return 500 to Telegram for an internal queue failure. The update
+    // is acknowledged; the diagnostic detail is kept server-side.
+    return NextResponse.json({
+      ok: true,
+      accepted: false,
+      queued: false,
+      error: "plugin_queue_failed",
+    });
   }
 }
