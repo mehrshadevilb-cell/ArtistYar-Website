@@ -387,8 +387,40 @@ async function openAICompatible(
 async function google(bytes: Buffer | null, mime: string, fileName: string, caption: string, models: string[]) {
   const k = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
   if (!k) throw new Error("google_not_configured");
+
+  // Google model IDs change over time. Keep configured models first, but if one
+  // is retired, query the account's live model catalog and automatically fall
+  // back to models that currently advertise generateContent support.
+  let liveModels: string[] = [];
+  try {
+    const catalog = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(k),
+      { cache: "no-store", signal: AbortSignal.timeout(10000) }
+    );
+    const catalogData = await catalog.json().catch(() => null);
+    if (catalog.ok && Array.isArray(catalogData?.models)) {
+      liveModels = catalogData.models
+        .filter((m: any) => Array.isArray(m?.supportedGenerationMethods) && m.supportedGenerationMethods.includes("generateContent"))
+        .map((m: any) => String(m?.name || "").replace(/^models\//, "").trim())
+        .filter(Boolean);
+    }
+  } catch (error) {
+    console.warn("telegram_plugin_google_model_catalog_unavailable", clean(error instanceof Error ? error.message : String(error), 200));
+  }
+
+  const preferred = [
+    ...models,
+    "gemini-3.6-flash",
+    "gemini-3.1-pro-preview",
+    "gemini-3.1-flash-preview",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+  ];
+  const flashLive = liveModels.filter(model => /flash/i.test(model));
+  const proLive = liveModels.filter(model => /pro/i.test(model));
+  const allModels = Array.from(new Set([...preferred, ...flashLive, ...proLive, ...liveModels]));
   let last = "google_no_working_model";
-  for (const model of rankModels("google", models)) {
+  for (const model of rankModels("google", allModels)) {
     const startedAt = Date.now();
     const health = healthFor("google", model);
     if (health.cooldownUntil > startedAt) continue;
@@ -515,7 +547,7 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
       image?.contentType || "image/jpeg",
       fileName,
       caption,
-      modelPool("PLUGIN_AI_GEMINI", "PLUGIN_AI_GEMINI_MODEL", ["gemini-2.5-flash", "gemini-2.5-pro"])
+      modelPool("PLUGIN_AI_GEMINI", "PLUGIN_AI_GEMINI_MODEL", ["gemini-3.6-flash", "gemini-3.1-pro-preview"])
     ));
   }
 
