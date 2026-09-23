@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "start:standalone": "node .next/standalone/server.js"
+    "start:standalone": "node .next/standalone/server.js",
+    "prebuild": "node scripts/inflate-telegram-sync.mjs",
+    "postinstall": "node scripts/inflate-telegram-sync.mjs"
   },
   "dependencies": {
     "@supabase/server": "^1.6.1",
