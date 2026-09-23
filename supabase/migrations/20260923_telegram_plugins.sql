@@ -115,6 +115,13 @@ as $$
 declare
   claimed integer;
 begin
+  -- Lock both rows first so two workers cannot partially claim the same pair.
+  perform 1
+  from public.telegram_plugin_ingest_queue
+  where id in (p_photo_id, p_document_id)
+  order by id
+  for update;
+
   update public.telegram_plugin_ingest_queue
   set processing_at = now()
   where id in (p_photo_id, p_document_id)
@@ -125,18 +132,7 @@ begin
 
   get diagnostics claimed = row_count;
 
-  if claimed = 2 then
-    return true;
-  end if;
-
-  -- If only one row was claimed, release it immediately.
-  if claimed > 0 then
-    update public.telegram_plugin_ingest_queue
-    set processing_at = null
-    where id in (p_photo_id, p_document_id);
-  end if;
-
-  return false;
+  return claimed = 2;
 end;
 $$;
 
