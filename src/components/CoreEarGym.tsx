@@ -303,40 +303,56 @@ export function CoreEarGym({ onBack, initialGame, onComplete, title }: { onBack?
   const choose = async (value: string) => {
     if (!q || answer || !lastPlayed) return;
     setAnswer(value);
+    setSubmitError(null);
     const ok = String(q.answer) === value;
     const responseTimeMs = started.current ? Math.max(1, Date.now() - started.current) : 0;
     setResult({ ok, correct: String(q.answer), responseTimeMs });
 
     if (user?.id && user.username) {
-      await fetch("/api/practice/progress", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          userId: user.id,
-          username: user.username,
-          fullName: user.fullName,
-          telegramId: user.telegramId,
-          gameId: q.gameId,
-          score: ok ? 20 : 0,
-          accuracy: ok ? 100 : 0,
-          streak: ok ? 1 : 0,
-          bestScore: ok ? 20 : 0,
-          metadata: {
-            source: "core_ear_gym",
-            difficulty: q.difficulty,
-            responseTimeMs,
-            correct: ok,
-            answer: value,
-            itemKey: q.fingerprint || q.prompt,
-            verificationToken: q.verificationToken,
-            sessionId: sessionId.current,
-          },
-        }),
-      }).catch(() => undefined);
+      try {
+        const saveResponse = await fetch("/api/practice/progress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            userId: user.id,
+            username: user.username,
+            fullName: user.fullName,
+            telegramId: user.telegramId,
+            gameId: q.gameId,
+            score: ok ? 20 : 0,
+            accuracy: ok ? 100 : 0,
+            streak: ok ? 1 : 0,
+            bestScore: ok ? 20 : 0,
+            metadata: {
+              source: "core_ear_gym",
+              difficulty: q.difficulty,
+              responseTimeMs,
+              correct: ok,
+              answer: value,
+              itemKey: q.fingerprint || q.prompt,
+              verificationToken: q.verificationToken,
+              sessionId: sessionId.current,
+            },
+          }),
+        });
+        if (!saveResponse.ok) {
+          const payload = await saveResponse.json().catch(() => ({}));
+          if (saveResponse.status === 429 || payload?.code === "daily_limit_reached") {
+            setSubmitError("سهمیهٔ رایگان امروز تمام شده است. با Pro تمرین نامحدود می‌شود.");
+          } else {
+            setSubmitError("ثبت نتیجه انجام نشد؛ پاسخ تو نمایش داده شد اما رکورد ذخیره نشد.");
+          }
+        } else {
+          onComplete?.({ gameId: q.gameId, correct: ok });
+        }
+      } catch {
+        setSubmitError("ارتباط با سرور برای ثبت نتیجه برقرار نشد.");
+      }
+    } else {
+      onComplete?.({ gameId: q.gameId, correct: ok });
     }
   };
-
   return (
     <section className="mt-10 card-ay overflow-hidden">
       <div className="border-b border-white/[.07] p-5 sm:p-6">
