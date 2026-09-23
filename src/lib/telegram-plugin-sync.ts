@@ -172,7 +172,7 @@ function parseJson(text: string): PluginData {
     translatedCaption: clean(p.translated_caption, 3500),
   };
 }
-const SYSTEM_BASE = "You are ArtistYar's automatic Telegram plugin editor. Produce a clean, premium, information-dense Persian caption for a professional music-production plugin. FACT PRIORITY: explicit source caption > filename > visible image text. Never contradict or embellish source facts. Preserve exact product/developer names, version numbers, formats, operating systems, technical terms and factual meaning. Never invent missing specifications, prices, links, features or compatibility. Remove spam, reseller language, repeated emojis, promotional claims and ALL external links/usernames; the application adds the only ArtistYar/ProAudios footer. Return JSON only with title, developer, version, category, formats, platforms, description, features, tags, translated_caption. Keep description/features concise and technically useful. translated_caption must read naturally in Persian, not like machine translation: use short paragraphs, clear labels when useful, minimal emojis, no hype, no redundant restatement. Prefer 1-2 short paragraphs plus at most 4 compact feature bullets. Keep the complete translated_caption under 850 characters so the final Telegram caption remains comfortably below the platform limit. Use conventional English for product/developer/technical names. Category examples: Synthesizer, EQ, Compressor, Reverb, Delay, Saturation, Distortion, Limiter, Dynamics, Instrument, Sampler, Utility, Mastering, Bundle, Other.";
+const SYSTEM_BASE = "You are ArtistYar's automatic Telegram plugin editor. Produce a clean, premium, information-dense Persian caption for a professional music-production plugin. FACT PRIORITY: explicit source caption > filename > visible image text. Never contradict or embellish source facts. Preserve exact product/developer names, version numbers, formats, operating systems, technical terms and factual meaning. Never invent missing specifications, prices, links, features or compatibility. Remove spam, reseller language, repeated emojis, promotional claims and ALL external links/usernames; the application adds the only ArtistYar/ProAudios footer. Return JSON only with title, developer, version, category, formats, platforms, description, features, tags, translated_caption. Keep description/features concise and technically useful. translated_caption must be a polished Telegram caption in natural Persian, not a literal machine translation. Start with the exact product title, then give only the useful source-backed facts in a compact structure. Use at most 2 short paragraphs and 4 compact bullets. Keep labels concise (نسخه، فرمت، سیستم‌عامل) and keep product/developer/technical names in their conventional English form. No hype, no generic marketing, no repeated facts, no invented specifications. Target 550-750 characters before the ArtistYar footer. Use conventional English for product/developer/technical names. Category examples: Synthesizer, EQ, Compressor, Reverb, Delay, Saturation, Distortion, Limiter, Dynamics, Instrument, Sampler, Utility, Mastering, Bundle, Other.";
 
 function buildAiSystem(caption: string) {
   if (String(caption || "").trim()) {
@@ -967,10 +967,16 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
 function esc(v: string) { return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function tag(v: string) { return String(v || "").trim().replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "").slice(0, 48); }
 function makeCaption(p: PluginData) {
-  const translated = p.translatedCaption || "";
+  const footer = "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\n📢 Channel: @ProAudios";
+  const translated = sanitizeCaption(p.translatedCaption || "")
+    .replace(/\n\n🎛️ ArtistYar — https:\/\/artistyaar\.ir\n📢 Channel: @ProAudios$/i, "")
+    .trim();
+
   if (translated) {
-    const cleanedTranslated = sanitizeCaption(translated).replace(/\n\n🎛️ ArtistYar — https:\/\/artistyaar\.ir\n📢 Channel: @ProAudios$/i, "").trim();
-    return (esc(cleanedTranslated) + "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\n📢 Channel: @ProAudios").slice(0, 1000);
+    // Telegram allows 1024 chars. Keep the AI-written content compact while
+    // always preserving the ArtistYar footer.
+    const budget = 1024 - footer.length;
+    return esc(translated).slice(0, budget).trimEnd() + footer;
   }
 
   const lines = [
@@ -981,12 +987,11 @@ function makeCaption(p: PluginData) {
     p.formats.length ? "🔌 <b>Format:</b> " + esc(p.formats.join(" / ")) : "",
     p.platforms.length ? "💻 <b>Platform:</b> " + esc(p.platforms.join(" / ")) : "",
     p.description ? "\n" + esc(p.description) : "",
-    p.features.length ? "\n✨ <b>ویژگی‌ها</b>\n" + p.features.slice(0, 6).map(x => "• " + esc(x)).join("\n") : "",
-    p.tags.length ? "\n" + p.tags.map(x => "#" + tag(x)).join(" ") : "",
-    "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir",
-    "📢 Channel: @ProAudios",
-  ];
-  return lines.filter(Boolean).join("\n").slice(0, 1000);
+    p.features.length ? "\n✨ <b>ویژگی‌ها</b>\n" + p.features.slice(0, 4).map(x => "• " + esc(x)).join("\n") : "",
+  ].filter(Boolean);
+
+  const bodyBudget = 1024 - footer.length;
+  return lines.join("\n").slice(0, bodyBudget).trimEnd() + footer;
 }
 async function editCaption(chatId: string | number, messageId: number, caption: string) {
   try {
@@ -1248,10 +1253,24 @@ export async function getPluginChannelAdminStatus() {
   };
 }
 export async function pluginImageResponse(fileId: string) {
-  const file = await telegramGetFile(fileId);
-  const res = await fetch(file.url, { cache: "no-store", signal: AbortSignal.timeout(20000) });
-  if (!res.ok) throw new Error("telegram_image_failed_" + res.status);
-  return res;
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const file = await telegramGetFile(fileId);
+      const res = await fetch(file.url, {
+        cache: "no-store",
+        redirect: "follow",
+        headers: { accept: "image/*,*/*;q=0.8" },
+        signal: AbortSignal.timeout(20000),
+      });
+      if (res.ok) return res;
+      lastStatus = res.status;
+    } catch {
+      lastStatus = 0;
+    }
+    if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error("telegram_image_failed_" + (lastStatus || "network"));
 }
 export async function pluginDownloadResponse(fileId: string) {
   const file = await telegramGetFile(fileId);
