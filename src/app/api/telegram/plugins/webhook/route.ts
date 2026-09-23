@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { NextResponse, after } from "next/server";
+import { NextResponse } from "next/server";
 import { enqueuePluginMessage } from "@/lib/telegram-plugin-sync";
 
 export const runtime = "nodejs";
@@ -30,10 +30,6 @@ export async function POST(request: Request) {
     // Heavy AI/image processing runs in Next.js after() and the queue remains
     // available for diagnostics/retry if the processing fails.
     const result = await enqueuePluginMessage(message);
-    if (result?.queued || result?.processed || result?.duplicate) {
-      // Pair processing is already performed by enqueuePluginMessage when both
-      // sides are present. Keep the response fast for Telegram retries.
-    }
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
