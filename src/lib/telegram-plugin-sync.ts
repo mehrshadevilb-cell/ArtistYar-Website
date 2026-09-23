@@ -85,7 +85,7 @@ function httpsDownload(urlValue: string) {
   });
 }
 
-async function telegramBytes(fileId: string) {
+async function telegramBytes(fileId: string, recoveryChatId?: string) {
   let last = "telegram_file_download_failed";
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -97,6 +97,44 @@ async function telegramBytes(fileId: string) {
           bytes: native.bytes,
           contentType: imageMimeFromPath(file.filePath, native.contentType),
         };
+      }
+
+      // Telegram can occasionally return a valid file_path while the public
+      // download endpoint answers 404. Re-materialize the same Telegram-hosted
+      // photo with sendPhoto, download the returned file_id, then remove the
+      // temporary channel post. This keeps the original image out of Supabase
+      // Storage and does not expose the bot token to an AI provider.
+      if (native.status === 404 && recoveryChatId) {
+        try {
+          const recovered = await tg("sendPhoto", {
+            chat_id: recoveryChatId,
+            photo: fileId,
+            caption: "ARTISTYAR_INTERNAL_RECOVERY",
+            disable_notification: true,
+          });
+          const recoveredFileId = recovered?.photo?.at(-1)?.file_id;
+          const recoveredMessageId = Number(recovered?.message_id || 0);
+          if (recoveredFileId) {
+            const recoveredFile = await telegramGetFile(recoveredFileId);
+            const recoveredDownload = await httpsDownload(recoveredFile.url);
+            if (recoveredDownload.status >= 200 && recoveredDownload.status < 300) {
+              if (recoveredMessageId) {
+                try {
+                  await tg("deleteMessage", { chat_id: recoveryChatId, message_id: recoveredMessageId });
+                } catch {}
+              }
+              return {
+                bytes: recoveredDownload.bytes,
+                contentType: imageMimeFromPath(recoveredFile.filePath, recoveredDownload.contentType),
+              };
+            }
+          }
+          if (recoveredMessageId) {
+            try {
+              await tg("deleteMessage", { chat_id: recoveryChatId, message_id: recoveredMessageId });
+            } catch {}
+          }
+        } catch {}
       }
 
       let nativeDetail = "";
@@ -294,8 +332,8 @@ function modelPool(prefix: string, singleName: string, defaults: readonly string
   return Array.from(new Set([...configured, ...(single ? [single] : []), ...defaults].filter(Boolean)));
 }
 
-async function identify(imageFileId: string, fileName: string, caption: string) {
-  const image = await telegramBytes(imageFileId);
+async function identify(imageFileId: string, fileName: string, caption: string, recoveryChatId?: string) {
+  const image = await telegramBytes(imageFileId, recoveryChatId);
   if (!image.contentType.startsWith("image/")) throw new Error("telegram_photo_not_image");
   const dataUrl = "data:" + image.contentType + ";base64," + image.bytes.toString("base64");
 
@@ -411,7 +449,7 @@ export async function processPluginPair(photo: TgMessage, doc: TgMessage) {
   if (!chatId || !photoFileId || !docFileId) throw new Error("plugin_pair_missing_media");
   const fileName = clean(doc.document?.file_name, 240);
   const caption = clean(photo.caption || doc.caption, 1200);
-  const ai = await identify(photoFileId, fileName, caption);
+  const ai = await identify(photoFileId, fileName, caption, chatId);
   const p = ai.data;
   const postUrl = photo.chat?.username ? "https://t.me/" + photo.chat.username + "/" + photo.message_id : null;
   const result = await db.from("telegram_plugin_posts").upsert({
