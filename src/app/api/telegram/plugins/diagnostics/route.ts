@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getPluginWebhookInfo, pluginTokenConfigured, telegramGetFile } from "@/lib/telegram-plugin-sync";
+import { getPluginWebhookInfo, pluginTokenConfigured, telegramBytes } from "@/lib/telegram-plugin-sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -114,23 +114,16 @@ export async function GET(request: Request) {
         out.probe = { ok: false, error: "no_photo_in_queue" };
       } else {
         try {
-          const file = await telegramGetFile(latestPhoto.file_id);
-          const response = await fetch(file.url, {
-            cache: "no-store",
-            redirect: "follow",
-            signal: AbortSignal.timeout(30000),
-          });
-          const body = response.ok
-            ? ""
-            : (await response.text().catch(() => "")).slice(0, 300);
+          const recovered = await telegramBytes(
+            latestPhoto.file_id,
+            String(latestPhoto.channel_id)
+          );
           out.probe = {
-            ok: response.ok,
+            ok: true,
             message_id: Number(latestPhoto.message_id),
-            file_path: file.filePath,
-            http_status: response.status,
-            content_type: response.headers.get("content-type"),
-            content_length: response.headers.get("content-length"),
-            response_body: body,
+            bytes: recovered.bytes.length,
+            content_type: recovered.contentType,
+            recovery: "direct_or_telegram_recovery",
           };
         } catch (error) {
           out.probe = {
