@@ -11,7 +11,7 @@ export default function PracticeProfilePage() {
   const { user } = useAuth();
   const [pro, setPro] = useState(false);
   const [proExpires, setProExpires] = useState<string | null>(null);
-  const [dailyLimit, setDailyLimit] = useState(5);
+  const [dailyLimit, setDailyLimit] = useState<number | null>(5);
   const [used, setUsed] = useState(0);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export default function PracticeProfilePage() {
         if (!d?.ok) return;
         setPro(Boolean(d.pro));
         setProExpires(d.proExpiresAt || null);
-        setDailyLimit(Number(d.dailyLimit) || 5);
+        setDailyLimit(d.pro ? null : Math.max(1, Number(d.dailyLimit) || 5));
         setUsed(Number(d.used) || 0);
       })
       .catch(() => {});
@@ -62,15 +62,15 @@ export default function PracticeProfilePage() {
           <span className="text-xs text-ink-500">
             {pro && proExpires
               ? `تا ${new Date(proExpires).toLocaleDateString("fa-IR")}`
-              : "۵ مرحله در روز · ارتقا برای ۴۰ مرحله"}
+               : "۵ مرحله برای هر تمرین در روز · ارتقا برای دسترسی بدون سقف"}
           </span>
         </div>
         <div className="card-ay p-4">
           <span className="text-xs text-ink-500">سهمیه امروز</span>
           <strong className="mt-2 block text-lg text-sand-50">
-            {used} / {dailyLimit}
+            {used} / {dailyLimit === null ? "∞" : dailyLimit}
           </strong>
-          <span className="text-xs text-ink-500">مرحله مصرف‌شده</span>
+          <span className="text-xs text-ink-500">{pro ? "دسترسی بدون سقف تا پایان اشتراک" : "مرحله مصرف‌شده"}</span>
         </div>
         <div className="card-ay p-4">
           <span className="text-xs text-ink-500">مسیر تمرین</span>
