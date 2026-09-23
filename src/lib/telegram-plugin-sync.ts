@@ -482,7 +482,7 @@ function esc(v: string) { return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").
 function makeCaption(p: PluginData) {
   const translated = sanitizeCaption(p.translatedCaption || "");
   if (translated) {
-    const footer = "\\n\\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir";
+    const footer = "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir";
     return (translated + footer).slice(0, 3900);
   }
 
@@ -493,10 +493,10 @@ function makeCaption(p: PluginData) {
     p.category ? "🎚 <b>Category:</b> " + esc(p.category) : "",
     p.formats.length ? "🔌 <b>Format:</b> " + esc(p.formats.join(" / ")) : "",
     p.platforms.length ? "💻 <b>Platform:</b> " + esc(p.platforms.join(" / ")) : "",
-    p.description ? "\\n" + esc(p.description) : "",
-    p.features.length ? "\\n✨ <b>ویژگی‌ها</b>\\n" + p.features.slice(0, 6).map(x => "• " + esc(x)).join("\\n") : "",
-    p.tags.length ? "\\n" + p.tags.map(x => "#" + tag(x)).join(" ") : "",
-    "\\n\\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir",
+    p.description ? "\n" + esc(p.description) : "",
+    p.features.length ? "\n✨ <b>ویژگی‌ها</b>\n" + p.features.slice(0, 6).map(x => "• " + esc(x)).join("\n") : "",
+    p.tags.length ? "\n" + p.tags.map(x => "#" + tag(x)).join(" ") : "",
+    "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir",
   ];
   return lines.filter(Boolean).join("\\n").slice(0, 3900);
 }
@@ -597,7 +597,7 @@ function rowToDocument(row: any): TgMessage {
 export async function processPendingPluginPairs(limit = 5) {
   if (!db) throw new Error("supabase_not_configured");
   const safeLimit = Math.max(1, Math.min(limit, 10));
-  const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const photos = await db.from("telegram_plugin_ingest_queue")
     .select("*")
@@ -631,12 +631,12 @@ export async function processPendingPluginPairs(limit = 5) {
     const channelDocs = docsByChannel.get(String(photo.channel_id)) || [];
     const photoTime = new Date(photo.received_at).getTime();
 
-    // Match the nearest document posted within 2 minutes of the image.
+    // Match the nearest document posted within 5 minutes of the image. The queue\n    // can be retried later, so do not discard older-but-valid pairs.
     let best: any = null;
     let bestDistance = Number.POSITIVE_INFINITY;
     for (const doc of channelDocs) {
       const distance = Math.abs(new Date(doc.received_at).getTime() - photoTime);
-      if (distance <= 120000 && distance < bestDistance) {
+      if (distance <= 300000 && distance < bestDistance) {
         best = doc;
         bestDistance = distance;
       }
