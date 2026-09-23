@@ -3,16 +3,27 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, ArrowUpLeft, Bot, ChevronDown, Wrench } from "lucide-react";
+import {
+  Menu,
+  X,
+  ArrowUpLeft,
+  Bot,
+  ChevronDown,
+  Wrench,
+  LayoutDashboard,
+  Gamepad2,
+  GraduationCap,
+  HelpCircle,
+  Info,
+} from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { useAuth } from "./AuthProvider";
 import { ThemeToggle } from "./ThemeToggle";
 import { SafeLink } from "./SafeLink";
 
-/** Desktop + mobile order (RTL visual right → left) */
 const primaryNav = [
-  { href: "/my-artistyar", label: "داشبورد" },
-  { href: "/practice", label: "تمرین" },
+  { href: "/my-artistyar", label: "داشبورد", Icon: LayoutDashboard },
+  { href: "/practice", label: "تمرین", Icon: Gamepad2 },
 ] as const;
 
 const toolsItems = [
@@ -25,9 +36,9 @@ const toolsItems = [
 ] as const;
 
 const afterToolsNav = [
-  { href: "/assistant", label: "راه‌یار AI", icon: true },
-  { href: "/courses", label: "پکیج‌های آموزشی" },
-  { href: "/faq", label: "پرسش‌های متداول" },
+  { href: "/assistant", label: "راه‌یار AI", Icon: Bot, hard: true },
+  { href: "/courses", label: "پکیج‌های آموزشی", Icon: GraduationCap, hard: false },
+  { href: "/faq", label: "پرسش‌های متداول", Icon: HelpCircle, hard: false },
 ] as const;
 
 const moreItems = [
@@ -83,12 +94,8 @@ export function SiteHeader() {
     if (!toolsOpen && !moreOpen) return;
     const onPointer = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (toolsOpen && toolsRef.current && !toolsRef.current.contains(t)) {
-        setToolsOpen(false);
-      }
-      if (moreOpen && moreRef.current && !moreRef.current.contains(t)) {
-        setMoreOpen(false);
-      }
+      if (toolsOpen && toolsRef.current && !toolsRef.current.contains(t)) setToolsOpen(false);
+      if (moreOpen && moreRef.current && !moreRef.current.contains(t)) setMoreOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -118,21 +125,26 @@ export function SiteHeader() {
         </Link>
 
         <nav aria-label="ناوبری اصلی" className="hidden items-center gap-0.5 lg:flex">
-          {primaryNav.map((link) => (
+          {primaryNav.map(({ href, label, Icon }) => (
             <SafeLink
-              key={link.href}
-              href={link.href}
-              className={`nav-link ${isActive(pathname, link.href) ? "nav-link-active" : ""}`}
-              aria-current={isActive(pathname, link.href) ? "page" : undefined}
+              key={href}
+              href={href}
+              className={`nav-link inline-flex items-center gap-1.5 ${
+                isActive(pathname, href) ? "nav-link-active" : ""
+              }`}
+              aria-current={isActive(pathname, href) ? "page" : undefined}
             >
-              {link.label}
+              <Icon size={14} aria-hidden className="opacity-70" />
+              {label}
             </SafeLink>
           ))}
 
           <div className="relative" ref={toolsRef}>
             <button
               type="button"
-              className={`nav-link inline-flex items-center gap-1 ${toolsActive || toolsOpen ? "nav-link-active" : ""}`}
+              className={`nav-link inline-flex items-center gap-1.5 ${
+                toolsActive || toolsOpen ? "nav-link-active" : ""
+              }`}
               aria-expanded={toolsOpen}
               aria-haspopup="menu"
               onClick={() => {
@@ -170,25 +182,25 @@ export function SiteHeader() {
             ) : null}
           </div>
 
-          {afterToolsNav.map((link) => (
+          {afterToolsNav.map(({ href, label, Icon, hard }) => (
             <SafeLink
-              key={link.href}
-              href={link.href}
-              hard={link.href === "/assistant"}
+              key={href}
+              href={href}
+              hard={hard}
               className={`nav-link inline-flex items-center gap-1.5 ${
-                isActive(pathname, link.href) ? "nav-link-active" : ""
+                isActive(pathname, href) ? "nav-link-active" : ""
               }`}
-              aria-current={isActive(pathname, link.href) ? "page" : undefined}
+              aria-current={isActive(pathname, href) ? "page" : undefined}
             >
-              {"icon" in link && link.icon ? <Bot size={14} aria-hidden className="opacity-80" /> : null}
-              {link.label}
+              <Icon size={14} aria-hidden className="opacity-80" />
+              {label}
             </SafeLink>
           ))}
 
           <div className="relative" ref={moreRef}>
             <button
               type="button"
-              className={`nav-link inline-flex items-center gap-1 ${moreOpen ? "nav-link-active" : ""}`}
+              className={`nav-link inline-flex items-center gap-1.5 ${moreOpen ? "nav-link-active" : ""}`}
               aria-expanded={moreOpen}
               aria-haspopup="menu"
               onClick={() => {
@@ -196,6 +208,7 @@ export function SiteHeader() {
                 setToolsOpen(false);
               }}
             >
+              <Info size={14} aria-hidden className="opacity-70" />
               درباره آکادمی
               <ChevronDown
                 size={14}
@@ -267,19 +280,20 @@ export function SiteHeader() {
           aria-label="ناوبری موبایل"
           className="container-ay flex max-h-[min(70dvh,32rem)] flex-col gap-0.5 overflow-y-auto overscroll-contain py-4 pb-[max(1rem,var(--tg-safe-bottom))]"
         >
-          {primaryNav.map((link) => (
+          {primaryNav.map(({ href, label, Icon }) => (
             <SafeLink
-              key={link.href}
-              href={link.href}
+              key={href}
+              href={href}
               onClick={() => setOpen(false)}
               tabIndex={open ? 0 : -1}
-              className="mobile-nav-link"
+              className="mobile-nav-link inline-flex items-center gap-2"
             >
-              {link.label}
+              <Icon size={16} aria-hidden className="opacity-70" />
+              {label}
             </SafeLink>
           ))}
 
-          <p className="mobile-nav-group-label px-4 pt-3 pb-1 text-[10px] font-medium tracking-wider text-ink-500">
+          <p className="mobile-nav-group-label px-4 pb-1 pt-3 text-[10px] font-medium tracking-wider text-ink-500">
             ابزار
           </p>
           {toolsItems.map((item) => (
@@ -294,20 +308,21 @@ export function SiteHeader() {
             </SafeLink>
           ))}
 
-          {afterToolsNav.map((link) => (
+          {afterToolsNav.map(({ href, label, Icon, hard }) => (
             <SafeLink
-              key={link.href}
-              href={link.href}
-              hard={link.href === "/assistant"}
+              key={href}
+              href={href}
+              hard={hard}
               onClick={() => setOpen(false)}
               tabIndex={open ? 0 : -1}
-              className="mobile-nav-link"
+              className="mobile-nav-link inline-flex items-center gap-2"
             >
-              {link.label}
+              <Icon size={16} aria-hidden className="opacity-70" />
+              {label}
             </SafeLink>
           ))}
 
-          <p className="mobile-nav-group-label px-4 pt-3 pb-1 text-[10px] font-medium tracking-wider text-ink-500">
+          <p className="mobile-nav-group-label px-4 pb-1 pt-3 text-[10px] font-medium tracking-wider text-ink-500">
             درباره آکادمی
           </p>
           {moreItems.map((item) => (
