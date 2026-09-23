@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-import { USER_SESSION_COOKIE, verifyUserSession } from "@/lib/server-admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +14,7 @@ function authorized(request: Request) {
   return request.headers.get("x-practice-reminder-secret") === configured;
 }
 
+/** Missed-practice reminders: any practice_records today counts (all games). */
 export async function POST(request: Request) {
   if (!authorized(request)) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   if (!db) return NextResponse.json({ ok: false, error: "practice_store_unavailable" }, { status: 503 });
@@ -32,23 +31,28 @@ export async function POST(request: Request) {
     .from("practice_records")
     .select("user_id,metadata")
     .gte("played_at", start.toISOString())
-    .lt("played_at", end.toISOString())
-    .in("game_id", ["tone", "eq", "compressor", "phase", "theory", "voicing", "pro-arcade"]);
+    .lt("played_at", end.toISOString());
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 503 });
 
   const practiced = new Set(
     (data || [])
-      .map(row => String((row as any)?.metadata?.telegramId || (row as any)?.metadata?.telegram_id || ""))
+      .map((row) => String((row as any)?.metadata?.telegramId || (row as any)?.metadata?.telegram_id || ""))
       .filter(Boolean),
   );
+  // also treat user_id match when telegram id stored as user id
+  for (const row of data || []) {
+    const uid = String((row as any)?.user_id || "");
+    if (uid) practiced.add(uid);
+  }
 
   const reminders = telegramIds
-    .filter(id => !practiced.has(id))
-    .map(telegramId => ({
+    .filter((id) => !practiced.has(id))
+    .map((telegramId) => ({
       telegramId,
       title: "تمرین امروز ArtistYar",
-      message: "🎧 هنوز تمرین شنیداری امروزت را انجام ندادی.\n\nحتی ۵ دقیقه تمرین متمرکز می‌تواند گوش تو را قوی‌تر کند. وارد ArtistYar شو و تمرین امروزت را انجام بده 💪🎵",
+      message:
+        "🎧 هنوز تمرین شنیداری امروزت را انجام ندادی.\n\nحتی ۵ دقیقه تمرین متمرکز می‌تواند گوش تو را قوی‌تر کند. وارد ArtistYar شو و تمرین امروزت را انجام بده 💪🎵",
     }));
 
   return NextResponse.json({ ok: true, date: start.toISOString().slice(0, 10), reminders });
