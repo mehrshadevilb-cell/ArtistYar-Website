@@ -37,9 +37,9 @@ export async function POST(request: Request) {
   const message = update?.channel_post;
   if (!message) return NextResponse.json({ ok: true, ignored: true });
 
-  // Telegram must receive a successful webhook response even if our internal
-  // queue/database has a transient problem. Otherwise Telegram retries the
-  // same update and can create duplicate work.
+  // A successfully queued update can be acknowledged immediately; expensive
+  // processing is handled by the background hook/cron. Queue failures must
+  // return non-2xx below so Telegram retries the delivery.
   try {
     const result = await enqueuePluginMessage(message);
 
