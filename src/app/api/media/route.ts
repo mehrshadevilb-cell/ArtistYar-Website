@@ -163,6 +163,10 @@ export async function PUT(request: Request) {
   if (!hasSupabase()) return NextResponse.json({ ok: false, error: "اتصال Supabase هنوز تنظیم نشده است." }, { status: 503 });
   try {
     const contentType = request.headers.get("content-type") || "";
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > MAX_FILE_SIZE + 2 * 1024 * 1024) {
+      return NextResponse.json({ ok: false, error: "حجم درخواست از سقف ۵۰ مگابایت بیشتر است." }, { status: 413 });
+    }
     if (contentType.includes("multipart/form-data")) {
       const form = await request.formData();
       const action = String(form.get("action") || "");
@@ -181,7 +185,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ ok: true, item, message: "فایل با موفقیت جایگزین شد." });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const publicId = String(body.publicId || "").trim();
     const title = String(body.title || "").trim();
     const description = String(body.description || "").trim();
