@@ -20,20 +20,44 @@ async function getDb() {
   return createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
-/** Global free-stage count across ALL games (UTC day) */
-async function globalDailyUsage(userIds: string[]) {
+type QuotaResult = {
+  allowed: boolean;
+  pro: boolean;
+  consumed: number;
+  remaining: number | null;
+  dailyLimit: number | null;
+  error?: string;
+};
+
+/** Atomic Free daily-stage consume via DB RPC. Pro/admin: allowed without consuming. Fail closed on errors. */
+async function consumeDailyStage(userId: string, isPro: boolean): Promise<QuotaResult> {
   const db = await getDb();
-  if (!db || !userIds.length) return 0;
-  const start = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
-  const end = new Date(start.getTime() + 86400000);
-  const { data, error } = await db
-    .from("practice_records")
-    .select("id")
-    .in("user_id", userIds)
-    .gte("played_at", start.toISOString())
-    .lt("played_at", end.toISOString());
-  if (error) throw new Error(`practice_daily_usage_query_failed: ${error.message}`);
-  return data?.length || 0;
+  if (!db) throw new Error("practice_store_unavailable");
+  const { data, error } = await db.rpc("consume_practice_daily_stage", {
+    p_user_id: userId,
+    p_is_pro: isPro,
+  });
+  if (error) throw new Error(`consume_practice_daily_stage_failed: ${error.message}`);
+  const row = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+  return {
+    allowed: Boolean(row.allowed),
+    pro: Boolean(row.pro),
+    consumed: Number(row.consumed) || 0,
+    remaining: row.remaining == null ? null : Number(row.remaining),
+    dailyLimit: row.dailyLimit == null ? null : Number(row.dailyLimit),
+    error: row.error ? String(row.error) : undefined,
+  };
+}
+
+/** Refund one Free stage after a failed save (best-effort). */
+async function refundDailyStage(userId: string): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    await db.rpc("refund_practice_daily_stage", { p_user_id: userId });
+  } catch {
+    /* best-effort refund */
+  }
 }
 
 async function isProUser(userIds: string[]) {
@@ -53,7 +77,7 @@ async function isProUser(userIds: string[]) {
 async function isDuplicateSubmission(userId: string, itemKey: string | null) {
   if (!itemKey || itemKey.length < 4) return false;
   const db = await getDb();
-  if (!db) return false;
+  if (!db) throw new Error("practice_store_unavailable");
   const since = new Date(Date.now() - 3600_000).toISOString();
   const { data: recent, error } = await db
     .from("practice_records")
@@ -122,8 +146,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
+  let quotaConsumed = false;
+  const userId = auth.id;
+
   try {
-    const userId = auth.id;
     const telegramId = auth.telegramId;
     const userIds = [...new Set([userId, telegramId].filter(Boolean))];
     const gameId = String(body.gameId || "unknown").slice(0, 80);
@@ -139,6 +165,7 @@ export async function POST(request: Request) {
           ? String(metadata.fingerprint).slice(0, 240)
           : null;
 
+    // 1) Duplicate check BEFORE quota consume
     if (itemKey && (await isDuplicateSubmission(userId, itemKey))) {
       return NextResponse.json(
         { ok: false, error: "duplicate_round", code: "duplicate" },
@@ -173,10 +200,12 @@ export async function POST(request: Request) {
         ? Math.min(60000, Math.round(Number(metadata.responseTimeMs)))
         : null;
 
+    const rated = metadata.rated !== false;
+
     let score: number;
     if (claims) {
       score = verifiedCorrect ? 20 : 0;
-    } else if (metadata.rated === false) {
+    } else if (!rated) {
       score = 0;
     } else {
       score = calculateRoundXp({
@@ -206,17 +235,28 @@ export async function POST(request: Request) {
     const bestScore = Math.max(0, Math.min(45, score));
 
     const pro = auth.admin || (await isProUser(userIds));
-    let usedToday = 0;
-    if (!pro) {
-      usedToday = await globalDailyUsage(userIds);
-      if (usedToday >= FREE_DAILY) {
+
+    let quota: QuotaResult = {
+      allowed: true,
+      pro,
+      consumed: 0,
+      remaining: pro ? null : FREE_DAILY,
+      dailyLimit: pro ? null : FREE_DAILY,
+    };
+
+    // 2) Atomic daily quota — only rated Free stages
+    if (rated) {
+      quota = await consumeDailyStage(userId, pro);
+      if (!pro && quota.allowed) quotaConsumed = true;
+
+      if (!quota.allowed) {
         return NextResponse.json(
           {
             ok: false,
             code: "daily_limit_reached",
             pro: false,
-            dailyLimit: FREE_DAILY,
-            used: usedToday,
+            dailyLimit: quota.dailyLimit ?? FREE_DAILY,
+            used: quota.consumed,
             remaining: 0,
           },
           { status: 429 },
@@ -224,25 +264,33 @@ export async function POST(request: Request) {
       }
     }
 
-    const row = await savePracticeResult({
-      user_id: userId,
-      username: String(auth.username).slice(0, 120),
-      full_name: String(auth.fullName).slice(0, 160),
-      game_id: gameId,
-      score,
-      accuracy,
-      streak,
-      best_score: bestScore,
-      metadata: {
-        ...metadata,
-        itemKey,
-        verifiedCorrect,
-        difficulty,
-        responseTimeMs,
-        serverXp: score,
-        ...(telegramId ? { telegramId } : {}),
-      },
-    });
+    // 3) Persist; refund if insert fails
+    let row;
+    try {
+      row = await savePracticeResult({
+        user_id: userId,
+        username: String(auth.username).slice(0, 120),
+        full_name: String(auth.fullName).slice(0, 160),
+        game_id: gameId,
+        score,
+        accuracy,
+        streak,
+        best_score: bestScore,
+        metadata: {
+          ...metadata,
+          itemKey,
+          verifiedCorrect,
+          difficulty,
+          responseTimeMs,
+          serverXp: score,
+          rated,
+          ...(telegramId ? { telegramId } : {}),
+        },
+      });
+    } catch (saveErr) {
+      if (quotaConsumed) await refundDailyStage(userId);
+      throw saveErr;
+    }
 
     try {
       await recordSkillEvent({
@@ -258,7 +306,7 @@ export async function POST(request: Request) {
           verifiedCorrect,
           streak,
           responseTimeMs,
-          rated: metadata.rated !== false,
+          rated,
         },
       });
     } catch {
@@ -271,8 +319,9 @@ export async function POST(request: Request) {
       pro,
       unlimited: pro,
       score,
-      remaining: pro ? null : Math.max(0, FREE_DAILY - usedToday - 1),
-      dailyLimit: pro ? null : FREE_DAILY,
+      remaining: pro ? null : quota.remaining,
+      dailyLimit: pro ? null : quota.dailyLimit ?? FREE_DAILY,
+      used: pro ? null : quota.consumed,
     });
   } catch (error) {
     return NextResponse.json(
