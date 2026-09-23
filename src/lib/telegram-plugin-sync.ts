@@ -48,11 +48,24 @@ export async function telegramGetFile(fileId: string) {
   if (!file?.file_path) throw new Error("telegram_file_path_missing");
   return { filePath: String(file.file_path), url: TG + "/file/" + botToken() + "/" + file.file_path };
 }
+function imageMimeFromPath(filePath: string, header: string | null) {
+  const normalized = (header || "").split(";")[0].trim().toLowerCase();
+  if (normalized.startsWith("image/")) return normalized;
+  const ext = filePath.toLowerCase().split("?")[0].split(".").pop() || "";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  if (ext === "gif") return "image/gif";
+  if (ext === "bmp") return "image/bmp";
+  return "image/jpeg";
+}
+
 async function telegramBytes(fileId: string) {
   const file = await telegramGetFile(fileId);
   const res = await fetch(file.url, { cache: "no-store", signal: AbortSignal.timeout(30000) });
   if (!res.ok) throw new Error("telegram_file_download_failed_" + res.status);
-  return { bytes: Buffer.from(await res.arrayBuffer()), contentType: res.headers.get("content-type") || "application/octet-stream" };
+  const bytes = Buffer.from(await res.arrayBuffer());
+  return { bytes, contentType: imageMimeFromPath(file.filePath, res.headers.get("content-type")) };
 }
 function parseJson(text: string): PluginData {
   const raw = text.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
@@ -217,6 +230,7 @@ function modelPool(prefix: string, singleName: string, defaults: readonly string
 
 async function identify(imageFileId: string, fileName: string, caption: string) {
   const image = await telegramBytes(imageFileId);
+  if (!image.contentType.startsWith("image/")) throw new Error("telegram_photo_not_image");
   const dataUrl = "data:" + image.contentType + ";base64," + image.bytes.toString("base64");
 
   const googleKey = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
