@@ -14,7 +14,15 @@ export type SoundGymExerciseId =
   | "delay-detect" | "delay-match" | "reverb-type" | "reverb-match"
   | "predelay" | "decay" | "wetdry" | "spatial-compare"
   // Phase 3 — Audio Quality
-  | "dist-detect" | "sat-detect" | "dist-amount" | "feedback-freq" | "harmonic-nl";
+  | "dist-detect" | "sat-detect" | "dist-amount" | "feedback-freq" | "harmonic-nl"
+  // Phase 4 — Balance Memory & Mix Decision
+  | "balance-memory" | "balance-recreate"
+  | "mix-vocal-balance" | "mix-masking" | "mix-freq-conflict"
+  | "mix-eq-decision" | "mix-level-decision" | "mix-pan-decision"
+  | "mix-stereo-place" | "mix-clarity" | "mix-ab-compare"
+  // Phase 4 — User Audio Lab modes
+  | "user-eq" | "user-freq" | "user-comp" | "user-dynamics"
+  | "user-masking" | "user-stereo" | "user-level";
 
 export type AnswerMode = "choice" | "ab" | "match";
 
@@ -23,7 +31,19 @@ export type AudioProgram =
   | { kind: "noise"; seconds: number; color?: "white" | "pink" | "brown" }
   | { kind: "harmonic"; fundamental: number; partials: number[]; duration?: number }
   | { kind: "percussion"; hits: number; spacing: number; toneHz: number }
-  | { kind: "loop"; pattern: "pad" | "pluck" | "bass" | "kit"; duration?: number };
+  | { kind: "loop"; pattern: "pad" | "pluck" | "bass" | "kit"; duration?: number }
+  | {
+      kind: "stems";
+      duration?: number;
+      stems: Array<{
+        id: string;
+        role: "vocals" | "drums" | "bass" | "piano" | "guitar" | "synth" | "mix";
+        toneHz: number;
+        gainDb: number;
+        pan: number;
+        color?: "tone" | "noise" | "harmonic";
+      }>;
+    };
 
 export type DspChain =
   | { type: "none" }
@@ -40,6 +60,7 @@ export type DspChain =
   | { type: "delay"; timeSec: number; feedback?: number; mix?: number }
   | { type: "reverb"; decay: number; mix: number; preDelay?: number; room?: "room" | "hall" | "plate" | "chamber" }
   | { type: "distort"; drive: number; style?: "soft" | "hard" | "tape" | "fuzz" }
+  | { type: "stemBalance"; adjustments: Record<string, { gainDb?: number; pan?: number }> }
   | { type: "stack"; nodes: DspChain[] };
 
 export type RoundOption = {
