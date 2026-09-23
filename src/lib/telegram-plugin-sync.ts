@@ -151,7 +151,14 @@ function parseJson(text: string): PluginData {
     translatedCaption: clean(p.translated_caption, 3500),
   };
 }
-const SYSTEM = "Identify a music-production plugin from the image, filename and caption. FACT PRIORITY: use explicit facts in the Telegram caption first, then filename, then visible image text; never contradict an explicit caption fact. The Telegram caption is the primary source. translated_caption must be a faithful Persian translation/cleanup of the useful original caption, not an invented replacement. If the caption is already Persian, preserve it and only clean promotional noise. Preserve exact product/developer names, version, formats, platform, technical terms and factual meaning. Remove promotional content and unrelated links. Keep only links to artistyaar.ir and the source channel t.me/ProAudios. Never invent unknown values. Return JSON only with title, developer, version, category, formats, platforms, description, features, tags, translated_caption. Use concise Persian for description/features and conventional English for product/developer/technical names. Category examples: Synthesizer, EQ, Compressor, Reverb, Delay, Saturation, Distortion, Limiter, Dynamics, Instrument, Sampler, Utility, Mastering, Bundle, Other."
+const SYSTEM_BASE = "You are ArtistYar's automatic Telegram plugin content engine. Identify a music-production plugin from the available image, filename and caption. FACT PRIORITY: explicit caption facts first, then filename, then visible image text. Never contradict explicit facts. Preserve exact product/developer names, versions, formats, platforms, technical terms and factual meaning. Never invent unknown values. Remove promotional noise and all external links; the final caption must keep only ArtistYar and @ProAudios references added by the application. Return JSON only with title, developer, version, category, formats, platforms, description, features, tags, translated_caption. Use concise natural Persian for description/features and conventional English for product/developer/technical names. Category examples: Synthesizer, EQ, Compressor, Reverb, Delay, Saturation, Distortion, Limiter, Dynamics, Instrument, Sampler, Utility, Mastering, Bundle, Other.";
+
+function buildAiSystem(caption: string) {
+  if (String(caption || "").trim()) {
+    return SYSTEM_BASE + " The Telegram post HAS a caption. Translate the existing caption faithfully into natural Persian. Do not replace it with an invented product description. Clean only spam/promotional noise and external links. If it is already Persian, preserve its meaning and wording as much as possible while cleaning links/noise. translated_caption must represent the useful original caption.";
+  }
+  return SYSTEM_BASE + " The Telegram post has NO caption. Create a useful Persian caption from the photo/vision evidence and filename. If the image clearly shows product/developer/version/format/platform information, use it. Describe the plugin only from visible or filename evidence. translated_caption should be a newly authored Persian caption for the identified product, not a translation of an empty caption.";
+}
 
 type AiResult = { data: PluginData; provider: string; model: string };
 
@@ -211,6 +218,80 @@ function envList(name: string) {
   return (process.env[name] || "").split(",").map(v => v.trim()).filter(Boolean);
 }
 
+type AiHealth = { ok: number; fail: number; latencyMs: number; lastUsed: number; cooldownUntil: number };
+const AI_HEALTH = new Map<string, AiHealth>();
+
+function healthKey(provider: string, model: string) {
+  return provider + ":" + model;
+}
+
+function healthFor(provider: string, model: string): AiHealth {
+  return AI_HEALTH.get(healthKey(provider, model)) || {
+    ok: 0, fail: 0, latencyMs: 12000, lastUsed: 0, cooldownUntil: 0,
+  };
+}
+
+function rankModels(provider: string, models: string[]) {
+  const now = Date.now();
+  return Array.from(new Set(models)).sort((a, b) => {
+    const ha = healthFor(provider, a);
+    const hb = healthFor(provider, b);
+    const availableA = ha.cooldownUntil <= now ? 1 : 0;
+    const availableB = hb.cooldownUntil <= now ? 1 : 0;
+    if (availableA !== availableB) return availableB - availableA;
+    const score = (h: AiHealth) => {
+      const attempts = h.ok + h.fail;
+      const success = attempts ? h.ok / attempts : 0.5;
+      const speed = 1 / Math.max(500, h.latencyMs);
+      const freshness = h.lastUsed ? Math.min(1, (now - h.lastUsed) / 60000) : 1;
+      return success * 100 + speed * 100000 + freshness;
+    };
+    return score(hb) - score(ha);
+  });
+}
+
+function recordAiSuccess(provider: string, model: string, latencyMs: number) {
+  const key = healthKey(provider, model);
+  const h = healthFor(provider, model);
+  AI_HEALTH.set(key, {
+    ok: h.ok + 1,
+    fail: h.fail,
+    latencyMs: Math.round(h.latencyMs * 0.35 + latencyMs * 0.65),
+    lastUsed: Date.now(),
+    cooldownUntil: 0,
+  });
+}
+
+function recordAiFailure(provider: string, model: string, latencyMs: number, status?: number) {
+  const key = healthKey(provider, model);
+  const h = healthFor(provider, model);
+  const severe = status === 401 || status === 403 || status === 404 || status === 429 || (status || 0) >= 500;
+  const cooldown = severe ? (status === 429 ? 120000 : 60000) : 15000;
+  AI_HEALTH.set(key, {
+    ok: h.ok,
+    fail: h.fail + 1,
+    latencyMs: Math.round(h.latencyMs * 0.35 + latencyMs * 0.65),
+    lastUsed: Date.now(),
+    cooldownUntil: Date.now() + cooldown,
+  });
+}
+
+function validBaseUrl(value: string, fallback: string) {
+  const candidate = String(value || "").trim().replace(/\/$/, "");
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return candidate;
+  } catch {}
+  return fallback;
+}
+
+function modelPrompt(caption: string, fileName: string, imageAvailable: boolean) {
+  return buildAiSystem(caption) + "\n\nFilename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") +
+    (imageAvailable
+      ? ""
+      : "\nIMPORTANT: Telegram image download is unavailable. Use filename/caption only; do not invent visual facts.");
+}
+
 async function openAICompatible(
   provider: string,
   apiKey: string,
@@ -221,9 +302,12 @@ async function openAICompatible(
   caption: string,
 ) {
   let last = provider + "_no_working_model";
-  for (const model of models) {
+  for (const model of rankModels(provider, models)) {
+    const startedAt = Date.now();
+    const health = healthFor(provider, model);
+    if (health.cooldownUntil > startedAt) continue;
     try {
-      const res = await fetch(baseUrl.replace(/\/$/, "") + "/chat/completions", {
+      const res = await fetch(validBaseUrl(baseUrl, "https://api.openai.com/v1") + "/chat/completions", {
         method: "POST",
         headers: {
           authorization: "Bearer " + apiKey,
@@ -238,19 +322,20 @@ async function openAICompatible(
           temperature: 0.1,
           max_tokens: 1200,
           messages: [
-            { role: "system", content: SYSTEM },
+            { role: "system", content: buildAiSystem(caption) },
             { role: "user", content: imageData
               ? [
-                  { type: "text", text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") },
+                  { type: "text", text: modelPrompt(caption, fileName, true) },
                   { type: "image_url", image_url: { url: imageData } },
                 ]
-              : "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") + "\nIMPORTANT: Telegram image download is unavailable. Identify only from filename/caption and translate the caption faithfully; do not invent visual facts." },
+              : modelPrompt(caption, fileName, false) },
           ],
         }),
         signal: AbortSignal.timeout(30000),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
+        recordAiFailure(provider, model, Date.now() - startedAt, res.status);
         last = clean(data?.error?.message || (provider + "_http_" + res.status), 240);
         continue;
       }
@@ -259,8 +344,11 @@ async function openAICompatible(
         last = provider + "_empty_reply";
         continue;
       }
-      return { data: parseJson(String(text)), provider, model } satisfies AiResult;
+      const parsed = parseJson(String(text));
+      recordAiSuccess(provider, model, Date.now() - startedAt);
+      return { data: parsed, provider, model } satisfies AiResult;
     } catch (error) {
+      recordAiFailure(provider, model, Date.now() - startedAt);
       last = clean(error instanceof Error ? error.message : error, 240);
     }
   }
@@ -271,14 +359,17 @@ async function google(bytes: Buffer | null, mime: string, fileName: string, capt
   const k = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
   if (!k) throw new Error("google_not_configured");
   let last = "google_no_working_model";
-  for (const model of models) {
+  for (const model of rankModels("google", models)) {
+    const startedAt = Date.now();
+    const health = healthFor("google", model);
+    if (health.cooldownUntil > startedAt) continue;
     try {
       const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(k), {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM }] },
+          systemInstruction: { parts: [{ text: buildAiSystem(caption) }] },
           contents: [{ role: "user", parts: [
-            { text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") + (bytes ? "" : "\nIMPORTANT: Telegram image download is unavailable. Identify only from filename/caption and translate the caption faithfully; do not invent visual facts.") },
+            { text: modelPrompt(caption, fileName, Boolean(bytes)) },
             ...(bytes ? [{ inline_data: { mime_type: mime || "image/jpeg", data: bytes.toString("base64") } }] : []),
           ] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 1200, responseMimeType: "application/json" },
@@ -287,6 +378,7 @@ async function google(bytes: Buffer | null, mime: string, fileName: string, capt
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
+        recordAiFailure("google", model, Date.now() - startedAt, res.status);
         last = clean(data?.error?.message || ("google_http_" + res.status), 240);
         continue;
       }
@@ -295,8 +387,11 @@ async function google(bytes: Buffer | null, mime: string, fileName: string, capt
         last = "google_empty_reply";
         continue;
       }
-      return { data: parseJson(text), provider: "google", model } satisfies AiResult;
+      const parsed = parseJson(text);
+      recordAiSuccess("google", model, Date.now() - startedAt);
+      return { data: parsed, provider: "google", model } satisfies AiResult;
     } catch (error) {
+      recordAiFailure("google", model, Date.now() - startedAt);
       last = clean(error instanceof Error ? error.message : error, 240);
     }
   }
@@ -311,7 +406,10 @@ async function anthropic(imageData: string | null, fileName: string, caption: st
   const meta = imageData && comma >= 0 ? imageData.slice(5, comma) : "";
   const mediaType = (meta.split(";")[0] || "image/jpeg");
   const base64 = imageData && comma >= 0 ? imageData.slice(comma + 1) : "";
-  for (const model of models) {
+  for (const model of rankModels("anthropic", models)) {
+    const startedAt = Date.now();
+    const health = healthFor("anthropic", model);
+    if (health.cooldownUntil > startedAt) continue;
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -323,9 +421,9 @@ async function anthropic(imageData: string | null, fileName: string, caption: st
         body: JSON.stringify({
           model,
           max_tokens: 1200,
-          system: SYSTEM,
+          system: buildAiSystem(caption),
           messages: [{ role: "user", content: [
-            { type: "text", text: "Filename: " + (fileName || "unknown") + "\nCaption: " + (caption || "none") + (imageData ? "" : "\nIMPORTANT: Telegram image download is unavailable. Identify only from filename/caption and translate the caption faithfully; do not invent visual facts.") },
+            { type: "text", text: modelPrompt(caption, fileName, Boolean(imageData)) },
             ...(imageData ? [{ type: "image", source: { type: "base64", media_type: mediaType, data: base64 } }] : []),
           ] }],
         }),
@@ -333,6 +431,7 @@ async function anthropic(imageData: string | null, fileName: string, caption: st
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
+        recordAiFailure("anthropic", model, Date.now() - startedAt, res.status);
         last = clean(data?.error?.message || ("anthropic_http_" + res.status), 240);
         continue;
       }
@@ -341,8 +440,11 @@ async function anthropic(imageData: string | null, fileName: string, caption: st
         last = "anthropic_empty_reply";
         continue;
       }
-      return { data: parseJson(text), provider: "anthropic", model } satisfies AiResult;
+      const parsed = parseJson(text);
+      recordAiSuccess("anthropic", model, Date.now() - startedAt);
+      return { data: parsed, provider: "anthropic", model } satisfies AiResult;
     } catch (error) {
+      recordAiFailure("anthropic", model, Date.now() - startedAt);
       last = clean(error instanceof Error ? error.message : error, 240);
     }
   }
@@ -437,7 +539,7 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
   for (const [provider, keyName, baseName, modelName, defaultBase, defaults] of compatibleProviders) {
     const apiKey = (process.env[keyName] || "").trim();
     if (!apiKey) continue;
-    const base = process.env[baseName] || defaultBase;
+    const base = validBaseUrl(process.env[baseName] || "", defaultBase);
     const models = modelPool("PLUGIN_AI_" + provider.toUpperCase(), modelName, defaults);
     if (!models.length) continue;
     candidates.push(() => openAICompatible(provider, apiKey, base, models, dataUrl, fileName, caption));
@@ -445,14 +547,11 @@ async function identify(imageFileId: string, fileName: string, caption: string) 
 
   if (!candidates.length) throw new Error("no_plugin_vision_ai_configured");
 
-  // Rotate the first provider by Telegram message ID so one provider/model is
-  // not permanently preferred. Every configured provider/model remains a
-  // fallback if earlier candidates fail.
-  const offset = Math.abs(Number(imageFileId.slice(-6).replace(/\D/g, "") || "0")) % candidates.length;
-  const rotated = candidates.slice(offset).concat(candidates.slice(0, offset));
-
+  // No manual model choice and no message-ID rotation. Providers are attempted
+  // automatically; each model learns from success, failure and latency in this
+  // running process, with unhealthy models temporarily cooled down.
   let last = "plugin_ai_failed";
-  for (const run of rotated) {
+  for (const run of candidates) {
     try { return await run(); }
     catch (error) { last = clean(error instanceof Error ? error.message : error, 300); }
   }
@@ -463,7 +562,8 @@ function tag(v: string) { return String(v || "").trim().replace(/[^\p{L}\p{N}_-]
 function makeCaption(p: PluginData) {
   const translated = p.translatedCaption || "";
   if (translated) {
-    return (esc(translated) + "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\n📢 Channel: @ProAudios").slice(0, 1000);
+    const cleanedTranslated = sanitizeCaption(translated).replace(/\n\n🎛️ ArtistYar — https:\/\/artistyaar\.ir\n📢 Channel: @ProAudios$/i, "").trim();
+    return (esc(cleanedTranslated) + "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\n📢 Channel: @ProAudios").slice(0, 1000);
   }
 
   const lines = [
@@ -477,6 +577,7 @@ function makeCaption(p: PluginData) {
     p.features.length ? "\n✨ <b>ویژگی‌ها</b>\n" + p.features.slice(0, 6).map(x => "• " + esc(x)).join("\n") : "",
     p.tags.length ? "\n" + p.tags.map(x => "#" + tag(x)).join(" ") : "",
     "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir",
+    "📢 Channel: @ProAudios",
   ];
   return lines.filter(Boolean).join("\n").slice(0, 1000);
 }
