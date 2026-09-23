@@ -56,12 +56,15 @@ async function getDailyUsed(userId: string): Promise<{ used: number; remaining: 
   const end = new Date(start.getTime() + 86400000);
   const { data: rows, error: qErr } = await db
     .from("practice_records")
-    .select("id")
+    .select("id,metadata")
     .eq("user_id", userId)
     .gte("played_at", start.toISOString())
     .lt("played_at", end.toISOString());
   if (qErr) throw new Error(`practice_daily_usage_query_failed: ${qErr.message}`);
-  const used = rows?.length || 0;
+  const used = (rows || []).filter((row) => {
+    const metadata = row.metadata as Record<string, unknown> | null;
+    return metadata?.rated !== false;
+  }).length;
   return {
     used,
     remaining: Math.max(0, FREE_STAGE_LIMIT - used),
