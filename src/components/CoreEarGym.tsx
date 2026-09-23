@@ -224,7 +224,8 @@ export function CoreEarGym({ onBack, initialGame, onComplete, title }: { onBack?
   const [guestMode, setGuestMode] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
-  const [lastPlayed, setLastPlayed] = useState(false);\n  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [lastPlayed, setLastPlayed] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const started = useRef(0);
   const sessionId = useRef("");
 
