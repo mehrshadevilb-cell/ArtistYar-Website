@@ -809,10 +809,13 @@ export async function processPendingPluginPairs(limit = 5) {
       // Release the pair immediately on failure. The atomic claim remains the
       // race-safety mechanism, while failed AI/Telegram calls become retryable
       // without waiting for the 10-minute stale-lock window.
-      await db.from("telegram_plugin_ingest_queue")
-        .update({ processing_at: null })
-        .in("id", [photo.id, best.id])
-        .catch(() => undefined);
+      try {
+        await db.from("telegram_plugin_ingest_queue")
+          .update({ processing_at: null })
+          .in("id", [photo.id, best.id]);
+      } catch {
+        // Best-effort unlock; the stale-lock guard remains as a fallback.
+      }
       errors.push({
         photo_message_id: Number(photo.message_id),
         document_message_id: Number(best.message_id),
