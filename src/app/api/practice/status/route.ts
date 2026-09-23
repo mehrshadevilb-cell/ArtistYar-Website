@@ -11,7 +11,7 @@ const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_R
 const db = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
 const FREE_STAGE_LIMIT = 5;
-const PRO_STAGE_LIMIT = 500;
+const PRO_STAGE_LIMIT = 0; // Pro is subscription-based, not stage-based.
 const PRO_PRICE_TOMAN = 40000;
 
 function dayKey() {
