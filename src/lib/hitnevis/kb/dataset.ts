@@ -73,10 +73,7 @@ export function getHitKb(): HitKbRecord[] {
 }
 
 export function getHitKbStats() {
-  return {
-    version: HIT_KB_VERSION,
-    source: HIT_KB_SOURCE,
-    const rows = getHitKb();
+  const rows = getHitKb();
   return {
     version: HIT_KB_VERSION,
     source: HIT_KB_SOURCE,
