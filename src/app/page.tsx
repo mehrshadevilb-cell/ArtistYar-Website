@@ -18,19 +18,11 @@ import { SafeLink } from "@/components/SafeLink";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { HeroDifferentiator } from "@/components/HeroDifferentiator";
 import { ScrollStage } from "@/components/ScrollStage";
-import dynamic from "next/dynamic";
 import { getHomepageConfig } from "@/lib/homepage";
 import { sectionMap } from "@/data/homepage";
 import { HomeStudentWorks } from "@/components/HomeStudentWorks";
-
-const HomeLiveCourses = dynamic(
-  () => import("@/components/HomeLiveCourses").then((m) => m.HomeLiveCourses),
-  { loading: () => <div className="container-ay py-10" aria-hidden="true"><div className="h-72 animate-pulse rounded-2xl bg-white/[0.04]" /></div> },
-);
-const QuickConsultationForm = dynamic(
-  () => import("@/components/QuickConsultationForm").then((m) => m.QuickConsultationForm),
-  { ssr: false, loading: () => null },
-);
+import { HomeLiveCourses } from "@/components/HomeLiveCourses";
+import { QuickConsultationForm } from "@/components/QuickConsultationForm";
 
 export const metadata: Metadata = {
   title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | مهرشاد بنائی",
