@@ -1,80 +1,80 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import {
   Loader2,
   Send,
   Square,
-  Copy,
-  Check,
   RotateCcw,
-  PanelRight,
   X,
-  Sparkles,
-  AlertCircle,
-  User,
-  ChevronDown,
-  Plus,
+  Users,
+  CheckCheck,
+  MessageSquare,
 } from "lucide-react";
-import { detectIntent, QUICK_ACTIONS, type HitNevisMode, type LyricSectionId } from "@/lib/hitnevis/intent";
+import {
+  detectIntent,
+  QUICK_ACTIONS,
+  type HitNevisMode,
+  type LyricSectionId,
+} from "@/lib/hitnevis/intent";
+import { getSession } from "@/lib/auth";
 
 type Section = { id: string; type: LyricSectionId; label: string; text: string };
+
 type ArtistVoice = {
   name: string;
   styleNotes: string;
   preferredWords: string;
   avoidedWords: string;
-  register: "" | "colloquial" | "literary" | "mixed";
 };
-type DnaResult = {
-  structureScore: number;
-  hookPresence: number;
-  repetitionIndex: number;
-  narrativeClarity: number;
-  emotionalArc: number;
-  rhymeDensity: number;
-  registerConsistency: number;
-  phraseDensity: number;
-  memorabilitySignal: number;
-  overall: number;
-  notes: string[];
-  disclaimer: string;
-};
-type HumanTest = { id: string; label: string; score: number; summary: string; tips: string[] };
 
-type CardKind = "lyrics" | "analysis" | "dna" | "human" | "directions" | "error";
+type Suggestion = {
+  id: string;
+  text: string;
+  from: string;
+  sectionId: string;
+  at: number;
+  status: "pending" | "accepted" | "rejected";
+};
+
+type Actor = "self" | "partner" | "ai";
 
 type ChatMessage = {
   id: string;
   role: "user" | "assistant" | "system";
+  actor?: Actor;
+  authorName?: string;
   content: string;
   at: number;
   mode?: HitNevisMode;
   modeLabel?: string;
-  cardKind?: CardKind;
+  kind?: "text" | "lyrics" | "analysis" | "error";
   directions?: string[];
-  dna?: DnaResult;
-  humanTests?: HumanTest[];
-  humanOverall?: number;
-  cliches?: string[];
   retryable?: boolean;
   lastPrompt?: string;
 };
 
-const STORAGE = "hitnevis_chat_v1";
+const STORAGE = "hitnevis_partner_v1";
 const ORIGINAL_KEY = "hitnevis_original_v2";
 
 const DEFAULT_SECTIONS: Section[] = [
   { id: "s-v1", type: "verse", label: "ورس ۱", text: "" },
   { id: "s-pre", type: "pre_chorus", label: "پری‌کورس", text: "" },
   { id: "s-ch", type: "chorus", label: "کورس", text: "" },
-  { id: "s-v2", type: "verse", label: "ورس ۲", text: "" },
   { id: "s-br", type: "bridge", label: "بریج", text: "" },
-  { id: "s-out", type: "outro", label: "اوت‌رو", text: "" },
 ];
 
-function uid(prefix = "m"): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+function uid(p = "x"): string {
+  return `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
 function sectionsToText(sections: Section[]): string {
@@ -85,16 +85,16 @@ function sectionsToText(sections: Section[]): string {
 }
 
 function emptyVoice(): ArtistVoice {
-  return { name: "", styleNotes: "", preferredWords: "", avoidedWords: "", register: "" };
+  return { name: "", styleNotes: "", preferredWords: "", avoidedWords: "" };
 }
 
 const WELCOME: ChatMessage = {
   id: "welcome",
   role: "system",
   content:
-    "سلام! من هیت‌نویس‌ام — دستیار ترانه‌سرایی فارسی.\n\nهر چی لازم داری به زبان خودت بگو؛ مثلاً:\n• «یه کورس قوی بساز»\n• «این قسمت رو بهتر کن»\n• «ادامه‌ش بده»\n• «کلیشه‌هاشو پیدا کن»\n• «تحلیلش کن» یا «Hit DNA»\n\nمتن اصلی‌ات هرگز خودکار جایگزین نمی‌شود. از دکمهٔ پروژه می‌تونی بخش‌ها و صدای هنرمند را ببینی.",
+    "سلام — من همکار ترانه‌نویسی‌ات هستم.\n\nهر چیزی که در ذهن داری بگو: ایده، حس، یک خط نیمه‌کاره، یا «این کورس رو قوی‌تر کن».\nاگر دو نفرید روی یک ترانه کار می‌کنید، از «همکاری» نام همکارتان را بگذارید؛ پیشنهادها قابل قبول یا رد هستند.\n\nمتن اصلیت بدون اجازه عوض نمی‌شود.",
   at: 0,
-  cardKind: "analysis",
+  kind: "text",
 };
 
 export default function HitNevisClient() {
@@ -102,47 +102,51 @@ export default function HitNevisClient() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS);
-  const [activeSectionId, setActiveSectionId] = useState(DEFAULT_SECTIONS[0].id);
-  const [title, setTitle] = useState("ترانهٔ بدون عنوان");
+  const [activeId, setActiveId] = useState(DEFAULT_SECTIONS[0].id);
+  const [title, setTitle] = useState("");
   const [topic, setTopic] = useState("");
-  const [genre, setGenre] = useState("");
-  const [tone, setTone] = useState("");
   const [voice, setVoice] = useState<ArtistVoice>(emptyVoice());
   const [drawer, setDrawer] = useState(false);
-  const [voiceOpen, setVoiceOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
-  const [savedFlash, setSavedFlash] = useState(false);
+  const [selfName, setSelfName] = useState("من");
+  const [partnerName, setPartnerName] = useState("");
+  const [composerAs, setComposerAs] = useState<"self" | "partner">("self");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const activeSection = useMemo(
-    () => sections.find((s) => s.id === activeSectionId) || sections[0],
-    [sections, activeSectionId],
+  const active = useMemo(
+    () => sections.find((s) => s.id === activeId) || sections[0],
+    [sections, activeId],
   );
   const fullLyrics = useMemo(() => sectionsToText(sections), [sections]);
-  const hasLyrics = Boolean(fullLyrics.trim() || activeSection?.text?.trim());
+  const hasLyrics = Boolean(fullLyrics.trim() || active?.text?.trim());
+  const pendingCount = suggestions.filter((s) => s.status === "pending").length;
 
   useEffect(() => {
+    try {
+      const session = getSession();
+      if (session?.fullName) setSelfName(session.fullName.split(" ")[0] || session.username);
+    } catch {
+      /* ignore */
+    }
     try {
       const raw = localStorage.getItem(STORAGE);
       if (raw) {
         const d = JSON.parse(raw) as Record<string, unknown>;
-        if (Array.isArray(d.messages) && d.messages.length) {
-          setMessages(d.messages as ChatMessage[]);
-        }
+        if (Array.isArray(d.messages) && d.messages.length) setMessages(d.messages as ChatMessage[]);
         if (typeof d.title === "string") setTitle(d.title);
         if (typeof d.topic === "string") setTopic(d.topic);
-        if (typeof d.genre === "string") setGenre(d.genre);
-        if (typeof d.tone === "string") setTone(d.tone);
         if (Array.isArray(d.sections) && (d.sections as Section[]).length) {
           setSections(d.sections as Section[]);
-          setActiveSectionId((d.sections as Section[])[0].id);
+          setActiveId((d.sections as Section[])[0].id);
         }
-        if (d.voice && typeof d.voice === "object") {
-          setVoice({ ...emptyVoice(), ...(d.voice as ArtistVoice) });
-        }
+        if (d.voice && typeof d.voice === "object") setVoice({ ...emptyVoice(), ...(d.voice as ArtistVoice) });
+        if (typeof d.partnerName === "string") setPartnerName(d.partnerName);
+        if (typeof d.selfName === "string") setSelfName(d.selfName);
+        if (Array.isArray(d.suggestions)) setSuggestions(d.suggestions as Suggestion[]);
       }
     } catch {
       /* ignore */
@@ -155,30 +159,28 @@ export default function HitNevisClient() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       try {
-        const slim = messages.slice(-40);
         localStorage.setItem(
           STORAGE,
           JSON.stringify({
-            messages: slim,
+            messages: messages.slice(-50),
             title,
             topic,
-            genre,
-            tone,
             sections,
             voice,
+            selfName,
+            partnerName,
+            suggestions: suggestions.slice(-30),
             savedAt: new Date().toISOString(),
           }),
         );
-        setSavedFlash(true);
-        setTimeout(() => setSavedFlash(false), 800);
       } catch {
         /* quota */
       }
-    }, 700);
+    }, 600);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [messages, title, topic, genre, tone, sections, voice, hydrated]);
+  }, [messages, title, topic, sections, voice, selfName, partnerName, suggestions, hydrated]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -194,20 +196,11 @@ export default function HitNevisClient() {
     }
   }, [fullLyrics]);
 
-  const restoreOriginal = useCallback(() => {
+  const restoreOriginal = () => {
     try {
       const raw = localStorage.getItem(ORIGINAL_KEY);
       if (!raw) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: uid(),
-            role: "assistant",
-            content: "پیش‌نویس اصلی هنوز ذخیره نشده است.",
-            at: Date.now(),
-            cardKind: "error",
-          },
-        ]);
+        pushSystem("پیش‌نویس اصلی هنوز ذخیره نشده.");
         return;
       }
       setSections((prev) => {
@@ -215,31 +208,21 @@ export default function HitNevisClient() {
         if (next[0]) next[0] = { ...next[0], text: raw };
         return next;
       });
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: uid(),
-          role: "assistant",
-          content: "متن اصلی هنرمند بازیابی شد و در بخش اول قرار گرفت.",
-          at: Date.now(),
-          cardKind: "analysis",
-        },
-      ]);
+      pushSystem("متن اصلی بازیابی شد.");
     } catch {
       /* ignore */
     }
-  }, []);
+  };
 
-  const buildVoicePayload = () => {
-    if (
-      !voice.name &&
-      !voice.styleNotes &&
-      !voice.preferredWords &&
-      !voice.avoidedWords &&
-      !voice.register
-    ) {
-      return undefined;
-    }
+  function pushSystem(content: string) {
+    setMessages((prev) => [
+      ...prev,
+      { id: uid(), role: "system", content, at: Date.now(), kind: "text" },
+    ]);
+  }
+
+  const voicePayload = () => {
+    if (!voice.name && !voice.styleNotes && !voice.preferredWords && !voice.avoidedWords) return undefined;
     return {
       name: voice.name || undefined,
       styleNotes: voice.styleNotes || undefined,
@@ -249,22 +232,46 @@ export default function HitNevisClient() {
       avoidedWords: voice.avoidedWords
         ? voice.avoidedWords.split(/[,،]/).map((x) => x.trim()).filter(Boolean)
         : undefined,
-      register: voice.register || undefined,
     };
   };
 
-  const applyToSection = (text: string, sectionId?: string) => {
-    const id = sectionId || activeSectionId;
-    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, text } : s)));
+  const applyText = (text: string, mode: "replace" | "append" = "replace") => {
+    setSections((prev) =>
+      prev.map((s) => {
+        if (s.id !== activeId) return s;
+        if (mode === "append") {
+          return { ...s, text: s.text.trim() ? `${s.text.trim()}\n${text}` : text };
+        }
+        return { ...s, text };
+      }),
+    );
   };
 
-  const applyToActiveAppend = (text: string) => {
-    setSections((prev) =>
-      prev.map((s) =>
-        s.id === activeSectionId
-          ? { ...s, text: s.text.trim() ? `${s.text.trim()}\n${text}` : text }
-          : s,
-      ),
+  const proposeSuggestion = (text: string, from: string) => {
+    setSuggestions((prev) => [
+      {
+        id: uid("sg"),
+        text,
+        from,
+        sectionId: activeId,
+        at: Date.now(),
+        status: "pending",
+      },
+      ...prev,
+    ]);
+  };
+
+  const resolveSuggestion = (id: string, status: "accepted" | "rejected") => {
+    setSuggestions((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        if (status === "accepted") {
+          setSections((secs) =>
+            secs.map((sec) => (sec.id === s.sectionId ? { ...sec, text: s.text } : sec)),
+          );
+        }
+        return { ...s, status };
+      }),
     );
   };
 
@@ -272,39 +279,41 @@ export default function HitNevisClient() {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 1400);
+      setTimeout(() => setCopiedId(null), 1200);
     } catch {
       /* ignore */
     }
   };
 
   const runRequest = useCallback(
-    async (userText: string, forcedMode?: HitNevisMode, forcedSection?: LyricSectionId) => {
+    async (userText: string, forcedMode?: HitNevisMode) => {
       const trimmed = userText.trim();
       if (!trimmed && !forcedMode) return;
 
       const intent = forcedMode
-        ? {
-            mode: forcedMode,
-            sectionType: forcedSection,
-            confidence: 1,
-            label: forcedMode,
-          }
+        ? { mode: forcedMode, sectionType: undefined as LyricSectionId | undefined, label: forcedMode, confidence: 1 }
         : detectIntent(trimmed || topic, hasLyrics);
 
       const mode = intent.mode;
-      const sectionType =
-        intent.sectionType || (activeSection?.type as LyricSectionId | undefined);
+      const author =
+        composerAs === "partner" && partnerName.trim()
+          ? partnerName.trim()
+          : selfName;
+      const actor: Actor = composerAs === "partner" && partnerName.trim() ? "partner" : "self";
 
-      const userMsg: ChatMessage = {
-        id: uid("u"),
-        role: "user",
-        content: trimmed || intent.label,
-        at: Date.now(),
-        mode,
-        modeLabel: intent.label,
-      };
-      setMessages((prev) => [...prev, userMsg]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: uid("u"),
+          role: "user",
+          actor,
+          authorName: author,
+          content: trimmed || intent.label,
+          at: Date.now(),
+          mode,
+          modeLabel: intent.label,
+        },
+      ]);
       setInput("");
       setLoading(true);
       lockOriginal();
@@ -314,17 +323,13 @@ export default function HitNevisClient() {
       abortRef.current = ac;
 
       const existing =
-        mode === "write_full" ||
-        mode === "structure" ||
-        mode === "title_ideas" ||
-        mode === "idea_analyze"
-          ? fullLyrics || activeSection?.text || ""
-          : activeSection?.text?.trim() || fullLyrics;
+        mode === "write_full" || mode === "structure" || mode === "title_ideas" || mode === "idea_analyze"
+          ? fullLyrics || active?.text || ""
+          : active?.text?.trim() || fullLyrics;
 
       try {
         if (mode === "hit_dna" || mode === "human_tests" || mode === "anti_cliche") {
-          const kind =
-            mode === "hit_dna" ? "dna" : mode === "human_tests" ? "human" : "cliche";
+          const kind = mode === "hit_dna" ? "dna" : mode === "human_tests" ? "human" : "cliche";
           const res = await fetch("/api/hitnevis/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -343,9 +348,11 @@ export default function HitNevisClient() {
               {
                 id: uid(),
                 role: "assistant",
+                actor: "ai",
+                authorName: "هیت‌نویس",
                 content: data.error || "تحلیل ممکن نشد.",
                 at: Date.now(),
-                cardKind: "error",
+                kind: "error",
                 retryable: true,
                 lastPrompt: trimmed,
                 mode,
@@ -353,54 +360,30 @@ export default function HitNevisClient() {
             ]);
             return;
           }
-          if (mode === "hit_dna") {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: uid(),
-                role: "assistant",
-                content: data.report || data.dnaReport || "تحلیل آماده است.",
-                at: Date.now(),
-                cardKind: "dna",
-                dna: data.dna,
-                mode,
-                modeLabel: "Hit DNA",
-              },
-            ]);
-          } else if (mode === "human_tests") {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: uid(),
-                role: "assistant",
-                content: data.report || data.humanReport || "نتایج تست‌ها:",
-                at: Date.now(),
-                cardKind: "human",
-                humanTests: data.human?.tests,
-                humanOverall: data.human?.overall,
-                mode,
-                modeLabel: "تست انسانی",
-              },
-            ]);
-          } else {
+          let content = "";
+          if (mode === "hit_dna") content = data.report || data.dnaReport || "";
+          else if (mode === "human_tests") content = data.report || data.humanReport || "";
+          else {
             const list: string[] = data.cliches || [];
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: uid(),
-                role: "assistant",
-                content:
-                  list.length > 0
-                    ? `کلیشه‌های احتمالی:\n• ${list.join("\n• ")}\n\nمی‌تونی بگی «جایگزین پیشنهاد بده» تا نسخهٔ تازه بسازم.`
-                    : "کلیشهٔ واضحی پیدا نشد — متن نسبتاً تازه به نظر می‌رسد.",
-                at: Date.now(),
-                cardKind: "analysis",
-                cliches: list,
-                mode,
-                modeLabel: "ضدکلیشه",
-              },
-            ]);
+            content =
+              list.length > 0
+                ? `چند عبارت نزدیک به کلیشه:\n• ${list.join("\n• ")}\n\nاگر بخواهی جایگزین طبیعی می‌نویسم.`
+                : "کلیشهٔ واضحی ندیدم — مسیر نسبتاً تازه‌ای داری.";
           }
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: uid(),
+              role: "assistant",
+              actor: "ai",
+              authorName: "هیت‌نویس",
+              content,
+              at: Date.now(),
+              kind: "analysis",
+              mode,
+              modeLabel: intent.label,
+            },
+          ]);
           return;
         }
 
@@ -411,18 +394,15 @@ export default function HitNevisClient() {
             mode,
             topic: (topic || trimmed).slice(0, 500) || undefined,
             existingLyrics: existing || undefined,
-            sectionType,
-            genre: genre || undefined,
-            tone: tone || undefined,
-            constraints: trimmed && trimmed !== topic ? trimmed.slice(0, 400) : undefined,
+            sectionType: intent.sectionType || active?.type,
             language: "fa",
-            artistVoice: buildVoicePayload(),
+            constraints: trimmed && trimmed !== topic ? trimmed.slice(0, 400) : undefined,
+            artistVoice: voicePayload(),
             directionsCount: mode === "save_lyric" || mode === "hook_lab" ? 3 : undefined,
           }),
           signal: ac.signal,
           cache: "no-store",
         });
-
         const data = await res.json();
         if (!data.ok) {
           setMessages((prev) => [
@@ -430,9 +410,11 @@ export default function HitNevisClient() {
             {
               id: uid(),
               role: "assistant",
-              content: data.error || "خطا در تولید. پیش‌نویس محفوظ است.",
+              actor: "ai",
+              authorName: "هیت‌نویس",
+              content: data.error || "الان نتونستم جواب بدم. متنت سر جاشه.",
               at: Date.now(),
-              cardKind: "error",
+              kind: "error",
               retryable: Boolean(data.retryable),
               lastPrompt: trimmed,
               mode,
@@ -443,29 +425,20 @@ export default function HitNevisClient() {
 
         const isLyric =
           mode.startsWith("write_") ||
-          [
-            "continue",
-            "rewrite",
-            "improve",
-            "shorten",
-            "emotional",
-            "conversational",
-            "visual",
-            "bold",
-            "rhyme",
-            "artist_voice",
-          ].includes(mode);
-
-        const isDir = mode === "save_lyric" || mode === "hook_lab";
+          ["continue", "rewrite", "improve", "shorten", "emotional", "conversational", "visual", "bold", "rhyme", "artist_voice"].includes(
+            mode,
+          );
 
         setMessages((prev) => [
           ...prev,
           {
             id: uid(),
             role: "assistant",
+            actor: "ai",
+            authorName: "هیت‌نویس",
             content: data.text,
             at: Date.now(),
-            cardKind: isDir ? "directions" : isLyric ? "lyrics" : "analysis",
+            kind: isLyric ? "lyrics" : "analysis",
             directions: data.directions,
             mode,
             modeLabel: intent.label,
@@ -473,46 +446,43 @@ export default function HitNevisClient() {
           },
         ]);
       } catch (e) {
-        if ((e as Error)?.name === "AbortError") {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: uid(),
-              role: "assistant",
-              content: "درخواست لغو شد.",
-              at: Date.now(),
-              cardKind: "error",
-              retryable: true,
-              lastPrompt: trimmed,
-            },
-          ]);
-        } else {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: uid(),
-              role: "assistant",
-              content: "ارتباط برقرار نشد. متنت امن است — دوباره امتحان کن.",
-              at: Date.now(),
-              cardKind: "error",
-              retryable: true,
-              lastPrompt: trimmed,
-            },
-          ]);
-        }
+        const aborted = (e as Error)?.name === "AbortError";
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: uid(),
+            role: "assistant",
+            actor: "ai",
+            authorName: "هیت‌نویس",
+            content: aborted ? "لغو شد." : "ارتباط قطع شد. پیش‌نویس محفوظ است.",
+            at: Date.now(),
+            kind: "error",
+            retryable: true,
+            lastPrompt: trimmed,
+          },
+        ]);
       } finally {
         setLoading(false);
       }
     },
-    [hasLyrics, topic, activeSection, fullLyrics, genre, tone, voice, lockOriginal, activeSectionId],
+    [
+      hasLyrics,
+      topic,
+      active,
+      fullLyrics,
+      voice,
+      lockOriginal,
+      activeId,
+      composerAs,
+      partnerName,
+      selfName,
+    ],
   );
 
   const onSubmit = (e?: FormEvent) => {
     e?.preventDefault();
-    if (loading) return;
-    const t = input.trim();
-    if (!t) return;
-    void runRequest(t);
+    if (loading || !input.trim()) return;
+    void runRequest(input);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -522,74 +492,80 @@ export default function HitNevisClient() {
     }
   };
 
-  const addSection = (type: LyricSectionId, label: string) => {
-    const s: Section = { id: uid("s"), type, label, text: "" };
-    setSections((prev) => [...prev, s]);
-    setActiveSectionId(s.id);
-  };
-
   if (!hydrated) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-ink-400">
-        <Loader2 className="me-2 animate-spin" size={18} />
-        بازیابی گفتگو…
+        <Loader2 className="me-2 animate-spin" size={16} />
+        آماده‌سازی…
       </div>
     );
   }
 
   return (
-    <div className="relative flex min-h-[70vh] flex-col gap-3 lg:flex-row" dir="rtl">
-      <div className="flex min-h-[60vh] flex-1 flex-col overflow-hidden rounded-2xl border border-ink-800/80 bg-ink-950/40">
-        <div className="flex flex-wrap items-center gap-2 border-b border-ink-800/80 px-3 py-2.5 sm:px-4">
-          <Sparkles size={16} className="text-gold-400" />
-          <span className="text-sm font-medium text-sand-100">گفتگوی ترانه‌سرایی</span>
-          <span className="text-[10px] text-ink-500">{savedFlash ? "ذخیره شد" : "ذخیرهٔ خودکار"}</span>
-          <div className="ms-auto flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={restoreOriginal}
-              className="inline-flex items-center gap-1 rounded-lg border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:text-sand-100"
-              title="بازیابی متن اصلی"
-            >
-              <RotateCcw size={12} />
-              اصل
-            </button>
-            <button
-              type="button"
-              onClick={() => setDrawer((d) => !d)}
-              className="inline-flex items-center gap-1 rounded-lg border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:text-sand-100 lg:hidden"
-            >
-              <PanelRight size={12} />
-              پروژه
-            </button>
-          </div>
+    <div className="mx-auto flex min-h-[72vh] max-w-3xl flex-col" dir="rtl">
+      <header className="mb-3 flex items-center justify-between gap-3 px-1">
+        <div className="min-w-0">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value.slice(0, 80))}
+            placeholder="نام ترانه (اختیاری)"
+            className="w-full bg-transparent text-base font-medium text-sand-50 outline-none placeholder:text-ink-600"
+          />
         </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={restoreOriginal}
+            className="rounded-full px-2.5 py-1 text-[11px] text-ink-400 hover:text-sand-100"
+            title="بازیابی اصل"
+          >
+            <RotateCcw size={14} className="inline" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setDrawer(true)}
+            className="inline-flex items-center gap-1 rounded-full border border-ink-700/70 px-2.5 py-1 text-[11px] text-ink-300 hover:border-ink-500 hover:text-sand-100"
+          >
+            <Users size={13} />
+            پروژه
+            {pendingCount > 0 && (
+              <span className="rounded-full bg-gold-400/20 px-1.5 text-[10px] text-gold-200">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        </div>
+      </header>
 
-        <div className="flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4">
+      <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-ink-800/60 bg-ink-950/30">
+        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-5">
           {messages.map((m) => (
-            <MessageBubble
+            <Bubble
               key={m.id}
               msg={m}
               copied={copiedId === m.id}
               loading={loading}
               onCopy={() => void copyText(m.id, m.content)}
-              onUse={() => applyToSection(m.content)}
-              onAppend={() => applyToActiveAppend(m.content)}
+              onUse={() => applyText(m.content, "replace")}
+              onAppend={() => applyText(m.content, "append")}
+              onPropose={() => proposeSuggestion(m.content, m.authorName || "هیت‌نویس")}
               onContinue={() => void runRequest("ادامه‌ش بده", "continue")}
               onRewrite={() => void runRequest("بازنویسی کن", "rewrite")}
+              onRhyme={() => void runRequest("قافیه پیشنهاد بده", "rhyme")}
+              onCritic={() => void runRequest("نقدش کن", "critic")}
               onRegen={() => m.lastPrompt && void runRequest(m.lastPrompt, m.mode)}
               onRetry={() => m.lastPrompt && void runRequest(m.lastPrompt, m.mode)}
-              onDirection={(d) => applyToSection(d)}
+              onDirection={(d) => applyText(d, "replace")}
             />
           ))}
           {loading && (
-            <div className="flex items-center gap-2 text-sm text-ink-400">
-              <Loader2 size={16} className="animate-spin text-gold-400" />
-              در حال نوشتن…
+            <div className="flex items-center gap-2 text-xs text-ink-500">
+              <Loader2 size={14} className="animate-spin" />
+              در حال فکر کردن…
               <button
                 type="button"
                 onClick={() => abortRef.current?.abort()}
-                className="ms-2 inline-flex items-center gap-1 rounded-lg border border-ink-600 px-2 py-0.5 text-[11px] text-ink-300"
+                className="ms-1 inline-flex items-center gap-1 text-ink-400 hover:text-sand-100"
               >
                 <Square size={10} /> لغو
               </button>
@@ -598,14 +574,14 @@ export default function HitNevisClient() {
           <div ref={bottomRef} />
         </div>
 
-        {!loading && messages.length <= 2 && (
-          <div className="flex flex-wrap gap-1.5 border-t border-ink-800/50 px-3 py-2 sm:px-4">
-            {QUICK_ACTIONS.map((q) => (
+        {messages.length <= 2 && !loading && (
+          <div className="flex flex-wrap gap-1.5 border-t border-ink-800/40 px-4 py-2.5">
+            {QUICK_ACTIONS.slice(0, 6).map((q) => (
               <button
                 key={q.label}
                 type="button"
                 onClick={() => void runRequest(q.prompt)}
-                className="rounded-full border border-ink-700/80 bg-ink-900/50 px-2.5 py-1 text-[11px] text-ink-300 hover:border-gold-400/40 hover:text-sand-100"
+                className="rounded-full border border-ink-800 px-2.5 py-1 text-[11px] text-ink-400 transition hover:border-ink-600 hover:text-sand-100"
               >
                 {q.label}
               </button>
@@ -613,233 +589,205 @@ export default function HitNevisClient() {
           </div>
         )}
 
-        <form onSubmit={onSubmit} className="border-t border-ink-800/80 bg-ink-950/60 p-3 sm:p-4">
+        <form onSubmit={onSubmit} className="border-t border-ink-800/50 px-3 py-3 sm:px-4">
+          {partnerName.trim() && (
+            <div className="mb-2 flex gap-2 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setComposerAs("self")}
+                className={`rounded-full px-2 py-0.5 ${composerAs === "self" ? "bg-ink-800 text-sand-100" : "text-ink-500"}`}
+              >
+                {selfName}
+              </button>
+              <button
+                type="button"
+                onClick={() => setComposerAs("partner")}
+                className={`rounded-full px-2 py-0.5 ${composerAs === "partner" ? "bg-ink-800 text-sand-100" : "text-ink-500"}`}
+              >
+                {partnerName}
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value.slice(0, 2000))}
               onKeyDown={onKeyDown}
               rows={2}
-              placeholder="مثلاً: یه کورس قوی بساز…"
-              className="max-h-32 min-h-[2.75rem] flex-1 resize-none rounded-xl border border-ink-700/80 bg-ink-900/80 px-3 py-2.5 text-sm leading-6 text-sand-50 outline-none focus:border-gold-400/40"
+              placeholder="با همکار ترانه‌نویس‌ات حرف بزن…"
               disabled={loading}
+              className="max-h-28 min-h-[2.5rem] flex-1 resize-none bg-transparent px-1 py-2 text-sm leading-6 text-sand-50 outline-none placeholder:text-ink-600"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-400/90 text-ink-950 transition hover:bg-gold-300 disabled:opacity-50"
               aria-label="ارسال"
+              className="mb-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sand-100 text-ink-950 disabled:opacity-40"
             >
-              {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
           </div>
-          <p className="mt-1.5 text-[10px] text-ink-600">Enter ارسال · Shift+Enter خط جدید</p>
         </form>
       </div>
 
-      <aside
-        className={`
-          ${drawer ? "fixed inset-0 z-40 flex" : "hidden"}
-          lg:relative lg:z-0 lg:flex lg:w-80 lg:shrink-0 lg:flex-col
-        `}
-      >
-        {drawer && (
+      {drawer && (
+        <div className="fixed inset-0 z-50 flex justify-end" dir="rtl">
           <button
             type="button"
-            className="absolute inset-0 bg-black/50 lg:hidden"
+            className="absolute inset-0 bg-black/40"
             aria-label="بستن"
             onClick={() => setDrawer(false)}
           />
-        )}
-        <div
-          className={`
-            relative ms-auto flex h-full w-[min(100%,20rem)] flex-col overflow-y-auto
-            border-ink-800/80 bg-ink-950 p-4
-            lg:ms-0 lg:h-auto lg:w-full lg:rounded-2xl lg:border
-            ${drawer ? "border-s" : ""}
-          `}
-        >
-          <div className="mb-3 flex items-center justify-between lg:hidden">
-            <span className="text-sm font-medium text-sand-100">پروژه</span>
-            <button type="button" onClick={() => setDrawer(false)} aria-label="بستن">
-              <X size={18} className="text-ink-400" />
-            </button>
-          </div>
-
-          <label className="block text-[11px] text-ink-500">
-            عنوان
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value.slice(0, 120))}
-              className="mt-1 w-full rounded-lg border border-ink-700/80 bg-ink-900/60 px-2.5 py-1.5 text-sm text-sand-50"
-            />
-          </label>
-          <label className="mt-2 block text-[11px] text-ink-500">
-            موضوع / حس
-            <input
-              value={topic}
-              onChange={(e) => setTopic(e.target.value.slice(0, 500))}
-              className="mt-1 w-full rounded-lg border border-ink-700/80 bg-ink-900/60 px-2.5 py-1.5 text-sm text-sand-50"
-              placeholder="اختیاری"
-            />
-          </label>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <label className="block text-[11px] text-ink-500">
-              ژانر
-              <select
-                value={genre}
-                onChange={(e) => setGenre(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-ink-700/80 bg-ink-900/60 px-2 py-1.5 text-xs text-sand-50"
-              >
-                <option value="">—</option>
-                <option value="pop">پاپ</option>
-                <option value="hiphop">هیپ‌هاپ</option>
-                <option value="rock">راک</option>
-                <option value="traditional">سنتی</option>
-                <option value="electronic">الکترونیک</option>
-                <option value="rnb">R&B</option>
-                <option value="folk">فولک</option>
-              </select>
-            </label>
-            <label className="block text-[11px] text-ink-500">
-              حس
-              <select
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-ink-700/80 bg-ink-900/60 px-2 py-1.5 text-xs text-sand-50"
-              >
-                <option value="">—</option>
-                <option value="romantic">عاشقانه</option>
-                <option value="sad">غمگین</option>
-                <option value="hopeful">امیدوار</option>
-                <option value="angry">عصبانی</option>
-                <option value="playful">شوخ</option>
-                <option value="epic">حماسی</option>
-                <option value="neutral">خنثی</option>
-              </select>
-            </label>
-          </div>
-
-          <div className="mt-4">
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-[11px] font-medium text-ink-400">بخش‌ها</span>
-              <button
-                type="button"
-                onClick={() =>
-                  addSection("verse", `ورس ${sections.filter((x) => x.type === "verse").length + 1}`)
-                }
-                className="inline-flex items-center gap-0.5 text-[10px] text-gold-300"
-              >
-                <Plus size={12} /> ورس
+          <div className="relative flex h-full w-full max-w-sm flex-col overflow-y-auto border-s border-ink-800 bg-ink-950 p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-sm font-medium text-sand-100">پروژه</span>
+              <button type="button" onClick={() => setDrawer(false)} aria-label="بستن">
+                <X size={18} className="text-ink-400" />
               </button>
             </div>
-            <div className="space-y-2">
-              {sections.map((s) => (
-                <div key={s.id}>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSectionId(s.id)}
-                    className={`mb-1 rounded px-1.5 py-0.5 text-[11px] ${
-                      activeSectionId === s.id ? "bg-gold-400/15 text-gold-200" : "text-ink-400"
-                    }`}
-                  >
-                    {s.label}
-                    {s.text.trim() ? " ·" : ""}
-                  </button>
-                  {activeSectionId === s.id && (
-                    <textarea
-                      value={s.text}
-                      onChange={(e) =>
-                        setSections((prev) =>
-                          prev.map((x) =>
-                            x.id === s.id ? { ...x, text: e.target.value.slice(0, 4000) } : x,
-                          ),
-                        )
-                      }
-                      rows={5}
-                      className="w-full rounded-lg border border-ink-700/80 bg-ink-900/50 px-2 py-1.5 text-xs leading-6 text-sand-50"
-                      dir="auto"
-                      placeholder={`متن ${s.label}…`}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
 
-          <button
-            type="button"
-            onClick={() => setVoiceOpen((v) => !v)}
-            className="mt-4 flex w-full items-center justify-between rounded-lg border border-ink-700/60 px-2.5 py-2 text-xs text-ink-300"
-          >
-            <span className="inline-flex items-center gap-1">
-              <User size={12} /> صدای هنرمند
-            </span>
-            <ChevronDown size={14} className={voiceOpen ? "rotate-180" : ""} />
-          </button>
-          {voiceOpen && (
-            <div className="mt-2 space-y-2 rounded-lg border border-ink-800/80 p-2">
+            <label className="block text-[11px] text-ink-500">
+              موضوع / حس
               <input
-                value={voice.name}
-                onChange={(e) => setVoice((v) => ({ ...v, name: e.target.value.slice(0, 80) }))}
-                placeholder="نام / هویت"
-                className="w-full rounded border border-ink-700/60 bg-ink-900/50 px-2 py-1 text-xs text-sand-50"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value.slice(0, 400))}
+                className="mt-1 w-full border-b border-ink-800 bg-transparent py-1.5 text-sm text-sand-50 outline-none"
+                placeholder="مثلاً جدایی، امید، شب شهر"
               />
-              <textarea
+            </label>
+
+            <div className="mt-5">
+              <p className="mb-2 text-[11px] font-medium text-ink-400">بخش‌ها</p>
+              <div className="space-y-3">
+                {sections.map((s) => (
+                  <div key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveId(s.id)}
+                      className={`text-[11px] ${activeId === s.id ? "text-sand-100" : "text-ink-500"}`}
+                    >
+                      {s.label}
+                      {s.text.trim() ? " ·" : ""}
+                    </button>
+                    {activeId === s.id && (
+                      <textarea
+                        value={s.text}
+                        onChange={(e) =>
+                          setSections((prev) =>
+                            prev.map((x) =>
+                              x.id === s.id ? { ...x, text: e.target.value.slice(0, 4000) } : x,
+                            ),
+                          )
+                        }
+                        rows={4}
+                        dir="auto"
+                        className="mt-1 w-full resize-y border border-ink-800/80 bg-transparent px-2 py-1.5 text-xs leading-6 text-sand-50 outline-none focus:border-ink-600"
+                        placeholder={`متن ${s.label}`}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-2 border-t border-ink-800/60 pt-4">
+              <p className="text-[11px] font-medium text-ink-400">همکاری</p>
+              <input
+                value={selfName}
+                onChange={(e) => setSelfName(e.target.value.slice(0, 40))}
+                placeholder="نام شما"
+                className="w-full border-b border-ink-800 bg-transparent py-1 text-xs text-sand-50 outline-none"
+              />
+              <input
+                value={partnerName}
+                onChange={(e) => setPartnerName(e.target.value.slice(0, 40))}
+                placeholder="نام همکار (اختیاری)"
+                className="w-full border-b border-ink-800 bg-transparent py-1 text-xs text-sand-50 outline-none"
+              />
+              <p className="text-[10px] leading-5 text-ink-600">
+                روی یک دستگاه می‌توانید نقش خود/همکار را عوض کنید. پیشنهادهای AI را می‌شود قبول یا رد کرد.
+              </p>
+            </div>
+
+            {suggestions.some((s) => s.status === "pending") && (
+              <div className="mt-5 space-y-2 border-t border-ink-800/60 pt-4">
+                <p className="text-[11px] font-medium text-ink-400">پیشنهادهای باز</p>
+                {suggestions
+                  .filter((s) => s.status === "pending")
+                  .map((s) => (
+                    <div key={s.id} className="rounded-lg border border-ink-800/80 p-2.5 text-xs">
+                      <div className="mb-1 text-[10px] text-ink-500">
+                        از {s.from} · {sections.find((x) => x.id === s.sectionId)?.label || "بخش"}
+                      </div>
+                      <pre className="whitespace-pre-wrap font-sans leading-6 text-sand-50" dir="auto">
+                        {s.text.slice(0, 400)}
+                        {s.text.length > 400 ? "…" : ""}
+                      </pre>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => resolveSuggestion(s.id, "accepted")}
+                          className="inline-flex items-center gap-1 text-[11px] text-emerald-300"
+                        >
+                          <CheckCheck size={12} /> قبول
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resolveSuggestion(s.id, "rejected")}
+                          className="text-[11px] text-ink-500"
+                        >
+                          رد
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            <div className="mt-5 space-y-2 border-t border-ink-800/60 pt-4">
+              <p className="text-[11px] font-medium text-ink-400">صدای هنرمند</p>
+              <input
                 value={voice.styleNotes}
-                onChange={(e) =>
-                  setVoice((v) => ({ ...v, styleNotes: e.target.value.slice(0, 500) }))
-                }
-                rows={2}
-                placeholder="یادداشت سبک"
-                className="w-full rounded border border-ink-700/60 bg-ink-900/50 px-2 py-1 text-xs text-sand-50"
+                onChange={(e) => setVoice((v) => ({ ...v, styleNotes: e.target.value.slice(0, 400) }))}
+                placeholder="سبک / لحن"
+                className="w-full border-b border-ink-800 bg-transparent py-1 text-xs text-sand-50 outline-none"
               />
               <input
                 value={voice.preferredWords}
                 onChange={(e) =>
-                  setVoice((v) => ({ ...v, preferredWords: e.target.value.slice(0, 300) }))
+                  setVoice((v) => ({ ...v, preferredWords: e.target.value.slice(0, 200) }))
                 }
                 placeholder="واژه‌های مورد علاقه"
-                className="w-full rounded border border-ink-700/60 bg-ink-900/50 px-2 py-1 text-xs text-sand-50"
+                className="w-full border-b border-ink-800 bg-transparent py-1 text-xs text-sand-50 outline-none"
               />
               <input
                 value={voice.avoidedWords}
                 onChange={(e) =>
-                  setVoice((v) => ({ ...v, avoidedWords: e.target.value.slice(0, 300) }))
+                  setVoice((v) => ({ ...v, avoidedWords: e.target.value.slice(0, 200) }))
                 }
                 placeholder="پرهیز از"
-                className="w-full rounded border border-ink-700/60 bg-ink-900/50 px-2 py-1 text-xs text-sand-50"
+                className="w-full border-b border-ink-800 bg-transparent py-1 text-xs text-sand-50 outline-none"
               />
             </div>
-          )}
-
-          <p className="mt-4 text-[10px] leading-5 text-ink-600">
-            متن اصلی هرگز خودکار جایگزین نمی‌شود. از «جایگزینی» روی کارت برای اعمال در بخش فعال استفاده کن.
-          </p>
+          </div>
         </div>
-      </aside>
-
-      <button
-        type="button"
-        onClick={() => setDrawer(true)}
-        className="fixed bottom-20 left-4 z-30 rounded-full border border-ink-600 bg-ink-900 p-3 text-ink-300 shadow-lg lg:hidden"
-        aria-label="پروژه"
-      >
-        <PanelRight size={18} />
-      </button>
+      )}
     </div>
   );
 }
 
-function MessageBubble({
+function Bubble({
   msg,
   copied,
   loading,
   onCopy,
   onUse,
   onAppend,
+  onPropose,
   onContinue,
   onRewrite,
+  onRhyme,
+  onCritic,
   onRegen,
   onRetry,
   onDirection,
@@ -850,143 +798,107 @@ function MessageBubble({
   onCopy: () => void;
   onUse: () => void;
   onAppend: () => void;
+  onPropose: () => void;
   onContinue: () => void;
   onRewrite: () => void;
+  onRhyme: () => void;
+  onCritic: () => void;
   onRegen: () => void;
   onRetry: () => void;
   onDirection: (d: string) => void;
 }) {
   if (msg.role === "user") {
     return (
-      <div className="flex justify-start">
-        <div className="max-w-[90%] rounded-2xl rounded-tr-md bg-gold-400/15 px-3.5 py-2.5 text-sm leading-7 text-sand-50">
-          {msg.content}
-          {msg.modeLabel && (
-            <div className="mt-1 text-[10px] text-gold-300/80">{msg.modeLabel}</div>
-          )}
-        </div>
+      <div className="flex flex-col items-start gap-0.5">
+        {msg.authorName && (
+          <span className="text-[10px] text-ink-500">{msg.authorName}</span>
+        )}
+        <div className="max-w-[92%] text-sm leading-7 text-sand-50">{msg.content}</div>
       </div>
     );
   }
 
-  const isError = msg.cardKind === "error";
-  const isLyrics = msg.cardKind === "lyrics";
-  const isDna = msg.cardKind === "dna";
-  const isHuman = msg.cardKind === "human";
-  const isDir = msg.cardKind === "directions";
+  if (msg.role === "system") {
+    return (
+      <div className="text-sm leading-7 text-ink-400">
+        <MessageSquare size={12} className="mb-1 inline text-ink-600" /> {msg.content}
+      </div>
+    );
+  }
+
+  const isErr = msg.kind === "error";
+  const isLyrics = msg.kind === "lyrics";
 
   return (
-    <div className="flex justify-end">
-      <div
-        className={`max-w-[95%] rounded-2xl rounded-tl-md border px-3.5 py-3 text-sm leading-7 ${
-          isError
-            ? "border-red-500/30 bg-red-950/40 text-red-100"
-            : "border-ink-700/60 bg-ink-900/70 text-sand-50"
-        }`}
-      >
-        {msg.modeLabel && !isError && (
-          <div className="mb-1.5 text-[10px] text-ink-500">{msg.modeLabel}</div>
-        )}
-        {isError && (
-          <div className="mb-1 flex items-center gap-1.5 text-xs">
-            <AlertCircle size={14} /> خطا
-          </div>
-        )}
-
-        <pre className="whitespace-pre-wrap font-sans text-sm leading-7" dir="auto">
+    <div className="flex flex-col items-stretch gap-1">
+      <span className="text-[10px] text-ink-500">{msg.authorName || "هیت‌نویس"}</span>
+      <div className={`text-sm leading-7 ${isErr ? "text-red-200/90" : "text-sand-50"}`}>
+        <pre className="whitespace-pre-wrap font-sans" dir="auto">
           {msg.content}
         </pre>
+      </div>
 
-        {isDna && msg.dna && (
-          <div className="mt-3 grid grid-cols-3 gap-1.5 text-[10px]">
-            {(
-              [
-                ["ساختار", msg.dna.structureScore],
-                ["هوک", msg.dna.hookPresence],
-                ["تکرار", msg.dna.repetitionIndex],
-                ["روایت", msg.dna.narrativeClarity],
-                ["احساس", msg.dna.emotionalArc],
-                ["قافیه", msg.dna.rhymeDensity],
-                ["رجیستر", msg.dna.registerConsistency],
-                ["عبارت", msg.dna.phraseDensity],
-                ["حافظه", msg.dna.memorabilitySignal],
-              ] as const
-            ).map(([k, v]) => (
-              <div key={k} className="rounded-md bg-ink-950/80 px-1.5 py-1">
-                <div className="text-ink-500">{k}</div>
-                <div>{v}/10</div>
-              </div>
-            ))}
-            <div className="col-span-3 rounded-md bg-gold-400/10 px-2 py-1 text-xs">
-              جمع: {msg.dna.overall}/10
-            </div>
-          </div>
-        )}
-
-        {isHuman && msg.humanTests && (
-          <div className="mt-3 space-y-1.5 text-xs">
-            <div className="text-gold-200">میانگین: {msg.humanOverall}/10</div>
-            {msg.humanTests.map((t) => (
-              <div key={t.id} className="rounded-md bg-ink-950/70 px-2 py-1.5">
-                <span className="font-medium">{t.label}</span>: {t.score}/10 — {t.summary}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {isDir && msg.directions && msg.directions.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {msg.directions.map((d, i) => (
-              <button
-                key={i}
-                type="button"
-                disabled={loading}
-                onClick={() => onDirection(d)}
-                className="block w-full rounded-xl border border-ink-600/60 bg-ink-950/50 p-2.5 text-start text-xs leading-6 hover:border-gold-400/30"
-              >
-                {d.slice(0, 500)}
-                {d.length > 500 ? "…" : ""}
-                <span className="mt-1 block text-[10px] text-gold-300">استفاده از این جهت</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {!isError && (
-            <>
-              <ActionBtn onClick={onCopy}>
-                {copied ? <Check size={12} /> : <Copy size={12} />} کپی
-              </ActionBtn>
-              {(isLyrics || isDir) && (
-                <>
-                  <ActionBtn onClick={onUse}>جایگزینی</ActionBtn>
-                  <ActionBtn onClick={onAppend}>افزودن</ActionBtn>
-                  <ActionBtn onClick={onContinue} disabled={loading}>
-                    ادامه
-                  </ActionBtn>
-                  <ActionBtn onClick={onRewrite} disabled={loading}>
-                    بازنویسی
-                  </ActionBtn>
-                  <ActionBtn onClick={onRegen} disabled={loading}>
-                    دوباره
-                  </ActionBtn>
-                </>
-              )}
-            </>
-          )}
-          {isError && msg.retryable && (
-            <ActionBtn onClick={onRetry} disabled={loading}>
-              تلاش دوباره
-            </ActionBtn>
-          )}
+      {msg.directions && msg.directions.length > 0 && (
+        <div className="mt-2 space-y-2">
+          {msg.directions.map((d, i) => (
+            <button
+              key={i}
+              type="button"
+              disabled={loading}
+              onClick={() => onDirection(d)}
+              className="block w-full border border-ink-800/80 px-3 py-2 text-start text-xs leading-6 text-ink-300 hover:border-ink-600 hover:text-sand-100"
+            >
+              {d.slice(0, 360)}
+              {d.length > 360 ? "…" : ""}
+            </button>
+          ))}
         </div>
+      )}
+
+      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+        {!isErr && (
+          <>
+            <A onClick={onCopy}>{copied ? "کپی شد" : "کپی"}</A>
+            {(isLyrics || msg.directions) && (
+              <>
+                <A onClick={onUse}>جایگزینی</A>
+                <A onClick={onAppend}>افزودن</A>
+                <A onClick={onPropose}>پیشنهاد به پروژه</A>
+                <A onClick={onContinue} disabled={loading}>
+                  ادامه
+                </A>
+                <A onClick={onRewrite} disabled={loading}>
+                  بازنویسی
+                </A>
+                <A onClick={onRhyme} disabled={loading}>
+                  قافیه
+                </A>
+                <A onClick={onCritic} disabled={loading}>
+                  نقد
+                </A>
+                <A onClick={onRegen} disabled={loading}>
+                  دوباره
+                </A>
+              </>
+            )}
+            {msg.kind === "analysis" && (
+              <A onClick={onRegen} disabled={loading}>
+                دوباره
+              </A>
+            )}
+          </>
+        )}
+        {isErr && msg.retryable && (
+          <A onClick={onRetry} disabled={loading}>
+            تلاش دوباره
+          </A>
+        )}
       </div>
     </div>
   );
 }
 
-function ActionBtn({
+function A({
   children,
   onClick,
   disabled,
@@ -1000,7 +912,7 @@ function ActionBtn({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex items-center gap-1 rounded-lg border border-ink-600/70 px-2 py-0.5 text-[11px] text-ink-300 hover:border-gold-400/30 hover:text-sand-100 disabled:opacity-50"
+      className="text-[11px] text-ink-500 transition hover:text-sand-100 disabled:opacity-40"
     >
       {children}
     </button>
