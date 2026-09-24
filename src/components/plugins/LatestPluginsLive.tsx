@@ -84,10 +84,10 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
       }, 120_000);
     };
 
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+    if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
       idleHandle = window.requestIdleCallback(startPolling, { timeout: 8000 }) as unknown as number;
     } else {
-      idleHandle = window.setTimeout(startPolling, 5000) as unknown as number;
+      idleHandle = globalThis.setTimeout(startPolling, 5000) as unknown as number;
     }
 
     const onVisible = () => {
@@ -99,8 +99,8 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
       cancelled = true;
       if (timer) clearInterval(timer);
       if (idleHandle != null) {
-        if ("cancelIdleCallback" in window) window.cancelIdleCallback(idleHandle);
-        else window.clearTimeout(idleHandle);
+        if (typeof window !== "undefined" && typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idleHandle);
+        else globalThis.clearTimeout(idleHandle);
       }
       document.removeEventListener("visibilitychange", onVisible);
     };
