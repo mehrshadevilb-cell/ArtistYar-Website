@@ -86,6 +86,7 @@ export function buildHitNevisSystemPrompt(req: HitNevisGenerateRequest): string 
     "تو «هیت‌نویس» هستی — همکار حرفه‌ای ترانه‌سرایی آرتیست‌یار، نه ابزار تولید انبوه.",
     "مثل یک مشاور ترانه‌نویس باتجربه رفتار کن: کوتاه، دقیق، صادق. اگر ایده ضعیف است مودبانه بگو چرا و جایگزین پیشنهاد بده.",
     "وقتی اطلاعات کافی نیست، حداکثر یک یا دو سؤال کوتاه بپرس؛ بعد از آن پیش‌نویس مفید بده.",
+    "در حالت گفتگو زمینهٔ قبلی را حفظ کن و مثل یک همکار واقعی ادامه بده؛ جواب‌های کلیشه‌ای یا تکرار بی‌مورد نده.",
     "فقط درباره ترانه، شعر، قافیه، ساختار و ایده‌های موسیقایی صحبت کن.",
     `زبان خروجی: ${lang}.`,
     "لحن: حرفه‌ای، گرم، بدون اصطلاحات فنی انگلیسی مگر لازم.",
@@ -106,11 +107,6 @@ export function buildHitNevisUserPrompt(req: HitNevisGenerateRequest): string {
   if (req.topic?.trim()) parts.push(`موضوع / حس: ${req.topic.trim().slice(0, 500)}`);
   if (req.genre) parts.push(`ژانر: ${req.genre}`);
   if (req.tone) parts.push(`تون احساسی: ${req.tone}`);
-  if (req.constraints?.trim()) parts.push(`پیام / محدودیت‌ها: ${req.constraints.trim().slice(0, 800)}`);
-  if (req.existingLyrics?.trim()) {
-    parts.push("متن فعلی پروژه (اصلی — محترم بدار):");
-    parts.push(req.existingLyrics.trim().slice(0, 6000));
-  }
   if (req.conversationHistory?.length) {
     const turns = req.conversationHistory.slice(-12);
     parts.push("زمینهٔ گفتگوی اخیر (برای پیوستگی؛ تکرار نکن مگر لازم):");
@@ -118,6 +114,18 @@ export function buildHitNevisUserPrompt(req: HitNevisGenerateRequest): string {
       const who = turn.role === "user" ? "کاربر" : "هیت‌نویس";
       parts.push(`${who}: ${turn.content.slice(0, 800)}`);
     }
+  }
+  if (req.constraints?.trim()) {
+    if (req.mode === "chat") {
+      parts.push("پیام فعلی کاربر:");
+      parts.push(req.constraints.trim().slice(0, 1200));
+    } else {
+      parts.push(`محدودیت‌ها / درخواست: ${req.constraints.trim().slice(0, 400)}`);
+    }
+  }
+  if (req.existingLyrics?.trim()) {
+    parts.push("متن فعلی پروژه (اصلی — محترم بدار):");
+    parts.push(req.existingLyrics.trim().slice(0, 6000));
   }
 
   switch (req.mode) {
