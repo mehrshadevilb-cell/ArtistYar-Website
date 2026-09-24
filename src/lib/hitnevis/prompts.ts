@@ -36,6 +36,7 @@ const MODE_LABELS: Record<HitNevisMode, string> = {
   hit_dna: "تحلیل الگوهای ساختاری و کیفیت (بدون کپی)",
   human_tests: "تست‌های انسانی کیفیت ترانه",
   artist_voice: "هم‌راستا کردن با پروفایل صدای هنرمند",
+  chat: "گفتگوی آزاد ترانه‌سرایی با حفظ زمینهٔ مکالمه",
 };
 
 const SECTION_LABELS: Record<LyricSectionId, string> = {
@@ -82,15 +83,15 @@ export function buildHitNevisSystemPrompt(req: HitNevisGenerateRequest): string 
         : "Persian (فارسی)";
 
   const parts = [
-    "تو «هیت‌نویس» هستی — همکار حرفه‌ای ترانه‌سرایی آرتیست‌یار، نه ابزار تولید انبوه.",
-    "مثل یک مشاور ترانه‌نویس باتجربه رفتار کن: کوتاه، دقیق، صادق. اگر ایده ضعیف است مودبانه بگو چرا و جایگزین پیشنهاد بده.",
-    "وقتی اطلاعات کافی نیست، حداکثر یک یا دو سؤال کوتاه بپرس؛ بعد از آن پیش‌نویس مفید بده.",
-    "فقط درباره ترانه، شعر، قافیه، ساختار و ایده‌های موسیقایی صحبت کن.",
+    "تو «هیت‌نویس» هستی — همکار ترانه‌نویسی آرتیست‌یار. مثل یک دوست باهوش و باتجربه حرف بزن، نه مثل ربات یا مشاور خشک.",
+    "لحن: گرم، محاوره‌ای، کوتاه و انسانی. اگر ایده خوب است مستقیم بگو؛ اگر ضعیف است مودبانه بگو چرا و جایگزین بده.",
+    "زمینهٔ گفتگو را حفظ کن. به «این»، «همون قبلی»، «ادامه‌ش» و ارجاع‌های کوتاه واکنش درست بده.",
+    "وقتی اطلاعات کافی نیست حداکثر یک سؤال کوتاه بپرس؛ وگرنه فرض منطقی بساز و پیش‌نویس مفید بده.",
+    "فقط درباره ترانه، شعر، قافیه، ساختار و ایده‌های موسیقایی.",
     `زبان خروجی: ${lang}.`,
-    "لحن: حرفه‌ای، گرم، بدون اصطلاحات فنی انگلیسی مگر لازم.",
     "صدای هنرمند را حفظ کن؛ متن اصلی را بدون درخواست صریح جایگزین نکن.",
     "هرگز نام مدل یا ارائه‌دهندهٔ هوش مصنوعی را ذکر نکن.",
-    "ادعا نکن که هر متنی هیت می‌شود. به جای آن روی هوک، احساس، اصالت، به‌خاطرسپاری و خوانایی تمرکز کن.",
+    "ادعا نکن که هر متنی هیت می‌شود. روی هوک، احساس، اصالت و خوانایی تمرکز کن.",
     "دانش الگوی ترانه‌سرایی (انتزاعی — بدون کپی):\n- " + HIT_STRATEGY_KB,
   ];
   const vb = voiceBlock(req.artistVoice);
@@ -105,9 +106,24 @@ export function buildHitNevisUserPrompt(req: HitNevisGenerateRequest): string {
   if (req.topic?.trim()) parts.push(`موضوع / حس: ${req.topic.trim().slice(0, 500)}`);
   if (req.genre) parts.push(`ژانر: ${req.genre}`);
   if (req.tone) parts.push(`تون احساسی: ${req.tone}`);
-  if (req.constraints?.trim()) parts.push(`محدودیت‌ها: ${req.constraints.trim().slice(0, 400)}`);
+  if (req.conversationHistory?.length) {
+    const turns = req.conversationHistory.slice(-12);
+    parts.push("زمینهٔ گفتگوی اخیر (برای پیوستگی؛ تکرار نکن مگر لازم):");
+    for (const turn of turns) {
+      const who = turn.role === "user" ? "کاربر" : "هیت‌نویس";
+      parts.push(`${who}: ${turn.content.slice(0, 800)}`);
+    }
+  }
+  if (req.constraints?.trim()) {
+    if (req.mode === "chat") {
+      parts.push("پیام فعلی کاربر:");
+      parts.push(req.constraints.trim().slice(0, 1200));
+    } else {
+      parts.push(`محدودیت‌ها / درخواست: ${req.constraints.trim().slice(0, 400)}`);
+    }
+  }
   if (req.existingLyrics?.trim()) {
-    parts.push("متن فعلی (اصلی — محترم بدار):");
+    parts.push("متن فعلی پروژه (اصلی — محترم بدار):");
     parts.push(req.existingLyrics.trim().slice(0, 6000));
   }
 
@@ -172,6 +188,11 @@ export function buildHitNevisUserPrompt(req: HitNevisGenerateRequest): string {
     case "artist_voice":
       parts.push("متن را با پروفایل صدای هنرمند هم‌راستا بازنویسی کن.");
       break;
+    case "chat":
+      parts.push(
+        "مثل یک همکار ترانه‌نویس پاسخ بده. اگر ایده یا متن داد، کمک کن پیش برود: پیشنهاد، ادامه، بازنویسی یا سؤال کوتاه. متن ترانه‌ای که می‌نویسی واضح و قابل‌استفاده باشد. زمینهٔ گفتگو را در نظر بگیر.",
+      );
+      break;
     default:
       break;
   }
@@ -204,6 +225,7 @@ export const HITNEVIS_MODES: HitNevisMode[] = [
   "hit_dna",
   "human_tests",
   "artist_voice",
+  "chat",
 ];
 
 export function isValidMode(value: unknown): value is HitNevisMode {
