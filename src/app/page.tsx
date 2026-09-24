@@ -6,11 +6,10 @@ import {
   Sparkles,
   Waves,
   GraduationCap,
-  Gamepad2,
-  Bot,
-  AudioWaveform,
-  Wrench,
+  Plug2,
 } from "lucide-react";
+import LatestPluginsLive, { type LatestPlugin } from "@/components/plugins/LatestPluginsLive";
+import { queryLatestPlugins } from "@/lib/plugins-db";
 import { Reveal } from "@/components/Reveal";
 import { DepthScene } from "@/components/DepthScene";
 import { ScrollDepth } from "@/components/ScrollDepth";
@@ -91,37 +90,6 @@ const homepageCoursesJsonLd = {
   ],
 };
 
-const toolCards = [
-  {
-    href: "/practice",
-    title: "تمرین (Arcade)",
-    body: "تمرین شنیداری و مهارت‌های حرفه‌ای با XP، رکورد و چالش روزانه.",
-    icon: Gamepad2,
-    tone: "text-gold-300",
-  },
-  {
-    href: "/assistant",
-    title: "راه‌یار AI",
-    body: "دستیار گفتگو برای تصمیم‌گیری، عیب‌یابی و ادامه مسیر پروژه.",
-    icon: Bot,
-    tone: "text-gold-300",
-  },
-  {
-    href: "/music-analyzer",
-    title: "تحلیل موسیقی",
-    body: "تحلیل میکس و تنظیم روی فایل خودت — پیشنهاد مشخص، نه شعار.",
-    icon: AudioWaveform,
-    tone: "text-cyan-300",
-  },
-  {
-    href: "/studio",
-    title: "ابزار استودیو",
-    body: "جداسازی وکال، سفارش تنظیم، میکس و مسترینگ در یک فضای واحد.",
-    icon: Wrench,
-    tone: "text-cyan-300",
-  },
-] as const;
-
 function HeroDisk() {
   return (
     <ScrollDepth className="hero-scroll-depth" intensity={0.55}>
@@ -175,6 +143,17 @@ function HeroDisk() {
 export default async function HomePage() {
   const config = await getHomepageConfig();
   const sec = sectionMap(config);
+  const pluginsResult = await queryLatestPlugins(3);
+  const latestPlugins = (pluginsResult.items || []) as LatestPlugin[];
+  const pluginChannel =
+    (process.env.NEXT_PUBLIC_TELEGRAM_PLUGIN_CHANNEL ||
+      process.env.TELEGRAM_PLUGIN_CHANNEL_USERNAME ||
+      "@ProAudios").trim();
+  const pluginChannelHref = pluginChannel.startsWith("@")
+    ? "https://t.me/" + pluginChannel.slice(1)
+    : pluginChannel.startsWith("http")
+      ? pluginChannel
+      : "https://t.me/ProAudios";
 
   return (
     <div>
@@ -255,25 +234,23 @@ export default async function HomePage() {
 
       {sec.tools.visible ? (
         <ScrollStage as="section" className="container-ay py-10 sm:py-14" intensity="calm">
-          <div className="mb-6">
-            {sec.tools.eyebrow ? <p className="eyebrow">{sec.tools.eyebrow}</p> : null}
-            <h2 className="mt-2 text-2xl font-medium text-sand-50 sm:text-3xl">
-              {sec.tools.title || "تمرین، AI و تحلیل"}
-            </h2>
-            {sec.tools.subtitle ? (
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-ink-400">{sec.tools.subtitle}</p>
-            ) : null}
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="eyebrow">{sec.tools.eyebrow || "Plugin Lab · آخرین انتشار"}</p>
+              <h2 className="mt-2 flex flex-wrap items-center gap-3 text-2xl font-medium text-sand-50 sm:text-3xl">
+                <Plug2 className="text-gold-400" size={26} aria-hidden />
+                {sec.tools.title || "۳ پلاگین تازه منتشرشده"}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-ink-400">
+                {sec.tools.subtitle ||
+                  "کاور و معرفی فارسی آخرین پلاگین‌های کانال — دانلود مستقیم از تلگرام؛ فایل روی سایت میزبانی نمی‌شود."}
+              </p>
+            </div>
+            <SafeLink href="/plugins" hard className="btn-ghost text-xs">
+              کتابخانه پلاگین‌ها ←
+            </SafeLink>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {toolCards.map(({ href, title, body, icon: Icon, tone }) => (
-              <SafeLink key={href} href={href} hard className="card-ay block p-5 hover:border-gold-400/25">
-                <Icon size={22} className={tone} aria-hidden />
-                <h3 className="mt-3 text-base font-medium text-sand-50">{title}</h3>
-                <p className="mt-2 text-xs leading-6 text-ink-500">{body}</p>
-                <span className="mt-3 block text-xs text-gold-400">ورود ←</span>
-              </SafeLink>
-            ))}
-          </div>
+          <LatestPluginsLive initialItems={latestPlugins} channelHref={pluginChannelHref} />
         </ScrollStage>
       ) : null}
 
