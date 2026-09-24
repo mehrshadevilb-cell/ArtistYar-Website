@@ -9,6 +9,7 @@ services:
       NEXT_TELEMETRY_DISABLED=1 npm run build &&
       cp -r public .next/standalone/public &&
       cp -r .next/static .next/standalone/.next/static
+    # Bind all interfaces; PORT is injected by Render (default 10000)
     startCommand: node .next/standalone/server.js
     healthCheckPath: /
     envVars:
@@ -22,6 +23,8 @@ services:
         value: "--max-old-space-size=1536"
       - key: PORT
         value: "10000"
+      - key: HOSTNAME
+        value: "0.0.0.0"
 
   - type: cron
     name: artistyar-telegram-plugin-processor
