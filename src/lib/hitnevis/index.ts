@@ -1,6 +1,5 @@
 /**
- * HitNevis public API surface (server-only modules).
- * Client components must call /api/hitnevis/* — never import gateway on the client.
+ * HitNevis public API — server-only. Clients must use /api/hitnevis/*.
  */
 
 export type {
@@ -12,7 +11,31 @@ export type {
   HitNevisErrorResult,
   HitNevisResponse,
   HitNevisHealthSnapshot,
+  HitNevisProject,
+  LyricSection,
+  LyricSectionId,
+  ArtistVoiceProfile,
+  HitDnaFeatures,
+  HumanTestId,
+  HumanTestResult,
+  HumanTestsReport,
 } from "./types";
 
-export { HITNEVIS_MODES, isValidMode, buildHitNevisSystemPrompt, buildHitNevisUserPrompt } from "./prompts";
+export {
+  HITNEVIS_MODES,
+  isValidMode,
+  buildHitNevisSystemPrompt,
+  buildHitNevisUserPrompt,
+  MODE_LABELS,
+  SECTION_LABELS,
+} from "./prompts";
+
 export { validateHitNevisRequest, hitnevisGenerate, hitnevisHealth } from "./gateway";
+
+export {
+  analyzeHitDna,
+  runHumanTests,
+  detectCliches,
+  formatHitDnaReport,
+  formatHumanTestsReport,
+} from "./hit-dna";
