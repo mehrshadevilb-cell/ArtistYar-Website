@@ -215,14 +215,16 @@ export async function runtimeAutoChat(
   const providerQueues = [...byProvider.values()]
     .sort((a, b) => b[0].score - a[0].score)
     .map((list) => list.slice().sort((a, b) => b.score - a.score));
-  const waves: Cand[][] = [];
+  const orderedCandidates: Cand[] = [];
   for (let round = 0; round < MODELS_PER_PROVIDER; round++) {
-    const wave: Cand[] = [];
     for (const queue of providerQueues) {
       const candidate = queue[round];
-      if (candidate) wave.push(candidate);
+      if (candidate) orderedCandidates.push(candidate);
     }
-    if (wave.length) waves.push(wave.slice(0, MAX_PARALLEL_ATTEMPTS));
+  }
+  const waves: Cand[][] = [];
+  for (let i = 0; i < orderedCandidates.length; i += MAX_PARALLEL_ATTEMPTS) {
+    waves.push(orderedCandidates.slice(i, i + MAX_PARALLEL_ATTEMPTS));
   }
 
   const deadline = Date.now() + TOTAL_RUNTIME_TIMEOUT_MS;
