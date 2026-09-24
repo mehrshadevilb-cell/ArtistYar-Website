@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 export type LatestPlugin = {
@@ -14,6 +13,8 @@ export type LatestPlugin = {
   description?: string;
   telegram_photo_file_id?: string | null;
   telegram_post_url?: string | null;
+  cover_storage_path?: string | null;
+  cover_public_url?: string | null;
   file_name?: string | null;
   created_at: string;
 };
@@ -23,9 +24,14 @@ type Props = {
   channelHref?: string;
 };
 
-function coverSrc(fileId?: string | null) {
-  if (!fileId) return null;
-  return "/api/plugins/image?file_id=" + encodeURIComponent(fileId);
+function coverSrc(p: LatestPlugin) {
+  if (p.cover_public_url) return p.cover_public_url;
+  return null;
+}
+
+function downloadHref(p: LatestPlugin) {
+  if (p.telegram_post_url) return p.telegram_post_url;
+  return "/api/plugins/download?id=" + encodeURIComponent(p.id);
 }
 
 export default function LatestPluginsLive({ initialItems, channelHref }: Props) {
@@ -45,15 +51,15 @@ export default function LatestPluginsLive({ initialItems, channelHref }: Props) 
       if (!data?.ok || !Array.isArray(data.items)) return;
       const next = (data.items as LatestPlugin[]).slice(0, 3);
       setItems((prev) => {
-        const prevKey = prev.map((p) => p.id).join("|");
-        const nextKey = next.map((p) => p.id).join("|");
+        const prevKey = prev.map((p) => p.id + ":" + (p.cover_public_url || "")).join("|");
+        const nextKey = next.map((p) => p.id + ":" + (p.cover_public_url || "")).join("|");
         if (prevKey === nextKey) return prev;
         setUpdatedAt(new Date().toISOString());
         return next;
       });
       setLive(true);
     } catch {
-      // Keep last known items; transient network failures should not blank the UI.
+      // Keep last known items.
     }
   }, []);
 
@@ -70,7 +76,7 @@ export default function LatestPluginsLive({ initialItems, channelHref }: Props) 
       void refresh();
       timer = setInterval(() => {
         if (document.visibilityState === "visible") void refresh();
-      }, 8000);
+      }, 6000);
     };
 
     start();
@@ -95,7 +101,7 @@ export default function LatestPluginsLive({ initialItems, channelHref }: Props) 
             ۳ پلاگین تازه منتشرشده
           </h2>
           <p className="mt-1 text-xs text-ink-500">
-            کاور واقعی تلگرام · به‌روزرسانی خودکار
+            کاور ذخیره‌شده · دانلود مستقیم از تلگرام
             {live ? " · متصل" : ""}
             {updatedAt ? " · " + new Date(updatedAt).toLocaleTimeString("fa-IR") : ""}
           </p>
@@ -119,7 +125,7 @@ export default function LatestPluginsLive({ initialItems, channelHref }: Props) 
       ) : (
         <div className="grid gap-4 sm:grid-cols-3">
           {items.map((p, index) => {
-            const src = coverSrc(p.telegram_photo_file_id);
+            const src = coverSrc(p);
             return (
               <article
                 key={p.id}
@@ -156,22 +162,14 @@ export default function LatestPluginsLive({ initialItems, channelHref }: Props) 
                     <p className="mt-2 line-clamp-2 text-xs leading-6 text-ink-400">{p.description}</p>
                   ) : null}
                   <div className="mt-3 flex gap-2">
-                    <Link
-                      href={"/api/plugins/download?id=" + encodeURIComponent(p.id)}
+                    <a
+                      href={downloadHref(p)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="btn-primary flex-1 text-center text-xs"
                     >
-                      دانلود
-                    </Link>
-                    {p.telegram_post_url ? (
-                      <a
-                        href={p.telegram_post_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-ghost text-xs"
-                      >
-                        تلگرام
-                      </a>
-                    ) : null}
+                      دانلود از تلگرام
+                    </a>
                   </div>
                 </div>
               </article>
