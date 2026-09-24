@@ -131,20 +131,34 @@ source = source.replace(
 );
 
 source = source.replace(
-  /export async function pluginImageResponse\(fileId: string\) \{[\s\S]*?\n\}/,
-  `export async function pluginImageResponse(fileId: string) {
-  const downloaded = await telegramBytes(fileId);
-  return {
-    body: downloaded.bytes,
-    headers: {
-      get(name: string) {
-        if (String(name).toLowerCase() === "content-type") return downloaded.contentType || "image/jpeg";
-        return null;
-      },
-    },
-  };
-}`
+  /const channelUser = \(photo\.chat\?\.username \|\| configuredChannel\(\)\.replace\(\/\^@\/, ""\) \|\| ""\)\.replace\(\/\^@\/, ""\);\n  const postUrl = channelUser \? "https:\/\/t\.me\/" \+ channelUser \+ "\/" \+ photo\.message_id : null;/,
+  `const channelUser = (photo.chat?.username || doc.chat?.username || configuredChannel().replace(/^@/, "") || "").replace(/^@/, "");
+  const linkMessageId = doc.message_id || photo.message_id;
+  const postUrl = channelUser ? "https://t.me/" + channelUser + "/" + linkMessageId : null;`
 );
+
+if (!source.includes("syncPublishedPluginCover")) {
+  source = source.replace(
+    /if \(result\.error\) throw new Error\("plugin_db_insert_failed:" \+ result\.error\.message\);\n  const finalCaption = makeCaption\(p\);/,
+    `if (result.error) throw new Error("plugin_db_insert_failed:" + result.error.message);
+
+  // Covers for latest-3 only. Plugin binaries remain exclusively on Telegram.
+  try {
+    const { syncPublishedPluginCover } = await import("@/lib/telegram-plugin-covers");
+    await syncPublishedPluginCover({
+      postId: String(result.data?.id || ""),
+      photoFileId: photoFileId,
+    });
+  } catch (coverError) {
+    console.error(
+      "plugin_cover_sync_failed",
+      clean(coverError instanceof Error ? coverError.message : String(coverError), 400),
+    );
+  }
+
+  const finalCaption = makeCaption(p);`
+  );
+}
 
 if (!source.includes("caption_edit_forbidden")) {
   source = source.replace(
@@ -171,16 +185,32 @@ if (!source.includes("caption_edit_forbidden")) {
 }
 
 source = source.replace(
-  /Channel: @ProAudios"\)\.slice\(0, 1000\);/,
-  'Channel: " + channelHandle() + ").slice(0, 1000);'
+  /export async function pluginImageResponse\(fileId: string\) \{[\s\S]*?\n\}/,
+  `export async function pluginImageResponse(fileId: string) {
+  const downloaded = await telegramBytes(fileId);
+  return {
+    body: downloaded.bytes,
+    headers: {
+      get(name: string) {
+        if (String(name).toLowerCase() === "content-type") return downloaded.contentType || "image/jpeg";
+        return null;
+      },
+    },
+  };
+}`
+);
+
+source = source.replace(
+  /return \(value \+ "\\n\\n🎛️ ArtistYar — https:\/\/artistyaar\.ir\\n📢 Channel: @ProAudios"\)\.slice\(0, 1000\);/,
+  'return (value + "\\n\\n🎛️ ArtistYar — https://artistyaar.ir\\n📢 Channel: " + channelHandle()).slice(0, 1000);'
 );
 
 writeFileSync(target, source);
 console.log(
   "inflated telegram-plugin-sync.ts",
   source.length,
-  "bytes; ProAudios leftovers:",
-  (source.match(/ProAudios/g) || []).length,
-  "; has telegramBytes image:",
+  "bytes; coverSync=",
+  source.includes("syncPublishedPluginCover"),
+  "; telegramBytesImage=",
   /pluginImageResponse[\s\S]{0,120}telegramBytes/.test(source),
 );
