@@ -63,6 +63,8 @@ async function queueSnapshot() {
   } catch (error) {
     return {
       available: false,
+      photos: 0,
+      documents: 0,
       reason: error instanceof Error ? error.message : String(error),
     };
   }
