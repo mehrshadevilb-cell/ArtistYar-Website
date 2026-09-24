@@ -20,7 +20,7 @@ function authorized(request: Request) {
 async function queueSnapshot() {
   try {
     const db = getPluginsDb();
-    if (!db) return { available: false, reason: "supabase_not_configured" };
+    if (!db) return { available: false, photos: 0, documents: 0, reason: "supabase_not_configured" };
 
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data, error } = await db
@@ -33,7 +33,7 @@ async function queueSnapshot() {
       .limit(40);
 
     if (error) {
-      return { available: false, reason: error.message };
+      return { available: false, photos: 0, documents: 0, reason: error.message };
     }
 
     const rows = data || [];
