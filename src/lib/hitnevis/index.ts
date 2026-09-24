@@ -41,6 +41,14 @@ export {
 } from "./hit-dna";
 
 export {
+  emptySongMemory,
+  normalizeSongMemory,
+  enrichMemoryFromUserText,
+  formatSongMemoryForPrompt,
+} from "./song-memory";
+export type { SongMemory, CreativeDecision } from "./song-memory";
+
+export {
   retrieveHitPatterns,
   getRetrievalDiagnostics,
   getHitKbStats,
