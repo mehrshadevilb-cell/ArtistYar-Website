@@ -13,18 +13,13 @@ import "./light-mode-fix.css";
 import "./click-fix.css";
 import "./scroll-motion.css";
 import "./ui-nav-overflow-fix.css";
-import dynamic from "next/dynamic";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { TelegramMiniAppBridge } from "@/components/TelegramMiniAppBridge";
-
-const FloatingAssistant = dynamic(
-  () => import("@/components/FloatingAssistant").then((m) => m.FloatingAssistant),
-  { ssr: false },
-);
+import { FloatingAssistant } from "@/components/FloatingAssistant";
 
 // Public marketing pages can be cached; API routes stay dynamic on their own.
 export const revalidate = 60;
