@@ -36,14 +36,29 @@ export async function GET(request: Request) {
 
   try {
     const upstream = await pluginImageResponse(fileId);
-    return new NextResponse(upstream.body, {
+    const contentType =
+      typeof upstream.headers?.get === "function"
+        ? upstream.headers.get("content-type") || "image/jpeg"
+        : "image/jpeg";
+    const body = upstream.body;
+    return new NextResponse(body as BodyInit, {
       status: 200,
       headers: {
-        "content-type": upstream.headers.get("content-type") || "image/jpeg",
+        "content-type": contentType,
         "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
       },
     });
-  } catch {
-    return NextResponse.json({ error: "image_unavailable" }, { status: 404 });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("plugin_image_proxy_failed", detail.slice(0, 400));
+    const status = /telegram_bot_token_missing|unauthorized|401/i.test(detail)
+      ? 503
+      : /wrong file_id|file is too big|file_id_invalid|404/i.test(detail)
+        ? 404
+        : 404;
+    return NextResponse.json(
+      { error: "image_unavailable", detail: detail.slice(0, 180) },
+      { status },
+    );
   }
 }
