@@ -11,7 +11,13 @@ export const dynamic = "force-dynamic";
 function expectedSecret() {
   const explicit = (process.env.TELEGRAM_PLUGIN_WEBHOOK_SECRET || "").trim();
   if (explicit) return explicit;
-  const token = (process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN || process.env.BOT_TOKEN || "").trim();
+  const token = (
+    process.env.TELEGRAM_PLUGIN_BOT_TOKEN ||
+    process.env.TELEGRAM_BOT_TOKEN ||
+    process.env.TELEGRAM_TOKEN ||
+    process.env.BOT_TOKEN ||
+    ""
+  ).trim();
   return token
     ? createHash("sha256").update("artistyar-plugin-webhook:" + token).digest("hex").slice(0, 48)
     : "";
