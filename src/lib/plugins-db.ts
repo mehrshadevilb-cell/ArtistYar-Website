@@ -4,10 +4,14 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const CORE_SELECT =
-  "id,title,developer,version,category,formats,platforms,description,features,tags,telegram_photo_file_id,telegram_post_url,file_name,created_at";
-const COVER_SELECT = "cover_storage_path,cover_public_url";
-const FULL_SELECT = CORE_SELECT + "," + COVER_SELECT;
+/** Progressive selects — try full first, then strip optional columns. */
+const SELECTS = [
+  "id,title,developer,version,category,formats,platforms,description,features,tags,telegram_photo_file_id,telegram_post_url,file_name,cover_storage_path,cover_public_url,created_at",
+  "id,title,developer,version,category,formats,platforms,description,features,tags,telegram_photo_file_id,telegram_post_url,file_name,created_at",
+  "id,title,developer,version,category,description,telegram_photo_file_id,telegram_post_url,file_name,created_at",
+  "id,title,category,telegram_post_url,created_at",
+  "id,title,created_at",
+];
 
 function envUrl() {
   return (
@@ -21,6 +25,7 @@ function envKey() {
   return (
     process.env.SUPABASE_SECRET_KEY ||
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_KEY ||
     ""
   ).trim();
 }
@@ -41,12 +46,16 @@ export function getPluginsDb(): SupabaseClient | null {
   return cached;
 }
 
+export function pluginsDbConfigured(): boolean {
+  return Boolean(envUrl() && envKey());
+}
+
 export type PluginCatalogRow = {
   id: string;
   title: string;
   developer?: string | null;
   version?: string | null;
-  category: string;
+  category?: string;
   formats?: string[];
   platforms?: string[];
   description?: string;
@@ -67,9 +76,25 @@ export type PluginQueryResult = {
   errorDetail?: string;
 };
 
+function classifyError(detail: string): string {
+  if (/relation .* does not exist|could not find the table|schema cache/i.test(detail)) {
+    return "table_missing";
+  }
+  if (/column .* does not exist/i.test(detail)) {
+    return "schema_mismatch";
+  }
+  if (/permission denied|not authorized|JWT|invalid api key|Invalid API key/i.test(detail)) {
+    return "permission_denied";
+  }
+  if (/Failed to fetch|fetch failed|ECONNREFUSED|ENOTFOUND|network/i.test(detail)) {
+    return "network_error";
+  }
+  return "plugin_query_failed";
+}
+
 /**
- * Load latest published plugins. Falls back to a core column set if cover
- * columns are missing (migration not yet applied).
+ * Load latest published plugins with progressive column fallback so partial
+ * migrations still serve the catalog.
  */
 export async function queryLatestPlugins(limit = 3): Promise<PluginQueryResult> {
   const db = getPluginsDb();
@@ -83,39 +108,70 @@ export async function queryLatestPlugins(limit = 3): Promise<PluginQueryResult> 
   }
 
   const safeLimit = Math.min(Math.max(Number(limit) || 3, 1), 3);
+  let lastDetail = "";
 
-  const run = async (select: string) =>
-    db
+  for (const select of SELECTS) {
+    const result = await db
       .from("telegram_plugin_posts")
       .select(select)
       .eq("status", "published")
       .order("created_at", { ascending: false })
       .limit(safeLimit);
 
-  let result = await run(FULL_SELECT);
-
-  if (result.error) {
-    const msg = result.error.message || "";
-    const missingCover =
-      /cover_storage_path|cover_public_url|column .* does not exist/i.test(msg);
-    if (missingCover) {
-      console.warn("plugins_query_cover_columns_missing_fallback", msg.slice(0, 200));
-      result = await run(CORE_SELECT);
+    if (!result.error) {
+      return { items: (result.data || []) as PluginCatalogRow[], unavailable: false };
     }
+
+    lastDetail = result.error.message || String(result.error);
+    // Only continue progressive fallback on missing-column errors.
+    if (!/column .* does not exist/i.test(lastDetail)) {
+      break;
+    }
+    console.warn("plugins_query_column_fallback", select.split(",")[0], lastDetail.slice(0, 160));
   }
 
-  if (result.error) {
-    const detail = result.error.message || String(result.error);
-    console.error("plugins_query_failed", detail.slice(0, 400));
-    const tableMissing = /relation .* does not exist|could not find the table/i.test(detail);
-    return {
-      items: [],
-      unavailable: true,
-      errorCode: tableMissing ? "table_missing" : "plugin_query_failed",
-      errorDetail: detail.slice(0, 240),
-    };
+  // Final attempt without status filter (older rows / migration mid-flight).
+  const bare = await db
+    .from("telegram_plugin_posts")
+    .select("id,title,created_at")
+    .order("created_at", { ascending: false })
+    .limit(safeLimit);
+
+  if (!bare.error) {
+    const rows = ((bare.data || []) as PluginCatalogRow[]).map((row) => ({
+      ...row,
+      category: row.category || "other",
+    }));
+    return { items: rows, unavailable: false };
   }
 
-  const rows = (result.data || []) as PluginCatalogRow[];
-  return { items: rows, unavailable: false };
+  lastDetail = bare.error.message || lastDetail || String(bare.error);
+  console.error("plugins_query_failed", lastDetail.slice(0, 400));
+  return {
+    items: [],
+    unavailable: true,
+    errorCode: classifyError(lastDetail),
+    errorDetail: lastDetail.slice(0, 240),
+  };
+}
+
+/** Admin/diagnostics helper — never returns secrets. */
+export async function probePluginsCatalog(): Promise<{
+  configured: boolean;
+  ok: boolean;
+  count: number;
+  errorCode?: string;
+  errorDetail?: string;
+}> {
+  if (!pluginsDbConfigured()) {
+    return { configured: false, ok: false, count: 0, errorCode: "supabase_not_configured" };
+  }
+  const result = await queryLatestPlugins(3);
+  return {
+    configured: true,
+    ok: !result.unavailable,
+    count: result.items.length,
+    errorCode: result.errorCode,
+    errorDetail: result.errorDetail,
+  };
 }
