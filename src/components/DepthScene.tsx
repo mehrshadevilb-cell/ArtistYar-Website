@@ -1,5 +1,3 @@
-"use client";
-
 import type { CSSProperties, ReactNode } from "react";
 
 type DepthSceneProps = {
@@ -7,12 +5,7 @@ type DepthSceneProps = {
   className?: string;
 };
 
-/**
- * Static visual stage.
- *
- * Pointer/scroll-driven 3D transforms are disabled. The component remains as
- * a presentation wrapper so existing layouts and artwork stay intact.
- */
+/** Static hero art stage — no client JS. */
 export function DepthScene({ children, className = "" }: DepthSceneProps) {
   const style = {
     "--depth-rotate-x": "0deg",

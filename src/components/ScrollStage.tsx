@@ -1,6 +1,4 @@
-"use client";
-
-import { useRef, type ElementType, type HTMLAttributes, type ReactNode } from "react";
+import type { ElementType, HTMLAttributes, ReactNode } from "react";
 
 type ScrollStageProps = {
   children: ReactNode;
@@ -11,29 +9,18 @@ type ScrollStageProps = {
   exitBlur?: boolean;
 } & Omit<HTMLAttributes<HTMLElement>, "children" | "className">;
 
-/**
- * Native-scroll layout shell.
- *
- * ScrollStage used to attach GSAP ScrollTriggers that changed opacity, blur,
- * scale and position while the user was scrolling. Those effects made native
- * wheel/trackpad/touch input feel delayed and could leave sections visually
- * stuck. The shell is intentionally inert now: scrolling is fully owned by
- * the browser.
- */
+/** Zero-JS section shell (formerly GSAP-driven). */
 export function ScrollStage({
   children,
   className = "",
   as: Tag = "div",
+  intensity: _i,
+  enterBlur: _e,
+  exitBlur: _x,
   ...rest
 }: ScrollStageProps) {
-  const root = useRef<HTMLElement | null>(null);
-
   return (
-    <Tag
-      ref={root as never}
-      className={`scroll-stage ${className}`.trim()}
-      {...rest}
-    >
+    <Tag className={`scroll-stage ${className}`.trim()} {...rest}>
       {children}
     </Tag>
   );
