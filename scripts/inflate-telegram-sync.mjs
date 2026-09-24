@@ -26,7 +26,6 @@ if (existsSync(single)) {
 
 let source = inflateSync(Buffer.from(b64, "base64")).toString("utf8");
 
-// Prefer a dedicated plugin bot token.
 source = source.replace(
   /function botToken\(\) \{[\s\S]*?\n\}/,
   `function botToken() {
@@ -36,7 +35,6 @@ source = source.replace(
 }`
 );
 
-// ArtistYar branding: remove hardcoded ProAudios defaults/footer.
 source = source.replace(
   /return \(process\.env\.TELEGRAM_PLUGIN_CHANNEL_ID \|\| "@ProAudios"\)\.trim\(\);/,
   'return (process.env.TELEGRAM_PLUGIN_CHANNEL_ID || "").trim();'
@@ -55,10 +53,7 @@ function siteUrl() {`
   );
 }
 source = source.replace(/ArtistYar\/ProAudios footer/g, "ArtistYar footer");
-source = source.replace(
-  /Channel: @ProAudios/g,
-  'Channel: " + channelHandle() + "'
-);
+source = source.replace(/Channel: @ProAudios/g, 'Channel: " + channelHandle() + "');
 source = source.replace(
   /return \(value \+ "\\n\\n🎛️ ArtistYar — https:\/\/artistyaar\.ir\\n📢 Channel: " \+ channelHandle\(\) \+ ""\)\.slice\(0, 1000\);/,
   'return (value + "\\n\\n🎛️ ArtistYar — https://artistyaar.ir\\n📢 Channel: " + channelHandle()).slice(0, 1000);'
@@ -67,9 +62,10 @@ source = source.replace(
   /const footer = "\\n\\n🎛️ <b>ArtistYar<\/b> — https:\/\/artistyaar\.ir\\n📢 Channel: " \+ channelHandle\(\) \+ "";/,
   'const handle = channelHandle();\n  const footer = "\\n\\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\\n📢 Channel: " + handle;'
 );
+// Hard-fix mangled strip regex from the Channel:@ProAudios global replace
 source = source.replace(
-  /\.replace\(\/\\n\\n🎛️ ArtistYar — https:\\\/\\\/artistyaar\\\.ir\\n📢 Channel: @ProAudios\$\/i, ""\)/,
-  '.replace(/\\n\\n🎛️ ArtistYar — https:\\/\\/artistyaar\\.ir\\n📢 Channel: @[A-Za-z0-9_]+$/i, "")'
+  '.replace(/\n\n🎛️ ArtistYar — https:\/\/artistyaar\.ir\n📢 Channel: " + channelHandle() + "$/i, "")',
+  '.replace(/\n\n🎛️ ArtistYar — https:\/\/artistyaar\.ir\n📢 Channel: @[A-Za-z0-9_]+$/i, "")'
 );
 if (!/channel_not_configured/.test(source)) {
   source = source.replace(
