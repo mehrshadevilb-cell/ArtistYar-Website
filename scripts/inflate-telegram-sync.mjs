@@ -24,6 +24,19 @@ if (existsSync(single)) {
   b64 = parts.map((name) => readFileSync(join(lib, name), "utf8")).join("").trim();
 }
 
-const source = inflateSync(Buffer.from(b64, "base64")).toString("utf8");
+let source = inflateSync(Buffer.from(b64, "base64")).toString("utf8");
+
+// Prefer a dedicated plugin bot token. Falling back to BOT_TOKEN shares a
+// token with RahYar long-polling and causes TelegramConflictError
+// (webhook vs getUpdates cannot coexist on one bot).
+source = source.replace(
+  /function botToken\(\) \{[\s\S]*?\n\}/,
+  `function botToken() {
+  const plugin = (process.env.TELEGRAM_PLUGIN_BOT_TOKEN || "").trim();
+  if (plugin) return plugin;
+  return (process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN || "").trim();
+}`
+);
+
 writeFileSync(target, source);
 console.log("inflated telegram-plugin-sync.ts", source.length, "bytes from", b64.length, "b64 chars");
