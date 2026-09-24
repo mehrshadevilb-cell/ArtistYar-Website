@@ -187,9 +187,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(
     (input: { username: string; password: string; fullName: string }) => {
       const result = registerLocal(input);
-      if (!result.ok) return result;
-      setUser(result.user);
-      return result;
+      if ("error" in result) return { ok: false as const, error: result.error };
+      setUser(result);
+      return { ok: true as const, user: result };
     },
     [],
   );
