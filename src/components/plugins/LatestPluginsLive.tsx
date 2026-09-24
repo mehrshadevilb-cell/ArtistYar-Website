@@ -1,1 +1,184 @@
-placeholder
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+
+export type LatestPlugin = {
+  id: string;
+  title: string;
+  developer?: string | null;
+  version?: string | null;
+  category: string;
+  formats?: string[];
+  platforms?: string[];
+  description?: string;
+  telegram_photo_file_id?: string | null;
+  telegram_post_url?: string | null;
+  file_name?: string | null;
+  created_at: string;
+};
+
+type Props = {
+  initialItems: LatestPlugin[];
+  channelHref?: string;
+};
+
+function coverSrc(fileId?: string | null) {
+  if (!fileId) return null;
+  return "/api/plugins/image?file_id=" + encodeURIComponent(fileId);
+}
+
+export default function LatestPluginsLive({ initialItems, channelHref }: Props) {
+  const [items, setItems] = useState<LatestPlugin[]>(initialItems.slice(0, 3));
+  const [live, setLive] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const response = await fetch("/api/plugins?limit=3", {
+        method: "GET",
+        cache: "no-store",
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!data?.ok || !Array.isArray(data.items)) return;
+      const next = (data.items as LatestPlugin[]).slice(0, 3);
+      setItems((prev) => {
+        const prevKey = prev.map((p) => p.id).join("|");
+        const nextKey = next.map((p) => p.id).join("|");
+        if (prevKey === nextKey) return prev;
+        setUpdatedAt(new Date().toISOString());
+        return next;
+      });
+      setLive(true);
+    } catch {
+      // Keep last known items; transient network failures should not blank the UI.
+    }
+  }, []);
+
+  useEffect(() => {
+    setItems(initialItems.slice(0, 3));
+  }, [initialItems]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const start = () => {
+      if (cancelled) return;
+      void refresh();
+      timer = setInterval(() => {
+        if (document.visibilityState === "visible") void refresh();
+      }, 8000);
+    };
+
+    start();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [refresh]);
+
+  return (
+    <section className="mb-10">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[11px] uppercase tracking-[.22em] text-gold-300/80">Live · آخرین انتشار</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-[-.02em] text-sand-50 sm:text-2xl">
+            ۳ پلاگین تازه منتشرشده
+          </h2>
+          <p className="mt-1 text-xs text-ink-500">
+            کاور واقعی تلگرام · به‌روزرسانی خودکار
+            {live ? " · متصل" : ""}
+            {updatedAt ? " · " + new Date(updatedAt).toLocaleTimeString("fa-IR") : ""}
+          </p>
+        </div>
+        {channelHref ? (
+          <a
+            href={channelHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-ghost hidden sm:inline-flex"
+          >
+            کانال ArtistYar ↗
+          </a>
+        ) : null}
+      </div>
+
+      {!items.length ? (
+        <div className="rounded-[22px] border border-dashed border-white/[.08] bg-white/[.015] px-6 py-10 text-center">
+          <p className="text-sm text-ink-400">هنوز پلاگینی منتشر نشده است.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {items.map((p, index) => {
+            const src = coverSrc(p.telegram_photo_file_id);
+            return (
+              <article
+                key={p.id}
+                className="group overflow-hidden rounded-[20px] border border-white/[.08] bg-white/[.02] transition duration-300 hover:-translate-y-0.5 hover:border-gold-300/25"
+              >
+                <div className="relative aspect-[16/10] overflow-hidden bg-[#080808]">
+                  {src ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={src}
+                      alt={p.title}
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                      loading={index === 0 ? "eager" : "lazy"}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(214,174,92,.22),transparent_32%)]" />
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
+                  <div className="absolute left-3 top-3 rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[10px] text-white/85 backdrop-blur">
+                    {p.category || "Plugin"}
+                  </div>
+                  {p.version ? (
+                    <div className="absolute right-3 top-3 rounded-full border border-gold-300/25 bg-black/55 px-2.5 py-1 text-[10px] text-gold-200 backdrop-blur">
+                      v{p.version}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="p-4">
+                  <h3 className="truncate text-base font-semibold text-sand-50">{p.title}</h3>
+                  {p.developer ? (
+                    <p className="mt-0.5 truncate text-xs font-medium text-gold-300">{p.developer}</p>
+                  ) : null}
+                  {p.description ? (
+                    <p className="mt-2 line-clamp-2 text-xs leading-6 text-ink-400">{p.description}</p>
+                  ) : null}
+                  <div className="mt-3 flex gap-2">
+                    <Link
+                      href={"/api/plugins/download?id=" + encodeURIComponent(p.id)}
+                      className="btn-primary flex-1 text-center text-xs"
+                    >
+                      دانلود
+                    </Link>
+                    {p.telegram_post_url ? (
+                      <a
+                        href={p.telegram_post_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-ghost text-xs"
+                      >
+                        تلگرام
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
