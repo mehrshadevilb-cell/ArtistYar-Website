@@ -13,7 +13,6 @@ import {
 
 /** Shared Telegram Mini App surface used across the site. */
 export type TelegramWebApp = {
-  /** Telegram WebApp platform identifier (e.g. ios, android, web). */
   platform?: string;
   initData?: string;
   initDataUnsafe?: {
@@ -50,39 +49,28 @@ declare global {
 type AuthContextValue = {
   user: SessionUser | null;
   ready: boolean;
-  login: (
-    username: string,
-    password: string,
-  ) => Promise<{ ok: true; user: SessionUser } | { ok: false; error: string }>;
-  register: (input: {
-    username: string;
-    password: string;
-    fullName: string;
-  }) => { ok: true } | { ok: false; error: string };
+  login: (username: string, password: string) => Promise<{ ok: true; user: SessionUser } | { ok: false; error: string }>;
+  register: (input: { username: string; password: string; fullName: string }) => { ok: true; user: SessionUser } | { ok: false; error: string };
   logout: () => Promise<void>;
-  linkTelegram: (telegramId: string) => void;
+  refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 async function loadTelegramSdk(): Promise<void> {
-  if (typeof window === "undefined" || window.Telegram?.WebApp) return;
-
-  await new Promise<void>((resolve) => {
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[data-telegram-webapp="1"]',
-    );
-
-    if (existing) {
-      if (window.Telegram?.WebApp) {
-        resolve();
-        return;
-      }
+  if (typeof window === "undefined") return;
+  if (window.Telegram?.WebApp) return;
+  if (document.querySelector('script[data-telegram-webapp="1"]')) {
+    await new Promise<void>((resolve) => {
+      const existing = document.querySelector('script[data-telegram-webapp="1"]');
+      if (!existing) return resolve();
       existing.addEventListener("load", () => resolve(), { once: true });
       existing.addEventListener("error", () => resolve(), { once: true });
-      return;
-    }
-
+      setTimeout(() => resolve(), 1500);
+    });
+    return;
+  }
+  await new Promise<void>((resolve) => {
     const script = document.createElement("script");
     script.src = "https://telegram.org/js/telegram-web-app.js";
     script.async = true;
@@ -95,13 +83,10 @@ async function loadTelegramSdk(): Promise<void> {
 
 async function authenticateTelegram(): Promise<SessionUser | null> {
   if (typeof window === "undefined") return null;
-
   const webApp = window.Telegram?.WebApp;
   if (!webApp?.initData) return null;
-
   webApp.ready?.();
   webApp.expand?.();
-
   try {
     const response = await fetch("/api/auth/session", {
       method: "POST",
@@ -110,7 +95,6 @@ async function authenticateTelegram(): Promise<SessionUser | null> {
       body: JSON.stringify({ initData: webApp.initData }),
       cache: "no-store",
     });
-
     const data = await response.json().catch(() => ({}));
     if (response.ok && data?.authenticated && data.user) {
       return data.user as SessionUser;
@@ -118,7 +102,6 @@ async function authenticateTelegram(): Promise<SessionUser | null> {
   } catch {
     // Continue with normal session authentication.
   }
-
   return null;
 }
 
@@ -128,7 +111,6 @@ async function authenticateExistingSession(): Promise<SessionUser | null> {
       credentials: "include",
       cache: "no-store",
     });
-
     if (response.ok) {
       const data = await response.json().catch(() => ({}));
       if (data?.authenticated && data.user) {
@@ -138,7 +120,6 @@ async function authenticateExistingSession(): Promise<SessionUser | null> {
   } catch {
     // Fall back to the local student session below.
   }
-
   const local = getSession();
   if (local?.role === "admin") {
     clearLocalSession();
@@ -155,10 +136,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     const initialize = async () => {
-      await loadTelegramSdk();
+      // Only load telegram-web-app.js inside Telegram clients.
+      const maybeTelegram =
+        typeof navigator !== "undefined" &&
+        /Telegram/i.test(navigator.userAgent || "");
 
-      const telegramUser = await authenticateTelegram();
-      if (cancelled) return;
+      let telegramUser: SessionUser | null = null;
+      if (maybeTelegram) {
+        await loadTelegramSdk();
+        if (cancelled) return;
+        telegramUser = await authenticateTelegram();
+        if (cancelled) return;
+      }
 
       if (telegramUser) {
         saveSession(telegramUser);
@@ -190,7 +179,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!result.ok) {
       return { ok: false as const, error: result.error };
     }
-
     setUser(result.user);
     return { ok: true as const, user: result.user };
   }, []);
@@ -198,12 +186,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(
     (input: { username: string; password: string; fullName: string }) => {
       const result = registerLocal(input);
-      if ("error" in result) {
-        return { ok: false as const, error: result.error };
-      }
-
-      setUser(result);
-      return { ok: true as const };
+      if (!result.ok) return result;
+      setUser(result.user);
+      return result;
     },
     [],
   );
@@ -213,31 +198,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const linkTelegram = useCallback(
-    (telegramId: string) => {
-      if (!user) return;
-
-      const next = { ...user, telegramLinked: true, telegramId };
-      saveSession(next);
-      setUser(next);
-    },
-    [user],
-  );
+  const refresh = useCallback(async () => {
+    const sessionUser = await authenticateExistingSession();
+    setUser(sessionUser);
+  }, []);
 
   const value = useMemo(
-    () => ({ user, ready, login, register, logout, linkTelegram }),
-    [user, ready, login, register, logout, linkTelegram],
+    () => ({ user, ready, login, register, logout, refresh }),
+    [user, ready, login, register, logout, refresh],
   );
 
-  return (
-    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }
