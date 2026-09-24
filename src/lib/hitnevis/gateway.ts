@@ -24,7 +24,7 @@ import type {
 const MAX_TOPIC = 500;
 const MAX_LYRICS = 8000;
 const MAX_CONSTRAINTS = 500;
-const GATEWAY_TIMEOUT_MS = 55_000;
+const GATEWAY_TIMEOUT_MS = 53_000;
 const MAX_IN_FLIGHT = 12;
 
 let inFlight = 0;
@@ -61,6 +61,7 @@ function mapGatewayError(error: unknown, requestId: string, startedAt: number): 
     return { ok: false, requestId, error: "درخواست لغو شد.", code: "aborted", retryable: true, latencyMs };
   }
   if (/timeout/i.test(raw)) {
+    console.warn("[hitnevis-gateway] upstream timeout", requestId, sanitizeLogText(raw, 300));
     return {
       ok: false,
       requestId,
@@ -81,6 +82,7 @@ function mapGatewayError(error: unknown, requestId: string, startedAt: number): 
     };
   }
   if (raw.startsWith("all_providers_failed:")) {
+    console.warn("[hitnevis-gateway] provider fallback exhausted", requestId, sanitizeLogText(raw, 900));
     return {
       ok: false,
       requestId,
