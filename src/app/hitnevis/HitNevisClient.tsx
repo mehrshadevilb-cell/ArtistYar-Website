@@ -261,7 +261,7 @@ export default function HitNevisClient() {
       <header className="mb-2 flex shrink-0 items-center justify-between gap-2 px-1">
         <input value={title} onChange={(e) => setTitle(e.target.value.slice(0, 80))} placeholder="ترانه بدون عنوان" className="min-w-0 flex-1 bg-transparent text-sm font-medium text-sand-50 outline-none placeholder:text-ink-600" />
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => { if (loading) abortRef.current?.abort(); setMessages([{ ...WELCOME, id: uid("w"), at: Date.now() }]); setInput(""); setEditingId(null); }} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-ink-400 hover:text-sand-100"><Plus size={14} /> تازه</button>
+          <button type="button" onClick={() => { abortRef.current?.abort(); genRef.current += 1; setLoading(false); setMessages([{ ...WELCOME, id: uid("w"), at: Date.now() }]); setInput(""); setEditingId(null); }} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-ink-400 hover:text-sand-100"><Plus size={14} /> تازه</button>
           <button type="button" onClick={() => {
             try {
               const raw = localStorage.getItem(ORIGINAL_KEY);
