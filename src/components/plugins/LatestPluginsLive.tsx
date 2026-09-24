@@ -137,27 +137,33 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
                 key={p.id}
                 className="group overflow-hidden rounded-[20px] border border-white/[.08] bg-white/[.02] transition duration-300 hover:-translate-y-0.5 hover:border-gold-300/25"
               >
-                <div className="relative aspect-[16/10] overflow-hidden bg-[#080808]">
+                <div className="relative aspect-[16/10] overflow-hidden bg-[#0a0a0a]">
+                  <div
+                    className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(214,174,92,.28),transparent_42%)]"
+                    aria-hidden
+                  />
+                  <div
+                    className="absolute inset-0 opacity-40 bg-[linear-gradient(135deg,rgba(255,255,255,.04),transparent_50%)]"
+                    aria-hidden
+                  />
                   {src ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={src}
                       alt={p.title}
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                      className="relative z-[1] h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                       loading={index === 0 ? "eager" : "lazy"}
                       onError={(e) => {
-                        e.currentTarget.style.display = "none";
+                        e.currentTarget.remove();
                       }}
                     />
-                  ) : (
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(214,174,92,.22),transparent_32%)]" />
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
-                  <div className="absolute left-3 top-3 rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[10px] text-white/85 backdrop-blur">
+                  ) : null}
+                  <div className="absolute inset-x-0 bottom-0 z-[2] h-16 bg-gradient-to-t from-black/70 to-transparent" />
+                  <div className="absolute left-3 top-3 z-[2] rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[10px] text-white/85 backdrop-blur">
                     {p.category || "Plugin"}
                   </div>
                   {p.version ? (
-                    <div className="absolute right-3 top-3 rounded-full border border-gold-300/25 bg-black/55 px-2.5 py-1 text-[10px] text-gold-200 backdrop-blur">
+                    <div className="absolute right-3 top-3 z-[2] rounded-full border border-gold-300/25 bg-black/55 px-2.5 py-1 text-[10px] text-gold-200 backdrop-blur">
                       v{p.version}
                     </div>
                   ) : null}
