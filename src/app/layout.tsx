@@ -13,14 +13,18 @@ import "./light-mode-fix.css";
 import "./click-fix.css";
 import "./scroll-motion.css";
 import "./ui-nav-overflow-fix.css";
+import dynamic from "next/dynamic";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { FloatingAssistant } from "@/components/FloatingAssistant";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { TelegramMiniAppBridge } from "@/components/TelegramMiniAppBridge";
-import { SmoothScroll } from "@/components/SmoothScroll";
+
+const FloatingAssistant = dynamic(
+  () => import("@/components/FloatingAssistant").then((m) => m.FloatingAssistant),
+  { ssr: false },
+);
 
 // Public marketing pages can be cached; API routes stay dynamic on their own.
 export const revalidate = 60;
@@ -113,15 +117,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta name="enamad" content="43325481" />
         {backend ? <link rel="preconnect" href={backend} crossOrigin="anonymous" /> : null}
-        {/* Kavenegar Web Push SDK */}
+        {/* Kavenegar Web Push — after idle so it never competes with LCP */}
         <script
-          src="https://cdn.kavenegar.com/sdk/page.js?appId=5b6c18c0-c2d6-47c0-ae2f-3fddcf7f499e"
-          defer
-          charSet="utf-8"
+          dangerouslySetInnerHTML={{
+            __html: `(function(){function load(){if(window.__kvnPush)return;window.__kvnPush=1;var s=document.createElement('script');s.src='https://cdn.kavenegar.com/sdk/page.js?appId=5b6c18c0-c2d6-47c0-ae2f-3fddcf7f499e';s.async=true;s.charset='utf-8';document.head.appendChild(s);}if('requestIdleCallback' in window)requestIdleCallback(load,{timeout:4000});else setTimeout(load,2500);})();`,
+          }}
         />
       </head>
       <body dir="rtl" className="font-sans antialiased">
-        <SmoothScroll />
         <ThemeProvider>
           <AuthProvider>
             <TelegramMiniAppBridge />
