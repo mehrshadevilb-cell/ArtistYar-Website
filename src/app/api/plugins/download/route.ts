@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getPluginsDb } from "@/lib/plugins-db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,13 +9,8 @@ export const dynamic = "force-dynamic";
  * This endpoint never fetches or streams the file — it redirects the user
  * to the Telegram post/document destination.
  */
-const url = (process.env.SUPABASE_URL || "").trim();
-const key = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
-const db = url && key
-  ? createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
-  : null;
-
 export async function GET(request: Request) {
+  const db = getPluginsDb();
   if (!db) return NextResponse.json({ error: "supabase_not_configured" }, { status: 503 });
 
   const id = new URL(request.url).searchParams.get("id");
@@ -37,7 +32,11 @@ export async function GET(request: Request) {
     return NextResponse.redirect(direct, 302);
   }
 
-  const channel = (process.env.TELEGRAM_PLUGIN_CHANNEL_ID || process.env.TELEGRAM_PLUGIN_CHANNEL_USERNAME || "")
+  const channel = (
+    process.env.TELEGRAM_PLUGIN_CHANNEL_ID ||
+    process.env.TELEGRAM_PLUGIN_CHANNEL_USERNAME ||
+    ""
+  )
     .trim()
     .replace(/^@/, "");
   const messageId = Number(row.data.document_message_id || row.data.photo_message_id || 0);

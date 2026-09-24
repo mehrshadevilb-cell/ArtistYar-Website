@@ -1,22 +1,15 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getPluginsDb } from "@/lib/plugins-db";
 import { pluginImageResponse } from "@/lib/telegram-plugin-sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const url = (process.env.SUPABASE_URL || "").trim();
-const key = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
-const db = url && key
-  ? createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
-  : null;
-
 export async function GET(request: Request) {
   const fileId = new URL(request.url).searchParams.get("file_id");
   if (!fileId) return NextResponse.json({ error: "file_id_required" }, { status: 400 });
 
-  // Only proxy Telegram file IDs that already belong to a published catalog row.
-  // This prevents arbitrary file_id probing through the bot token.
+  const db = getPluginsDb();
   if (db) {
     const known = await db
       .from("telegram_plugin_posts")
@@ -53,9 +46,7 @@ export async function GET(request: Request) {
     console.error("plugin_image_proxy_failed", detail.slice(0, 400));
     const status = /telegram_bot_token_missing|unauthorized|401/i.test(detail)
       ? 503
-      : /wrong file_id|file is too big|file_id_invalid|404/i.test(detail)
-        ? 404
-        : 404;
+      : 404;
     return NextResponse.json(
       { error: "image_unavailable", detail: detail.slice(0, 180) },
       { status },
