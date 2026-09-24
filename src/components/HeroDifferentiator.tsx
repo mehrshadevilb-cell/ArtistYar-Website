@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, BarChart3, Bot, Gamepad2, Trophy, Wand2, Zap } from "lucide-react";
+import { ArrowLeft, BarChart3, Bot, Gamepad2, Trophy, Wand2, Zap, PenTool } from "lucide-react";
 import { SafeLink } from "@/components/SafeLink";
 
 const signals = [
@@ -37,6 +37,15 @@ const signals = [
     icon: Wand2,
     href: "/ai-music",
     accent: "violet",
+    soon: false,
+    extra: null as null | "arcade",
+  },
+  {
+    label: "HitNevis",
+    detail: "ایده، هوک و ساختار آهنگ را با ابزارهای هوشمند توسعه بده و صیقل بده.",
+    icon: PenTool,
+    href: "/hitnevis",
+    accent: "gold",
     soon: false,
     extra: null as null | "arcade",
   },
