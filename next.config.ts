@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   // Smaller deploy + faster cold start on Render
   output: "standalone",
   experimental: {
-    optimizePackageImports: ["lucide-react", "gsap", "lenis"],
+    optimizePackageImports: ["lucide-react"],
   },
   images: {
     formats: ["image/avif", "image/webp"],
