@@ -4,8 +4,11 @@ import {
   mergeHomepageConfig,
   type HomepageConfig,
 } from "@/data/homepage";
+import { withTimeout } from "@/lib/with-timeout";
 
 const SETTINGS_KEY = "homepage_v1";
+/** Non-critical CMS read — never block the homepage longer than this. */
+const HOMEPAGE_CONFIG_TIMEOUT_MS = 2500;
 
 function client() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -14,10 +17,17 @@ function client() {
   if (!url || !secret) return null;
   return createClient(url, secret, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: {
+      fetch: (input, init) =>
+        fetch(input, {
+          ...init,
+          signal: AbortSignal.timeout(HOMEPAGE_CONFIG_TIMEOUT_MS),
+        }),
+    },
   });
 }
 
-export async function getHomepageConfig(): Promise<HomepageConfig> {
+async function fetchHomepageConfig(): Promise<HomepageConfig> {
   const sb = client();
   if (!sb) return structuredClone(DEFAULT_HOMEPAGE);
   try {
@@ -31,6 +41,15 @@ export async function getHomepageConfig(): Promise<HomepageConfig> {
   } catch {
     return structuredClone(DEFAULT_HOMEPAGE);
   }
+}
+
+export async function getHomepageConfig(): Promise<HomepageConfig> {
+  return withTimeout(
+    fetchHomepageConfig(),
+    HOMEPAGE_CONFIG_TIMEOUT_MS,
+    () => structuredClone(DEFAULT_HOMEPAGE),
+    "getHomepageConfig",
+  );
 }
 
 export async function saveHomepageConfig(
