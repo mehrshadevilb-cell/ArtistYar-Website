@@ -114,7 +114,6 @@ export async function GET() {
     detail: backendDetail,
   });
 
-  // Optional: probe admin students if session + key exist
   let studentsProbe: { ok: boolean; detail: string } | null = null;
   if (session && webAdminKey) {
     try {
@@ -143,6 +142,28 @@ export async function GET() {
       label: "API هنرجوها",
       ok: studentsProbe.ok,
       detail: studentsProbe.detail,
+    });
+  }
+
+  try {
+    const { probePluginsCatalog } = await import("@/lib/plugins-db");
+    const pluginsCatalog = await probePluginsCatalog();
+    checks.push({
+      id: "plugins_catalog",
+      label: "کاتالوگ پلاگین تلگرام",
+      ok: pluginsCatalog.ok,
+      detail: pluginsCatalog.ok
+        ? `${pluginsCatalog.count} انتشار اخیر`
+        : pluginsCatalog.errorCode
+          ? `${pluginsCatalog.errorCode}${pluginsCatalog.errorDetail ? ": " + pluginsCatalog.errorDetail.slice(0, 120) : ""}`
+          : "ناموفق",
+    });
+  } catch (error) {
+    checks.push({
+      id: "plugins_catalog",
+      label: "کاتالوگ پلاگین تلگرام",
+      ok: false,
+      detail: error instanceof Error ? error.message.slice(0, 160) : "probe_failed",
     });
   }
 
