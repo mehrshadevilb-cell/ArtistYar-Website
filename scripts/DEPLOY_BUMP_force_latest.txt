@@ -1,0 +1,4 @@
+2026-09-25T03:32Z
+Live origin artistyar-website.onrender.com still serves hero.png (last-modified 2026-09-18)
+while main uses artistyar-studio-hero.webp and homepage SSR timeouts.
+This bump exists only to trigger Render auto-deploy of commit 8c3cf17+ onto the live service.
