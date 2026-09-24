@@ -119,7 +119,7 @@ export async function queryLatestPlugins(limit = 3): Promise<PluginQueryResult> 
       .limit(safeLimit);
 
     if (!result.error) {
-      return { items: (result.data || []) as PluginCatalogRow[], unavailable: false };
+      return { items: (result.data || []) as unknown as PluginCatalogRow[], unavailable: false };
     }
 
     lastDetail = result.error.message || String(result.error);
@@ -138,7 +138,7 @@ export async function queryLatestPlugins(limit = 3): Promise<PluginQueryResult> 
     .limit(safeLimit);
 
   if (!bare.error) {
-    const rows = ((bare.data || []) as PluginCatalogRow[]).map((row) => ({
+    const rows = ((bare.data || []) as unknown as PluginCatalogRow[]).map((row) => ({
       ...row,
       category: row.category || "other",
     }));
