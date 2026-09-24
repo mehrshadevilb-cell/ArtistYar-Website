@@ -93,3 +93,248 @@ function pickModels(p: AIProvider): string[] {
     .map((x) => x.m)
     .slice(0, MODELS_PER_PROVIDER);
 }
+
+/**
+ * Race a promise against a timeout. On timeout or parent abort, the returned
+ * AbortSignal is aborted so upstream fetch() is cancelled (not just ignored).
+ */
+function linkAbortSignals(parent?: AbortSignal): {
+  signal: AbortSignal;
+  abort: (reason?: string) => void;
+  cleanup: () => void;
+} {
+  const controller = new AbortController();
+  const onParent = () => {
+    if (!controller.signal.aborted) controller.abort();
+  };
+  if (parent) {
+    if (parent.aborted) controller.abort();
+    else parent.addEventListener("abort", onParent, { once: true });
+  }
+  return {
+    signal: controller.signal,
+    abort: (reason?: string) => {
+      if (!controller.signal.aborted) controller.abort(reason as any);
+    },
+    cleanup: () => parent?.removeEventListener("abort", onParent),
+  };
+}
+
+function withTimeout<T>(
+  factory: (signal: AbortSignal) => Promise<T>,
+  ms: number,
+  label: string,
+  parent?: AbortSignal,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    if (parent?.aborted) {
+      reject(new Error("aborted"));
+      return;
+    }
+    const linked = linkAbortSignals(parent);
+    const t = setTimeout(() => {
+      linked.abort(`timeout_${ms}ms`);
+      reject(new Error(`timeout_${ms}ms:${label}`));
+    }, ms);
+    factory(linked.signal).then(
+      (v) => {
+        clearTimeout(t);
+        linked.cleanup();
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        linked.cleanup();
+        const msg = e instanceof Error ? e.message : String(e);
+        if (linked.signal.aborted && /abort/i.test(msg)) {
+          reject(new Error(parent?.aborted ? "aborted" : `timeout_${ms}ms:${label}`));
+        } else {
+          reject(e);
+        }
+      },
+    );
+  });
+}
+
+/**
+ * Multi-provider failover chat.
+ * - Uses every env-configured provider from getRuntimeProviderPool()
+ * - On limit/error: skip that model, try next model, then next provider
+ * - Only permanently cools a whole provider on auth failure or hard billing exhaustion
+ * - Timeout aborts the upstream fetch so the next candidate can start immediately
+ */
+export async function runtimeAutoChat(
+  messages: ChatMessage[],
+  preferredProvider?: string,
+  preferredModel?: string,
+  _clientId = "artistyar-web",
+  signal?: AbortSignal,
+) {
+  const providers = await getRuntimeProviderPool();
+  if (!providers.length) throw new Error("no_provider_configured");
+
+  type Cand = { provider: AIProvider; model: string; score: number };
+  const candidates: Cand[] = [];
+  const now = Date.now();
+
+  for (const p of providers) {
+    const until = deadUntil.get(p.id) || 0;
+    if (until > now) continue;
+    for (const model of pickModels(p)) {
+      candidates.push({
+        provider: p,
+        model,
+        score: scoreProvider(p.id) * 10 + scoreModel(model),
+      });
+    }
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+
+  if (preferredProvider && preferredModel) {
+    candidates.sort(
+      (a, b) =>
+        Number(b.provider.id === preferredProvider && b.model === preferredModel) -
+        Number(a.provider.id === preferredProvider && a.model === preferredModel),
+    );
+  }
+
+  const limited = candidates.slice(0, MAX_CANDIDATES);
+  if (!limited.length) throw new Error("no_provider_configured");
+
+  const errors: string[] = [];
+  const skipProviderThisRequest = new Set<string>();
+
+  // Round-robin models by provider. This prevents one broken provider/model
+  // from consuming the entire request budget before another healthy provider
+  // gets a chance. At most one model per provider is attempted per wave.
+  const byProvider = new Map<string, Cand[]>();
+  for (const candidate of limited) {
+    const list = byProvider.get(candidate.provider.id) || [];
+    list.push(candidate);
+    byProvider.set(candidate.provider.id, list);
+  }
+  const providerQueues = [...byProvider.values()]
+    .sort((a, b) => b[0].score - a[0].score)
+    .map((list) => list.slice().sort((a, b) => b.score - a.score));
+  const orderedCandidates: Cand[] = [];
+  for (let round = 0; round < MODELS_PER_PROVIDER; round++) {
+    for (const queue of providerQueues) {
+      const candidate = queue[round];
+      if (candidate) orderedCandidates.push(candidate);
+    }
+  }
+  const waves: Cand[][] = [];
+  for (let i = 0; i < orderedCandidates.length; i += MAX_PARALLEL_ATTEMPTS) {
+    waves.push(orderedCandidates.slice(i, i + MAX_PARALLEL_ATTEMPTS));
+  }
+
+  const deadline = Date.now() + TOTAL_RUNTIME_TIMEOUT_MS;
+
+  for (const wave of waves) {
+    if (signal?.aborted) throw new Error("aborted");
+    if (Date.now() >= deadline) break;
+
+    const batchController = new AbortController();
+    const onParentAbort = () => batchController.abort();
+    if (signal) {
+      if (signal.aborted) throw new Error("aborted");
+      signal.addEventListener("abort", onParentAbort, { once: true });
+    }
+
+    const eligible = wave.filter((candidate) => {
+      if (skipProviderThisRequest.has(candidate.provider.id)) return false;
+      const key = candidate.provider.id + "::" + candidate.model;
+      if ((cooldown.get(key) || 0) > Date.now()) return false;
+      if ((deadUntil.get(candidate.provider.id) || 0) > Date.now()) return false;
+      return true;
+    });
+
+    try {
+      const results = await Promise.allSettled(
+        eligible.map(async (candidate) => {
+          const key = candidate.provider.id + "::" + candidate.model;
+          const remaining = Math.max(1_000, Math.min(ATTEMPT_TIMEOUT_MS, deadline - Date.now()));
+          const reply = await withTimeout(
+            (sig) => chatWithProvider(candidate.provider, candidate.model, messages, sig),
+            remaining,
+            key,
+            batchController.signal,
+          );
+          if (!reply?.trim()) throw new Error("empty_reply");
+          return { reply, provider: candidate.provider.id, model: candidate.model, key };
+        }),
+      );
+
+      const winner = results.find(
+        (result): result is PromiseFulfilledResult<{ reply: string; provider: string; model: string; key: string }> =>
+          result.status === "fulfilled" && Boolean(result.value.reply.trim()),
+      );
+      if (winner) {
+        batchController.abort("winner");
+        cooldown.delete(winner.value.key);
+        return {
+          reply: winner.value.reply,
+          provider: winner.value.provider,
+          model: winner.value.model,
+        };
+      }
+
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const candidate = eligible[i];
+        if (!candidate || result.status !== "rejected") continue;
+        const key = candidate.provider.id + "::" + candidate.model;
+        const message = result.reason instanceof Error ? result.reason.message : String(result.reason);
+        errors.push(key + "=" + message.slice(0, 120));
+        cooldown.set(key, Date.now() + cooldownMs(message));
+
+        if (isAuthError(message) || exhausted(message)) {
+          skipProviderThisRequest.add(candidate.provider.id);
+          deadUntil.set(candidate.provider.id, Date.now() + 180_000); // 3 min — never lock public chat for hours
+        } else if (isRateLimit(message)) {
+          skipProviderThisRequest.add(candidate.provider.id);
+        }
+      }
+    } finally {
+      batchController.abort("wave_complete");
+      signal?.removeEventListener("abort", onParentAbort);
+    }
+  }
+
+  if (signal?.aborted) throw new Error("aborted");
+  const reason = Date.now() >= deadline ? "deadline_exceeded" : "candidates_exhausted";
+  throw new Error("all_providers_failed:" + reason + ":" + errors.slice(0, 12).join(" | "));
+}
+
+export async function runtimeGenerateJson(
+  prompt: string,
+  system = "Return only valid JSON.",
+  signal?: AbortSignal,
+) {
+  return runtimeAutoChat(
+    [
+      { role: "system", content: system },
+      { role: "user", content: prompt },
+    ],
+    undefined,
+    undefined,
+    "artistyar-runtime-json",
+    signal,
+  );
+}
+
+/** Debug helper: list providers currently in the runtime pool (no secrets). */
+export async function listRuntimePoolStatus() {
+  const providers = await getRuntimeProviderPool();
+  const now = Date.now();
+  return providers.map((p) => ({
+    id: p.id,
+    name: p.name,
+    hasKey: Boolean(p.apiKey),
+    baseUrl: p.baseUrl,
+    chatStyle: p.chatStyle,
+    models: pickModels(p),
+    deadForMs: Math.max(0, (deadUntil.get(p.id) || 0) - now),
+  }));
+}
