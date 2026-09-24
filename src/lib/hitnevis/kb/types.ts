@@ -1,0 +1,21 @@
+export type HitKbRecord = {
+  id: string;
+  title: string;
+  artist: string;
+  year: number;
+  genre: string;
+  moods: string[];
+  structure: string;
+  hookType: string;
+  rhymeStyle: string;
+  lineLength: string;
+  repetition: string;
+  register: string;
+  storyTopic: string;
+  emotionalArc: string;
+  memorableTraits: string[];
+  clicheRisks: string[];
+  originalityTechniques: string[];
+  eraStyle: string;
+  tags: string[];
+};

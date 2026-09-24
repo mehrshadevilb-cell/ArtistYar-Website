@@ -1,11 +1,12 @@
 /**
- * HitNevis AI Gateway — Phases 2–5
+ * HitNevis AI Gateway — Phases 2–5 + Persian Hit KB retrieval
  * Provider/model agnostic via runtimeAutoChat. No hard-coded sole provider.
  */
 
 import { type ChatMessage } from "@/lib/ai-providers";
 import { runtimeAutoChat, listRuntimePoolStatus } from "@/lib/ai-runtime";
 import { buildHitNevisSystemPrompt, buildHitNevisUserPrompt, isValidMode } from "./prompts";
+import { retrieveHitPatterns } from "./kb/retrieve";
 import {
   analyzeHitDna,
   formatHitDnaReport,
@@ -29,7 +30,6 @@ const MAX_IN_FLIGHT = 12;
 
 let inFlight = 0;
 
-/** Simple in-process dedupe: same payload hash within window returns same in-flight promise */
 const dedupeMap = new Map<string, { at: number; promise: Promise<HitNevisResponse> }>();
 const DEDUPE_MS = 4_000;
 
@@ -203,14 +203,44 @@ export function validateHitNevisRequest(
   };
 }
 
+function buildKbContext(req: HitNevisGenerateRequest): string {
+  try {
+    const result = retrieveHitPatterns({
+      genre: req.genre,
+      mood: req.tone,
+      topic: req.topic,
+      sectionType: req.sectionType,
+      goal: req.mode,
+      text: [req.topic, req.existingLyrics, req.constraints].filter(Boolean).join(" ").slice(0, 800),
+      limit: 4,
+    });
+    if (!result.patternSummary) return "";
+    const parts = [result.patternSummary];
+    if (result.antiCliche.length) {
+      parts.push("پرهیز از کلیشه‌های رایج در این فضا: " + result.antiCliche.slice(0, 5).join("؛ "));
+    }
+    if (result.originality.length) {
+      parts.push("تکنیک اصالت پیشنهادی: " + result.originality.join("، "));
+    }
+    return parts.join("\n");
+  } catch {
+    return "";
+  }
+}
+
 async function runAi(
   req: HitNevisGenerateRequest,
   signal: AbortSignal,
   clientId: string,
 ): Promise<{ reply: string; provider: string; model: string }> {
+  const kb = buildKbContext(req);
+  const userBase = buildHitNevisUserPrompt(req);
+  const userContent = kb
+    ? `${userBase}\n\n---\n${kb}\n---\nیادآوری: فقط از الگوهای بالا الهام بگیر. هیچ ترانهٔ موجود را کپی یا بازنویسی نزدیک نکن.`
+    : userBase;
   const messages: ChatMessage[] = [
     { role: "system", content: buildHitNevisSystemPrompt(req) },
-    { role: "user", content: buildHitNevisUserPrompt(req) },
+    { role: "user", content: userContent },
   ];
   return runtimeAutoChat(messages, req.preferredProvider, req.preferredModel, clientId, signal);
 }
