@@ -59,15 +59,30 @@ function unpack(): HitKbRecord[] {
   });
 }
 
-export const HIT_KB: HitKbRecord[] = unpack();
+let cachedHitKb: HitKbRecord[] | null = null;
+
+/**
+ * Lazily inflate the compressed knowledge base. This keeps unrelated HitNevis
+ * routes (for example local text analysis) from executing the KB decoder while
+ * Next.js is collecting route data during the production build.
+ */
+export function getHitKb(): HitKbRecord[] {
+  if (cachedHitKb) return cachedHitKb;
+  cachedHitKb = unpack();
+  return cachedHitKb;
+}
 
 export function getHitKbStats() {
   return {
     version: HIT_KB_VERSION,
     source: HIT_KB_SOURCE,
-    songCount: HIT_KB.length,
-    genres: Array.from(new Set(HIT_KB.map((r) => r.genre))),
-    yearMin: Math.min(...HIT_KB.map((r) => r.year)),
-    yearMax: Math.max(...HIT_KB.map((r) => r.year)),
+    const rows = getHitKb();
+  return {
+    version: HIT_KB_VERSION,
+    source: HIT_KB_SOURCE,
+    songCount: rows.length,
+    genres: Array.from(new Set(rows.map((r) => r.genre))),
+    yearMin: Math.min(...rows.map((r) => r.year)),
+    yearMax: Math.max(...rows.map((r) => r.year)),
   };
 }
