@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
 import LatestPluginsLive, { type LatestPlugin } from "@/components/plugins/LatestPluginsLive";
+import { queryLatestPlugins } from "@/lib/plugins-db";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -23,35 +23,6 @@ function pluginChannelHref() {
   const username = (process.env.TELEGRAM_PLUGIN_CHANNEL_USERNAME || "").trim().replace(/^@/, "");
   if (username) return "https://t.me/" + username;
   return "https://t.me/ProAudios";
-}
-
-async function getLatestPlugins(): Promise<{ items: Plugin[]; unavailable: boolean }> {
-  const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
-  const key = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
-  if (!url || !key) return { items: [], unavailable: true };
-
-  try {
-    const db = createClient(url, key, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const result = await db
-      .from("telegram_plugin_posts")
-      .select(
-        "id,title,developer,version,category,formats,platforms,description,features,tags,telegram_photo_file_id,telegram_post_url,file_name,cover_storage_path,cover_public_url,created_at",
-      )
-      .eq("status", "published")
-      .order("created_at", { ascending: false })
-      .limit(3);
-
-    if (result.error) {
-      console.error("plugins_page_query_failed", result.error.message);
-      return { items: [], unavailable: true };
-    }
-    return { items: (result.data || []) as Plugin[], unavailable: false };
-  } catch (error) {
-    console.error("plugins_page_load_failed", error);
-    return { items: [], unavailable: true };
-  }
 }
 
 function CoverArt() {
@@ -79,8 +50,8 @@ function CoverArt() {
 }
 
 export default async function PluginsPage() {
-  const result = await getLatestPlugins();
-  const items = result.items;
+  const result = await queryLatestPlugins(3);
+  const items = result.items as Plugin[];
   const channelHref = pluginChannelHref();
 
   return (
@@ -102,6 +73,17 @@ export default async function PluginsPage() {
             <span className="rounded-full border border-white/[.08] px-3 py-1.5">دانلود از تلگرام</span>
             <span className="rounded-full border border-white/[.08] px-3 py-1.5">۳ کاور آخر</span>
           </div>
+          <div className="mt-5">
+            <a
+              href={channelHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-white/[.1] bg-white/[.04] px-4 py-2 text-xs text-sand-100 transition hover:border-gold-300/30 hover:bg-gold-300/[.08]"
+            >
+              کانال تلگرام پلاگین‌ها
+              <span aria-hidden="true">↗</span>
+            </a>
+          </div>
         </div>
         <CoverArt />
       </div>
@@ -110,11 +92,38 @@ export default async function PluginsPage() {
         <div className="card-ay p-10 text-center">
           <h2 className="text-lg font-semibold text-sand-50">کتابخانه موقتاً در دسترس نیست</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-ink-400">
-            اتصال برقرار نشد. چند لحظه دیگر دوباره تلاش کنید.
+            {result.errorCode === "table_missing"
+              ? "کاتالوگ هنوز راه‌اندازی نشده است. از کانال تلگرام بازدید کنید."
+              : "اتصال برقرار نشد. چند لحظه دیگر دوباره تلاش کنید."}
           </p>
-          <Link href="/plugins" className="btn-primary mt-5 inline-flex">
-            تلاش دوباره
-          </Link>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <Link href="/plugins" className="btn-primary inline-flex">
+              تلاش دوباره
+            </Link>
+            <a
+              href={channelHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex rounded-full border border-white/[.12] px-4 py-2 text-sm text-sand-100"
+            >
+              مشاهده در تلگرام
+            </a>
+          </div>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="card-ay p-10 text-center">
+          <h2 className="text-lg font-semibold text-sand-50">هنوز پلاگینی منتشر نشده</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-ink-400">
+            به‌زودی سه انتشار آخر با کاور و دانلود مستقیم از تلگرام اینجا نمایش داده می‌شود.
+          </p>
+          <a
+            href={channelHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-primary mt-5 inline-flex"
+          >
+            کانال تلگرام
+          </a>
         </div>
       ) : (
         <LatestPluginsLive initialItems={items} channelHref={channelHref} />
