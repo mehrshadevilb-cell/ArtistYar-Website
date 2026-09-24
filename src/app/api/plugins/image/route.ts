@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   if (db) {
     const known = await db
       .from("telegram_plugin_posts")
-      .select("id")
+      .select("id,cover_public_url,cover_storage_path")
       .eq("status", "published")
       .eq("telegram_photo_file_id", fileId)
       .limit(1)
@@ -24,6 +24,26 @@ export async function GET(request: Request) {
     }
     if (!known.data) {
       return NextResponse.json({ error: "image_not_found" }, { status: 404 });
+    }
+
+    // Prefer the persisted latest-3 cover. This avoids repeatedly calling
+    // Telegram for file_ids that may no longer be resolvable by the current bot.
+    if (known.data.cover_public_url) {
+      return NextResponse.redirect(known.data.cover_public_url, {
+        status: 307,
+        headers: { "cache-control": "public, max-age=3600, stale-while-revalidate=86400" },
+      });
+    }
+
+    if (known.data.cover_storage_path) {
+      const publicUrl = db.storage.from((process.env.SUPABASE_BUCKET || "artistyar-media").trim())
+        .getPublicUrl(String(known.data.cover_storage_path)).data.publicUrl;
+      if (publicUrl) {
+        return NextResponse.redirect(publicUrl, {
+          status: 307,
+          headers: { "cache-control": "public, max-age=3600, stale-while-revalidate=86400" },
+        });
+      }
     }
   }
 
