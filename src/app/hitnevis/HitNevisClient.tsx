@@ -55,6 +55,7 @@ export default function HitNevisClient() {
   const [hydrated, setHydrated] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const genRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -130,7 +131,6 @@ export default function HitNevisClient() {
   const runRequest = useCallback(async (userText: string, opts?: { forcedMode?: HitNevisMode; skipUserBubble?: boolean; replaceUserId?: string }) => {
     const trimmed = userText.trim();
     if (!trimmed && !opts?.forcedMode) return;
-    if (loading) return;
     const intent = opts?.forcedMode
       ? { mode: opts.forcedMode, sectionType: undefined as LyricSectionId | undefined, label: opts.forcedMode === "chat" ? "گفتگو" : opts.forcedMode, confidence: 1 }
       : detectIntent(trimmed || topic, hasLyrics);
@@ -156,6 +156,7 @@ export default function HitNevisClient() {
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
+    const myGen = ++genRef.current;
 
     const existing =
       mode === "write_full" || mode === "structure" || mode === "title_ideas" || mode === "idea_analyze"
@@ -176,6 +177,7 @@ export default function HitNevisClient() {
         });
         let data: Record<string, unknown> = {};
         try { data = await res.json(); } catch { data = { ok: false, error: "پاسخ سرور نامعتبر بود." }; }
+        if (genRef.current !== myGen) return;
         if (!data.ok) {
           setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: persianError(data.error), at: Date.now(), kind: "error", retryable: true, lastPrompt: trimmed, mode }]);
           return;
@@ -187,6 +189,7 @@ export default function HitNevisClient() {
           const list = (Array.isArray(data.cliches) ? data.cliches : []) as string[];
           content = list.length ? `چند عبارت نزدیک به کلیشه:\n• ${list.join("\n• ")}\n\nاگر بخواهی جایگزین طبیعی می‌نویسم.` : "کلیشهٔ واضحی ندیدم — مسیر نسبتاً تازه‌ای داری.";
         }
+        if (genRef.current !== myGen) return;
         setMessages((prev) => [...prev, { id: uid(), role: "assistant", content, at: Date.now(), kind: "analysis", mode, modeLabel: intent.label, lastPrompt: trimmed }]);
         return;
       }
@@ -210,6 +213,7 @@ export default function HitNevisClient() {
       });
       let data: Record<string, unknown> = {};
       try { data = await res.json(); } catch { data = { ok: false, error: "پاسخ سرور خوانده نشد.", retryable: true }; }
+      if (genRef.current !== myGen) return;
       if (!data.ok) {
         setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: persianError(data.error), at: Date.now(), kind: "error", retryable: data.retryable !== false, lastPrompt: trimmed, mode }]);
         return;
@@ -227,12 +231,13 @@ export default function HitNevisClient() {
         mode, modeLabel: intent.label, lastPrompt: trimmed,
       }]);
     } catch (e) {
+      if (genRef.current !== myGen) return; // superseded — silent
       const aborted = (e as Error)?.name === "AbortError";
       setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: aborted ? "لغو شد." : "ارتباط قطع شد. پیش‌نویس محفوظ است — دوباره بزن.", at: Date.now(), kind: "error", retryable: true, lastPrompt: trimmed }]);
     } finally {
-      setLoading(false);
+      if (genRef.current === myGen) setLoading(false);
     }
-  }, [hasLyrics, topic, active, fullLyrics, voice, lockOriginal, loading]);
+  }, [hasLyrics, topic, active, fullLyrics, voice, lockOriginal]);
 
   const onSubmit = (e?: FormEvent) => {
     e?.preventDefault();
