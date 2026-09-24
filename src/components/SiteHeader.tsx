@@ -28,6 +28,7 @@ const primaryNav = [
 
 const toolsItems = [
   { href: "/ai", label: "فضای AI" },
+  { href: "/hitnevis", label: "هیت‌نویس" },
   { href: "/music-analyzer", label: "تحلیل موسیقی" },
   { href: "/ai-music", label: "تولید موسیقی" },
   { href: "/studio", label: "استودیو" },
