@@ -21,8 +21,8 @@ import { ScrollStage } from "@/components/ScrollStage";
 import { getHomepageConfig } from "@/lib/homepage";
 import { sectionMap } from "@/data/homepage";
 import { HomeStudentWorks } from "@/components/HomeStudentWorks";
-import { HomeLiveCourses } from "@/components/HomeLiveCourses";
-import { QuickConsultationForm } from "@/components/QuickConsultationForm";
+import { HomeLiveCoursesLazy as HomeLiveCourses } from "@/components/lazy/HomeLiveCoursesLazy";
+import { QuickConsultationFormLazy as QuickConsultationForm } from "@/components/lazy/QuickConsultationFormLazy";
 
 export const metadata: Metadata = {
   title: "آموزش تنظیم، میکس و مسترینگ + راه‌یار AI | مهرشاد بنائی",
