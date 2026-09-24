@@ -119,7 +119,8 @@ export async function queryLatestPlugins(limit = 3): Promise<PluginQueryResult> 
       .limit(safeLimit);
 
     if (!result.error) {
-      return { items: (result.data || []) as unknown as PluginCatalogRow[], unavailable: false };
+      const items = (result.data ?? []) as unknown as PluginCatalogRow[];
+      return { items, unavailable: false };
     }
 
     lastDetail = result.error.message || String(result.error);
