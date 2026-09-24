@@ -8,8 +8,11 @@ const deadUntil = new Map<string, number>();
 
 /** Models tried per provider on the hot path (configured + fallbacks). */
 const MODELS_PER_PROVIDER = 4;
-/** Try many candidates so every env provider gets a turn before failing. */
-const MAX_CANDIDATES = 28;
+/** Keep the request bounded so fallback latency stays well below the API deadline. */
+const MAX_CANDIDATES = 24;
+const MAX_PARALLEL_ATTEMPTS = 3;
+const ATTEMPT_TIMEOUT_MS = 9_000;
+const TOTAL_RUNTIME_TIMEOUT_MS = 50_000;
 
 function exhausted(message: string) {
   return /402|credit|credits|insufficient|billing|balance|funds|payment required|quota exceeded|out of credits/i.test(
@@ -200,43 +203,104 @@ export async function runtimeAutoChat(
   const errors: string[] = [];
   const skipProviderThisRequest = new Set<string>();
 
+  // Round-robin models by provider. This prevents one broken provider/model
+  // from consuming the entire request budget before another healthy provider
+  // gets a chance. At most one model per provider is attempted per wave.
+  const byProvider = new Map<string, Cand[]>();
   for (const candidate of limited) {
+    const list = byProvider.get(candidate.provider.id) || [];
+    list.push(candidate);
+    byProvider.set(candidate.provider.id, list);
+  }
+  const providerQueues = [...byProvider.values()]
+    .sort((a, b) => b[0].score - a[0].score)
+    .map((list) => list.slice().sort((a, b) => b.score - a.score));
+  const waves: Cand[][] = [];
+  for (let round = 0; round < MODELS_PER_PROVIDER; round++) {
+    const wave: Cand[] = [];
+    for (const queue of providerQueues) {
+      const candidate = queue[round];
+      if (candidate) wave.push(candidate);
+    }
+    if (wave.length) waves.push(wave.slice(0, MAX_PARALLEL_ATTEMPTS));
+  }
+
+  const deadline = Date.now() + TOTAL_RUNTIME_TIMEOUT_MS;
+
+  for (const wave of waves) {
     if (signal?.aborted) throw new Error("aborted");
-    if (skipProviderThisRequest.has(candidate.provider.id)) continue;
+    if (Date.now() >= deadline) break;
 
-    const key = candidate.provider.id + "::" + candidate.model;
-    const until = cooldown.get(key) || 0;
-    if (until > Date.now()) continue;
+    const batchController = new AbortController();
+    const onParentAbort = () => batchController.abort();
+    if (signal) {
+      if (signal.aborted) throw new Error("aborted");
+      signal.addEventListener("abort", onParentAbort, { once: true });
+    }
 
-    const providerDead = deadUntil.get(candidate.provider.id) || 0;
-    if (providerDead > Date.now()) continue;
+    const eligible = wave.filter((candidate) => {
+      if (skipProviderThisRequest.has(candidate.provider.id)) return false;
+      const key = candidate.provider.id + "::" + candidate.model;
+      if ((cooldown.get(key) || 0) > Date.now()) return false;
+      if ((deadUntil.get(candidate.provider.id) || 0) > Date.now()) return false;
+      return true;
+    });
 
-    const timeoutMs = 12_000;
     try {
-      const reply = await withTimeout(
-        (sig) => chatWithProvider(candidate.provider, candidate.model, messages, sig),
-        timeoutMs,
-        key,
-        signal,
+      const results = await Promise.allSettled(
+        eligible.map(async (candidate) => {
+          const key = candidate.provider.id + "::" + candidate.model;
+          const remaining = Math.max(1_000, Math.min(ATTEMPT_TIMEOUT_MS, deadline - Date.now()));
+          const reply = await withTimeout(
+            (sig) => chatWithProvider(candidate.provider, candidate.model, messages, sig),
+            remaining,
+            key,
+            batchController.signal,
+          );
+          if (!reply?.trim()) throw new Error("empty_reply");
+          return { reply, provider: candidate.provider.id, model: candidate.model, key };
+        }),
       );
-      if (!reply?.trim()) throw new Error("empty_reply");
-      cooldown.delete(key);
-      return { reply, provider: candidate.provider.id, model: candidate.model };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      errors.push(key + "=" + message.slice(0, 120));
-      cooldown.set(key, Date.now() + cooldownMs(message));
 
-      if (isAuthError(message) || exhausted(message)) {
-        skipProviderThisRequest.add(candidate.provider.id);
-        deadUntil.set(candidate.provider.id, Date.now() + 3_600_000);
-      } else if (isRateLimit(message)) {
-        skipProviderThisRequest.add(candidate.provider.id);
+      const winner = results.find(
+        (result): result is PromiseFulfilledResult<{ reply: string; provider: string; model: string; key: string }> =>
+          result.status === "fulfilled" && Boolean(result.value.reply.trim()),
+      );
+      if (winner) {
+        batchController.abort("winner");
+        cooldown.delete(winner.value.key);
+        return {
+          reply: winner.value.reply,
+          provider: winner.value.provider,
+          model: winner.value.model,
+        };
       }
+
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const candidate = eligible[i];
+        if (!candidate || result.status !== "rejected") continue;
+        const key = candidate.provider.id + "::" + candidate.model;
+        const message = result.reason instanceof Error ? result.reason.message : String(result.reason);
+        errors.push(key + "=" + message.slice(0, 120));
+        cooldown.set(key, Date.now() + cooldownMs(message));
+
+        if (isAuthError(message) || exhausted(message)) {
+          skipProviderThisRequest.add(candidate.provider.id);
+          deadUntil.set(candidate.provider.id, Date.now() + 3_600_000);
+        } else if (isRateLimit(message)) {
+          skipProviderThisRequest.add(candidate.provider.id);
+        }
+      }
+    } finally {
+      batchController.abort("wave_complete");
+      signal?.removeEventListener("abort", onParentAbort);
     }
   }
 
-  throw new Error("all_providers_failed:" + errors.slice(0, 12).join(" | "));
+  if (signal?.aborted) throw new Error("aborted");
+  const reason = Date.now() >= deadline ? "deadline_exceeded" : "candidates_exhausted";
+  throw new Error("all_providers_failed:" + reason + ":" + errors.slice(0, 12).join(" | "));
 }
 
 export async function runtimeGenerateJson(
