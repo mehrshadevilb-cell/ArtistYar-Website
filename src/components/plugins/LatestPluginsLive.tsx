@@ -22,7 +22,6 @@ export type LatestPlugin = {
 type Props = {
   initialItems: LatestPlugin[];
   channelHref?: string;
-  /** When true, skip the built-in section title (homepage already has one). */
   hideHeader?: boolean;
 };
 
@@ -72,62 +71,68 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
   }, [initialItems]);
 
   useEffect(() => {
+    // SSR already provided initialItems — avoid competing with first paint.
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | null = null;
+    let idleHandle: number | null = null;
 
-    const start = () => {
+    const startPolling = () => {
       if (cancelled) return;
-      void refresh();
+      if (!initialItems.length) void refresh();
       timer = setInterval(() => {
         if (document.visibilityState === "visible") void refresh();
-      }, 6000);
+      }, 120_000);
     };
 
-    start();
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleHandle = window.requestIdleCallback(startPolling, { timeout: 8000 }) as unknown as number;
+    } else {
+      idleHandle = window.setTimeout(startPolling, 5000) as unknown as number;
+    }
+
     const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible" && !initialItems.length) void refresh();
     };
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
+      if (idleHandle != null) {
+        if ("cancelIdleCallback" in window) window.cancelIdleCallback(idleHandle);
+        else window.clearTimeout(idleHandle);
+      }
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [refresh]);
+  }, [refresh, initialItems.length]);
 
   return (
     <section className={hideHeader ? "" : "mb-10"}>
       {!hideHeader ? (
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] uppercase tracking-[.22em] text-gold-300/80">Live · آخرین انتشار</p>
-          <h2 className="mt-1 text-xl font-semibold tracking-[-.02em] text-sand-50 sm:text-2xl">
-            ۳ پلاگین تازه منتشرشده
-          </h2>
-          <p className="mt-1 text-xs text-ink-500">
-            کاور ذخیره‌شده · دانلود مستقیم از تلگرام
-            {live ? " · متصل" : ""}
-            {updatedAt ? " · " + new Date(updatedAt).toLocaleTimeString("fa-IR") : ""}
-          </p>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[.22em] text-gold-300/80">Live · آخرین انتشار</p>
+            <h2 className="mt-1 text-xl font-semibold tracking-[-.02em] text-sand-50 sm:text-2xl">
+              ۳ پلاگین تازه منتشرشده
+            </h2>
+            <p className="mt-1 text-xs text-ink-500">
+              کاور ذخیره‌شده · دانلود مستقیم از تلگرام
+              {live ? " · متصل" : ""}
+              {updatedAt ? " · " + new Date(updatedAt).toLocaleTimeString("fa-IR") : ""}
+            </p>
+          </div>
+          {channelHref ? (
+            <a href={channelHref} target="_blank" rel="noopener noreferrer" className="btn-ghost hidden sm:inline-flex">
+              کانال تلگرام
+            </a>
+          ) : null}
         </div>
-        {channelHref ? (
-          <a
-            href={channelHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-ghost hidden sm:inline-flex"
-          >
-            کانال ArtistYar ↗
-          </a>
-        ) : null}
-      </div>
       ) : null}
 
-      {!items.length ? (
-        <div className="rounded-[22px] border border-dashed border-white/[.08] bg-white/[.015] px-6 py-10 text-center">
-          <p className="text-sm text-ink-400">هنوز پلاگینی منتشر نشده است.</p>
-        </div>
+      {items.length === 0 ? (
+        <p className="rounded-2xl border border-white/[.08] bg-white/[.02] p-6 text-sm text-ink-400">
+          فعلاً پلاگینی برای نمایش نیست.
+        </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-3">
           {items.map((p, index) => {
@@ -135,15 +140,11 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
             return (
               <article
                 key={p.id}
-                className="group overflow-hidden rounded-[20px] border border-white/[.08] bg-white/[.02] transition duration-300 hover:-translate-y-0.5 hover:border-gold-300/25"
+                className="group overflow-hidden rounded-2xl border border-white/[.08] bg-ink-950/40 shadow-[0_20px_50px_-30px_rgba(0,0,0,.8)]"
               >
-                <div className="relative aspect-[16/10] overflow-hidden bg-[#0a0a0a]">
+                <div className="relative aspect-[16/10] overflow-hidden bg-ink-900">
                   <div
-                    className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(214,174,92,.28),transparent_42%)]"
-                    aria-hidden
-                  />
-                  <div
-                    className="absolute inset-0 opacity-40 bg-[linear-gradient(135deg,rgba(255,255,255,.04),transparent_50%)]"
+                    className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(214,174,92,.28),transparent_42%)]"
                     aria-hidden
                   />
                   {src ? (
