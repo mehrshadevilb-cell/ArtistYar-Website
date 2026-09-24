@@ -42,15 +42,18 @@ function sanitizeLogText(text: string, max = 80): string {
 }
 
 function hashPayload(req: HitNevisGenerateRequest): string {
-  return [
-    req.mode,
-    req.topic || "",
-    (req.existingLyrics || "").slice(0, 200),
-    req.sectionType || "",
-    req.genre || "",
-    req.tone || "",
-    req.constraints || "",
-  ].join("|");
+  return JSON.stringify({
+    mode: req.mode,
+    topic: req.topic || "",
+    existingLyrics: (req.existingLyrics || "").slice(0, 800),
+    sectionType: req.sectionType || "",
+    genre: req.genre || "",
+    tone: req.tone || "",
+    language: req.language || "fa",
+    constraints: req.constraints || "",
+    directionsCount: req.directionsCount || 0,
+    artistVoice: req.artistVoice || null,
+  });
 }
 
 function mapGatewayError(error: unknown, requestId: string, startedAt: number): HitNevisResponse {
