@@ -90,6 +90,27 @@ export type HitNevisProject = {
   createdAt: string;
 };
 
+/** Compact creative memory for long co-writing sessions */
+export type SongMemorySnapshot = {
+  topic?: string;
+  coreConcept?: string;
+  story?: string;
+  persona?: string;
+  emotionalDirection?: string;
+  genre?: string;
+  tone?: string;
+  language?: string;
+  artistVoiceNotes?: string;
+  preferredVocabulary?: string[];
+  avoidedVocabulary?: string[];
+  hookConcept?: string;
+  importantPhrases?: string[];
+  structureNotes?: string;
+  rejectedIdeas?: string[];
+  approvedIdeas?: string[];
+  constraints?: string[];
+};
+
 export type HitNevisGenerateRequest = {
   mode: HitNevisMode;
   topic?: string;
@@ -105,6 +126,8 @@ export type HitNevisGenerateRequest = {
   preferredModel?: string;
   /** Recent turns for multi-turn co-writing. Max ~12 server-side. */
   conversationHistory?: { role: "user" | "assistant"; content: string }[];
+  /** Compact song-level creative memory (not full chat dump). */
+  songMemory?: SongMemorySnapshot;
 };
 
 export type HitNevisGenerateResult = {
