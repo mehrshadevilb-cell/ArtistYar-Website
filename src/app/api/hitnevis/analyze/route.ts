@@ -5,7 +5,7 @@ import {
   detectCliches,
   formatHitDnaReport,
   formatHumanTestsReport,
-} from "@/lib/hitnevis";
+} from "@/lib/hitnevis/hit-dna";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
