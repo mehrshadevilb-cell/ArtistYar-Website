@@ -28,7 +28,8 @@ export type HitNevisMode =
   | "save_lyric"
   | "hit_dna"
   | "human_tests"
-  | "artist_voice";
+  | "artist_voice"
+  | "chat";
 
 export type LyricSectionId =
   | "verse"
@@ -102,6 +103,8 @@ export type HitNevisGenerateRequest = {
   directionsCount?: number;
   preferredProvider?: string;
   preferredModel?: string;
+  /** Recent turns for multi-turn co-writing. Max ~12 server-side. */
+  conversationHistory?: { role: "user" | "assistant"; content: string }[];
 };
 
 export type HitNevisGenerateResult = {

@@ -1,29 +1,35 @@
 import { NextResponse } from "next/server";
-import { hitnevisHealth, getRetrievalDiagnostics } from "@/lib/hitnevis";
+import { hitnevisHealth } from "@/lib/hitnevis";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  let kb: Record<string, unknown> | null = null;
+  try {
+    const { getRetrievalDiagnostics } = await import("@/lib/hitnevis/kb/retrieve");
+    const d = getRetrievalDiagnostics();
+    kb = {
+      ok: d.songCount > 0,
+      version: d.version,
+      source: d.source,
+      songCount: d.songCount,
+      genres: d.genres,
+      yearRange: [d.yearMin, d.yearMax],
+      retrievals: d.retrievals,
+      successfulRetrievals: d.successfulRetrievals,
+      failedRetrievals: d.failedRetrievals,
+      lastQueryAt: d.lastQueryAt,
+    };
+  } catch (e) {
+    console.error("[hitnevis/health-kb]", e instanceof Error ? e.message : e);
+    kb = { ok: false, error: "kb_unavailable" };
+  }
+
   try {
     const health = await hitnevisHealth();
-    const kb = getRetrievalDiagnostics();
     return NextResponse.json(
-      {
-        ...health,
-        knowledgeBase: {
-          ok: kb.songCount > 0,
-          version: kb.version,
-          source: kb.source,
-          songCount: kb.songCount,
-          genres: kb.genres,
-          yearRange: [kb.yearMin, kb.yearMax],
-          retrievals: kb.retrievals,
-          successfulRetrievals: kb.successfulRetrievals,
-          failedRetrievals: kb.failedRetrievals,
-          lastQueryAt: kb.lastQueryAt,
-        },
-      },
+      { ...health, knowledgeBase: kb },
       { status: health.ok ? 200 : 503 },
     );
   } catch (error) {
@@ -35,8 +41,9 @@ export async function GET() {
         providersConfigured: 0,
         providersHealthy: 0,
         pool: [],
-        knowledgeBase: null,
+        knowledgeBase: kb,
         timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message.slice(0, 120) : "health_failed",
       },
       { status: 503 },
     );
