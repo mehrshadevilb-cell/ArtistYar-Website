@@ -52,6 +52,7 @@ type AuthContextValue = {
   login: (username: string, password: string) => Promise<{ ok: true; user: SessionUser } | { ok: false; error: string }>;
   register: (input: { username: string; password: string; fullName: string }) => { ok: true; user: SessionUser } | { ok: false; error: string };
   logout: () => Promise<void>;
+  linkTelegram: (telegramId: string) => void;
   refresh: () => Promise<void>;
 };
 
@@ -198,14 +199,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const linkTelegram = useCallback((telegramId: string) => {
+    const normalized = telegramId.trim();
+    if (!normalized) return;
+    setUser((current) => {
+      if (!current) return current;
+      const next = { ...current, telegramLinked: true, telegramId: normalized };
+      saveSession(next);
+      return next;
+    });
+  }, []);
+
   const refresh = useCallback(async () => {
     const sessionUser = await authenticateExistingSession();
     setUser(sessionUser);
   }, []);
 
   const value = useMemo(
-    () => ({ user, ready, login, register, logout, refresh }),
-    [user, ready, login, register, logout, refresh],
+    () => ({ user, ready, login, register, logout, linkTelegram, refresh }),
+    [user, ready, login, register, logout, linkTelegram, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
