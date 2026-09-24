@@ -26,6 +26,8 @@ type Props = {
 
 function coverSrc(p: LatestPlugin) {
   if (p.cover_public_url) return p.cover_public_url;
+  const fileId = String(p.telegram_photo_file_id || "").trim();
+  if (fileId) return "/api/plugins/image?file_id=" + encodeURIComponent(fileId);
   return null;
 }
 
@@ -51,8 +53,8 @@ export default function LatestPluginsLive({ initialItems, channelHref }: Props) 
       if (!data?.ok || !Array.isArray(data.items)) return;
       const next = (data.items as LatestPlugin[]).slice(0, 3);
       setItems((prev) => {
-        const prevKey = prev.map((p) => p.id + ":" + (p.cover_public_url || "")).join("|");
-        const nextKey = next.map((p) => p.id + ":" + (p.cover_public_url || "")).join("|");
+        const prevKey = prev.map((p) => p.id + ":" + (p.cover_public_url || p.telegram_photo_file_id || "")).join("|");
+        const nextKey = next.map((p) => p.id + ":" + (p.cover_public_url || p.telegram_photo_file_id || "")).join("|");
         if (prevKey === nextKey) return prev;
         setUpdatedAt(new Date().toISOString());
         return next;
@@ -139,6 +141,9 @@ export default function LatestPluginsLive({ initialItems, channelHref }: Props) 
                       alt={p.title}
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                       loading={index === 0 ? "eager" : "lazy"}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   ) : (
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(214,174,92,.22),transparent_32%)]" />
