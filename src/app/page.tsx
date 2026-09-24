@@ -21,15 +21,15 @@ import { ScrollStage } from "@/components/ScrollStage";
 import dynamic from "next/dynamic";
 import { getHomepageConfig } from "@/lib/homepage";
 import { sectionMap } from "@/data/homepage";
+import { HomeStudentWorks } from "@/components/HomeStudentWorks";
 
-const HomeLiveCourses = dynamic(() =>
-  import("@/components/HomeLiveCourses").then((m) => m.HomeLiveCourses),
+const HomeLiveCourses = dynamic(
+  () => import("@/components/HomeLiveCourses").then((m) => m.HomeLiveCourses),
+  { loading: () => <div className="container-ay py-10" aria-hidden="true"><div className="h-72 animate-pulse rounded-2xl bg-white/[0.04]" /></div> },
 );
-const HomeStudentWorks = dynamic(() =>
-  import("@/components/HomeStudentWorks").then((m) => m.HomeStudentWorks),
-);
-const QuickConsultationForm = dynamic(() =>
-  import("@/components/QuickConsultationForm").then((m) => m.QuickConsultationForm),
+const QuickConsultationForm = dynamic(
+  () => import("@/components/QuickConsultationForm").then((m) => m.QuickConsultationForm),
+  { ssr: false, loading: () => null },
 );
 
 export const metadata: Metadata = {
