@@ -28,7 +28,8 @@ export type HitNevisMode =
   | "save_lyric"
   | "hit_dna"
   | "human_tests"
-  | "artist_voice";
+  | "artist_voice"
+  | "chat";
 
 export type LyricSectionId =
   | "verse"
@@ -227,9 +228,9 @@ export function detectIntent(userText: string, hasExistingLyrics: boolean): Inte
   const t = norm(userText);
   if (!t) {
     return {
-      mode: hasExistingLyrics ? "improve" : "write_full",
-      confidence: 0.2,
-      label: hasExistingLyrics ? "بهبود" : "ترانه کامل",
+      mode: "chat",
+      confidence: 0.15,
+      label: "گفتگو",
     };
   }
 
@@ -257,13 +258,11 @@ export function detectIntent(userText: string, hasExistingLyrics: boolean): Inte
     };
   }
 
-  if (hasExistingLyrics) {
-    if (/تحلیل/.test(t)) {
-      return { mode: "idea_analyze", confidence: 0.45, label: "تحلیل ایده" };
-    }
-    return { mode: "improve", confidence: 0.35, label: "بهبود" };
+  if (/تحلیل/.test(t)) {
+    return { mode: "idea_analyze", confidence: 0.45, label: "تحلیل ایده" };
   }
-  return { mode: "write_full", confidence: 0.35, label: "ترانه کامل" };
+  // Natural co-writing chat — multi-turn history carries the rest
+  return { mode: "chat", confidence: 0.3, label: "گفتگو" };
 }
 
 export const QUICK_ACTIONS: { label: string; prompt: string }[] = [

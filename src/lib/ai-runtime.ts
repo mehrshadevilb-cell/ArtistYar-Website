@@ -7,12 +7,12 @@ const cooldown = new Map<string, number>();
 const deadUntil = new Map<string, number>();
 
 /** Models tried per provider on the hot path (configured + fallbacks). */
-const MODELS_PER_PROVIDER = 4;
+const MODELS_PER_PROVIDER = 3;
 /** Keep the request bounded so fallback latency stays well below the API deadline. */
-const MAX_CANDIDATES = 24;
-const MAX_PARALLEL_ATTEMPTS = 3;
-const ATTEMPT_TIMEOUT_MS = 9_000;
-const TOTAL_RUNTIME_TIMEOUT_MS = 50_000;
+const MAX_CANDIDATES = 18;
+const MAX_PARALLEL_ATTEMPTS = 4;
+const ATTEMPT_TIMEOUT_MS = 7_000;
+const TOTAL_RUNTIME_TIMEOUT_MS = 42_000;
 
 function exhausted(message: string) {
   return /402|credit|credits|insufficient|billing|balance|funds|payment required|quota exceeded|out of credits/i.test(
@@ -35,10 +35,12 @@ function isModelMissing(message: string) {
 }
 
 function cooldownMs(message: string) {
-  if (isAuthError(message) || exhausted(message)) return 3_600_000;
-  if (isRateLimit(message)) return 45_000;
-  if (isModelMissing(message)) return 15 * 60_000;
-  return 6_000;
+  // Auth/billing: cool the *model key* briefly; whole-provider deadUntil is set separately and shorter.
+  if (isAuthError(message) || exhausted(message)) return 120_000; // 2 min model key
+  if (isRateLimit(message)) return 20_000;
+  if (isModelMissing(message)) return 5 * 60_000; // 5 min, not 15
+  if (/timeout/i.test(message)) return 3_000;
+  return 4_000;
 }
 
 /** Higher = try first. Prefer instant/flash/mini free models. */
@@ -70,8 +72,8 @@ function scoreProvider(providerId: string): number {
 }
 
 const FALLBACK_MODELS: Record<string, string[]> = {
-  xkiro: ["qwen/qwen3.8-omni-flash:free", "qwen/qwen3-8b:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  openrouter: ["google/gemini-2.0-flash-exp:free", "qwen/qwen3-8b:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  xkiro: ["qwen/qwen3-8b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemini-2.0-flash-exp:free"],
+  openrouter: ["google/gemini-2.0-flash-exp:free", "qwen/qwen3-8b:free", "meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-4o-mini"],
   groq: ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "gemma2-9b-it"],
   google: ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"],
   openai: ["gpt-4o-mini", "gpt-4o"],
@@ -289,7 +291,7 @@ export async function runtimeAutoChat(
 
         if (isAuthError(message) || exhausted(message)) {
           skipProviderThisRequest.add(candidate.provider.id);
-          deadUntil.set(candidate.provider.id, Date.now() + 3_600_000);
+          deadUntil.set(candidate.provider.id, Date.now() + 180_000); // 3 min — never lock public chat for hours
         } else if (isRateLimit(message)) {
           skipProviderThisRequest.add(candidate.provider.id);
         }

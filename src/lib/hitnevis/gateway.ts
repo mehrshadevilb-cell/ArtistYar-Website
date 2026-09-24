@@ -24,8 +24,8 @@ import type {
 
 const MAX_TOPIC = 500;
 const MAX_LYRICS = 8000;
-const MAX_CONSTRAINTS = 500;
-const GATEWAY_TIMEOUT_MS = 53_000;
+const MAX_CONSTRAINTS = 1200;
+const GATEWAY_TIMEOUT_MS = 45_000;
 const MAX_IN_FLIGHT = 12;
 
 let inFlight = 0;
@@ -42,6 +42,10 @@ function sanitizeLogText(text: string, max = 80): string {
 }
 
 function hashPayload(req: HitNevisGenerateRequest): string {
+  const hist = (req.conversationHistory || [])
+    .slice(-4)
+    .map((t) => `${t.role}:${t.content.slice(0, 120)}`)
+    .join("|");
   return JSON.stringify({
     mode: req.mode,
     topic: req.topic || "",
@@ -53,6 +57,7 @@ function hashPayload(req: HitNevisGenerateRequest): string {
     constraints: req.constraints || "",
     directionsCount: req.directionsCount || 0,
     artistVoice: req.artistVoice || null,
+    hist,
   });
 }
 
@@ -159,14 +164,30 @@ export function validateHitNevisRequest(
     typeof b.constraints === "string" ? b.constraints.trim().slice(0, MAX_CONSTRAINTS) : undefined;
 
   const localOnly: HitNevisMode[] = ["hit_dna", "human_tests"];
+  const hasHistory =
+    Array.isArray(b.conversationHistory) &&
+    b.conversationHistory.some(
+      (t) => t && typeof t === "object" && typeof (t as { content?: unknown }).content === "string",
+    );
   if (
     !localOnly.includes(b.mode as HitNevisMode) &&
     !topic &&
     !existingLyrics &&
+    !hasHistory &&
     b.mode !== "structure" &&
-    b.mode !== "title_ideas"
+    b.mode !== "title_ideas" &&
+    b.mode !== "chat"
   ) {
     return { ok: false, error: "موضوع یا متن فعلی را وارد کن." };
+  }
+  if (
+    b.mode === "chat" &&
+    !topic &&
+    !existingLyrics &&
+    !hasHistory &&
+    !(typeof b.constraints === "string" && b.constraints.trim())
+  ) {
+    return { ok: false, error: "پیامت را بنویس." };
   }
 
   const language =
@@ -182,6 +203,26 @@ export function validateHitNevisRequest(
     typeof b.directionsCount === "number" && Number.isFinite(b.directionsCount)
       ? Math.min(5, Math.max(2, Math.floor(b.directionsCount)))
       : undefined;
+
+  let conversationHistory: HitNevisGenerateRequest["conversationHistory"];
+  if (Array.isArray(b.conversationHistory)) {
+    conversationHistory = b.conversationHistory
+      .filter(
+        (t): t is { role: "user" | "assistant"; content: string } =>
+          !!t &&
+          typeof t === "object" &&
+          ((t as { role?: string }).role === "user" ||
+            (t as { role?: string }).role === "assistant") &&
+          typeof (t as { content?: unknown }).content === "string",
+      )
+      .map((t) => ({
+        role: t.role,
+        content: t.content.trim().slice(0, 1200),
+      }))
+      .filter((t) => t.content.length > 0)
+      .slice(-12);
+    if (!conversationHistory.length) conversationHistory = undefined;
+  }
 
   return {
     ok: true,
@@ -199,6 +240,7 @@ export function validateHitNevisRequest(
       preferredProvider:
         typeof b.preferredProvider === "string" ? b.preferredProvider.slice(0, 64) : undefined,
       preferredModel: typeof b.preferredModel === "string" ? b.preferredModel.slice(0, 128) : undefined,
+      conversationHistory,
     },
   };
 }
