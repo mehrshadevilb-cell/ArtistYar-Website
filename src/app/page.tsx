@@ -250,7 +250,7 @@ export default async function HomePage() {
               کتابخانه پلاگین‌ها ←
             </SafeLink>
           </div>
-          <LatestPluginsLive initialItems={latestPlugins} channelHref={pluginChannelHref} />
+          <LatestPluginsLive initialItems={latestPlugins} channelHref={pluginChannelHref} hideHeader />
         </ScrollStage>
       ) : null}
 
