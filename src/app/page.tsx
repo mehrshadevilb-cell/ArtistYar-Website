@@ -236,14 +236,13 @@ export default async function HomePage() {
         <ScrollStage as="section" className="container-ay py-10 sm:py-14" intensity="calm">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="eyebrow">{sec.tools.eyebrow || "Plugin Lab · آخرین انتشار"}</p>
+              <p className="eyebrow">Plugin Lab · آخرین انتشار</p>
               <h2 className="mt-2 flex flex-wrap items-center gap-3 text-2xl font-medium text-sand-50 sm:text-3xl">
                 <Plug2 className="text-gold-400" size={26} aria-hidden />
-                {sec.tools.title || "۳ پلاگین تازه منتشرشده"}
+                ۳ پلاگین تازه منتشرشده
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-ink-400">
-                {sec.tools.subtitle ||
-                  "کاور و معرفی فارسی آخرین پلاگین‌های کانال — دانلود مستقیم از تلگرام؛ فایل روی سایت میزبانی نمی‌شود."}
+                کاور و معرفی فارسی آخرین پلاگین‌های کانال — دانلود مستقیم از تلگرام؛ فایل روی سایت میزبانی نمی‌شود.
               </p>
             </div>
             <SafeLink href="/plugins" hard className="btn-ghost text-xs">
