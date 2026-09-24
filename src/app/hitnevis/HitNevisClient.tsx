@@ -1,120 +1,120 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import {
-  Loader2, Sparkles, AlertCircle, Copy, Check, Save, RotateCcw,
-  FlaskConical, Mic2, Shield, Dna, User,
+  Loader2,
+  Send,
+  Square,
+  Copy,
+  Check,
+  RotateCcw,
+  PanelRight,
+  X,
+  Sparkles,
+  AlertCircle,
+  User,
+  ChevronDown,
+  Plus,
 } from "lucide-react";
+import { detectIntent, QUICK_ACTIONS, type HitNevisMode, type LyricSectionId } from "@/lib/hitnevis/intent";
 
-type Mode =
-  | "write_full" | "write_chorus" | "write_verse" | "write_pre_chorus"
-  | "write_bridge" | "write_outro" | "improve" | "rhyme" | "title_ideas"
-  | "structure" | "continue" | "rewrite" | "shorten" | "emotional"
-  | "conversational" | "visual" | "bold" | "critic" | "idea_analyze"
-  | "hook_lab" | "anti_cliche" | "save_lyric" | "hit_dna" | "human_tests"
-  | "artist_voice";
-
-type SectionId = "verse" | "pre_chorus" | "chorus" | "bridge" | "outro" | "hook" | "other";
-type Section = { id: string; type: SectionId; label: string; text: string };
+type Section = { id: string; type: LyricSectionId; label: string; text: string };
 type ArtistVoice = {
-  name: string; styleNotes: string; preferredWords: string; avoidedWords: string;
+  name: string;
+  styleNotes: string;
+  preferredWords: string;
+  avoidedWords: string;
   register: "" | "colloquial" | "literary" | "mixed";
-  rhymePreference: "" | "loose" | "tight" | "free";
 };
 type DnaResult = {
-  structureScore: number; hookPresence: number; repetitionIndex: number;
-  narrativeClarity: number; emotionalArc: number; rhymeDensity: number;
-  registerConsistency: number; phraseDensity: number; memorabilitySignal: number;
-  overall: number; notes: string[]; disclaimer: string;
+  structureScore: number;
+  hookPresence: number;
+  repetitionIndex: number;
+  narrativeClarity: number;
+  emotionalArc: number;
+  rhymeDensity: number;
+  registerConsistency: number;
+  phraseDensity: number;
+  memorabilitySignal: number;
+  overall: number;
+  notes: string[];
+  disclaimer: string;
 };
 type HumanTest = { id: string; label: string; score: number; summary: string; tips: string[] };
 
-const STORAGE_KEY = "hitnevis_workspace_v2";
+type CardKind = "lyrics" | "analysis" | "dna" | "human" | "directions" | "error";
+
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  at: number;
+  mode?: HitNevisMode;
+  modeLabel?: string;
+  cardKind?: CardKind;
+  directions?: string[];
+  dna?: DnaResult;
+  humanTests?: HumanTest[];
+  humanOverall?: number;
+  cliches?: string[];
+  retryable?: boolean;
+  lastPrompt?: string;
+};
+
+const STORAGE = "hitnevis_chat_v1";
 const ORIGINAL_KEY = "hitnevis_original_v2";
 
-const WRITE_MODES: { id: Mode; label: string }[] = [
-  { id: "write_full", label: "ترانه کامل" },
-  { id: "write_verse", label: "ورس" },
-  { id: "write_pre_chorus", label: "پری‌کورس" },
-  { id: "write_chorus", label: "کورس" },
-  { id: "write_bridge", label: "بریج" },
-  { id: "write_outro", label: "اوت‌رو" },
-];
-const ACTION_MODES: { id: Mode; label: string }[] = [
-  { id: "continue", label: "ادامه" }, { id: "rewrite", label: "بازنویسی" },
-  { id: "shorten", label: "کوتاه" }, { id: "emotional", label: "احساسی" },
-  { id: "conversational", label: "محاوره" }, { id: "visual", label: "تصویری" },
-  { id: "bold", label: "جسور" }, { id: "improve", label: "بهبود" },
-  { id: "rhyme", label: "قافیه" },
-];
-const LAB_MODES: { id: Mode; label: string; icon: "flask" | "mic" | "shield" | "dna" | "user" }[] = [
-  { id: "idea_analyze", label: "تحلیل ایده", icon: "flask" },
-  { id: "hook_lab", label: "آزمایشگاه هوک", icon: "mic" },
-  { id: "critic", label: "منتقد حرفه‌ای", icon: "flask" },
-  { id: "anti_cliche", label: "ضدکلیشه", icon: "shield" },
-  { id: "save_lyric", label: "نجات ترانه", icon: "flask" },
-  { id: "hit_dna", label: "Hit DNA", icon: "dna" },
-  { id: "human_tests", label: "تست انسانی", icon: "user" },
-  { id: "artist_voice", label: "صدای هنرمند", icon: "user" },
-];
-const GENRES = [
-  { id: "", label: "ژانر" }, { id: "pop", label: "پاپ" }, { id: "hiphop", label: "هیپ‌هاپ" },
-  { id: "rock", label: "راک" }, { id: "traditional", label: "سنتی" },
-  { id: "electronic", label: "الکترونیک" }, { id: "rnb", label: "R&B" },
-  { id: "folk", label: "فولک" }, { id: "other", label: "دیگر" },
-];
-const TONES = [
-  { id: "", label: "حس" }, { id: "romantic", label: "عاشقانه" }, { id: "sad", label: "غمگین" },
-  { id: "hopeful", label: "امیدوار" }, { id: "angry", label: "عصبانی" },
-  { id: "playful", label: "شوخ" }, { id: "epic", label: "حماسی" }, { id: "neutral", label: "خنثی" },
-];
 const DEFAULT_SECTIONS: Section[] = [
-  { id: "s-verse-1", type: "verse", label: "ورس ۱", text: "" },
+  { id: "s-v1", type: "verse", label: "ورس ۱", text: "" },
   { id: "s-pre", type: "pre_chorus", label: "پری‌کورس", text: "" },
-  { id: "s-chorus", type: "chorus", label: "کورس", text: "" },
-  { id: "s-bridge", type: "bridge", label: "بریج", text: "" },
-  { id: "s-outro", type: "outro", label: "اوت‌رو", text: "" },
+  { id: "s-ch", type: "chorus", label: "کورس", text: "" },
+  { id: "s-v2", type: "verse", label: "ورس ۲", text: "" },
+  { id: "s-br", type: "bridge", label: "بریج", text: "" },
+  { id: "s-out", type: "outro", label: "اوت‌رو", text: "" },
 ];
+
+function uid(prefix = "m"): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function sectionsToText(sections: Section[]): string {
+  return sections
+    .filter((s) => s.text.trim())
+    .map((s) => `[${s.label}]\n${s.text.trim()}`)
+    .join("\n\n");
+}
 
 function emptyVoice(): ArtistVoice {
-  return { name: "", styleNotes: "", preferredWords: "", avoidedWords: "", register: "", rhymePreference: "" };
-}
-function sectionsToText(sections: Section[]): string {
-  return sections.filter((s) => s.text.trim()).map((s) => `[${s.label}]\n${s.text.trim()}`).join("\n\n");
-}
-function uid(): string {
-  return `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  return { name: "", styleNotes: "", preferredWords: "", avoidedWords: "", register: "" };
 }
 
-type ApiOk = { ok: true; text: string; provider: string; model: string; latencyMs: number; requestId: string; directions?: string[] };
-type ApiErr = { ok: false; error: string; code?: string; retryable?: boolean; requestId?: string };
+const WELCOME: ChatMessage = {
+  id: "welcome",
+  role: "system",
+  content:
+    "سلام! من هیت‌نویس‌ام — دستیار ترانه‌سرایی فارسی.\n\nهر چی لازم داری به زبان خودت بگو؛ مثلاً:\n• «یه کورس قوی بساز»\n• «این قسمت رو بهتر کن»\n• «ادامه‌ش بده»\n• «کلیشه‌هاشو پیدا کن»\n• «تحلیلش کن» یا «Hit DNA»\n\nمتن اصلی‌ات هرگز خودکار جایگزین نمی‌شود. از دکمهٔ پروژه می‌تونی بخش‌ها و صدای هنرمند را ببینی.",
+  at: 0,
+  cardKind: "analysis",
+};
 
 export default function HitNevisClient() {
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS);
+  const [activeSectionId, setActiveSectionId] = useState(DEFAULT_SECTIONS[0].id);
   const [title, setTitle] = useState("ترانهٔ بدون عنوان");
   const [topic, setTopic] = useState("");
   const [genre, setGenre] = useState("");
   const [tone, setTone] = useState("");
-  const [constraints, setConstraints] = useState("");
-  const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS);
-  const [activeSectionId, setActiveSectionId] = useState(DEFAULT_SECTIONS[0].id);
-  const [mode, setMode] = useState<Mode>("write_full");
-  const [output, setOutput] = useState("");
-  const [directions, setDirections] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [retryable, setRetryable] = useState(false);
-  const [meta, setMeta] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [savedFlash, setSavedFlash] = useState(false);
   const [voice, setVoice] = useState<ArtistVoice>(emptyVoice());
-  const [showVoice, setShowVoice] = useState(false);
-  const [dna, setDna] = useState<DnaResult | null>(null);
-  const [humanTests, setHumanTests] = useState<HumanTest[] | null>(null);
-  const [humanOverall, setHumanOverall] = useState<number | null>(null);
-  const [cliches, setCliches] = useState<string[]>([]);
-  const [tab, setTab] = useState<"editor" | "labs" | "dna">("editor");
+  const [drawer, setDrawer] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeSection = useMemo(
@@ -122,26 +122,31 @@ export default function HitNevisClient() {
     [sections, activeSectionId],
   );
   const fullLyrics = useMemo(() => sectionsToText(sections), [sections]);
+  const hasLyrics = Boolean(fullLyrics.trim() || activeSection?.text?.trim());
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(STORAGE);
       if (raw) {
         const d = JSON.parse(raw) as Record<string, unknown>;
+        if (Array.isArray(d.messages) && d.messages.length) {
+          setMessages(d.messages as ChatMessage[]);
+        }
         if (typeof d.title === "string") setTitle(d.title);
         if (typeof d.topic === "string") setTopic(d.topic);
         if (typeof d.genre === "string") setGenre(d.genre);
         if (typeof d.tone === "string") setTone(d.tone);
-        if (typeof d.constraints === "string") setConstraints(d.constraints);
-        if (Array.isArray(d.sections) && d.sections.length) {
+        if (Array.isArray(d.sections) && (d.sections as Section[]).length) {
           setSections(d.sections as Section[]);
           setActiveSectionId((d.sections as Section[])[0].id);
         }
-        if (typeof d.output === "string") setOutput(d.output);
-        if (d.voice && typeof d.voice === "object") setVoice({ ...emptyVoice(), ...(d.voice as ArtistVoice) });
-        if (typeof d.mode === "string") setMode(d.mode as Mode);
+        if (d.voice && typeof d.voice === "object") {
+          setVoice({ ...emptyVoice(), ...(d.voice as ArtistVoice) });
+        }
       }
-    } catch { /* ignore corrupt */ }
+    } catch {
+      /* ignore */
+    }
     setHydrated(true);
   }, []);
 
@@ -150,31 +155,59 @@ export default function HitNevisClient() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          title, topic, genre, tone, constraints, sections, output, voice, mode,
-          savedAt: new Date().toISOString(),
-        }));
+        const slim = messages.slice(-40);
+        localStorage.setItem(
+          STORAGE,
+          JSON.stringify({
+            messages: slim,
+            title,
+            topic,
+            genre,
+            tone,
+            sections,
+            voice,
+            savedAt: new Date().toISOString(),
+          }),
+        );
         setSavedFlash(true);
-        setTimeout(() => setSavedFlash(false), 900);
-      } catch { /* storage full */ }
-    }, 600);
-    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [title, topic, genre, tone, constraints, sections, output, voice, mode, hydrated]);
+        setTimeout(() => setSavedFlash(false), 800);
+      } catch {
+        /* quota */
+      }
+    }, 700);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [messages, title, topic, genre, tone, sections, voice, hydrated]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
   const lockOriginal = useCallback(() => {
     try {
       if (!localStorage.getItem(ORIGINAL_KEY) && fullLyrics.trim()) {
         localStorage.setItem(ORIGINAL_KEY, fullLyrics);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [fullLyrics]);
 
   const restoreOriginal = useCallback(() => {
     try {
       const raw = localStorage.getItem(ORIGINAL_KEY);
       if (!raw) {
-        setError("پیش‌نویس اصلی ذخیره نشده است.");
-        setRetryable(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: uid(),
+            role: "assistant",
+            content: "پیش‌نویس اصلی هنوز ذخیره نشده است.",
+            at: Date.now(),
+            cardKind: "error",
+          },
+        ]);
         return;
       }
       setSections((prev) => {
@@ -182,380 +215,794 @@ export default function HitNevisClient() {
         if (next[0]) next[0] = { ...next[0], text: raw };
         return next;
       });
-      setOutput("");
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: uid(),
+          role: "assistant",
+          content: "متن اصلی هنرمند بازیابی شد و در بخش اول قرار گرفت.",
+          at: Date.now(),
+          cardKind: "analysis",
+        },
+      ]);
     } catch {
-      setError("بازیابی پیش‌نویس ممکن نشد.");
+      /* ignore */
     }
   }, []);
 
-  const updateSectionText = (id: string, text: string) => {
-    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, text } : s)));
-  };
-  const addSection = (type: SectionId, label: string) => {
-    const s: Section = { id: uid(), type, label, text: "" };
-    setSections((prev) => [...prev, s]);
-    setActiveSectionId(s.id);
-  };
-
-  const buildArtistVoicePayload = () => {
-    if (!voice.name && !voice.styleNotes && !voice.preferredWords && !voice.avoidedWords && !voice.register && !voice.rhymePreference) {
+  const buildVoicePayload = () => {
+    if (
+      !voice.name &&
+      !voice.styleNotes &&
+      !voice.preferredWords &&
+      !voice.avoidedWords &&
+      !voice.register
+    ) {
       return undefined;
     }
     return {
       name: voice.name || undefined,
       styleNotes: voice.styleNotes || undefined,
-      preferredWords: voice.preferredWords ? voice.preferredWords.split(/[,،]/).map((x) => x.trim()).filter(Boolean) : undefined,
-      avoidedWords: voice.avoidedWords ? voice.avoidedWords.split(/[,،]/).map((x) => x.trim()).filter(Boolean) : undefined,
+      preferredWords: voice.preferredWords
+        ? voice.preferredWords.split(/[,،]/).map((x) => x.trim()).filter(Boolean)
+        : undefined,
+      avoidedWords: voice.avoidedWords
+        ? voice.avoidedWords.split(/[,،]/).map((x) => x.trim()).filter(Boolean)
+        : undefined,
       register: voice.register || undefined,
-      rhymePreference: voice.rhymePreference || undefined,
     };
   };
 
-  const runGenerate = useCallback(async (overrideMode?: Mode) => {
-    const m = overrideMode || mode;
-    setError(null);
-    setRetryable(false);
-    setMeta(null);
-    setDirections([]);
-    setLoading(true);
-    lockOriginal();
-    abortRef.current?.abort();
-    const ac = new AbortController();
-    abortRef.current = ac;
+  const applyToSection = (text: string, sectionId?: string) => {
+    const id = sectionId || activeSectionId;
+    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, text } : s)));
+  };
 
-    const sectionText = activeSection?.text?.trim() || "";
-    const existing =
-      m === "write_full" || m === "structure" || m === "title_ideas" || m === "idea_analyze"
-        ? fullLyrics || sectionText
-        : sectionText || fullLyrics;
+  const applyToActiveAppend = (text: string) => {
+    setSections((prev) =>
+      prev.map((s) =>
+        s.id === activeSectionId
+          ? { ...s, text: s.text.trim() ? `${s.text.trim()}\n${text}` : text }
+          : s,
+      ),
+    );
+  };
 
+  const copyText = async (id: string, text: string) => {
     try {
-      if (m === "hit_dna" || m === "human_tests") {
-        const res = await fetch("/api/hitnevis/analyze", {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1400);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const runRequest = useCallback(
+    async (userText: string, forcedMode?: HitNevisMode, forcedSection?: LyricSectionId) => {
+      const trimmed = userText.trim();
+      if (!trimmed && !forcedMode) return;
+
+      const intent = forcedMode
+        ? {
+            mode: forcedMode,
+            sectionType: forcedSection,
+            confidence: 1,
+            label: forcedMode,
+          }
+        : detectIntent(trimmed || topic, hasLyrics);
+
+      const mode = intent.mode;
+      const sectionType =
+        intent.sectionType || (activeSection?.type as LyricSectionId | undefined);
+
+      const userMsg: ChatMessage = {
+        id: uid("u"),
+        role: "user",
+        content: trimmed || intent.label,
+        at: Date.now(),
+        mode,
+        modeLabel: intent.label,
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      setInput("");
+      setLoading(true);
+      lockOriginal();
+
+      abortRef.current?.abort();
+      const ac = new AbortController();
+      abortRef.current = ac;
+
+      const existing =
+        mode === "write_full" ||
+        mode === "structure" ||
+        mode === "title_ideas" ||
+        mode === "idea_analyze"
+          ? fullLyrics || activeSection?.text || ""
+          : activeSection?.text?.trim() || fullLyrics;
+
+      try {
+        if (mode === "hit_dna" || mode === "human_tests" || mode === "anti_cliche") {
+          const kind =
+            mode === "hit_dna" ? "dna" : mode === "human_tests" ? "human" : "cliche";
+          const res = await fetch("/api/hitnevis/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              text: existing || trimmed || topic,
+              kind,
+              artistNotes: voice.styleNotes || undefined,
+            }),
+            signal: ac.signal,
+            cache: "no-store",
+          });
+          const data = await res.json();
+          if (!data.ok) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: uid(),
+                role: "assistant",
+                content: data.error || "تحلیل ممکن نشد.",
+                at: Date.now(),
+                cardKind: "error",
+                retryable: true,
+                lastPrompt: trimmed,
+                mode,
+              },
+            ]);
+            return;
+          }
+          if (mode === "hit_dna") {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: uid(),
+                role: "assistant",
+                content: data.report || data.dnaReport || "تحلیل آماده است.",
+                at: Date.now(),
+                cardKind: "dna",
+                dna: data.dna,
+                mode,
+                modeLabel: "Hit DNA",
+              },
+            ]);
+          } else if (mode === "human_tests") {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: uid(),
+                role: "assistant",
+                content: data.report || data.humanReport || "نتایج تست‌ها:",
+                at: Date.now(),
+                cardKind: "human",
+                humanTests: data.human?.tests,
+                humanOverall: data.human?.overall,
+                mode,
+                modeLabel: "تست انسانی",
+              },
+            ]);
+          } else {
+            const list: string[] = data.cliches || [];
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: uid(),
+                role: "assistant",
+                content:
+                  list.length > 0
+                    ? `کلیشه‌های احتمالی:\n• ${list.join("\n• ")}\n\nمی‌تونی بگی «جایگزین پیشنهاد بده» تا نسخهٔ تازه بسازم.`
+                    : "کلیشهٔ واضحی پیدا نشد — متن نسبتاً تازه به نظر می‌رسد.",
+                at: Date.now(),
+                cardKind: "analysis",
+                cliches: list,
+                mode,
+                modeLabel: "ضدکلیشه",
+              },
+            ]);
+          }
+          return;
+        }
+
+        const res = await fetch("/api/hitnevis/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            text: existing || topic,
-            kind: m === "hit_dna" ? "dna" : "human",
-            artistNotes: voice.styleNotes || undefined,
+            mode,
+            topic: (topic || trimmed).slice(0, 500) || undefined,
+            existingLyrics: existing || undefined,
+            sectionType,
+            genre: genre || undefined,
+            tone: tone || undefined,
+            constraints: trimmed && trimmed !== topic ? trimmed.slice(0, 400) : undefined,
+            language: "fa",
+            artistVoice: buildVoicePayload(),
+            directionsCount: mode === "save_lyric" || mode === "hook_lab" ? 3 : undefined,
           }),
           signal: ac.signal,
           cache: "no-store",
         });
+
         const data = await res.json();
         if (!data.ok) {
-          setError(data.error || "تحلیل ممکن نشد");
-          setRetryable(true);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: uid(),
+              role: "assistant",
+              content: data.error || "خطا در تولید. پیش‌نویس محفوظ است.",
+              at: Date.now(),
+              cardKind: "error",
+              retryable: Boolean(data.retryable),
+              lastPrompt: trimmed,
+              mode,
+            },
+          ]);
           return;
         }
-        if (m === "hit_dna") {
-          setDna(data.dna);
-          setOutput(data.report || data.dnaReport || "");
-          setTab("dna");
+
+        const isLyric =
+          mode.startsWith("write_") ||
+          [
+            "continue",
+            "rewrite",
+            "improve",
+            "shorten",
+            "emotional",
+            "conversational",
+            "visual",
+            "bold",
+            "rhyme",
+            "artist_voice",
+          ].includes(mode);
+
+        const isDir = mode === "save_lyric" || mode === "hook_lab";
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: uid(),
+            role: "assistant",
+            content: data.text,
+            at: Date.now(),
+            cardKind: isDir ? "directions" : isLyric ? "lyrics" : "analysis",
+            directions: data.directions,
+            mode,
+            modeLabel: intent.label,
+            lastPrompt: trimmed,
+          },
+        ]);
+      } catch (e) {
+        if ((e as Error)?.name === "AbortError") {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: uid(),
+              role: "assistant",
+              content: "درخواست لغو شد.",
+              at: Date.now(),
+              cardKind: "error",
+              retryable: true,
+              lastPrompt: trimmed,
+            },
+          ]);
         } else {
-          setHumanTests(data.human?.tests || null);
-          setHumanOverall(data.human?.overall ?? null);
-          setOutput(data.report || data.humanReport || "");
-          setTab("dna");
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: uid(),
+              role: "assistant",
+              content: "ارتباط برقرار نشد. متنت امن است — دوباره امتحان کن.",
+              at: Date.now(),
+              cardKind: "error",
+              retryable: true,
+              lastPrompt: trimmed,
+            },
+          ]);
         }
-        setMeta("local-analytical");
-        return;
+      } finally {
+        setLoading(false);
       }
+    },
+    [hasLyrics, topic, activeSection, fullLyrics, genre, tone, voice, lockOriginal, activeSectionId],
+  );
 
-      const res = await fetch("/api/hitnevis/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: m,
-          topic: topic.trim() || undefined,
-          existingLyrics: existing || undefined,
-          sectionType: activeSection?.type,
-          genre: genre || undefined,
-          tone: tone || undefined,
-          constraints: constraints.trim() || undefined,
-          language: "fa",
-          artistVoice: buildArtistVoicePayload(),
-          directionsCount: m === "save_lyric" ? 3 : undefined,
-        }),
-        signal: ac.signal,
-        cache: "no-store",
-      });
+  const onSubmit = (e?: FormEvent) => {
+    e?.preventDefault();
+    if (loading) return;
+    const t = input.trim();
+    if (!t) return;
+    void runRequest(t);
+  };
 
-      const data = (await res.json()) as ApiOk | ApiErr;
-      if (!data.ok) {
-        setError(data.error || "خطای ناشناخته");
-        setRetryable(Boolean(data.retryable));
-        return;
-      }
-      setOutput(data.text);
-      if (data.directions?.length) setDirections(data.directions);
-      setMeta(`${data.provider} · ${data.model} · ${data.latencyMs}ms · ${data.requestId}`);
-    } catch (e) {
-      if ((e as Error)?.name === "AbortError") {
-        setError("درخواست لغو شد.");
-        setRetryable(true);
-      } else {
-        setError("ارتباط با سرور برقرار نشد. پیش‌نویس محفوظ است.");
-        setRetryable(true);
-      }
-    } finally {
-      setLoading(false);
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      onSubmit();
     }
-  }, [mode, topic, genre, tone, constraints, activeSection, fullLyrics, voice, lockOriginal]);
-
-  const runLocalCliche = async () => {
-    try {
-      const res = await fetch("/api/hitnevis/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: fullLyrics || activeSection?.text || topic, kind: "cliche" }),
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (data.ok) setCliches(data.cliches || []);
-    } catch { /* non-fatal */ }
   };
 
-  const applyToActive = () => {
-    if (!output || !activeSection) return;
-    updateSectionText(activeSection.id, output);
-  };
-  const applyDirection = (dir: string) => {
-    if (!activeSection) return;
-    updateSectionText(activeSection.id, dir);
-  };
-  const copyOut = async () => {
-    if (!output) return;
-    try {
-      await navigator.clipboard.writeText(output);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch { /* ignore */ }
+  const addSection = (type: LyricSectionId, label: string) => {
+    const s: Section = { id: uid("s"), type, label, text: "" };
+    setSections((prev) => [...prev, s]);
+    setActiveSectionId(s.id);
   };
 
   if (!hydrated) {
     return (
-      <div className="flex min-h-[240px] items-center justify-center text-sm text-ink-400">
+      <div className="flex min-h-[50vh] items-center justify-center text-sm text-ink-400">
         <Loader2 className="me-2 animate-spin" size={18} />
-        بازیابی پیش‌نویس…
+        بازیابی گفتگو…
       </div>
     );
   }
 
-  const chip = (active: boolean) =>
-    active ? "bg-gold-400/20 text-gold-200 ring-1 ring-gold-400/40" : "bg-ink-900/60 text-ink-400";
+  return (
+    <div className="relative flex min-h-[70vh] flex-col gap-3 lg:flex-row" dir="rtl">
+      <div className="flex min-h-[60vh] flex-1 flex-col overflow-hidden rounded-2xl border border-ink-800/80 bg-ink-950/40">
+        <div className="flex flex-wrap items-center gap-2 border-b border-ink-800/80 px-3 py-2.5 sm:px-4">
+          <Sparkles size={16} className="text-gold-400" />
+          <span className="text-sm font-medium text-sand-100">گفتگوی ترانه‌سرایی</span>
+          <span className="text-[10px] text-ink-500">{savedFlash ? "ذخیره شد" : "ذخیرهٔ خودکار"}</span>
+          <div className="ms-auto flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={restoreOriginal}
+              className="inline-flex items-center gap-1 rounded-lg border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:text-sand-100"
+              title="بازیابی متن اصلی"
+            >
+              <RotateCcw size={12} />
+              اصل
+            </button>
+            <button
+              type="button"
+              onClick={() => setDrawer((d) => !d)}
+              className="inline-flex items-center gap-1 rounded-lg border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:text-sand-100 lg:hidden"
+            >
+              <PanelRight size={12} />
+              پروژه
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4">
+          {messages.map((m) => (
+            <MessageBubble
+              key={m.id}
+              msg={m}
+              copied={copiedId === m.id}
+              loading={loading}
+              onCopy={() => void copyText(m.id, m.content)}
+              onUse={() => applyToSection(m.content)}
+              onAppend={() => applyToActiveAppend(m.content)}
+              onContinue={() => void runRequest("ادامه‌ش بده", "continue")}
+              onRewrite={() => void runRequest("بازنویسی کن", "rewrite")}
+              onRegen={() => m.lastPrompt && void runRequest(m.lastPrompt, m.mode)}
+              onRetry={() => m.lastPrompt && void runRequest(m.lastPrompt, m.mode)}
+              onDirection={(d) => applyToSection(d)}
+            />
+          ))}
+          {loading && (
+            <div className="flex items-center gap-2 text-sm text-ink-400">
+              <Loader2 size={16} className="animate-spin text-gold-400" />
+              در حال نوشتن…
+              <button
+                type="button"
+                onClick={() => abortRef.current?.abort()}
+                className="ms-2 inline-flex items-center gap-1 rounded-lg border border-ink-600 px-2 py-0.5 text-[11px] text-ink-300"
+              >
+                <Square size={10} /> لغو
+              </button>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {!loading && messages.length <= 2 && (
+          <div className="flex flex-wrap gap-1.5 border-t border-ink-800/50 px-3 py-2 sm:px-4">
+            {QUICK_ACTIONS.map((q) => (
+              <button
+                key={q.label}
+                type="button"
+                onClick={() => void runRequest(q.prompt)}
+                className="rounded-full border border-ink-700/80 bg-ink-900/50 px-2.5 py-1 text-[11px] text-ink-300 hover:border-gold-400/40 hover:text-sand-100"
+              >
+                {q.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <form onSubmit={onSubmit} className="border-t border-ink-800/80 bg-ink-950/60 p-3 sm:p-4">
+          <div className="flex items-end gap-2">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value.slice(0, 2000))}
+              onKeyDown={onKeyDown}
+              rows={2}
+              placeholder="مثلاً: یه کورس قوی بساز…"
+              className="max-h-32 min-h-[2.75rem] flex-1 resize-none rounded-xl border border-ink-700/80 bg-ink-900/80 px-3 py-2.5 text-sm leading-6 text-sand-50 outline-none focus:border-gold-400/40"
+              disabled={loading}
+            />
+            <button
+              type="submit"
+              disabled={loading || !input.trim()}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-400/90 text-ink-950 transition hover:bg-gold-300 disabled:opacity-50"
+              aria-label="ارسال"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+            </button>
+          </div>
+          <p className="mt-1.5 text-[10px] text-ink-600">Enter ارسال · Shift+Enter خط جدید</p>
+        </form>
+      </div>
+
+      <aside
+        className={`
+          ${drawer ? "fixed inset-0 z-40 flex" : "hidden"}
+          lg:relative lg:z-0 lg:flex lg:w-80 lg:shrink-0 lg:flex-col
+        `}
+      >
+        {drawer && (
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50 lg:hidden"
+            aria-label="بستن"
+            onClick={() => setDrawer(false)}
+          />
+        )}
+        <div
+          className={`
+            relative ms-auto flex h-full w-[min(100%,20rem)] flex-col overflow-y-auto
+            border-ink-800/80 bg-ink-950 p-4
+            lg:ms-0 lg:h-auto lg:w-full lg:rounded-2xl lg:border
+            ${drawer ? "border-s" : ""}
+          `}
+        >
+          <div className="mb-3 flex items-center justify-between lg:hidden">
+            <span className="text-sm font-medium text-sand-100">پروژه</span>
+            <button type="button" onClick={() => setDrawer(false)} aria-label="بستن">
+              <X size={18} className="text-ink-400" />
+            </button>
+          </div>
+
+          <label className="block text-[11px] text-ink-500">
+            عنوان
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value.slice(0, 120))}
+              className="mt-1 w-full rounded-lg border border-ink-700/80 bg-ink-900/60 px-2.5 py-1.5 text-sm text-sand-50"
+            />
+          </label>
+          <label className="mt-2 block text-[11px] text-ink-500">
+            موضوع / حس
+            <input
+              value={topic}
+              onChange={(e) => setTopic(e.target.value.slice(0, 500))}
+              className="mt-1 w-full rounded-lg border border-ink-700/80 bg-ink-900/60 px-2.5 py-1.5 text-sm text-sand-50"
+              placeholder="اختیاری"
+            />
+          </label>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <label className="block text-[11px] text-ink-500">
+              ژانر
+              <select
+                value={genre}
+                onChange={(e) => setGenre(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-ink-700/80 bg-ink-900/60 px-2 py-1.5 text-xs text-sand-50"
+              >
+                <option value="">—</option>
+                <option value="pop">پاپ</option>
+                <option value="hiphop">هیپ‌هاپ</option>
+                <option value="rock">راک</option>
+                <option value="traditional">سنتی</option>
+                <option value="electronic">الکترونیک</option>
+                <option value="rnb">R&B</option>
+                <option value="folk">فولک</option>
+              </select>
+            </label>
+            <label className="block text-[11px] text-ink-500">
+              حس
+              <select
+                value={tone}
+                onChange={(e) => setTone(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-ink-700/80 bg-ink-900/60 px-2 py-1.5 text-xs text-sand-50"
+              >
+                <option value="">—</option>
+                <option value="romantic">عاشقانه</option>
+                <option value="sad">غمگین</option>
+                <option value="hopeful">امیدوار</option>
+                <option value="angry">عصبانی</option>
+                <option value="playful">شوخ</option>
+                <option value="epic">حماسی</option>
+                <option value="neutral">خنثی</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[11px] font-medium text-ink-400">بخش‌ها</span>
+              <button
+                type="button"
+                onClick={() =>
+                  addSection("verse", `ورس ${sections.filter((x) => x.type === "verse").length + 1}`)
+                }
+                className="inline-flex items-center gap-0.5 text-[10px] text-gold-300"
+              >
+                <Plus size={12} /> ورس
+              </button>
+            </div>
+            <div className="space-y-2">
+              {sections.map((s) => (
+                <div key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSectionId(s.id)}
+                    className={`mb-1 rounded px-1.5 py-0.5 text-[11px] ${
+                      activeSectionId === s.id ? "bg-gold-400/15 text-gold-200" : "text-ink-400"
+                    }`}
+                  >
+                    {s.label}
+                    {s.text.trim() ? " ·" : ""}
+                  </button>
+                  {activeSectionId === s.id && (
+                    <textarea
+                      value={s.text}
+                      onChange={(e) =>
+                        setSections((prev) =>
+                          prev.map((x) =>
+                            x.id === s.id ? { ...x, text: e.target.value.slice(0, 4000) } : x,
+                          ),
+                        )
+                      }
+                      rows={5}
+                      className="w-full rounded-lg border border-ink-700/80 bg-ink-900/50 px-2 py-1.5 text-xs leading-6 text-sand-50"
+                      dir="auto"
+                      placeholder={`متن ${s.label}…`}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setVoiceOpen((v) => !v)}
+            className="mt-4 flex w-full items-center justify-between rounded-lg border border-ink-700/60 px-2.5 py-2 text-xs text-ink-300"
+          >
+            <span className="inline-flex items-center gap-1">
+              <User size={12} /> صدای هنرمند
+            </span>
+            <ChevronDown size={14} className={voiceOpen ? "rotate-180" : ""} />
+          </button>
+          {voiceOpen && (
+            <div className="mt-2 space-y-2 rounded-lg border border-ink-800/80 p-2">
+              <input
+                value={voice.name}
+                onChange={(e) => setVoice((v) => ({ ...v, name: e.target.value.slice(0, 80) }))}
+                placeholder="نام / هویت"
+                className="w-full rounded border border-ink-700/60 bg-ink-900/50 px-2 py-1 text-xs text-sand-50"
+              />
+              <textarea
+                value={voice.styleNotes}
+                onChange={(e) =>
+                  setVoice((v) => ({ ...v, styleNotes: e.target.value.slice(0, 500) }))
+                }
+                rows={2}
+                placeholder="یادداشت سبک"
+                className="w-full rounded border border-ink-700/60 bg-ink-900/50 px-2 py-1 text-xs text-sand-50"
+              />
+              <input
+                value={voice.preferredWords}
+                onChange={(e) =>
+                  setVoice((v) => ({ ...v, preferredWords: e.target.value.slice(0, 300) }))
+                }
+                placeholder="واژه‌های مورد علاقه"
+                className="w-full rounded border border-ink-700/60 bg-ink-900/50 px-2 py-1 text-xs text-sand-50"
+              />
+              <input
+                value={voice.avoidedWords}
+                onChange={(e) =>
+                  setVoice((v) => ({ ...v, avoidedWords: e.target.value.slice(0, 300) }))
+                }
+                placeholder="پرهیز از"
+                className="w-full rounded border border-ink-700/60 bg-ink-900/50 px-2 py-1 text-xs text-sand-50"
+              />
+            </div>
+          )}
+
+          <p className="mt-4 text-[10px] leading-5 text-ink-600">
+            متن اصلی هرگز خودکار جایگزین نمی‌شود. از «جایگزینی» روی کارت برای اعمال در بخش فعال استفاده کن.
+          </p>
+        </div>
+      </aside>
+
+      <button
+        type="button"
+        onClick={() => setDrawer(true)}
+        className="fixed bottom-20 left-4 z-30 rounded-full border border-ink-600 bg-ink-900 p-3 text-ink-300 shadow-lg lg:hidden"
+        aria-label="پروژه"
+      >
+        <PanelRight size={18} />
+      </button>
+    </div>
+  );
+}
+
+function MessageBubble({
+  msg,
+  copied,
+  loading,
+  onCopy,
+  onUse,
+  onAppend,
+  onContinue,
+  onRewrite,
+  onRegen,
+  onRetry,
+  onDirection,
+}: {
+  msg: ChatMessage;
+  copied: boolean;
+  loading: boolean;
+  onCopy: () => void;
+  onUse: () => void;
+  onAppend: () => void;
+  onContinue: () => void;
+  onRewrite: () => void;
+  onRegen: () => void;
+  onRetry: () => void;
+  onDirection: (d: string) => void;
+}) {
+  if (msg.role === "user") {
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[90%] rounded-2xl rounded-tr-md bg-gold-400/15 px-3.5 py-2.5 text-sm leading-7 text-sand-50">
+          {msg.content}
+          {msg.modeLabel && (
+            <div className="mt-1 text-[10px] text-gold-300/80">{msg.modeLabel}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const isError = msg.cardKind === "error";
+  const isLyrics = msg.cardKind === "lyrics";
+  const isDna = msg.cardKind === "dna";
+  const isHuman = msg.cardKind === "human";
+  const isDir = msg.cardKind === "directions";
 
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="card-ay flex flex-wrap items-center gap-3 p-4 sm:p-5">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value.slice(0, 120))}
-          className="min-w-[12rem] flex-1 bg-transparent text-lg font-medium text-sand-50 outline-none"
-          placeholder="عنوان ترانه"
-        />
-        <span className="text-[10px] text-ink-500">
-          {savedFlash ? (
-            <span className="inline-flex items-center gap-1 text-emerald-400"><Save size={12} /> ذخیره شد</span>
-          ) : "ذخیرهٔ خودکار"}
-        </span>
-        <button type="button" onClick={restoreOriginal} className="inline-flex items-center gap-1 rounded-lg border border-ink-600 px-2 py-1 text-xs text-ink-300" title="بازیابی متن اصلی">
-          <RotateCcw size={12} /> اصل هنرمند
-        </button>
-        <button type="button" onClick={() => setShowVoice((v) => !v)} className="inline-flex items-center gap-1 rounded-lg border border-ink-600 px-2 py-1 text-xs text-ink-300">
-          <User size={12} /> صدای هنرمند
-        </button>
-      </div>
-
-      {showVoice && (
-        <div className="card-ay grid gap-3 p-4 sm:grid-cols-2">
-          <label className="block text-xs text-ink-400">نام / هویت
-            <input value={voice.name} onChange={(e) => setVoice((v) => ({ ...v, name: e.target.value.slice(0, 80) }))} className="mt-1 w-full rounded-xl border border-ink-700/80 bg-ink-950/80 px-3 py-2 text-sm text-sand-50" />
-          </label>
-          <label className="block text-xs text-ink-400">رجیستر
-            <select value={voice.register} onChange={(e) => setVoice((v) => ({ ...v, register: e.target.value as ArtistVoice["register"] }))} className="mt-1 w-full rounded-xl border border-ink-700/80 bg-ink-950/80 px-3 py-2 text-sm text-sand-50">
-              <option value="">—</option>
-              <option value="colloquial">محاوره</option>
-              <option value="literary">ادبی</option>
-              <option value="mixed">ترکیبی</option>
-            </select>
-          </label>
-          <label className="block text-xs text-ink-400 sm:col-span-2">یادداشت سبک
-            <textarea value={voice.styleNotes} onChange={(e) => setVoice((v) => ({ ...v, styleNotes: e.target.value.slice(0, 500) }))} rows={2} className="mt-1 w-full rounded-xl border border-ink-700/80 bg-ink-950/80 px-3 py-2 text-sm text-sand-50" />
-          </label>
-          <label className="block text-xs text-ink-400">واژه‌های مورد علاقه
-            <input value={voice.preferredWords} onChange={(e) => setVoice((v) => ({ ...v, preferredWords: e.target.value.slice(0, 300) }))} className="mt-1 w-full rounded-xl border border-ink-700/80 bg-ink-950/80 px-3 py-2 text-sm text-sand-50" />
-          </label>
-          <label className="block text-xs text-ink-400">پرهیز از
-            <input value={voice.avoidedWords} onChange={(e) => setVoice((v) => ({ ...v, avoidedWords: e.target.value.slice(0, 300) }))} className="mt-1 w-full rounded-xl border border-ink-700/80 bg-ink-950/80 px-3 py-2 text-sm text-sand-50" />
-          </label>
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        {([{ id: "editor" as const, label: "ویرایشگر" }, { id: "labs" as const, label: "آزمایشگاه‌ها" }, { id: "dna" as const, label: "Hit DNA" }]).map((t) => (
-          <button key={t.id} type="button" onClick={() => setTab(t.id)} className={`rounded-full px-4 py-1.5 text-xs ${chip(tab === t.id)}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <section className="card-ay space-y-3 p-4 sm:p-5">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <input value={topic} onChange={(e) => setTopic(e.target.value.slice(0, 500))} placeholder="موضوع / حس" className="col-span-2 rounded-xl border border-ink-700/80 bg-ink-950/80 px-3 py-2 text-sm text-sand-50 sm:col-span-2" />
-            <select value={genre} onChange={(e) => setGenre(e.target.value)} className="rounded-xl border border-ink-700/80 bg-ink-950/80 px-2 py-2 text-xs text-sand-50">
-              {GENRES.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
-            </select>
-            <select value={tone} onChange={(e) => setTone(e.target.value)} className="rounded-xl border border-ink-700/80 bg-ink-950/80 px-2 py-2 text-xs text-sand-50">
-              {TONES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
+    <div className="flex justify-end">
+      <div
+        className={`max-w-[95%] rounded-2xl rounded-tl-md border px-3.5 py-3 text-sm leading-7 ${
+          isError
+            ? "border-red-500/30 bg-red-950/40 text-red-100"
+            : "border-ink-700/60 bg-ink-900/70 text-sand-50"
+        }`}
+      >
+        {msg.modeLabel && !isError && (
+          <div className="mb-1.5 text-[10px] text-ink-500">{msg.modeLabel}</div>
+        )}
+        {isError && (
+          <div className="mb-1 flex items-center gap-1.5 text-xs">
+            <AlertCircle size={14} /> خطا
           </div>
+        )}
 
-          {(tab === "editor" || tab === "labs") && (
-            <>
-              <div className="flex flex-wrap gap-1.5">
-                {sections.map((s) => (
-                  <button key={s.id} type="button" onClick={() => setActiveSectionId(s.id)} className={`rounded-lg px-2.5 py-1 text-[11px] ${activeSectionId === s.id ? "bg-gold-400/15 text-gold-200" : "bg-ink-900 text-ink-400"}`}>
-                    {s.label}{s.text.trim() ? " ·" : ""}
-                  </button>
-                ))}
-                <button type="button" onClick={() => addSection("verse", `ورس ${sections.filter((x) => x.type === "verse").length + 1}`)} className="rounded-lg border border-dashed border-ink-600 px-2 py-1 text-[11px] text-ink-400">+ ورس</button>
-              </div>
-              <textarea
-                value={activeSection?.text || ""}
-                onChange={(e) => activeSection && updateSectionText(activeSection.id, e.target.value.slice(0, 4000))}
-                rows={12}
-                placeholder={`متن ${activeSection?.label || "بخش"}…`}
-                className="w-full resize-y rounded-xl border border-ink-700/80 bg-ink-950/80 px-3 py-3 text-sm leading-8 text-sand-50 outline-none focus:border-gold-400/40"
-                dir="auto"
-              />
-              <input value={constraints} onChange={(e) => setConstraints(e.target.value.slice(0, 400))} placeholder="محدودیت‌ها (اختیاری)" className="w-full rounded-xl border border-ink-700/80 bg-ink-950/80 px-3 py-2 text-sm text-sand-50" />
-            </>
-          )}
+        <pre className="whitespace-pre-wrap font-sans text-sm leading-7" dir="auto">
+          {msg.content}
+        </pre>
 
-          {tab === "editor" && (
-            <div className="space-y-2">
-              <p className="text-[11px] text-ink-500">نوشتن</p>
-              <div className="flex flex-wrap gap-1.5">
-                {WRITE_MODES.map((m) => (
-                  <button key={m.id} type="button" onClick={() => setMode(m.id)} className={`rounded-full px-2.5 py-1 text-[11px] ${mode === m.id ? "bg-gold-400/20 text-gold-200" : "bg-ink-900 text-ink-400"}`}>{m.label}</button>
-                ))}
+        {isDna && msg.dna && (
+          <div className="mt-3 grid grid-cols-3 gap-1.5 text-[10px]">
+            {(
+              [
+                ["ساختار", msg.dna.structureScore],
+                ["هوک", msg.dna.hookPresence],
+                ["تکرار", msg.dna.repetitionIndex],
+                ["روایت", msg.dna.narrativeClarity],
+                ["احساس", msg.dna.emotionalArc],
+                ["قافیه", msg.dna.rhymeDensity],
+                ["رجیستر", msg.dna.registerConsistency],
+                ["عبارت", msg.dna.phraseDensity],
+                ["حافظه", msg.dna.memorabilitySignal],
+              ] as const
+            ).map(([k, v]) => (
+              <div key={k} className="rounded-md bg-ink-950/80 px-1.5 py-1">
+                <div className="text-ink-500">{k}</div>
+                <div>{v}/10</div>
               </div>
-              <p className="text-[11px] text-ink-500">اقدامات</p>
-              <div className="flex flex-wrap gap-1.5">
-                {ACTION_MODES.map((m) => (
-                  <button key={m.id} type="button" onClick={() => setMode(m.id)} className={`rounded-full px-2.5 py-1 text-[11px] ${mode === m.id ? "bg-gold-400/20 text-gold-200" : "bg-ink-900 text-ink-400"}`}>{m.label}</button>
-                ))}
-              </div>
+            ))}
+            <div className="col-span-3 rounded-md bg-gold-400/10 px-2 py-1 text-xs">
+              جمع: {msg.dna.overall}/10
             </div>
-          )}
+          </div>
+        )}
 
-          {tab === "labs" && (
-            <div className="flex flex-wrap gap-2">
-              {LAB_MODES.map((m) => (
-                <button key={m.id} type="button" onClick={() => { setMode(m.id); void runGenerate(m.id); }} className="inline-flex items-center gap-1.5 rounded-xl border border-ink-600/80 bg-ink-900/50 px-3 py-2 text-xs text-sand-100 hover:border-gold-400/30">
-                  {m.icon === "dna" ? <Dna size={14} /> : m.icon === "shield" ? <Shield size={14} /> : m.icon === "mic" ? <Mic2 size={14} /> : m.icon === "user" ? <User size={14} /> : <FlaskConical size={14} />}
-                  {m.label}
-                </button>
-              ))}
-              <button type="button" onClick={() => void runLocalCliche()} className="rounded-xl border border-ink-600/80 px-3 py-2 text-xs text-ink-300">اسکن کلیشه (محلی)</button>
-            </div>
-          )}
-
-          {tab === "dna" && (
-            <div className="space-y-3 text-sm text-ink-300">
-              <p className="text-xs text-ink-500">تحلیل الگو روی متن خودت — بدون کپی. تضمین هیت نیست.</p>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={loading} onClick={() => void runGenerate("hit_dna")} className="rounded-xl bg-gold-400/90 px-3 py-2 text-xs font-medium text-ink-950">اجرای Hit DNA</button>
-                <button type="button" disabled={loading} onClick={() => void runGenerate("human_tests")} className="rounded-xl border border-ink-600 px-3 py-2 text-xs text-sand-100">تست‌های انسانی</button>
+        {isHuman && msg.humanTests && (
+          <div className="mt-3 space-y-1.5 text-xs">
+            <div className="text-gold-200">میانگین: {msg.humanOverall}/10</div>
+            {msg.humanTests.map((t) => (
+              <div key={t.id} className="rounded-md bg-ink-950/70 px-2 py-1.5">
+                <span className="font-medium">{t.label}</span>: {t.score}/10 — {t.summary}
               </div>
-              {dna && (
-                <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-                  {([
-                    ["ساختار", dna.structureScore], ["هوک", dna.hookPresence], ["تکرار", dna.repetitionIndex],
-                    ["روایت", dna.narrativeClarity], ["احساس", dna.emotionalArc], ["قافیه", dna.rhymeDensity],
-                    ["رجیستر", dna.registerConsistency], ["عبارت", dna.phraseDensity], ["حافظه", dna.memorabilitySignal],
-                  ] as const).map(([k, v]) => (
-                    <div key={k} className="rounded-lg bg-ink-950/70 px-2 py-2">
-                      <div className="text-ink-500">{k}</div>
-                      <div className="text-sand-50">{v}/10</div>
-                    </div>
-                  ))}
-                  <div className="rounded-lg bg-gold-400/10 px-2 py-2 sm:col-span-3">جمع: {dna.overall}/10</div>
-                </div>
-              )}
-              {humanTests && (
-                <div className="space-y-2">
-                  <p className="text-xs text-gold-200">میانگین تست‌ها: {humanOverall}/10</p>
-                  {humanTests.map((t) => (
-                    <div key={t.id} className="rounded-lg bg-ink-950/60 px-3 py-2 text-xs">
-                      <div className="font-medium text-sand-100">{t.label}: {t.score}/10</div>
-                      <div className="text-ink-400">{t.summary}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {cliches.length > 0 && <p className="text-xs text-amber-200/90">کلیشه: {cliches.join("، ")}</p>}
-            </div>
-          )}
+            ))}
+          </div>
+        )}
 
-          {(tab === "editor" || tab === "labs") && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button type="button" disabled={loading} onClick={() => void runGenerate()} className="inline-flex items-center gap-2 rounded-xl bg-gold-400/90 px-4 py-2.5 text-sm font-medium text-ink-950 disabled:opacity-60">
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                {loading ? "در حال تولید…" : "اجرا"}
+        {isDir && msg.directions && msg.directions.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {msg.directions.map((d, i) => (
+              <button
+                key={i}
+                type="button"
+                disabled={loading}
+                onClick={() => onDirection(d)}
+                className="block w-full rounded-xl border border-ink-600/60 bg-ink-950/50 p-2.5 text-start text-xs leading-6 hover:border-gold-400/30"
+              >
+                {d.slice(0, 500)}
+                {d.length > 500 ? "…" : ""}
+                <span className="mt-1 block text-[10px] text-gold-300">استفاده از این جهت</span>
               </button>
-              {loading && (
-                <button type="button" onClick={() => abortRef.current?.abort()} className="rounded-xl border border-ink-600 px-3 py-2.5 text-xs text-ink-300">لغو</button>
-              )}
-            </div>
-          )}
+            ))}
+          </div>
+        )}
 
-          {error && (
-            <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-950/40 px-3 py-3 text-sm text-red-100">
-              <AlertCircle size={18} className="mt-0.5 shrink-0" />
-              <div>
-                <p>{error}</p>
-                {retryable && (
-                  <button type="button" onClick={() => void runGenerate()} className="mt-2 text-xs text-gold-300 underline">تلاش دوباره</button>
-                )}
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="card-ay flex min-h-[360px] flex-col p-4 sm:p-5">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-medium text-sand-100">خروجی AI</h2>
-            <div className="flex flex-wrap gap-2">
-              {output && (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {!isError && (
+            <>
+              <ActionBtn onClick={onCopy}>
+                {copied ? <Check size={12} /> : <Copy size={12} />} کپی
+              </ActionBtn>
+              {(isLyrics || isDir) && (
                 <>
-                  <button type="button" onClick={copyOut} className="inline-flex items-center gap-1 rounded-lg border border-ink-600 px-2 py-1 text-xs text-ink-300">
-                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                    {copied ? "کپی شد" : "کپی"}
-                  </button>
-                  <button type="button" onClick={applyToActive} className="rounded-lg border border-ink-600 px-2 py-1 text-xs text-ink-300">اعمال به بخش فعال</button>
+                  <ActionBtn onClick={onUse}>جایگزینی</ActionBtn>
+                  <ActionBtn onClick={onAppend}>افزودن</ActionBtn>
+                  <ActionBtn onClick={onContinue} disabled={loading}>
+                    ادامه
+                  </ActionBtn>
+                  <ActionBtn onClick={onRewrite} disabled={loading}>
+                    بازنویسی
+                  </ActionBtn>
+                  <ActionBtn onClick={onRegen} disabled={loading}>
+                    دوباره
+                  </ActionBtn>
                 </>
               )}
-            </div>
-          </div>
-          <pre className="flex-1 whitespace-pre-wrap rounded-xl bg-ink-950/60 p-4 text-sm leading-8 text-sand-50" dir="auto">
-            {output || (loading ? "…" : "خروجی اینجا می‌آید. متن اصلی‌ات خودکار جایگزین نمی‌شود.")}
-          </pre>
-          {directions.length > 0 && (
-            <div className="mt-3 space-y-2">
-              <p className="text-xs text-ink-400">جهت‌های خلاقانه — یکی را انتخاب کن:</p>
-              {directions.map((d, i) => (
-                <button key={i} type="button" onClick={() => applyDirection(d)} className="block w-full rounded-xl border border-ink-700/60 bg-ink-950/40 p-3 text-start text-xs leading-6 text-sand-100 hover:border-gold-400/30">
-                  {d.slice(0, 400)}{d.length > 400 ? "…" : ""}
-                </button>
-              ))}
-            </div>
+            </>
           )}
-          {meta && <p className="mt-2 text-[10px] text-ink-600">{meta}</p>}
-        </section>
+          {isError && msg.retryable && (
+            <ActionBtn onClick={onRetry} disabled={loading}>
+              تلاش دوباره
+            </ActionBtn>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+function ActionBtn({
+  children,
+  onClick,
+  disabled,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="inline-flex items-center gap-1 rounded-lg border border-ink-600/70 px-2 py-0.5 text-[11px] text-ink-300 hover:border-gold-400/30 hover:text-sand-100 disabled:opacity-50"
+    >
+      {children}
+    </button>
   );
 }
