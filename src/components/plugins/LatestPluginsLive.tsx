@@ -22,6 +22,8 @@ export type LatestPlugin = {
 type Props = {
   initialItems: LatestPlugin[];
   channelHref?: string;
+  /** When true, skip the built-in section title (homepage already has one). */
+  hideHeader?: boolean;
 };
 
 function coverSrc(p: LatestPlugin) {
@@ -36,7 +38,7 @@ function downloadHref(p: LatestPlugin) {
   return "/api/plugins/download?id=" + encodeURIComponent(p.id);
 }
 
-export default function LatestPluginsLive({ initialItems, channelHref }: Props) {
+export default function LatestPluginsLive({ initialItems, channelHref, hideHeader = false }: Props) {
   const [items, setItems] = useState<LatestPlugin[]>(initialItems.slice(0, 3));
   const [live, setLive] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -95,7 +97,8 @@ export default function LatestPluginsLive({ initialItems, channelHref }: Props) 
   }, [refresh]);
 
   return (
-    <section className="mb-10">
+    <section className={hideHeader ? "" : "mb-10"}>
+      {!hideHeader ? (
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[11px] uppercase tracking-[.22em] text-gold-300/80">Live · آخرین انتشار</p>
@@ -119,6 +122,7 @@ export default function LatestPluginsLive({ initialItems, channelHref }: Props) 
           </a>
         ) : null}
       </div>
+      ) : null}
 
       {!items.length ? (
         <div className="rounded-[22px] border border-dashed border-white/[.08] bg-white/[.015] px-6 py-10 text-center">
