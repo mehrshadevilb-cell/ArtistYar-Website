@@ -3,7 +3,7 @@
  * Returns abstract pattern context only (no lyrics).
  */
 
-import { HIT_KB, HIT_KB_VERSION, HIT_KB_SOURCE, type HitKbRecord, getHitKbStats } from "./dataset";
+import { getHitKb, HIT_KB_VERSION, HIT_KB_SOURCE, type HitKbRecord, getHitKbStats } from "./dataset";
 
 export type RetrieveQuery = {
   genre?: string;
@@ -122,7 +122,8 @@ export function retrieveHitPatterns(query: RetrieveQuery): RetrieveResult {
   stats.lastQueryAt = new Date().toISOString();
 
   const limit = Math.min(8, Math.max(1, query.limit ?? 4));
-  const scored = HIT_KB.map((r) => ({ r, s: scoreRecord(r, query) }))
+  const kb = getHitKb();
+  const scored = kb.map((r) => ({ r, s: scoreRecord(r, query) }))
     .filter((x) => x.s > 0)
     .sort((a, b) => b.s - a.s);
 
@@ -131,7 +132,7 @@ export function retrieveHitPatterns(query: RetrieveQuery): RetrieveResult {
   if (top.length === 0) {
     stats.misses += 1;
     const genre = query.genre ? GENRE_ALIASES[norm(query.genre)] || norm(query.genre) : "";
-    const pool = genre ? HIT_KB.filter((r) => r.genre === genre) : HIT_KB;
+    const pool = genre ? kb.filter((r) => r.genre === genre) : kb;
     top = [...pool].sort((a, b) => b.year - a.year).slice(0, limit);
   } else {
     stats.hits += 1;
