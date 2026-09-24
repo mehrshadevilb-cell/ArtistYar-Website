@@ -92,9 +92,11 @@ export default async function PluginsPage() {
         <div className="card-ay p-10 text-center">
           <h2 className="text-lg font-semibold text-sand-50">کتابخانه موقتاً در دسترس نیست</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-ink-400">
-            {result.errorCode === "table_missing"
+            {result.errorCode === "table_missing" || result.errorCode === "schema_mismatch"
               ? "کاتالوگ هنوز راه‌اندازی نشده است. از کانال تلگرام بازدید کنید."
-              : "اتصال برقرار نشد. چند لحظه دیگر دوباره تلاش کنید."}
+              : result.errorCode === "permission_denied"
+                ? "دسترسی پایگاه‌داده محدود است. تنظیمات سرور را بررسی کنید."
+                : "اتصال برقرار نشد. چند لحظه دیگر دوباره تلاش کنید."}
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             <Link href="/plugins" className="btn-primary inline-flex">
