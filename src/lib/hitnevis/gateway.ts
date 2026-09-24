@@ -1,64 +1,64 @@
 /**
- * HitNevis AI Gateway — Phase 2
- *
- * Architecture:
- *   HitNevis → AI Gateway → (existing) Provider Registry → Model pool → Health/Failover Router
- *
- * CRITICAL RULES:
- * - NEVER hard-code a specific AI provider or model as the only path.
- * - Discover providers from ENV + runtime pool (getRuntimeProviderPool / runtimeAutoChat).
- * - Automatic failover on 429, 401/403, 5xx, timeout, quota, network, malformed response.
- * - Bounded retry via runtimeAutoChat (no infinite loops).
- * - Temporary cooldown of unhealthy models/providers (handled in ai-runtime).
- * - If ALL providers fail: controlled Persian error, never crash, never blank page.
- * - API keys stay server-side; never log secrets or full user lyrics.
+ * HitNevis AI Gateway — Phases 2–5
+ * Provider/model agnostic via runtimeAutoChat. No hard-coded sole provider.
  */
 
 import { type ChatMessage } from "@/lib/ai-providers";
 import { runtimeAutoChat, listRuntimePoolStatus } from "@/lib/ai-runtime";
 import { buildHitNevisSystemPrompt, buildHitNevisUserPrompt, isValidMode } from "./prompts";
+import {
+  analyzeHitDna,
+  formatHitDnaReport,
+  formatHumanTestsReport,
+  runHumanTests,
+} from "./hit-dna";
 import type {
+  ArtistVoiceProfile,
   HitNevisGenerateRequest,
   HitNevisHealthSnapshot,
+  HitNevisMode,
   HitNevisResponse,
+  LyricSectionId,
 } from "./types";
 
 const MAX_TOPIC = 500;
-const MAX_LYRICS = 6000;
-const MAX_CONSTRAINTS = 400;
-const GATEWAY_TIMEOUT_MS = 45_000;
-
-/** In-memory concurrency guard (process-local). */
-let inFlight = 0;
+const MAX_LYRICS = 8000;
+const MAX_CONSTRAINTS = 500;
+const GATEWAY_TIMEOUT_MS = 55_000;
 const MAX_IN_FLIGHT = 12;
 
+let inFlight = 0;
+
+/** Simple in-process dedupe: same payload hash within window returns same in-flight promise */
+const dedupeMap = new Map<string, { at: number; promise: Promise<HitNevisResponse> }>();
+const DEDUPE_MS = 4_000;
+
 function newRequestId(): string {
-  const t = Date.now().toString(36);
-  const r = Math.random().toString(36).slice(2, 10);
-  return `hn-${t}-${r}`;
+  return `hn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function sanitizeLogText(text: string, max = 80): string {
   return text.replace(/\s+/g, " ").trim().slice(0, max);
 }
 
-function mapGatewayError(
-  error: unknown,
-  requestId: string,
-  startedAt: number,
-): HitNevisResponse {
+function hashPayload(req: HitNevisGenerateRequest): string {
+  return [
+    req.mode,
+    req.topic || "",
+    (req.existingLyrics || "").slice(0, 200),
+    req.sectionType || "",
+    req.genre || "",
+    req.tone || "",
+    req.constraints || "",
+  ].join("|");
+}
+
+function mapGatewayError(error: unknown, requestId: string, startedAt: number): HitNevisResponse {
   const raw = error instanceof Error ? error.message : String(error || "");
   const latencyMs = Date.now() - startedAt;
 
   if (raw === "aborted" || /aborted/i.test(raw)) {
-    return {
-      ok: false,
-      requestId,
-      error: "درخواست لغو شد.",
-      code: "aborted",
-      retryable: true,
-      latencyMs,
-    };
+    return { ok: false, requestId, error: "درخواست لغو شد.", code: "aborted", retryable: true, latencyMs };
   }
   if (/timeout/i.test(raw)) {
     return {
@@ -74,8 +74,7 @@ function mapGatewayError(
     return {
       ok: false,
       requestId,
-      error:
-        "هیچ ارائه‌دهندهٔ هوش مصنوعی روی سرور پیکربندی نشده. کلید API را در محیط استقرار تنظیم کنید.",
+      error: "هیچ ارائه‌دهندهٔ هوش مصنوعی روی سرور پیکربندی نشده.",
       code: "no_providers",
       retryable: false,
       latencyMs,
@@ -85,8 +84,7 @@ function mapGatewayError(
     return {
       ok: false,
       requestId,
-      error:
-        "همهٔ مدل‌های در دسترس موقتاً پاسخ ندادند. چند لحظه بعد دوباره تلاش کن — متنت حفظ می‌شود.",
+      error: "همهٔ مدل‌های در دسترس موقتاً پاسخ ندادند. متنت حفظ می‌شود — بعداً دوباره بزن.",
       code: "all_failed",
       retryable: true,
       latencyMs,
@@ -96,7 +94,7 @@ function mapGatewayError(
     return {
       ok: false,
       requestId,
-      error: "محدودیت نرخ درخواست. کمی صبر کن و دوباره بزن.",
+      error: "محدودیت نرخ درخواست. کمی صبر کن.",
       code: "rate_limit",
       retryable: true,
       latencyMs,
@@ -111,6 +109,31 @@ function mapGatewayError(
     code: "internal",
     retryable: true,
     latencyMs,
+  };
+}
+
+function parseArtistVoice(raw: unknown): ArtistVoiceProfile | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const v = raw as Record<string, unknown>;
+  const preferredWords = Array.isArray(v.preferredWords)
+    ? v.preferredWords.filter((x): x is string => typeof x === "string").slice(0, 30)
+    : undefined;
+  const avoidedWords = Array.isArray(v.avoidedWords)
+    ? v.avoidedWords.filter((x): x is string => typeof x === "string").slice(0, 30)
+    : undefined;
+  return {
+    name: typeof v.name === "string" ? v.name.slice(0, 80) : undefined,
+    styleNotes: typeof v.styleNotes === "string" ? v.styleNotes.slice(0, 500) : undefined,
+    preferredWords,
+    avoidedWords,
+    register:
+      v.register === "colloquial" || v.register === "literary" || v.register === "mixed"
+        ? v.register
+        : undefined,
+    rhymePreference:
+      v.rhymePreference === "loose" || v.rhymePreference === "tight" || v.rhymePreference === "free"
+        ? v.rhymePreference
+        : undefined,
   };
 }
 
@@ -130,23 +153,44 @@ export function validateHitNevisRequest(
   const constraints =
     typeof b.constraints === "string" ? b.constraints.trim().slice(0, MAX_CONSTRAINTS) : undefined;
 
-  if (!topic && !existingLyrics && b.mode !== "structure" && b.mode !== "title_ideas") {
+  const localOnly: HitNevisMode[] = ["hit_dna", "human_tests"];
+  if (
+    !localOnly.includes(b.mode as HitNevisMode) &&
+    !topic &&
+    !existingLyrics &&
+    b.mode !== "structure" &&
+    b.mode !== "title_ideas"
+  ) {
     return { ok: false, error: "موضوع یا متن فعلی را وارد کن." };
   }
 
   const language =
     b.language === "en" || b.language === "fa-en" || b.language === "fa" ? b.language : "fa";
 
+  const sectionType =
+    typeof b.sectionType === "string" &&
+    ["verse", "pre_chorus", "chorus", "bridge", "outro", "hook", "other"].includes(b.sectionType)
+      ? (b.sectionType as LyricSectionId)
+      : undefined;
+
+  const directionsCount =
+    typeof b.directionsCount === "number" && Number.isFinite(b.directionsCount)
+      ? Math.min(5, Math.max(2, Math.floor(b.directionsCount)))
+      : undefined;
+
   return {
     ok: true,
     data: {
-      mode: b.mode,
+      mode: b.mode as HitNevisMode,
       topic,
       existingLyrics,
+      sectionType,
       genre: typeof b.genre === "string" ? (b.genre as HitNevisGenerateRequest["genre"]) : undefined,
       tone: typeof b.tone === "string" ? (b.tone as HitNevisGenerateRequest["tone"]) : undefined,
       language,
       constraints,
+      artistVoice: parseArtistVoice(b.artistVoice),
+      directionsCount,
       preferredProvider:
         typeof b.preferredProvider === "string" ? b.preferredProvider.slice(0, 64) : undefined,
       preferredModel: typeof b.preferredModel === "string" ? b.preferredModel.slice(0, 128) : undefined,
@@ -154,21 +198,66 @@ export function validateHitNevisRequest(
   };
 }
 
-/**
- * Core gateway entry: build prompts → runtimeAutoChat (multi-provider failover) → structured result.
- */
-export async function hitnevisGenerate(
+async function runAi(
+  req: HitNevisGenerateRequest,
+  signal: AbortSignal,
+  clientId: string,
+): Promise<{ reply: string; provider: string; model: string }> {
+  const messages: ChatMessage[] = [
+    { role: "system", content: buildHitNevisSystemPrompt(req) },
+    { role: "user", content: buildHitNevisUserPrompt(req) },
+  ];
+  return runtimeAutoChat(messages, req.preferredProvider, req.preferredModel, clientId, signal);
+}
+
+function splitDirections(text: string): string[] | undefined {
+  const blocks = text
+    .split(/\n(?=\s*(?:\d+[\).\-–]|جهت\s*\d|نسخه\s*\d|Direction\s*\d))/i)
+    .map((b) => b.trim())
+    .filter((b) => b.length > 20);
+  return blocks.length >= 2 ? blocks.slice(0, 5) : undefined;
+}
+
+async function hitnevisGenerateInner(
   req: HitNevisGenerateRequest,
   options?: { signal?: AbortSignal; clientId?: string },
 ): Promise<HitNevisResponse> {
   const requestId = newRequestId();
   const startedAt = Date.now();
 
+  if (req.mode === "hit_dna") {
+    const dna = analyzeHitDna(req.existingLyrics || req.topic || "");
+    return {
+      ok: true,
+      requestId,
+      text: formatHitDnaReport(dna),
+      provider: "local-hit-dna",
+      model: "analytical-v1",
+      latencyMs: Date.now() - startedAt,
+      mode: req.mode,
+    };
+  }
+  if (req.mode === "human_tests") {
+    const report = runHumanTests(
+      req.existingLyrics || req.topic || "",
+      req.artistVoice?.styleNotes,
+    );
+    return {
+      ok: true,
+      requestId,
+      text: formatHumanTestsReport(report),
+      provider: "local-human-tests",
+      model: "analytical-v1",
+      latencyMs: Date.now() - startedAt,
+      mode: req.mode,
+    };
+  }
+
   if (inFlight >= MAX_IN_FLIGHT) {
     return {
       ok: false,
       requestId,
-      error: "سرور در حال پردازش درخواست‌های زیاد است. چند ثانیه بعد دوباره بزن.",
+      error: "سرور شلوغ است. چند ثانیه بعد دوباره بزن.",
       code: "rate_limit",
       retryable: true,
       latencyMs: 0,
@@ -183,25 +272,12 @@ export async function hitnevisGenerate(
   const timer = setTimeout(() => controller.abort(), GATEWAY_TIMEOUT_MS);
 
   try {
-    const system = buildHitNevisSystemPrompt(req);
-    const user = buildHitNevisUserPrompt(req);
-    const messages: ChatMessage[] = [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ];
-
-    const result = await runtimeAutoChat(
-      messages,
-      req.preferredProvider,
-      req.preferredModel,
-      options?.clientId || "hitnevis",
-      controller.signal,
-    );
-
+    const result = await runAi(req, controller.signal, options?.clientId || "hitnevis");
     const text = (result.reply || "").trim();
-    if (!text) {
-      return mapGatewayError(new Error("empty_reply"), requestId, startedAt);
-    }
+    if (!text) return mapGatewayError(new Error("empty_reply"), requestId, startedAt);
+
+    const directions =
+      req.mode === "save_lyric" || req.mode === "hook_lab" ? splitDirections(text) : undefined;
 
     return {
       ok: true,
@@ -211,6 +287,7 @@ export async function hitnevisGenerate(
       model: result.model,
       latencyMs: Date.now() - startedAt,
       mode: req.mode,
+      directions,
     };
   } catch (error) {
     return mapGatewayError(error, requestId, startedAt);
@@ -221,7 +298,24 @@ export async function hitnevisGenerate(
   }
 }
 
-/** Health snapshot for ops / Phase 2 verification — no secrets. */
+export async function hitnevisGenerate(
+  req: HitNevisGenerateRequest,
+  options?: { signal?: AbortSignal; clientId?: string },
+): Promise<HitNevisResponse> {
+  const key = hashPayload(req);
+  const now = Date.now();
+  const existing = dedupeMap.get(key);
+  if (existing && now - existing.at < DEDUPE_MS) {
+    return existing.promise;
+  }
+  const promise = hitnevisGenerateInner(req, options).finally(() => {
+    const cur = dedupeMap.get(key);
+    if (cur?.promise === promise) dedupeMap.delete(key);
+  });
+  dedupeMap.set(key, { at: now, promise });
+  return promise;
+}
+
 export async function hitnevisHealth(): Promise<HitNevisHealthSnapshot> {
   const requestId = newRequestId();
   try {
