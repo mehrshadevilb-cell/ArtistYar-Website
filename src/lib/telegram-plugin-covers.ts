@@ -3,22 +3,11 @@
  * Plugin binaries are NEVER stored here — only small cover images for the
  * three most recent published catalog rows.
  */
-import { createClient } from "@supabase/supabase-js";
+import { getPluginsDb } from "@/lib/plugins-db";
 
-const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
-const key = (
-  process.env.SUPABASE_SECRET_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  ""
-).trim();
 const bucket = (process.env.SUPABASE_BUCKET || "artistyar-media").trim();
 
-const db =
-  url && key
-    ? createClient(url, key, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      })
-    : null;
+const db = getPluginsDb();
 
 function extFromContentType(contentType: string) {
   const mime = (contentType || "").split(";")[0].trim().toLowerCase();
@@ -28,6 +17,10 @@ function extFromContentType(contentType: string) {
   return "jpg";
 }
 
+/**
+ * Upload cover for a published post, then keep Storage limited to the latest 3
+ * published covers. Idempotent and safe under concurrent workers.
+ */
 export async function syncPublishedPluginCover(options: {
   postId: string;
   photoFileId: string;
@@ -70,6 +63,7 @@ export async function syncPublishedPluginCover(options: {
   return { path, publicUrl };
 }
 
+/** Keep only covers belonging to the latest 3 published posts. */
 export async function prunePluginCoversToLatestThree(): Promise<{
   kept: string[];
   removed: string[];
