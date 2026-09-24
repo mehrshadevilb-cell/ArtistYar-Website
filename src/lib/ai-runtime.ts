@@ -51,7 +51,6 @@ function scoreModel(modelId: string): number {
 
 function scoreProvider(providerId: string): number {
   const map: Record<string, number> = {
-    // Prefer free/fast gateways; paid keys still used when healthy
     xkiro: 100,
     openrouter: 95,
     groq: 90,
@@ -90,25 +89,63 @@ function pickModels(p: AIProvider): string[] {
     .slice(0, MODELS_PER_PROVIDER);
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string, parent?: AbortSignal): Promise<T> {
+/**
+ * Race a promise against a timeout. On timeout or parent abort, the returned
+ * AbortSignal is aborted so upstream fetch() is cancelled (not just ignored).
+ */
+function linkAbortSignals(parent?: AbortSignal): {
+  signal: AbortSignal;
+  abort: (reason?: string) => void;
+  cleanup: () => void;
+} {
+  const controller = new AbortController();
+  const onParent = () => {
+    if (!controller.signal.aborted) controller.abort();
+  };
+  if (parent) {
+    if (parent.aborted) controller.abort();
+    else parent.addEventListener("abort", onParent, { once: true });
+  }
+  return {
+    signal: controller.signal,
+    abort: (reason?: string) => {
+      if (!controller.signal.aborted) controller.abort(reason as any);
+    },
+    cleanup: () => parent?.removeEventListener("abort", onParent),
+  };
+}
+
+function withTimeout<T>(
+  factory: (signal: AbortSignal) => Promise<T>,
+  ms: number,
+  label: string,
+  parent?: AbortSignal,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     if (parent?.aborted) {
       reject(new Error("aborted"));
       return;
     }
-    const onParentAbort = () => reject(new Error("aborted"));
-    parent?.addEventListener("abort", onParentAbort, { once: true });
-    const t = setTimeout(() => reject(new Error(`timeout_${ms}ms:${label}`)), ms);
-    promise.then(
+    const linked = linkAbortSignals(parent);
+    const t = setTimeout(() => {
+      linked.abort(`timeout_${ms}ms`);
+      reject(new Error(`timeout_${ms}ms:${label}`));
+    }, ms);
+    factory(linked.signal).then(
       (v) => {
         clearTimeout(t);
-        parent?.removeEventListener("abort", onParentAbort);
+        linked.cleanup();
         resolve(v);
       },
       (e) => {
         clearTimeout(t);
-        parent?.removeEventListener("abort", onParentAbort);
-        reject(e);
+        linked.cleanup();
+        const msg = e instanceof Error ? e.message : String(e);
+        if (linked.signal.aborted && /abort/i.test(msg)) {
+          reject(new Error(parent?.aborted ? "aborted" : `timeout_${ms}ms:${label}`));
+        } else {
+          reject(e);
+        }
       },
     );
   });
@@ -119,6 +156,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string, parent?:
  * - Uses every env-configured provider from getRuntimeProviderPool()
  * - On limit/error: skip that model, try next model, then next provider
  * - Only permanently cools a whole provider on auth failure or hard billing exhaustion
+ * - Timeout aborts the upstream fetch so the next candidate can start immediately
  */
 export async function runtimeAutoChat(
   messages: ChatMessage[],
@@ -160,7 +198,6 @@ export async function runtimeAutoChat(
   if (!limited.length) throw new Error("no_provider_configured");
 
   const errors: string[] = [];
-  /** Providers to skip for the rest of THIS request only (rate limit / hard fail). */
   const skipProviderThisRequest = new Set<string>();
 
   for (const candidate of limited) {
@@ -171,14 +208,13 @@ export async function runtimeAutoChat(
     const until = cooldown.get(key) || 0;
     if (until > Date.now()) continue;
 
-    // Auth-dead for this process lifetime window
     const providerDead = deadUntil.get(candidate.provider.id) || 0;
     if (providerDead > Date.now()) continue;
 
-    const timeoutMs = 10_000;
+    const timeoutMs = 12_000;
     try {
       const reply = await withTimeout(
-        chatWithProvider(candidate.provider, candidate.model, messages, signal),
+        (sig) => chatWithProvider(candidate.provider, candidate.model, messages, sig),
         timeoutMs,
         key,
         signal,
@@ -192,15 +228,11 @@ export async function runtimeAutoChat(
       cooldown.set(key, Date.now() + cooldownMs(message));
 
       if (isAuthError(message) || exhausted(message)) {
-        // Bad key or no credits — skip this provider for an hour
         skipProviderThisRequest.add(candidate.provider.id);
         deadUntil.set(candidate.provider.id, Date.now() + 3_600_000);
       } else if (isRateLimit(message)) {
-        // Rate limit: skip remaining models of this provider for this request only;
-        // model-level cooldown handles the next request window.
         skipProviderThisRequest.add(candidate.provider.id);
       }
-      // timeout / 404 / model missing → only that model is cooled; try next candidate
     }
   }
 
