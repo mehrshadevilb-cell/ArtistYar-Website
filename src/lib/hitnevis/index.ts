@@ -39,3 +39,13 @@ export {
   formatHitDnaReport,
   formatHumanTestsReport,
 } from "./hit-dna";
+
+export {
+  retrieveHitPatterns,
+  getRetrievalDiagnostics,
+  getHitKbStats,
+  HIT_KB_VERSION,
+  HIT_KB_SOURCE,
+} from "./kb/retrieve";
+export type { HitKbRecord } from "./kb/types";
+export type { RetrieveQuery, RetrieveResult } from "./kb/retrieve";
