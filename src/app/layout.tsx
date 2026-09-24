@@ -19,7 +19,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { TelegramMiniAppBridge } from "@/components/TelegramMiniAppBridge";
-import { FloatingAssistant } from "@/components/FloatingAssistant";
+import { FloatingAssistantLazy as FloatingAssistant } from "@/components/lazy/FloatingAssistantLazy";
 
 // Public marketing pages can be cached; API routes stay dynamic on their own.
 export const revalidate = 60;
