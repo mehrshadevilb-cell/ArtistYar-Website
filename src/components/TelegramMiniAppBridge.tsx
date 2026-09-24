@@ -14,7 +14,6 @@ function isRealTelegramWebApp(app: TelegramWebApp | undefined): app is TelegramW
   if (!app) return false;
   const platform = String(app.platform || "").toLowerCase();
   if (platform === "unknown" || platform === "") {
-    // Real Telegram always provides initData (or a user in initDataUnsafe) inside the client.
     const hasInit = Boolean(app.initData && app.initData.length > 0);
     const hasUser = Boolean(app.initDataUnsafe && (app.initDataUnsafe as { user?: unknown }).user);
     return hasInit || hasUser;
@@ -25,6 +24,10 @@ function isRealTelegramWebApp(app: TelegramWebApp | undefined): app is TelegramW
 /** Prepare the same website for Telegram Mini App and normal browser use. */
 export function TelegramMiniAppBridge() {
   useEffect(() => {
+    if (typeof navigator !== "undefined" && !/Telegram/i.test(navigator.userAgent || "")) {
+      return;
+    }
+
     let app: TelegramWebApp | undefined;
     let poll: number | undefined;
     let attempts = 0;
@@ -55,7 +58,6 @@ export function TelegramMiniAppBridge() {
 
       app.ready?.();
       app.expand?.();
-      // Only disable vertical swipes inside a confirmed Telegram client.
       app.disableVerticalSwipes?.();
       app.setHeaderColor?.("#10100e");
       app.setBackgroundColor?.("#10100e");
