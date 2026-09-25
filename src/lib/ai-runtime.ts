@@ -11,8 +11,8 @@ const MODELS_PER_PROVIDER = 3;
 /** Keep the request bounded so fallback latency stays well below the API deadline. */
 const MAX_CANDIDATES = 18;
 const MAX_PARALLEL_ATTEMPTS = 4;
-const ATTEMPT_TIMEOUT_MS = 14_000;
-const TOTAL_RUNTIME_TIMEOUT_MS = 55_000;
+const ATTEMPT_TIMEOUT_MS = 8_000;
+const TOTAL_RUNTIME_TIMEOUT_MS = 38_000;
 
 function exhausted(message: string) {
   return /402|credit|credits|insufficient|billing|balance|funds|payment required|quota exceeded|out of credits/i.test(
