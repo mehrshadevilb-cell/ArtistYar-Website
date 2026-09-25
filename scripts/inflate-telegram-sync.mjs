@@ -229,14 +229,11 @@ source = source.replace(
     const fromFile = titleFromFileName(fileName);
     if (fromFile) p = { ...p, title: fromFile };
   }
-  if ((!p.translatedCaption || !String(p.translatedCaption).trim()) && String(caption || "").trim()) {
-    p = {
-      ...p,
-      translatedCaption: sanitizeCaption(
-        String(caption).slice(0, 700) + (p.title ? "\\n\\n" + p.title : ""),
-      ),
-    };
-  }`
+  // Never publish the raw Telegram caption as-is. If the AI did not return a
+  // translated caption, makeCaption() will generate a fresh structured Persian
+  // caption from the extracted plugin facts below. This guarantees every
+  // published plugin post gets a translated or AI-generated caption.
+`
 );
 
 source = source.replace(
