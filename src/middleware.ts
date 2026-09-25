@@ -29,5 +29,17 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/43325481.txt", "/43325481"],
+  matcher: [
+    "/43325481.txt",
+    "/43325481",
+    "/admin/:path*",
+    "/panel/:path*",
+    "/learn/:path*",
+    "/files/:path*",
+    "/projects/:path*",
+    "/my-artistyar/:path*",
+    "/profile/:path*",
+    "/login",
+    "/register",
+  ],
 };
