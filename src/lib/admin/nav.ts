@@ -44,7 +44,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "کلاس‌ها",
     items: [
       { href: "/admin/classes", label: "کلاس‌ها" },
-      { href: "/admin/classes/calendar", label: "تقویم جلسات" },
       { href: "/admin/homework", label: "تکالیف", enabled: false },
     ],
   },
@@ -52,10 +51,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     id: "education",
     label: "آموزش",
     items: [
-      { href: "/admin/education", label: "دوره‌ها و درس‌ها" },
-      { href: "/admin/videos", label: "ویدیوها" },
-      { href: "/admin/free-education", label: "آموزش رایگان" },
-      { href: "/admin/content", label: "مدیریت محتوا" },
+      { href: "/admin/content", label: "محتوا و آموزش" },
     ],
   },
   {
@@ -71,11 +67,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     ],
   },
   {
-    id: "practice",
-    label: "تمرین",
-    items: [{ href: "/admin/practice/subscriptions", label: "Practice" }],
-  },
-  {
     id: "ai",
     label: "هوش مصنوعی",
     items: [
@@ -85,15 +76,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/ai/models", label: "مدل‌ها", enabled: false },
       { href: "/admin/ai/prompts", label: "پرامپت‌ها", enabled: false },
       { href: "/admin/ai/usage", label: "مصرف", enabled: false },
-    ],
-  },
-  {
-    id: "content",
-    label: "محتوا",
-    items: [
-      { href: "/admin/media", label: "رسانه و گالری" },
-      { href: "/admin/homepage", label: "صفحه اصلی", enabled: false },
-      { href: "/admin/announcements", label: "اعلان‌ها", enabled: false },
     ],
   },
   {
@@ -109,9 +91,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "سیستم",
     items: [
       { href: "/admin/system", label: "سلامت سیستم" },
-      { href: "/admin/system/integrity", label: "یکپارچگی داده" },
       { href: "/admin/audit", label: "گزارش حسابرسی" },
-      { href: "/admin/security", label: "امنیت" },
       { href: "/admin/automation", label: "اتوماسیون" },
       { href: "/admin/settings", label: "تنظیمات" },
     ],
