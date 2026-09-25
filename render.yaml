@@ -26,6 +26,25 @@ services:
         value: "10000"
 
   - type: cron
+    name: artistyar-hitnevis-daily-trainer
+    runtime: node
+    branch: main
+    buildCommand: npm ci --no-audit --no-fund
+    startCommand: node scripts/train-hitnevis-daily.mjs
+    schedule: "15 3 * * *"
+    envVars:
+      - key: HITNEVIS_TRAIN_URL
+        fromService:
+          name: artistyar-website
+          type: web
+          property: hostport
+      - key: HITNEVIS_TRAIN_SECRET
+        fromService:
+          name: artistyar-website
+          type: web
+          envVarKey: HITNEVIS_TRAIN_SECRET
+
+  - type: cron
     name: artistyar-telegram-plugin-processor
     runtime: node
     branch: main
