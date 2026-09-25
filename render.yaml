@@ -42,7 +42,7 @@ services:
         fromService:
           name: artistyar-website
           type: web
-          envVarKey: HITNEVIS_TRAIN_SECRET
+          envVarKey: WEB_ADMIN_API_KEY
 
   - type: cron
     name: artistyar-telegram-plugin-processor
