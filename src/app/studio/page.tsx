@@ -29,6 +29,17 @@ const faqs = [
   { question: "آیا سفارش تنظیم و میکس را می‌توان با هم انجام داد؟", answer: "بله. اگر پروژه هنوز در مرحله تنظیم است، می‌توان مسیر تنظیم را از صفحه خدمات تنظیم شروع کرد و سپس پروژه را برای میکس و مسترینگ آماده کرد." },
 ];
 
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((faq) => ({
+    "@type": "Question",
+    name: faq.question,
+    acceptedAnswer: { "@type": "Answer", text: faq.answer },
+  })),
+};
+
 const tools = [
   {
     title: "تحلیل میکس و تنظیم",
@@ -54,7 +65,7 @@ export default function StudioPage() {
   return (
     <>
       <Breadcrumbs items={[{ name: "استودیو" }]} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceJsonLd) }} />\n      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <main className="container-ay py-10 sm:py-14">
       <p className="eyebrow">STUDIO</p>
       <h1 className="mt-2 text-3xl font-semibold text-sand-50">فضای ساخت و کار روی پروژه</h1>
