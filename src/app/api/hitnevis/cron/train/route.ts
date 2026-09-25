@@ -14,7 +14,7 @@ const feedUrl = String(process.env.HITNEVIS_AUTHORIZED_LYRIC_FEED_URL || "").tri
 const cronSecret = String(process.env.HITNEVIS_TRAIN_SECRET || "").trim();
 const supabase = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
-type FeedSong = { title?: unknown; artist?: unknown; lyrics?: unknown; sourceUrl?: unknown; license?: unknown; updatedAt?: unknown };
+type FeedSong = { title?: unknown; artist?: unknown; lyrics?: unknown; sourceUrl?: unknown; license?: unknown; updatedAt?: unknown; daily?: unknown };
 
 function authorizedLicense(value: unknown) {
   if (typeof value !== "string") return false;
@@ -115,7 +115,7 @@ export async function POST(request: Request) {
     if (runId) await supabase.from("hitnevis_training_runs").update({
       status: "completed", finished_at: new Date().toISOString(),
       discovered_count: songs.length, ingested_count: ingested, analyzed_count: ingested, error_count: 0,
-      summary: { targetSongCount: RECENT_TOP_100.length, licensedMatches: songs.length },
+      summary: { targetSongCount: RECENT_TOP_100.length, dailyCandidates: songs.filter((s) => s.daily === true).length, licensedMatches: songs.length },
       error_message: null,
     }).eq("id", runId);
 
