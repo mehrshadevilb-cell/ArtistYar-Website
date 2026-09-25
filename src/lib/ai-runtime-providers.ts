@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { decryptProviderKey, encryptProviderKey } from "@/lib/ai-provider-crypto";
-import { getConfiguredProviders, type AIProvider } from "@/lib/ai-providers";
+import { discoverModels, getConfiguredProviders, type AIProvider } from "@/lib/ai-providers";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
