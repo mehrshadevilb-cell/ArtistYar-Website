@@ -15,6 +15,7 @@ export type HitNevisMode =
   | "title_ideas"
   | "structure"
   | "continue"
+  | "complete"
   | "rewrite"
   | "shorten"
   | "emotional"
