@@ -290,10 +290,12 @@ export async function runtimeAutoChat(
         cooldown.set(key, Date.now() + cooldownMs(message));
 
         if (isAuthError(message) || exhausted(message)) {
+          // A bad key or provider-wide billing failure should stop probing that provider.
           skipProviderThisRequest.add(candidate.provider.id);
           deadUntil.set(candidate.provider.id, Date.now() + 180_000); // 3 min — never lock public chat for hours
         } else if (isRateLimit(message)) {
-          skipProviderThisRequest.add(candidate.provider.id);
+          // Rate limits are model-specific in many APIs. Keep the provider eligible
+          // so another discovered model can take over immediately.
         }
       }
     } finally {
