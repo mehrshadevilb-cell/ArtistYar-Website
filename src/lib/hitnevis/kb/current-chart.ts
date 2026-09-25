@@ -8,7 +8,7 @@ export type ChartSong = { rank: number; title: string; artist: string; plays: nu
 export const HITNEVIS_CHART_DATE = "2026-09-24";
 export const HITNEVIS_CHART_SOURCE = "FarsiChart / RadioJavan public chart";
 
-export const CURRENT_TOP_100: ChartSong[] = [
+const CURRENT_TOP_100_ROWS: [number, string, string, number][] = [
   [1,"Gentleman","Sasy",131205333],[2,"Behet Ghol Midam","Mohsen Yeganeh",126411806],
   [3,"Bi Ehsas","Shadmehr Aghili",120936614],[4,"Door Shodi","Shadmehr Aghili",116045680],
   [5,"Gheseh Eshgh","Ebi",112478072],[6,"Daste Man Nist","Shadmehr Aghili",104434924],
@@ -59,7 +59,10 @@ export const CURRENT_TOP_100: ChartSong[] = [
   [95,"Akharin Bar","Ebi",52562163],[96,"Harbar In Daro","Macan Band",52420181],
   [97,"Akhar Mano Be Baad Dad","Hoorosh Band",51999829],[98,"Tajrobeh Kon","Shadmehr Aghili",51954747],
   [99,"Haminim Ke Hastim","Wantons",51639718],[100,"Male Man Bash","Sohrab Mj (Ft Amir Tataloo & Orchid)",51629203],
-].map(([rank,title,artist,plays]) => ({ rank, title, artist, plays }));
+];
+
+export const CURRENT_TOP_100: ChartSong[] =
+  CURRENT_TOP_100_ROWS.map(([rank, title, artist, plays]) => ({ rank, title, artist, plays }));
 
 export function getCurrentChartStats() {
   const rows = CURRENT_TOP_100;
