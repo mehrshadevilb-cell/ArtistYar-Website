@@ -5,6 +5,7 @@
  * Does not claim any lyric is guaranteed to become a hit.
  */
 
+import { analyzeProsody } from "./prosody";
 import type {
   HitDnaFeatures,
   HumanTestId,
@@ -181,7 +182,13 @@ export function analyzeHitDna(rawText: string): HitDnaFeatures {
   const rep = repetitionIndex(text);
   const narrative = narrativeClarity(text);
   const emotion = emotionalArc(text);
-  const rhyme = rhymeDensity(text);
+  const prosody = analyzeProsody(text);
+  const rhyme = clamp01(
+    Math.max(
+      rhymeDensity(text),
+      prosody.rhymeGroups.length / Math.max(2, linesOf(text).length / 3),
+    ),
+  );
   const register = registerConsistency(text);
   const phrase = phraseDensity(text);
   const memo = memorabilitySignal(text);
@@ -189,12 +196,22 @@ export function analyzeHitDna(rawText: string): HitDnaFeatures {
   if (hookPresence < 0.45) notes.push("قلاب تکرارشونده یا کورس قوی‌تر می‌تواند memorability را بالا ببرد.");
   if (rep > 0.8) notes.push("تکرار زیاد است؛ تعادل با خطوط تازه.");
   if (emotion < 0.35) notes.push("واژه‌های حسی و تصویر ملموس اضافه کن.");
-  if (rhyme < 0.3) notes.push("قافیه‌های انتهای خط را کمی محکم‌تر کن (اختیاری).");
+  if (rhyme < 0.3) notes.push("قافیه یا هم‌آوایی انتهای خطوط هنوز الگوی مشخصی ندارد؛ قافیه را طبیعی‌تر کن، نه اجباری.");
+  if (prosody.syllableSpread >= 5) notes.push("طول خطوط نوسان زیادی دارد؛ چند خط بلند/کوتاه را هم‌نفس‌تر کن.");
+  if (prosody.flaggedLines.length) notes.push(`چند خط از نظر ریتم نوشتاری مشکوک است: ${prosody.flaggedLines.slice(0, 3).map((x) => "خط " + x.line).join("، ")}.`);
+  if (prosody.repeatedEndWords.length) notes.push(`پایان‌واژه‌های تکراری: ${prosody.repeatedEndWords.slice(0, 5).join("، ")}.`);
   const cliches = detectCliches(text);
   if (cliches.length) notes.push(`کلیشه‌های احتمالی: ${cliches.join("، ")}`);
+  const actionableSuggestions = [
+    ...notes.slice(0, 5),
+    ...(hookPresence < 0.45 ? ["یک عبارت امضادار کوتاه بساز که بتوانی بدون متن کامل هم زمزمه‌اش کنی."] : []),
+    ...(prosody.syllableSpread >= 5 ? ["خطوط هر بخش را با اختلاف حدود ۲–۳ هجا نزدیک کن و بعد با ملودی تست کن."] : []),
+    ...(cliches.length ? ["برای هر کلیشه یک جزئیات شخصی، مکان، شیء یا کنش جایگزین کن."] : []),
+  ].slice(0, 8);
   const overall = clamp01(
-    structureScore * 0.12 + hookPresence * 0.16 + rep * 0.1 + narrative * 0.12 +
-      emotion * 0.14 + rhyme * 0.1 + register * 0.08 + phrase * 0.08 + memo * 0.1,
+    structureScore * 0.11 + hookPresence * 0.16 + rep * 0.09 + narrative * 0.11 +
+      emotion * 0.13 + rhyme * 0.1 + register * 0.08 + phrase * 0.07 + memo * 0.1 +
+      clamp01(1 - prosody.syllableSpread / 10) * 0.05,
   );
   return {
     structureScore: score10(structureScore), hookPresence: score10(hookPresence),
@@ -203,6 +220,14 @@ export function analyzeHitDna(rawText: string): HitDnaFeatures {
     registerConsistency: score10(register), phraseDensity: score10(phrase),
     memorabilitySignal: score10(memo), overall: score10(overall),
     notes: notes.slice(0, 8), disclaimer: DISCLAIMER,
+    prosody: {
+      averageSyllables: prosody.averageSyllables,
+      syllableSpread: prosody.syllableSpread,
+      flaggedLines: prosody.flaggedLines.length,
+      repeatedEndWords: prosody.repeatedEndWords.slice(0, 8),
+      confidence: prosody.confidence,
+    },
+    actionableSuggestions,
   };
 }
 
@@ -269,6 +294,16 @@ export function formatHitDnaReport(dna: HitDnaFeatures): string {
   if (dna.notes.length) {
     lines.push("", "نکات:");
     for (const n of dna.notes) lines.push(`• ${n}`);
+  }
+  if (dna.prosody) {
+    lines.push(
+      "",
+      `ریتم نوشتاری تقریبی: میانگین ${dna.prosody.averageSyllables} هجا/خط، دامنه ${dna.prosody.syllableSpread}، خطوط مشکوک ${dna.prosody.flaggedLines}`,
+    );
+  }
+  if (dna.actionableSuggestions?.length) {
+    lines.push("", "پیشنهادهای اجرایی:");
+    for (const s of dna.actionableSuggestions.slice(0, 6)) lines.push(`→ ${s}`);
   }
   lines.push("", dna.disclaimer);
   return lines.join("\n");
