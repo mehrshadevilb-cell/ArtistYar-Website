@@ -1,0 +1,59 @@
+/* FAQ accordion — flex summary, no vertical glyph stacking */
+.faq-item.card-ay {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.15rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.faq-item summary.faq-summary,
+.faq-summary {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 0.75rem !important;
+  grid-template-columns: none !important;
+  width: 100%;
+  cursor: pointer;
+  list-style: none;
+  color: #f5efe3;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  text-align: right;
+}
+
+.faq-summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-summary > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.faq-summary-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #c9a227;
+  transition: transform 0.2s ease;
+}
+
+.faq-item[open] .faq-summary-icon {
+  transform: rotate(180deg);
+}
+
+.faq-answer {
+  margin-top: 0.75rem;
+  color: #9d978d;
+  font-size: 0.875rem;
+  line-height: 1.9;
+  text-align: right;
+}
