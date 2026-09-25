@@ -1,3 +1,33 @@
-import {NextResponse} from "next/server";import {getStudentSession,verifyCourseAccess} from "@/lib/education-access";import {db} from "@/lib/education-catalog";
-export async function GET(req:Request){const s=await getStudentSession();if(!s||!db)return NextResponse.json({error:"authentication_required"},{status:401});const lessonId=new URL(req.url).searchParams.get("lessonId");const courseId=Number(new URL(req.url).searchParams.get("courseId")||0);if(lessonId){const r=await db.from("educational_video_progress").select("*").eq("user_id",Number(s.id)).eq("lesson_id",lessonId).maybeSingle();if(r.error)return NextResponse.json({error:r.error.message},{status:500});return NextResponse.json(r.data||{position_seconds:0,completed:false})}if(!Number.isInteger(courseId)||courseId<=0||!(await verifyCourseAccess(s,courseId)))return NextResponse.json({error:"course_access_required"},{status:403});const [lessons,progress,completion,activity]=await Promise.all([db.from("educational_lessons").select("id,is_required,is_active").eq("course_id",courseId),db.from("educational_video_progress").select("lesson_id,completed,position_seconds,updated_at,first_accessed_at,completed_at").eq("user_id",Number(s.id)).in("lesson_id",[]),db.from("educational_course_completions").select("*").eq("user_id",Number(s.id)).eq("course_id",courseId).maybeSingle(),db.from("educational_learning_activity").select("lesson_id,event_type,position_seconds,occurred_at").eq("user_id",Number(s.id)).eq("course_id",courseId).order("occurred_at",{ascending:false}).limit(20)]);if(lessons.error)return NextResponse.json({error:lessons.error.message},{status:500});const ids=(lessons.data||[]).filter((x:any)=>x.is_active).map((x:any)=>x.id);let p:any[]=[];if(ids.length){const r=await db.from("educational_video_progress").select("lesson_id,completed,position_seconds,updated_at,first_accessed_at,completed_at").eq("user_id",Number(s.id)).in("lesson_id",ids);if(r.error)return NextResponse.json({error:r.error.message},{status:500});p=r.data||[]}const required=(lessons.data||[]).filter((x:any)=>x.is_active&&x.is_required);const done=new Set(p.filter(x=>x.completed).map(x=>x.lesson_id));const completedRequired=required.filter((x:any)=>done.has(x.id)).length;const percent=required.length?Math.round(completedRequired/required.length*100):0;return NextResponse.json({courseId,completionPercent:percent,completedLessons:done.size,requiredLessons:required.length,lastActivity:activity.data?.[0]||null,completedAt:completion.data?.completed_at||null,activity:activity.data||[]})}
-export async function PUT(req:Request){const s=await getStudentSession();if(!s||!db)return NextResponse.json({error:"authentication_required"},{status:401});const b=await req.json().catch(()=>({}));const lessonId=String(b.lessonId||""),courseId=Number(b.courseId||0),position=Math.max(0,Math.floor(Number(b.positionSeconds||0))),completed=b.completed===true;if(!lessonId||!Number.isInteger(courseId)||courseId<=0||!(await verifyCourseAccess(s,courseId)))return NextResponse.json({error:"course_access_required"},{status:403});const lesson=await db.from("educational_lessons").select("id,is_required,is_active").eq("id",lessonId).eq("course_id",courseId).maybeSingle();if(lesson.error)return NextResponse.json({error:lesson.error.message},{status:500});if(!lesson.data?.is_active)return NextResponse.json({error:"lesson_not_found"},{status:404});const now=new Date().toISOString();const existing=await db.from("educational_video_progress").select("first_accessed_at").eq("user_id",Number(s.id)).eq("lesson_id",lessonId).maybeSingle();const r=await db.from("educational_video_progress").upsert({user_id:Number(s.id),lesson_id:lessonId,position_seconds:position,completed,updated_at:now,first_accessed_at:existing.data?.first_accessed_at||now,completed_at:completed?(existing.data?.first_accessed_at?now:now):null},{onConflict:"user_id,lesson_id"}).select("*").single();if(r.error)return NextResponse.json({error:r.error.message},{status:500});await db.from("educational_learning_activity").insert({user_id:Number(s.id),course_id:courseId,lesson_id:lessonId,event_type:completed?"completed":"progress",position_seconds:position});const required=await db.from("educational_lessons").select("id,is_required,is_active").eq("course_id",courseId);const reqIds=(required.data||[]).filter((x:any)=>x.is_active&&x.is_required).map((x:any)=>x.id);let completedIds:string[]=[];if(reqIds.length){const rr=await db.from("educational_video_progress").select("lesson_id").eq("user_id",Number(s.id)).eq("completed",true).in("lesson_id",reqIds);completedIds=(rr.data||[]).map((x:any)=>x.lesson_id)}const courseComplete=reqIds.length>0&&completedIds.length>=reqIds.length;if(courseComplete)await db.from("educational_course_completions").upsert({user_id:Number(s.id),course_id:courseId,completed_at:now},{onConflict:"user_id,course_id"});return NextResponse.json({...r.data,courseComplete,completionPercent:reqIds.length?Math.round(completedIds.length/reqIds.length*100):0})}
+import { NextResponse } from "next/server";
+import { getStudentSession, verifyCourseAccess } from "@/lib/education-access";
+import { createClient } from "@supabase/supabase-js";
+
+const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const db = url && key ? createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
+
+export async function GET(request: Request) {
+  const session = await getStudentSession();
+  if (!session || !db) return NextResponse.json({ error: "authentication_required" }, { status: 401 });
+  const lessonId = new URL(request.url).searchParams.get("lessonId");
+  if (!lessonId) return NextResponse.json({ error: "invalid_request" }, { status: 400 });
+  const result = await db.from("educational_video_progress").select("*").eq("user_id", Number(session.id)).eq("lesson_id", lessonId).maybeSingle();
+  if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
+  return NextResponse.json(result.data || { position_seconds: 0, completed: false });
+}
+
+export async function PUT(request: Request) {
+  const session = await getStudentSession();
+  if (!session || !db) return NextResponse.json({ error: "authentication_required" }, { status: 401 });
+  const body = await request.json().catch(() => ({}));
+  const lessonId = String(body.lessonId || "");
+  const courseId = Number(body.courseId || 0);
+  const positionSeconds = Math.max(0, Math.floor(Number(body.positionSeconds || 0)));
+  const completed = body.completed === true;
+  if (!lessonId || !Number.isInteger(courseId) || !(await verifyCourseAccess(session, courseId))) return NextResponse.json({ error: "course_access_required" }, { status: 403 });
+  const result = await db.from("educational_video_progress").upsert({
+    user_id: Number(session.id), lesson_id: lessonId, position_seconds: positionSeconds, completed, updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id,lesson_id" }).select("*").single();
+  if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
+  return NextResponse.json(result.data);
+}
