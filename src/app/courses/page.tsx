@@ -5,6 +5,7 @@ import { StatusChip } from "@/components/StatusChip";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { SafeLink } from "@/components/SafeLink";
 import { getCatalog } from "@/lib/catalog";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
   title: "پکیج‌ها و مسیرهای آموزشی",
