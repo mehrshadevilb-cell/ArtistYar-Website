@@ -4,6 +4,7 @@
  */
 
 import { getHitKb, HIT_KB_VERSION, HIT_KB_SOURCE, type HitKbRecord, getHitKbStats } from "./dataset";
+import { CURRENT_TOP_100, HITNEVIS_CHART_DATE, HITNEVIS_CHART_SOURCE } from "./current-chart";
 
 export type RetrieveQuery = {
   genre?: string;
