@@ -23,7 +23,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "مرکز کنترل",
     items: [
       { href: "/admin", label: "نمای کلی" },
-      { href: "/admin/problems", label: "مرکز مشکلات" },\n      { href: "/admin/search", label: "جستجوی سراسری" },
+      { href: "/admin/problems", label: "مرکز مشکلات" },
+      { href: "/admin/search", label: "جستجوی سراسری" },
     ],
   },
   {
@@ -61,7 +62,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     id: "commerce",
     label: "تجارت",
     items: [
-      { href: "/admin/commerce", label: "مرکز تجارت" },\n      { href: "/admin/payments", label: "پرداخت‌ها" },
+      { href: "/admin/commerce", label: "مرکز تجارت" },
+      { href: "/admin/payments", label: "پرداخت‌ها" },
       { href: "/admin/practice/subscriptions", label: "اشتراک Practice Pro" },
       { href: "/admin/orders", label: "سفارش‌ها", enabled: false },
       { href: "/admin/coupons", label: "کد تخفیف", enabled: false },
@@ -109,7 +111,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/system", label: "سلامت سیستم" },
       { href: "/admin/system/integrity", label: "یکپارچگی داده" },
       { href: "/admin/audit", label: "گزارش حسابرسی" },
-      { href: "/admin/security", label: "امنیت" },\n      { href: "/admin/automation", label: "اتوماسیون" },\n      { href: "/admin/settings", label: "تنظیمات" },
+      { href: "/admin/security", label: "امنیت" },
+      { href: "/admin/automation", label: "اتوماسیون" },
+      { href: "/admin/settings", label: "تنظیمات" },
     ],
   },
 ];
