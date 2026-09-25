@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SectionHeading } from "@/components/SectionHeading";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 const siteUrl = "https://artistyaar.ir";
 const pagePath = "/amoozesh-tanzim-mix-mastering";
@@ -87,17 +88,6 @@ const articleJsonLd = {
   keywords: "آموزش تنظیم میکس و مسترینگ, آموزش آهنگ سازی, میکس و مسترینگ, arrangement",
 };
 
-const courseJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Course",
-  name: "آموزش تنظیم، میکس و مسترینگ و آهنگ‌سازی",
-  description: "مسیر پروژه‌محور یادگیری تنظیم، میکس، مسترینگ و آهنگ‌سازی در آکادمی آرتیست‌یار.",
-  provider: { "@type": "EducationalOrganization", name: "ArtistYar Academy", url: siteUrl },
-  url: `${siteUrl}/courses`,
-  inLanguage: "fa-IR",
-  teaches: ["تنظیم موسیقی", "آهنگ سازی", "انتخاب صدا", "میکس", "مسترینگ", "EQ", "کمپرس", "فضاسازی", "arrangement"],
-};
-
 const faqJsonLd = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -112,8 +102,8 @@ export default function MixingMasteringGuidePage() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(courseJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <Breadcrumbs items={[{ name: "آموزش", href: "/courses" }, { name: "آموزش تنظیم، میکس و مسترینگ" }]} />
       <main className="page-shell">
         <section className="container-ay py-16 sm:py-24">
           <div className="mx-auto max-w-4xl text-center">
@@ -196,7 +186,7 @@ export default function MixingMasteringGuidePage() {
               <p className="eyebrow">/ خروجی نهایی</p>
               <h2 className="mt-4 text-3xl font-medium text-sand-50">مسترینگ بعد از میکس شروع می‌شود</h2>
               <p className="mt-5 text-sm leading-8 text-ink-300">مسترینگ خوب، اصلاح جادویی یک میکس نامتعادل نیست. ابتدا headroom مناسب، کنترل peakها، ترجمهٔ قابل‌قبول روی چند سیستم و یک مرجع شنیداری داشته باش. سپس loudness، داینامیک، tonal balance و فرمت خروجی را بررسی کن.</p>
-              <Link href="/assistant" className="mt-7 inline-flex text-sm text-gold-400 hover:text-gold-300">از راهِ‌یار دربارهٔ پروژه‌ات بپرس ←</Link>
+              <Link href="/studio#mix-mastering" className="mt-7 inline-flex text-sm text-gold-400 hover:text-gold-300">خدمات میکس و مسترینگ را ببین ←</Link>
             </div>
             <div>
               <p className="eyebrow">/ مسیر پیشنهادی یادگیری</p>
@@ -227,6 +217,8 @@ export default function MixingMasteringGuidePage() {
             <div className="mt-10 flex flex-wrap gap-3">
               <Link href="/courses" className="btn-primary">دیدن دوره‌های آموزشی</Link>
               <Link href="/online" className="btn-ghost">کلاس آنلاین و بازخورد پروژه</Link>
+              <Link href="/arrangement" className="btn-ghost">سفارش تنظیم</Link>
+              <Link href="/studio#mix-mastering" className="btn-ghost">سفارش میکس و مسترینگ</Link>
               <Link href="/contact" className="btn-ghost">مشاورهٔ رایگان</Link>
             </div>
           </div>
