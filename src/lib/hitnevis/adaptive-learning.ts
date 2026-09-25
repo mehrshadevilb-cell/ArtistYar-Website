@@ -67,7 +67,7 @@ export async function getAdaptiveHitNevisContext(maxChars = 3200): Promise<strin
     .limit(1500);
   if (result.error && !profileResult.data) return "";
 
-  const rows = result.data as FeedbackRow[];
+  const rows = (result.data || []) as FeedbackRow[];
   const byMode = new Map<string, { positive: number; negative: number; used: number; rejected: number }>();
   let positive = 0;
   let negative = 0;
