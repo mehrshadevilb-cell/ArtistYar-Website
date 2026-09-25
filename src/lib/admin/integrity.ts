@@ -113,6 +113,61 @@ export async function runIntegrityScan(limit = 50): Promise<IntegrityReport> {
     // optional
   }
 
+  // Education integrity checks are intentionally read-only and bounded.
+  checksRun++;
+  try {
+    const { data: lessons, error } = await sb.from("educational_lessons")
+      .select("id,course_id,section_id,is_active,sort_order")
+      .limit(limit);
+    if (!error && lessons) {
+      const ids = new Set((lessons as any[]).map((x) => String(x.id)));
+      const orphanSections = (lessons as any[]).filter((x) => x.is_active && x.section_id === null);
+      if (orphanSections.length) findings.push({
+        id: "education_lessons_without_section",
+        severity: "low",
+        category: "education",
+        title: "درس آموزشی بدون بخش",
+        description: `${orphanSections.length} درس فعال بدون section_id در نمونه محدود.`,
+        entity_type: "educational_lessons",
+        count: orphanSections.length,
+        sample_ids: orphanSections.slice(0, 5).map((x) => String(x.id)),
+      });
+      const { data: videos, error: videoError } = await sb.from("educational_videos")
+        .select("id,lesson_id,course_id,is_active")
+        .limit(limit);
+      if (!videoError && videos) {
+        const orphanVideos = (videos as any[]).filter((x) => x.is_active && !ids.has(String(x.lesson_id)));
+        if (orphanVideos.length) findings.push({
+          id: "education_orphan_videos",
+          severity: "high",
+          category: "education",
+          title: "ویدئوی آموزشی یتیم",
+          description: `${orphanVideos.length} ویدئو به درس موجود متصل نیست.`,
+          entity_type: "educational_videos",
+          count: orphanVideos.length,
+          sample_ids: orphanVideos.slice(0, 5).map((x) => String(x.id)),
+        });
+      }
+      const { data: progress, error: progressError } = await sb.from("educational_video_progress")
+        .select("user_id,lesson_id")
+        .limit(limit);
+      if (!progressError && progress) {
+        const orphanProgress = (progress as any[]).filter((x) => !ids.has(String(x.lesson_id)));
+        if (orphanProgress.length) findings.push({
+          id: "education_orphan_progress",
+          severity: "high",
+          category: "education",
+          title: "پیشرفت آموزشی با درس ناموجود",
+          description: `${orphanProgress.length} رکورد progress به درس موجود اشاره نمی‌کند.`,
+          entity_type: "educational_video_progress",
+          count: orphanProgress.length,
+        });
+      }
+    }
+  } catch {
+    // Education tables may not be deployed in older environments.
+  }
+
   if (findings.length === 0) {
     findings.push({
       id: "clean",
