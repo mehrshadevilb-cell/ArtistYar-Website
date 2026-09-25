@@ -120,7 +120,7 @@ export default function HitNevisClient() {
     };
   };
 
-  const applyText = (text: string, mode: "replace" | "append" = "replace") => {
+  const sendFeedback = useCallback(async (mode: HitNevisMode | undefined, signal: "positive" | "negative", text: string) => {\n    if (!mode) return;\n    try {\n      await fetch("/api/hitnevis/feedback", {\n        method: "POST",\n        headers: { "Content-Type": "application/json" },\n        body: JSON.stringify({ mode, signal, text: text.slice(0, 8000) }),\n        keepalive: true,\n      });\n    } catch {}\n  }, []);\n\n  const applyText = (text: string, mode: "replace" | "append" = "replace") => {
     setSections((prev) => prev.map((s) => {
       if (s.id !== activeId) return s;
       if (mode === "append") return { ...s, text: s.text.trim() ? `${s.text.trim()}\n${text}` : text };
