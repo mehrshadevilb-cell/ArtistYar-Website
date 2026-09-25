@@ -173,7 +173,7 @@ export default function HitNevisClient() {
     const existing =
       mode === "write_full" || mode === "structure" || mode === "title_ideas" || mode === "idea_analyze"
         ? fullLyrics || active?.text || ""
-        : active?.text?.trim() || fullLyrics;
+        : (active?.text?.length ? active.text : fullLyrics);
     const history = buildHistory(Boolean(opts?.skipUserBubble || opts?.replaceUserId));
     if (trimmed) history.push({ role: "user", content: trimmed.slice(0, 1000) });
 
@@ -276,6 +276,7 @@ export default function HitNevisClient() {
               onCopy={async () => { try { await navigator.clipboard.writeText(m.content); setCopiedId(m.id); setTimeout(() => setCopiedId(null), 1400); } catch {} }}
               onUse={() => { applyText(m.content, "replace"); void sendFeedback(m.mode, "used", m.content); }} onAppend={() => { applyText(m.content, "append"); void sendFeedback(m.mode, "used", m.content); }}
               onContinue={() => void runRequest("ادامه‌ش بده", { forcedMode: "continue" })}
+              onComplete={() => void runRequest("کاملش کن", { forcedMode: "complete" })}
               onRewrite={() => void runRequest("بازنویسی کن", { forcedMode: "rewrite" })}
               onRegen={() => m.lastPrompt && void runRequest(m.lastPrompt, { forcedMode: m.mode, skipUserBubble: true })}
               onRetry={() => m.lastPrompt && void runRequest(m.lastPrompt, { forcedMode: m.mode, skipUserBubble: true })}
