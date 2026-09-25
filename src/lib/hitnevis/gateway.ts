@@ -7,6 +7,7 @@ import { type ChatMessage } from "@/lib/ai-providers";
 import { runtimeAutoChat, listRuntimePoolStatus } from "@/lib/ai-runtime";
 import { buildHitNevisSystemPrompt, buildHitNevisUserPrompt, isValidMode } from "./prompts";
 import { retrieveHitPatterns } from "./kb/retrieve";
+import { getCurrentChartContext } from "./kb/current-chart-context";
 import {
   analyzeHitDna,
   formatHitDnaReport,
