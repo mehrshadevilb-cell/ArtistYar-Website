@@ -31,7 +31,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "کاربران و CRM",
     items: [
       { href: "/admin/students", label: "هنرجویان" },
-      { href: "/admin/enrollments", label: "کلاس‌ها و ثبت‌نام‌ها" },
+      { href: "/admin/enrollments", label: "ثبت‌نام‌های راه‌یار" },
       { href: "/admin/reservations", label: "رزروها" },
       { href: "/admin/teachers", label: "مدرس‌ها", enabled: false },
       { href: "/admin/leads", label: "لیدها", enabled: false },
@@ -42,10 +42,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     id: "classes",
     label: "کلاس‌ها",
     items: [
-      { href: "/admin/classes", label: "کلاس‌ها", enabled: false },
-      { href: "/admin/sessions", label: "جلسات", enabled: false },
-      { href: "/admin/calendar", label: "تقویم", enabled: false },
-      { href: "/admin/attendance", label: "حضور و غیاب", enabled: false },
+      { href: "/admin/classes", label: "کلاس‌ها" },
+      { href: "/admin/classes/calendar", label: "تقویم جلسات" },
       { href: "/admin/homework", label: "تکالیف", enabled: false },
     ],
   },
