@@ -41,6 +41,7 @@ export function Bubble({
   onUse: () => void;
   onAppend: () => void;
   onContinue: () => void;
+  onComplete: () => void;
   onRewrite: () => void;
   onRegen: () => void;
   onRetry: () => void;
@@ -121,6 +122,9 @@ export function Bubble({
                   <A onClick={onAppend}>افزودن به بخش</A>
                   <A onClick={onContinue} disabled={loading}>
                     ادامه
+                  </A>
+                  <A onClick={onComplete} disabled={loading}>
+                    تکمیل
                   </A>
                   <A onClick={onRewrite} disabled={loading}>
                     بازنویسی
