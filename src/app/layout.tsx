@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Vazirmatn } from "next/font/google";
+import Script from "next/script";
 import "./design-tokens.css";
 import "./globals.css";
 import "./theme-music.css";
@@ -114,9 +115,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="enamad" content="43325481" />
         {backend ? <link rel="preconnect" href={backend} crossOrigin="anonymous" /> : null}
         {/* Kavenegar Web Push SDK */}
-        <script
+        <Script
           src="https://cdn.kavenegar.com/sdk/page.js?appId=5b6c18c0-c2d6-47c0-ae2f-3fddcf7f499e"
-          defer
+          strategy="lazyOnload"
           charSet="utf-8"
         />
       </head>

@@ -141,9 +141,11 @@ function HeroDisk() {
 }
 
 export default async function HomePage() {
-  const config = await getHomepageConfig();
+  const [config, pluginsResult] = await Promise.all([
+    getHomepageConfig(),
+    queryLatestPlugins(3),
+  ]);
   const sec = sectionMap(config);
-  const pluginsResult = await queryLatestPlugins(3);
   const latestPlugins = (pluginsResult.items || []) as LatestPlugin[];
   const pluginChannel =
     (process.env.NEXT_PUBLIC_TELEGRAM_PLUGIN_CHANNEL ||
