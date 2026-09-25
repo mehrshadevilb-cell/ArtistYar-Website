@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runtimeAutoChat } from "@/lib/ai-runtime";
 import type { ChatMessage } from "@/lib/ai-providers";
+import { detectIntent } from "@/lib/hitnevis/intent";
 import {
   VALID_MODES,
   boundHistory,
   buildSystemPrompt,
   buildUserContent,
+  roughLyricHints,
   type HistoryItem,
 } from "@/lib/hitnevis/system";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+const MAX_TOPIC = 2000;
+const MAX_LYRICS = 12000;
+const MAX_CONSTRAINTS = 2000;
+const MAX_BRAIN = 8000;
 
 function rid() {
   return `hn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -27,6 +34,10 @@ function friendlyError(code: string, internal: string): string {
   }
   if (/aborted/i.test(internal)) return "درخواست لغو شد.";
   return "الان نتونستم جواب بدم. متنت سر جاشه — دوباره بزن.";
+}
+
+function clip(s: string, n: number) {
+  return s.length > n ? s.slice(0, n) : s;
 }
 
 export async function OPTIONS() {
@@ -57,31 +68,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const mode = String(body?.mode || "chat").trim();
-  if (!VALID_MODES.has(mode)) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "حالت (mode) نامعتبر است.",
-        code: "validation",
-        retryable: false,
-        requestId: "hn-val",
-        latencyMs: 0,
-      },
-      { status: 400 },
-    );
-  }
-
-  const topic = typeof body?.topic === "string" ? body.topic.trim() : "";
+  const topicRaw = typeof body?.topic === "string" ? body.topic.trim() : "";
   const existingLyrics =
-    typeof body?.existingLyrics === "string" ? body.existingLyrics.trim() : "";
+    typeof body?.existingLyrics === "string" ? clip(body.existingLyrics.trim(), MAX_LYRICS) : "";
   const constraints =
-    typeof body?.constraints === "string" ? body.constraints.trim() : "";
+    typeof body?.constraints === "string" ? clip(body.constraints.trim(), MAX_CONSTRAINTS) : "";
   const sectionType =
-    typeof body?.sectionType === "string" ? body.sectionType.trim() : "";
+    typeof body?.sectionType === "string" ? body.sectionType.trim().slice(0, 40) : "";
+  const brainBlock =
+    typeof body?.brainBlock === "string" ? clip(body.brainBlock.trim(), MAX_BRAIN) : "";
+  const wantDirections = Boolean(body?.wantDirections);
 
-  // Accept either free chat message (topic/constraints) or lyrics work
-  if (!topic && !existingLyrics && !constraints) {
+  if (!topicRaw && !existingLyrics && !constraints) {
     return NextResponse.json(
       {
         ok: false,
@@ -95,18 +93,47 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (topicRaw.length > MAX_TOPIC * 2 || (body?.conversationHistory?.length || 0) > 40) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "متن یا تاریخچه خیلی طولانی است. کمی کوتاه‌تر کن.",
+        code: "validation",
+        retryable: false,
+        requestId,
+        latencyMs: Date.now() - started,
+      },
+      { status: 400 },
+    );
+  }
+
+  const topic = clip(topicRaw, MAX_TOPIC);
+  const intent = detectIntent(topic || constraints || existingLyrics.slice(0, 200));
+
+  let mode = String(body?.mode || intent.mode || "chat").trim();
+  if (!VALID_MODES.has(mode)) mode = intent.mode || "chat";
+  if (!VALID_MODES.has(mode)) mode = "chat";
+
   const history = boundHistory(
     (body?.conversationHistory || body?.messages || []) as HistoryItem[],
     14,
   );
 
-  const system = buildSystemPrompt(mode, body?.artistVoice);
+  const system = buildSystemPrompt({
+    mode,
+    intent,
+    brainBlock: brainBlock || undefined,
+    wantDirections: wantDirections || intent.wantDirections,
+    artistVoice: body?.artistVoice,
+  });
+
   const userContent = buildUserContent({
     mode,
     topic: topic || undefined,
     existingLyrics: existingLyrics || undefined,
     constraints: constraints || undefined,
     sectionType: sectionType || undefined,
+    intentNote: `${intent.primary}/${intent.target} (conf ${intent.confidence.toFixed(2)})`,
   });
 
   const messages: ChatMessage[] = [
@@ -122,8 +149,6 @@ export async function POST(req: NextRequest) {
   const parentSignal = req.signal;
   const onAbort = () => ac.abort();
   parentSignal?.addEventListener("abort", onAbort);
-
-  // Hard ceiling so we never hang the client forever
   const hardTimer = setTimeout(() => ac.abort(), 45_000);
 
   try {
@@ -150,6 +175,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const hints = roughLyricHints(existingLyrics || text);
+
     return NextResponse.json({
       ok: true,
       requestId,
@@ -158,13 +185,18 @@ export async function POST(req: NextRequest) {
       model: result.model,
       latencyMs: Date.now() - started,
       mode,
+      intent: {
+        primary: intent.primary,
+        target: intent.target,
+        confidence: intent.confidence,
+      },
+      hints: hints.length ? hints : undefined,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const isTimeout = /timeout|aborted/i.test(message);
     const isAbort = /aborted/i.test(message) && parentSignal?.aborted;
 
-    // Log internal detail server-side only
     console.error("[hitnevis/generate]", requestId, message.slice(0, 400));
 
     return NextResponse.json(
