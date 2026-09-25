@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          error: detail || "موتور تفکیک خطای HTTP " + response.status + " برگرداند.",
+          error: response.status >= 500\n            ? "موتور تفکیک موقتاً در دسترس نیست."\n            : "درخواست تفکیک توسط موتور رد شد.",
         },
         { status: response.status >= 500 ? 502 : response.status },
       );
