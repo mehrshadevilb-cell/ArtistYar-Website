@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   title: "استودیو | خدمات تنظیم، میکس و مسترینگ",
   description:
     "ابزارهای تولید و خدمات استودیو آرتیست‌یار: تحلیل میکس، جداسازی وکال، سفارش تنظیم، میکس و مسترینگ.",
+  alternates: { canonical: "/studio" },
+  openGraph: { type: "website", url: "/studio", title: "استودیو آرتیست‌یار | تنظیم، میکس و مسترینگ" },
 };
 
 const tools = [
