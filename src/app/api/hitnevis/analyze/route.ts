@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runtimeAutoChat } from "@/lib/ai-runtime";
 import type { ChatMessage } from "@/lib/ai-providers";
-import { buildSystemPrompt } from "@/lib/hitnevis/system";
+import { buildSystemPrompt, roughLyricHints } from "@/lib/hitnevis/system";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const text = String(body?.text || "").trim();
+  const text = String(body?.text || "").trim().slice(0, 8000);
   if (!text) {
     return NextResponse.json(
       { ok: false, error: "متنی برای تحلیل نیست.", code: "validation", requestId, latencyMs: 0 },
@@ -50,18 +50,14 @@ export async function POST(req: NextRequest) {
 
   const kind = String(body?.kind || "dna").trim().toLowerCase();
   const mode = KIND_TO_MODE[kind] || "hit_dna";
-  const system = buildSystemPrompt(mode);
-  const notes = typeof body?.artistNotes === "string" ? body.artistNotes.trim() : "";
+  const system = buildSystemPrompt({ mode });
+  const notes = typeof body?.artistNotes === "string" ? body.artistNotes.trim().slice(0, 500) : "";
 
   const messages: ChatMessage[] = [
     { role: "system", content: system },
     {
       role: "user",
-      content: [
-        `تحلیل (${mode}):`,
-        text.slice(0, 6000),
-        notes ? `یادداشت هنرمند: ${notes}` : "",
-      ]
+      content: [`تحلیل (${mode}):`, text, notes ? `یادداشت هنرمند: ${notes}` : ""]
         .filter(Boolean)
         .join("\n\n"),
     },
@@ -93,6 +89,7 @@ export async function POST(req: NextRequest) {
       model: result.model,
       latencyMs: Date.now() - started,
       mode,
+      hints: roughLyricHints(text),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
