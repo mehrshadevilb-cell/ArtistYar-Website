@@ -4,6 +4,7 @@ export const metadata: Metadata = {
   title: "پیگیری سفارش و وضعیت پرداخت",
   description: "وضعیت سفارش و پرداخت دوره‌ها و کلاس‌های آکادمی راه‌یار را با شناسه پرداخت پیگیری کن.",
   alternates: { canonical: "/track" },
+  robots: { index: false, follow: false },
   openGraph: {
     type: "website",
     url: "/track",
