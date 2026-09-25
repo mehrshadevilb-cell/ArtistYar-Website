@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "start:standalone": "node .next/standalone/server.js",
     "seo:verify": "node scripts/verify-seo.mjs",
-    "prebuild": "node scripts/ensure-hero.cjs && node scripts/inflate-telegram-sync.mjs",
+    "prebuild": "node scripts/ensure-hero.cjs",
     "postinstall": "node scripts/inflate-telegram-sync.mjs"
   },
   "dependencies": {
