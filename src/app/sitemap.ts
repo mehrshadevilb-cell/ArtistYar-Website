@@ -21,7 +21,6 @@ const publicRoutes: { path: string; priority: number; changeFrequency: "weekly" 
   { path: "/about", priority: 0.75, changeFrequency: "monthly" },
   { path: "/contact", priority: 0.7, changeFrequency: "monthly" },
   { path: "/faq", priority: 0.72, changeFrequency: "monthly" },
-  { path: "/track", priority: 0.5, changeFrequency: "monthly" },
 ];
 
 function slugify(title: string): string {
