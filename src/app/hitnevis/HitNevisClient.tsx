@@ -91,7 +91,11 @@ export default function HitNevisClient() {
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [messages, sections, hydrated]);
 
-  useEffect(() => {\n    const el = chatScrollRef.current;\n    if (!el) return;\n    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });\n  }, [messages, loading]);
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages, loading]);
 
   const lockOriginal = useCallback(() => {
     try {
