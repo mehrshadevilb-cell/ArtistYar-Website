@@ -8,6 +8,7 @@ import { runtimeAutoChat, listRuntimePoolStatus } from "@/lib/ai-runtime";
 import { buildHitNevisSystemPrompt, buildHitNevisUserPrompt, isValidMode } from "./prompts";
 import { retrieveHitPatterns } from "./kb/retrieve";
 import { getCurrentChartContext } from "./kb/current-chart-context";
+import { getAdaptiveHitNevisContext } from "./adaptive-learning";
 import {
   analyzeHitDna,
   formatHitDnaReport,
@@ -246,7 +247,7 @@ export function validateHitNevisRequest(
   };
 }
 
-function buildKbContext(req: HitNevisGenerateRequest): string {
+async function buildKbContext(req: HitNevisGenerateRequest): Promise<string> {
   try {
     const result = retrieveHitPatterns({
       genre: req.genre,
@@ -265,6 +266,8 @@ function buildKbContext(req: HitNevisGenerateRequest): string {
     if (result.originality.length) {
       parts.push("تکنیک اصالت پیشنهادی: " + result.originality.join("، "));
     }
+    const adaptive = await getAdaptiveHitNevisContext();
+    if (adaptive) parts.push(adaptive);
     return parts.join("\n");
   } catch {
     return "";
@@ -276,7 +279,7 @@ async function runAi(
   signal: AbortSignal,
   clientId: string,
 ): Promise<{ reply: string; provider: string; model: string }> {
-  const kb = buildKbContext(req);
+  const kb = await buildKbContext(req);
   const userBase = buildHitNevisUserPrompt(req);
   const userContent = kb
     ? `${userBase}\n\n---\n${kb}\n---\nیادآوری: فقط از الگوهای بالا الهام بگیر. هیچ ترانهٔ موجود را کپی یا بازنویسی نزدیک نکن.`
