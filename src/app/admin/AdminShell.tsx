@@ -1,30 +1,14 @@
 "use client";
 
 import { PanelShell } from "@/components/PanelShell";
-
-const nav = [
-  { href: "/admin", label: "گزارش امروز" },
-  { href: "/admin/payments", label: "پرداخت‌ها" },
-  { href: "/admin/practice/subscriptions", label: "اشتراک Practice Pro" },
-  { href: "/admin/reservations", label: "رزروها" },
-  { href: "/admin/students", label: "هنرجویان" },
-  { href: "/admin/enrollments", label: "کلاس‌ها و ثبت‌نام‌ها" },
-  { href: "/admin/content", label: "مدیریت محتوا" },
-  { href: "/admin/education", label: "آموزش و درس‌ها" },
-  { href: "/admin/videos", label: "ویدیوها" },
-  { href: "/admin/free-education", label: "آموزش رایگان" },
-  { href: "/admin/media", label: "رسانه و گالری" },
-  { href: "/admin/analytics", label: "تحلیل و آمار" },
-  { href: "/admin/ai", label: "Admin AI Assistant" },
-  { href: "/admin/music-generator", label: "AI Music Generator" },
-  { href: "/admin/system", label: "وضعیت سیستم" },
-  { href: "/admin/settings", label: "تنظیمات پیشرفته" },
-];
+import { ADMIN_NAV } from "@/lib/admin/nav";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  return (
-    <PanelShell title="پنل ادمین" nav={nav} showCommunity={false}>
-      {children}
-    </PanelShell>
+  const nav = ADMIN_NAV.flatMap((group) =>
+    group.items.filter((item) => item.enabled !== false).map((item) => ({
+      href: item.href,
+      label: item.label,
+    })),
   );
+  return <PanelShell title="پنل ادمین" nav={nav} showCommunity={false}>{children}</PanelShell>;
 }
