@@ -1,10 +1,23 @@
-/** Deterministic global daily challenge from real exercises. */
+/**
+ * Phase 6 — deterministic global daily challenge from real exercises.
+ */
+
 import { utcDayKey } from "@/lib/practice-streak";
 
 const CHALLENGE_POOL = [
-  "freq-detect", "eq-peak", "eq-match", "filter-expert", "bass-detective",
-  "compressionist", "dr-compressor", "loudness-db", "pan-train", "stereo-width",
-  "mix-masking", "mix-eq-decision", "balance-memory",
+  "freq-detect",
+  "eq-peak",
+  "eq-match",
+  "filter-expert",
+  "bass-detective",
+  "compressionist",
+  "dr-compressor",
+  "loudness-db",
+  "pan-train",
+  "stereo-width",
+  "mix-masking",
+  "mix-eq-decision",
+  "balance-memory",
 ] as const;
 
 function hashDay(dayKey: string): number {
@@ -30,7 +43,7 @@ export type DailyChallengeSpec = {
 export function buildDailyChallenge(dayKey: string = utcDayKey()): DailyChallengeSpec {
   const h = hashDay(dayKey);
   const exerciseId = CHALLENGE_POOL[h % CHALLENGE_POOL.length];
-  const difficulty = 120 + (h % 200);
+  const difficulty = 120 + (h % 200); // 120–319
   const seed = h;
   const fingerprint = `daily|${dayKey}|${exerciseId}|${difficulty}|${seed}`;
   return {
