@@ -88,7 +88,170 @@ export default function HitNevisClient() {
         localStorage.setItem(STORAGE, JSON.stringify({ messages: messages.slice(-60), sections, savedAt: new Date().toISOString() }));
       } catch {}
     }, 500);
-    return (
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [messages, sections, hydrated]);
+
+  useEffect(() => {\n    const el = chatScrollRef.current;\n    if (!el) return;\n    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });\n  }, [messages, loading]);
+
+  const lockOriginal = useCallback(() => {
+    try {
+      if (!localStorage.getItem(ORIGINAL_KEY) && fullLyrics.trim()) localStorage.setItem(ORIGINAL_KEY, fullLyrics);
+    } catch {}
+  }, [fullLyrics]);
+
+  const buildHistory = (excludeLastUser = false) => {
+    const list = messagesRef.current.filter((m) => (m.role === "user" || m.role === "assistant") && m.kind !== "error" && m.id !== "welcome");
+    const turns = list.filter((m) => m.content.trim()).map((m) => ({ role: m.role as "user" | "assistant", content: m.content.slice(0, 1000) }));
+    if (excludeLastUser && turns.length && turns[turns.length - 1].role === "user") return turns.slice(0, -1).slice(-10);
+    return turns.slice(-10);
+  };
+
+  const voicePayload = () => {
+    if (!voice.name && !voice.styleNotes && !voice.preferredWords && !voice.avoidedWords) return undefined;
+    return {
+      name: voice.name || undefined,
+      styleNotes: voice.styleNotes || undefined,
+      preferredWords: voice.preferredWords ? voice.preferredWords.split(/[,،]/).map((x) => x.trim()).filter(Boolean) : undefined,
+      avoidedWords: voice.avoidedWords ? voice.avoidedWords.split(/[,،]/).map((x) => x.trim()).filter(Boolean) : undefined,
+    };
+  };
+
+  const applyText = (text: string, mode: "replace" | "append" = "replace") => {
+    setSections((prev) => prev.map((s) => {
+      if (s.id !== activeId) return s;
+      if (mode === "append") return { ...s, text: s.text.trim() ? `${s.text.trim()}\n${text}` : text };
+      return { ...s, text };
+    }));
+  };
+
+  const runRequest = useCallback(async (userText: string, opts?: { forcedMode?: HitNevisMode; skipUserBubble?: boolean; replaceUserId?: string }) => {
+    const trimmed = userText.trim();
+    if (!trimmed && !opts?.forcedMode) return;
+    if (loading) return;
+    const intent = opts?.forcedMode
+      ? { mode: opts.forcedMode, sectionType: undefined as LyricSectionId | undefined, label: opts.forcedMode === "chat" ? "گفتگو" : opts.forcedMode, confidence: 1 }
+      : detectIntent(trimmed || topic, hasLyrics);
+    const mode = intent.mode;
+
+    if (opts?.replaceUserId) {
+      setMessages((prev) => {
+        const idx = prev.findIndex((m) => m.id === opts.replaceUserId);
+        if (idx < 0) return prev;
+        const next = prev.slice(0, idx + 1);
+        next[idx] = { ...next[idx], content: trimmed, at: Date.now(), mode, modeLabel: intent.label };
+        return next;
+      });
+      setEditingId(null);
+    } else if (!opts?.skipUserBubble) {
+      setMessages((prev) => [...prev, { id: uid("u"), role: "user", content: trimmed || intent.label, at: Date.now(), mode, modeLabel: intent.label }]);
+    }
+
+    setInput("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
+    setLoading(true);
+    lockOriginal();
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+
+    const existing =
+      mode === "write_full" || mode === "structure" || mode === "title_ideas" || mode === "idea_analyze"
+        ? fullLyrics || active?.text || ""
+        : active?.text?.trim() || fullLyrics;
+    const history = buildHistory(Boolean(opts?.skipUserBubble || opts?.replaceUserId));
+    if (trimmed) history.push({ role: "user", content: trimmed.slice(0, 1000) });
+
+    try {
+      if (mode === "hit_dna" || mode === "human_tests" || mode === "anti_cliche") {
+        const kind = mode === "hit_dna" ? "dna" : mode === "human_tests" ? "human" : "cliche";
+        const res = await fetch("/api/hitnevis/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: existing || trimmed || topic, kind, artistNotes: voice.styleNotes || undefined }),
+          signal: ac.signal,
+          cache: "no-store",
+        });
+        let data: Record<string, unknown> = {};
+        try { data = await res.json(); } catch { data = { ok: false, error: "پاسخ سرور نامعتبر بود." }; }
+        if (!data.ok) {
+          setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: persianError(data.error), at: Date.now(), kind: "error", retryable: true, lastPrompt: trimmed, mode }]);
+          return;
+        }
+        let content = "";
+        if (mode === "hit_dna") content = String(data.report || data.dnaReport || "");
+        else if (mode === "human_tests") content = String(data.report || data.humanReport || "");
+        else {
+          const list = (Array.isArray(data.cliches) ? data.cliches : []) as string[];
+          content = list.length ? `چند عبارت نزدیک به کلیشه:
+• ${list.join("\n• ")}
+
+اگر بخواهی جایگزین طبیعی می‌نویسم.` : "کلیشهٔ واضحی ندیدم — مسیر نسبتاً تازه‌ای داری.";
+        }
+        setMessages((prev) => [...prev, { id: uid(), role: "assistant", content, at: Date.now(), kind: "analysis", mode, modeLabel: intent.label, lastPrompt: trimmed }]);
+        return;
+      }
+
+      const res = await fetch("/api/hitnevis/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode,
+          topic: (topic || trimmed).slice(0, 500) || undefined,
+          existingLyrics: existing || undefined,
+          sectionType: intent.sectionType || active?.type,
+          language: "fa",
+          constraints: trimmed ? trimmed.slice(0, 800) : undefined,
+          artistVoice: voicePayload(),
+          directionsCount: mode === "save_lyric" || mode === "hook_lab" ? 3 : undefined,
+          conversationHistory: history.slice(0, -1),
+        }),
+        signal: ac.signal,
+        cache: "no-store",
+      });
+      let data: Record<string, unknown> = {};
+      try { data = await res.json(); } catch { data = { ok: false, error: "پاسخ سرور خوانده نشد.", retryable: true }; }
+      if (!data.ok) {
+        setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: persianError(data.error), at: Date.now(), kind: "error", retryable: data.retryable !== false, lastPrompt: trimmed, mode }]);
+        return;
+      }
+      const text = String(data.text || "").trim();
+      if (!text) {
+        setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: "پاسخ خالی برگشت. دوباره امتحان کن.", at: Date.now(), kind: "error", retryable: true, lastPrompt: trimmed, mode }]);
+        return;
+      }
+      const isLyric = mode === "chat" || mode.startsWith("write_") || ["continue", "rewrite", "improve", "shorten", "emotional", "conversational", "visual", "bold", "rhyme", "artist_voice"].includes(mode);
+      setMessages((prev) => [...prev, {
+        id: uid(), role: "assistant", content: text, at: Date.now(),
+        kind: isLyric ? "lyrics" : "analysis",
+        directions: Array.isArray(data.directions) ? (data.directions as string[]) : undefined,
+        mode, modeLabel: intent.label, lastPrompt: trimmed,
+      }]);
+    } catch (e) {
+      const aborted = (e as Error)?.name === "AbortError";
+      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: aborted ? "لغو شد." : "ارتباط قطع شد. پیش‌نویس محفوظ است — دوباره بزن.", at: Date.now(), kind: "error", retryable: true, lastPrompt: trimmed }]);
+    } finally {
+      setLoading(false);
+    }
+  }, [hasLyrics, topic, active, fullLyrics, voice, lockOriginal, loading]);
+
+  const onSubmit = (e?: FormEvent) => {
+    e?.preventDefault();
+    if (loading) return;
+    const t = input.trim();
+    if (!t) return;
+    if (editingId) { void runRequest(t, { replaceUserId: editingId }); return; }
+    void runRequest(t);
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSubmit(); }
+  };
+
+  if (!hydrated) {
+    return <div className="flex min-h-[50vh] items-center justify-center text-sm text-ink-400"><Loader2 className="me-2 animate-spin" size={16} /> آماده‌سازی…</div>;
+  }
+
+  return (
     <div className="mx-auto flex h-[min(100dvh-6rem,820px)] min-h-0 max-w-3xl flex-col overflow-hidden" dir="rtl">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-ink-800/50 bg-ink-950/40">
         <div ref={chatScrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5">
