@@ -127,7 +127,13 @@ export function Bubble({
                   </A>
                 </>
               )}
-              {!isErr && msg.kind !== "analysis" && (\n            <>\n              <A onClick={() => onFeedback("positive")}><ThumbsUp size={11} className="inline" /> مفید بود</A>\n              <A onClick={() => onFeedback("negative")}><ThumbsDown size={11} className="inline" /> نیاز به بهتر شدن داشت</A>\n            </>\n          )}\n          {msg.lastPrompt && (
+              {!isErr && msg.kind !== "analysis" && (
+                <>
+                  <A onClick={() => onFeedback("positive")}><ThumbsUp size={11} className="inline" /> مفید بود</A>
+                  <A onClick={() => onFeedback("negative")}><ThumbsDown size={11} className="inline" /> نیاز به بهتر شدن داشت</A>
+                </>
+              )}
+          {msg.lastPrompt && (
                 <A onClick={onRegen} disabled={loading}>
                   <RefreshCw size={11} className="inline" /> دوباره
                 </A>
