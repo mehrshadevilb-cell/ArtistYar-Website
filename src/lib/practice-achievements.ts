@@ -1,4 +1,6 @@
-/** Phase 6 — achievement evaluation (server-side). */
+/**
+ * Phase 6 — achievement evaluation (server-side).
+ */
 
 export type AchievementContext = {
   totalXp: number;
