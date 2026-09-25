@@ -36,7 +36,7 @@ export async function searchAdminEntities(
 
   const groups: SearchResultGroup[] = [];
   const headers = {
-    Authorization: `Bearer ${opts.adminKey}`,
+    "X-Admin-Key": opts.adminKey,
     Accept: "application/json",
   };
 
