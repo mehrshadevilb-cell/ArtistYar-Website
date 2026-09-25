@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Music2, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
   title: "خدمات تنظیم آثار موسیقی | ArtistYar",
@@ -22,6 +23,18 @@ export const metadata: Metadata = {
     type: "website",
     url: "/arrangement",
   },
+};
+
+
+const serviceJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  name: "سفارش تنظیم آثار موسیقی ArtistYar",
+  serviceType: "تنظیم موسیقی",
+  description: "تنظیم اختصاصی، بازتنظیم، طراحی ساختار و انتخاب المان‌های موسیقی از دمو یا پروژه اولیه تا آماده‌سازی برای میکس.",
+  provider: { "@type": "Organization", name: "ArtistYar", url: "https://artistyaar.ir" },
+  url: "https://artistyaar.ir/arrangement",
+  inLanguage: "fa-IR",
 };
 
 const services = [
