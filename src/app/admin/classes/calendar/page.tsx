@@ -17,8 +17,11 @@ type CalendarSession = {
   location?: string | null;
 };
 
-function isoDate(date: Date) {
-  return date.toISOString().slice(0, 10);
+function localDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return year + "-" + month + "-" + day;
 }
 
 function shiftDays(date: Date, days: number) {
@@ -70,7 +73,7 @@ export default function AdminClassesCalendarPage() {
   const grouped = useMemo(() => {
     const map = new Map<string, CalendarSession[]>();
     for (const item of items) {
-      const key = isoDate(new Date(item.scheduled_start));
+      const key = localDateKey(new Date(item.scheduled_start));
       const list = map.get(key) || [];
       list.push(item);
       map.set(key, list);
@@ -120,7 +123,7 @@ export default function AdminClassesCalendarPage() {
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
         {days.map((day) => {
-          const key = isoDate(day);
+          const key = localDateKey(day);
           const sessions = grouped.get(key) || [];
           return (
             <section key={key} className="card-ay min-h-44 p-3">
