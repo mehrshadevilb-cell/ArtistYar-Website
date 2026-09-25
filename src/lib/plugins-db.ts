@@ -101,7 +101,7 @@ function classifyError(detail: string): string {
   if (/permission denied|not authorized|JWT|invalid api key|Invalid API key/i.test(detail)) {
     return "permission_denied";
   }
-  if (/Failed to fetch|fetch failed|ECONNREFUSED|ENOTFOUND|network/i.test(detail)) {
+  if (/Failed to fetch|fetch failed|ECONNREFUSED|ENOTFOUND|AbortError|aborted|timeout|network/i.test(detail)) {
     return "network_error";
   }
   return "plugin_query_failed";
