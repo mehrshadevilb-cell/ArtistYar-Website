@@ -130,7 +130,8 @@ export type HitNevisErrorResult = {
     | "all_failed"
     | "timeout"
     | "aborted"
-    | "internal";
+    | "internal"
+    | "similarity";
   retryable: boolean;
   latencyMs: number;
 };
