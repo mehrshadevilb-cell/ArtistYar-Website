@@ -21,7 +21,10 @@ function uid(p = "m") {
   return `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 function sectionsToText(sections: Section[]) {
-  return sections.filter((s) => s.text.trim()).map((s) => `[${s.label}]\n${s.text.trim()}`).join("\n\n");
+  return sections.filter((s) => s.text.trim()).map((s) => `[${s.label}]
+${s.text.trim()}`).join("
+
+");
 }
 function emptyVoice(): ArtistVoice {
   return { name: "", styleNotes: "", preferredWords: "", avoidedWords: "" };
@@ -36,7 +39,12 @@ function persianError(raw: unknown) {
 const WELCOME: ChatMessage = {
   id: "welcome",
   role: "assistant",
-  content: "سلام — من همکار ترانه‌نویسی‌ات هستم.\n\nهر چی تو ذهنته بگو: ایده، یک خط، حس، یا «این کورس رو قوی‌تر کن».\nبدون فرم و تنظیمات اضافه، همین‌جا با هم پیش می‌ریم.\n\nمتن اصلیت بدون اجازه‌ات عوض نمی‌شه.",
+  content: "سلام — من همکار ترانه‌نویسی‌ات هستم.
+
+هر چی تو ذهنته بگو: ایده، یک خط، حس، یا «این کورس رو قوی‌تر کن».
+بدون فرم و تنظیمات اضافه، همین‌جا با هم پیش می‌ریم.
+
+متن اصلیت بدون اجازه‌ات عوض نمی‌شه.",
   at: 0,
   kind: "text",
 };
@@ -122,7 +130,8 @@ export default function HitNevisClient() {
   const applyText = (text: string, mode: "replace" | "append" = "replace") => {
     setSections((prev) => prev.map((s) => {
       if (s.id !== activeId) return s;
-      if (mode === "append") return { ...s, text: s.text.trim() ? `${s.text.trim()}\n${text}` : text };
+      if (mode === "append") return { ...s, text: s.text.trim() ? `${s.text.trim()}
+${text}` : text };
       return { ...s, text };
     }));
   };
@@ -185,7 +194,11 @@ export default function HitNevisClient() {
         else if (mode === "human_tests") content = String(data.report || data.humanReport || "");
         else {
           const list = (Array.isArray(data.cliches) ? data.cliches : []) as string[];
-          content = list.length ? `چند عبارت نزدیک به کلیشه:\n• ${list.join("\n• ")}\n\nاگر بخواهی جایگزین طبیعی می‌نویسم.` : "کلیشهٔ واضحی ندیدم — مسیر نسبتاً تازه‌ای داری.";
+          content = list.length ? `چند عبارت نزدیک به کلیشه:
+• ${list.join("
+• ")}
+
+اگر بخواهی جایگزین طبیعی می‌نویسم.` : "کلیشهٔ واضحی ندیدم — مسیر نسبتاً تازه‌ای داری.";
         }
         setMessages((prev) => [...prev, { id: uid(), role: "assistant", content, at: Date.now(), kind: "analysis", mode, modeLabel: intent.label, lastPrompt: trimmed }]);
         return;
@@ -256,7 +269,20 @@ export default function HitNevisClient() {
       <header className="mb-2 flex shrink-0 items-center justify-between gap-2 px-1">
         <input value={title} onChange={(e) => setTitle(e.target.value.slice(0, 80))} placeholder="ترانه بدون عنوان" className="min-w-0 flex-1 bg-transparent text-sm font-medium text-sand-50 outline-none placeholder:text-ink-600" />
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => {\n            if (loading) abortRef.current?.abort();\n            setMessages([{ ...WELCOME, id: uid("w"), at: Date.now() }]);\n            setInput("");\n            setEditingId(null);\n            setTitle("");\n            setTopic("");\n            setSections(DEFAULT_SECTIONS);\n            setActiveId(DEFAULT_SECTIONS[0].id);\n            setVoice(emptyVoice());\n            setDrawer(false);\n            setCopiedId(null);\n            try { localStorage.removeItem(ORIGINAL_KEY); } catch {}\n          }} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-ink-400 hover:text-sand-100"><Plus size={14} /> تازه</button>
+          <button type="button" onClick={() => {
+            if (loading) abortRef.current?.abort();
+            setMessages([{ ...WELCOME, id: uid("w"), at: Date.now() }]);
+            setInput("");
+            setEditingId(null);
+            setTitle("");
+            setTopic("");
+            setSections(DEFAULT_SECTIONS);
+            setActiveId(DEFAULT_SECTIONS[0].id);
+            setVoice(emptyVoice());
+            setDrawer(false);
+            setCopiedId(null);
+            try { localStorage.removeItem(ORIGINAL_KEY); } catch {}
+          }} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-ink-400 hover:text-sand-100"><Plus size={14} /> تازه</button>
           <button type="button" onClick={() => {
             try {
               const raw = localStorage.getItem(ORIGINAL_KEY);
