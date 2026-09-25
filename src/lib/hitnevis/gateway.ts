@@ -9,6 +9,7 @@ import { buildHitNevisSystemPrompt, buildHitNevisUserPrompt, isValidMode } from 
 import { retrieveHitPatterns } from "./kb/retrieve";
 import { getCurrentChartContext } from "./kb/current-chart-context";
 import { getAdaptiveHitNevisContext } from "./adaptive-learning";
+import { findHitNevisSimilarity } from "./copyright-similarity";
 import {
   analyzeHitDna,
   formatHitDnaReport,
@@ -268,6 +269,12 @@ async function buildKbContext(req: HitNevisGenerateRequest): Promise<string> {
     }
     const adaptive = await getAdaptiveHitNevisContext();
     if (adaptive) parts.push(adaptive);
+    if (req.existingLyrics) {
+      const similarity = await findHitNevisSimilarity(req.existingLyrics, 3);
+      if (similarity.length) {
+        parts.push("هشدار شباهت با آثار موجود در corpus مجاز: " + similarity.map((x) => x.artist + " — " + x.title + " (امتیاز " + x.score + ")").join("؛ ") + ". متن منبع را بازتولید نکن و خروجی را مستقل نگه دار.");
+      }
+    }
     return parts.join("\n");
   } catch {
     return "";
