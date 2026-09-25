@@ -56,8 +56,12 @@ type FeedbackRow = {
   created_at: string;
 };
 
+let adaptiveCache: { expiresAt: number; value: string } | null = null;
+const ADAPTIVE_CACHE_MS = 60_000;
+
 export async function getAdaptiveHitNevisContext(maxChars = 3200): Promise<string> {
   if (!supabase) return "";
+  if (adaptiveCache && adaptiveCache.expiresAt > Date.now()) return adaptiveCache.value.slice(0, maxChars);
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const [profileResult, result] = await Promise.all([
     supabase.from("hitnevis_adaptive_profile").select("profile,sample_count,generated_at").eq("id", true).maybeSingle(),
@@ -118,5 +122,7 @@ export async function getAdaptiveHitNevisContext(maxChars = 3200): Promise<strin
       "؛ تکرار پایان‌واژه " + (avgEndRepeat ?? "—") + ".");
   }
   lines.push("از این داده فقط برای تنظیم کیفیت و اولویت پیشنهادها استفاده کن؛ نتیجه‌گیری قطعی یا تقلید از فرد/ترانه انجام نده.");
-  return lines.filter(Boolean).join("\n").slice(0, maxChars);
+  const value = lines.filter(Boolean).join("\n").slice(0, maxChars);
+  adaptiveCache = { expiresAt: Date.now() + ADAPTIVE_CACHE_MS, value };
+  return value;
 }
