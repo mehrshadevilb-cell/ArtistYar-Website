@@ -63,9 +63,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { href: "/admin/payments", label: "پرداخت‌ها" },
       { href: "/admin/practice/subscriptions", label: "اشتراک Practice Pro" },
-      { href: "/admin/orders", label: "سفارش‌ها", enabled: false },
-      { href: "/admin/coupons", label: "کد تخفیف", enabled: false },
-      { href: "/admin/finance", label: "مالی", enabled: false },
+      { href: "/admin/orders", label: "سفارش‌ها", enabled: true },
+      { href: "/admin/coupons", label: "کد تخفیف", enabled: true },
+      { href: "/admin/finance", label: "مالی", enabled: true },
     ],
   },
   {
@@ -79,10 +79,10 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { href: "/admin/ai", label: "راه‌یار (Admin AI)" },
       { href: "/admin/music-generator", label: "Music Generator" },
-      { href: "/admin/ai/providers", label: "Providers", enabled: false },
-      { href: "/admin/ai/models", label: "مدل‌ها", enabled: false },
+      { href: "/admin/ai/providers", label: "Providers", enabled: true },
+      { href: "/admin/ai/models", label: "مدل‌ها", enabled: true },
       { href: "/admin/ai/prompts", label: "پرامپت‌ها", enabled: false },
-      { href: "/admin/ai/usage", label: "مصرف", enabled: false },
+      { href: "/admin/ai/usage", label: "مصرف", enabled: true },
     ],
   },
   {
@@ -90,8 +90,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "محتوا",
     items: [
       { href: "/admin/media", label: "رسانه و گالری" },
-      { href: "/admin/homepage", label: "صفحه اصلی", enabled: false },
-      { href: "/admin/announcements", label: "اعلان‌ها", enabled: false },
+      { href: "/admin/homepage", label: "صفحه اصلی", enabled: true },
+      { href: "/admin/announcements", label: "اعلان‌ها", enabled: true },
     ],
   },
   {
@@ -99,7 +99,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "بینش",
     items: [
       { href: "/admin/analytics", label: "تحلیل و آمار" },
-      { href: "/admin/seo", label: "سئو", enabled: false },
+      { href: "/admin/seo", label: "سئو" },
     ],
   },
   {
