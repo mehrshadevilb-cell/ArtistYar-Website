@@ -262,7 +262,7 @@ export default function HitNevisClient() {
           {messages.map((m) => (
             <Bubble key={m.id} msg={m} copied={copiedId === m.id} loading={loading} isEditing={editingId === m.id}
               onCopy={async () => { try { await navigator.clipboard.writeText(m.content); setCopiedId(m.id); setTimeout(() => setCopiedId(null), 1400); } catch {} }}
-              onUse={() => applyText(m.content, "replace")} onAppend={() => applyText(m.content, "append")}
+              onUse={() => { applyText(m.content, "replace"); void sendFeedback(m.mode, "used", m.content); }} onAppend={() => { applyText(m.content, "append"); void sendFeedback(m.mode, "used", m.content); }}
               onContinue={() => void runRequest("ادامه‌ش بده", { forcedMode: "continue" })}
               onRewrite={() => void runRequest("بازنویسی کن", { forcedMode: "rewrite" })}
               onRegen={() => m.lastPrompt && void runRequest(m.lastPrompt, { forcedMode: m.mode, skipUserBubble: true })}
