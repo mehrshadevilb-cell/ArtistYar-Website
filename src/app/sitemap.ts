@@ -4,15 +4,23 @@ import { getCatalog } from "@/lib/catalog";
 const publicRoutes: { path: string; priority: number; changeFrequency: "weekly" | "monthly" | "daily" }[] = [
   { path: "/", priority: 1, changeFrequency: "weekly" },
   { path: "/assistant", priority: 0.95, changeFrequency: "weekly" },
+  { path: "/ai", priority: 0.9, changeFrequency: "weekly" },
+  { path: "/ai-music", priority: 0.88, changeFrequency: "weekly" },
+  { path: "/music-analyzer", priority: 0.88, changeFrequency: "weekly" },
   { path: "/courses", priority: 0.9, changeFrequency: "weekly" },
   { path: "/amoozesh-tanzim-mix-mastering", priority: 0.98, changeFrequency: "weekly" },
   { path: "/free-player", priority: 0.9, changeFrequency: "monthly" },
   { path: "/practice", priority: 0.88, changeFrequency: "weekly" },
   { path: "/online", priority: 0.85, changeFrequency: "monthly" },
+  { path: "/arrangement", priority: 0.82, changeFrequency: "monthly" },
+  { path: "/studio", priority: 0.82, changeFrequency: "monthly" },
+  { path: "/separate", priority: 0.78, changeFrequency: "monthly" },
+  { path: "/hitnevis", priority: 0.8, changeFrequency: "weekly" },
   { path: "/gallery", priority: 0.8, changeFrequency: "weekly" },
   { path: "/plugins", priority: 0.82, changeFrequency: "daily" },
   { path: "/about", priority: 0.75, changeFrequency: "monthly" },
   { path: "/contact", priority: 0.7, changeFrequency: "monthly" },
+  { path: "/faq", priority: 0.72, changeFrequency: "monthly" },
   { path: "/track", priority: 0.5, changeFrequency: "monthly" },
 ];
 
