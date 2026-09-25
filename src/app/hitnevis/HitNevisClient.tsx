@@ -270,6 +270,22 @@ export default function HitNevisClient() {
   return (
     <div className="mx-auto flex h-[min(100dvh-6rem,820px)] min-h-0 max-w-3xl flex-col overflow-hidden" dir="rtl">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-ink-800/50 bg-ink-950/40">
+        <div className="shrink-0 overflow-x-auto border-b border-ink-800/50 px-2 py-2 sm:px-3" role="tablist" aria-label="بخش ترانه">
+          <div className="flex min-w-max gap-1.5">
+            {sections.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                role="tab"
+                aria-selected={section.id === activeId}
+                onClick={() => setActiveId(section.id)}
+                className={`rounded-full px-3 py-1.5 text-[11px] transition ${section.id === activeId ? "bg-sand-100 text-ink-950" : "border border-ink-800 text-ink-400 hover:border-ink-600 hover:text-sand-100"}`}
+              >
+                {section.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div ref={chatScrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5">
           {messages.map((m) => (
             <Bubble key={m.id} msg={m} copied={copiedId === m.id} loading={loading} isEditing={editingId === m.id}
