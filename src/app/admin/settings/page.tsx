@@ -369,7 +369,7 @@ export default function AdminSettingsPage() {
           <Link href="/admin/ai" className="btn-ghost min-h-11 !py-2 text-xs">
             AI Agent
           </Link>
-          <Link href="/admin/media" className="btn-ghost min-h-11 !py-2 text-xs">
+          <Link href="/admin/content?tab=media" className="btn-ghost min-h-11 !py-2 text-xs">
             مدیریت محتوا
           </Link>
           <Link href="/admin/students" className="btn-ghost min-h-11 !py-2 text-xs">
