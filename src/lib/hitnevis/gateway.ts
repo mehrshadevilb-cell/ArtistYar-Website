@@ -373,8 +373,7 @@ async function hitnevisGenerateInner(
     const text = (result.reply || "").trim();
     if (!text) return mapGatewayError(new Error("empty_reply"), requestId, startedAt);
 
-    const shouldCheckGeneratedText =
-      req.mode !== "critic" && req.mode !== "idea_analyze" && req.mode !== "human_tests";
+    const shouldCheckGeneratedText = req.mode !== "critic" && req.mode !== "idea_analyze";
     if (shouldCheckGeneratedText && text.length >= 40) {
       const [generatedMatches, inputMatches] = await Promise.all([
         findHitNevisSimilarity(text, 3),
