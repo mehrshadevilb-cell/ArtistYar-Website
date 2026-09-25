@@ -22,6 +22,7 @@ const MODE_LABELS: Record<HitNevisMode, string> = {
   title_ideas: "ایده عنوان ترانه",
   structure: "پیشنهاد ساختار ترانه",
   continue: "ادامه دادن متن از جایی که هست",
+  complete: "تکمیل فقط بخش/جملهٔ ناقص بدون دست‌زدن به متن قبلی",
   rewrite: "بازنویسی خلاقانه با حفظ معنا",
   shorten: "کوتاه و فشرده کردن",
   emotional: "تقویت بار احساسی",
@@ -94,7 +95,8 @@ export function buildHitNevisSystemPrompt(req: HitNevisGenerateRequest): string 
     "وقتی اطلاعات کافی نیست حداکثر یک سؤال کوتاه بپرس؛ وگرنه فرض منطقی بساز و پیش‌نویس مفید بده.",
     "فقط درباره ترانه، شعر، قافیه، ساختار و ایده‌های موسیقایی.",
     `زبان خروجی: ${lang}.`,
-    "صدای هنرمند را حفظ کن؛ متن اصلی را بدون درخواست صریح جایگزین نکن.",
+    "قانون قفل متن: متن کاربر مرجع و LOCKED است. هرگز متن موجود را بازنویسی، پارافرایز، جابه‌جا یا اصلاح نکن مگر mode صریحاً rewrite/edit باشد. در write_chorus/write_verse/write_pre_chorus/write_bridge/write_outro فقط بخش هدف را تولید کن؛ در continue فقط ادامه بده؛ در complete فقط قسمت ناقص را کامل کن؛ در critic/analysis فقط تحلیل و پیشنهاد بده.",
+    "قانون خروجی: اگر خروجی قرار است بخش جدید باشد، فقط همان بخش جدید را برگردان و متن قبلی را تکرار نکن. هیچ متن قبلی را داخل خروجی به‌عنوان جایگزین تکرار نکن مگر کاربر صریحاً rewrite خواسته باشد.",
     "هرگز نام مدل یا ارائه‌دهندهٔ هوش مصنوعی را ذکر نکن.",
     "ادعا نکن که هر متنی هیت می‌شود. روی هوک، احساس، اصالت و خوانایی تمرکز کن.",
     "دانش الگوی ترانه‌سرایی (انتزاعی — بدون کپی):\n- " + HIT_STRATEGY_KB,
@@ -108,7 +110,7 @@ export function buildHitNevisUserPrompt(req: HitNevisGenerateRequest): string {
   const parts: string[] = [];
   parts.push(`حالت: ${MODE_LABELS[req.mode] || req.mode}`);
   if (req.sectionType) parts.push(`بخش هدف: ${SECTION_LABELS[req.sectionType] || req.sectionType}`);
-  if (req.topic?.trim()) parts.push(`موضوع / حس: ${req.topic.trim().slice(0, 500)}`);
+  if (req.topic) parts.push(`موضوع / حس: ${req.topic.slice(0, 500)}`);
   if (req.genre) parts.push(`ژانر: ${req.genre}`);
   if (req.tone) parts.push(`تون احساسی: ${req.tone}`);
   if (req.conversationHistory?.length) {
@@ -122,19 +124,19 @@ export function buildHitNevisUserPrompt(req: HitNevisGenerateRequest): string {
   if (req.constraints?.trim()) {
     if (req.mode === "chat") {
       parts.push("پیام فعلی کاربر:");
-      parts.push(req.constraints.trim().slice(0, 1200));
+      parts.push(req.constraints.slice(0, 1200));
     } else {
-      parts.push(`محدودیت‌ها / درخواست: ${req.constraints.trim().slice(0, 400)}`);
+      parts.push(`محدودیت‌ها / درخواست: ${req.constraints.slice(0, 400)}`);
     }
   }
   if (req.existingLyrics?.trim()) {
-    parts.push("متن فعلی پروژه (اصلی — محترم بدار):");
-    parts.push(req.existingLyrics.trim().slice(0, 6000));
+    parts.push("متن فعلی پروژه (LOCKED — دقیقاً حفظ کن؛ برای context است، نه برای بازنویسی):");
+    parts.push(req.existingLyrics.slice(0, 6000));
   }
 
   switch (req.mode) {
     case "write_full":
-      parts.push("یک ترانه کامل با برچسب [ورس] [پری‌کورس] [کورس] [بریج] بنویس.");
+      parts.push("اگر متن موجود وجود دارد، آن را دست‌نخورده نگه دار و فقط بخش‌های واقعاً خالی را بساز. اگر کاربر ترانهٔ کامل خواسته، ساختار کامل را از نو فقط در صورت خالی بودن متن ارائه کن.");
       break;
     case "hook_lab":
       parts.push("۳ تا ۵ نسخهٔ کوتاه و قوی برای قلاب/کورس پیشنهاد بده. هر نسخه را شماره‌گذاری کن.");
@@ -170,7 +172,10 @@ export function buildHitNevisUserPrompt(req: HitNevisGenerateRequest): string {
       );
       break;
     case "continue":
-      parts.push("از جایی که متن تمام شده ادامه بده؛ سبک و صدای فعلی را حفظ کن.");
+      parts.push("فقط از انتهای متن فعلی ادامه بده. هیچ خط موجودی را تکرار، اصلاح، بازنویسی یا جایگزین نکن. خروجی فقط خطوط جدید باشد.");
+      break;
+    case "complete":
+      parts.push("فقط قسمت ناقصِ بخش هدف را کامل کن. متن موجود را عیناً حفظ کن و دوباره ننویس. خروجی فقط ادامه/قسمت تکمیل‌شده باشد؛ اگر بخش کامل است، به‌جای بازنویسی بگو چه چیزی کم است.");
       break;
     case "rewrite":
       parts.push("بازنویسی کن با حفظ معنا و حس؛ نسخهٔ تازه ارائه بده.");
@@ -192,6 +197,21 @@ export function buildHitNevisUserPrompt(req: HitNevisGenerateRequest): string {
       break;
     case "artist_voice":
       parts.push("متن را با پروفایل صدای هنرمند هم‌راستا بازنویسی کن.");
+      break;
+    case "write_chorus":
+      parts.push("فقط یک کورس/هوک جدید برای بخش هدف بنویس؛ ورس و سایر بخش‌های موجود را تغییر نده و تکرار نکن.");
+      break;
+    case "write_verse":
+      parts.push("فقط ورس جدید بنویس؛ سایر بخش‌های موجود را تغییر نده و تکرار نکن.");
+      break;
+    case "write_pre_chorus":
+      parts.push("فقط پری‌کورس جدید بنویس؛ سایر بخش‌های موجود را تغییر نده و تکرار نکن.");
+      break;
+    case "write_bridge":
+      parts.push("فقط بریج جدید بنویس؛ سایر بخش‌های موجود را تغییر نده و تکرار نکن.");
+      break;
+    case "write_outro":
+      parts.push("فقط اوت‌رو جدید بنویس؛ سایر بخش‌های موجود را تغییر نده و تکرار نکن.");
       break;
     case "chat":
       parts.push(
@@ -216,6 +236,7 @@ export const HITNEVIS_MODES: HitNevisMode[] = [
   "title_ideas",
   "structure",
   "continue",
+  "complete",
   "rewrite",
   "shorten",
   "emotional",
