@@ -165,6 +165,15 @@ export type HitDnaFeatures = {
   overall: number;
   notes: string[];
   disclaimer: string;
+  /** Deterministic, approximate Persian lyric mechanics. */
+  prosody?: {
+    averageSyllables: number;
+    syllableSpread: number;
+    flaggedLines: number;
+    repeatedEndWords: string[];
+    confidence: "approximate";
+  };
+  actionableSuggestions?: string[];
 };
 
 export type HumanTestId =
