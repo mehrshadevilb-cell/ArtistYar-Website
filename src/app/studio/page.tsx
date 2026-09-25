@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { AudioWaveform, Scissors, Music2, Disc3, ArrowLeft } from "lucide-react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
   title: "استودیو | خدمات تنظیم، میکس و مسترینگ",
@@ -9,6 +10,24 @@ export const metadata: Metadata = {
   alternates: { canonical: "/studio" },
   openGraph: { type: "website", url: "/studio", title: "استودیو آرتیست‌یار | تنظیم، میکس و مسترینگ" },
 };
+
+
+const serviceJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  name: "خدمات میکس و مسترینگ ArtistYar",
+  serviceType: "میکس و مسترینگ موسیقی",
+  description: "خدمات میکس و مسترینگ برای پروژه‌های موسیقی با بررسی مرجع، بالانس، پردازش داینامیک، فضاسازی و آماده‌سازی خروجی.",
+  provider: { "@type": "Organization", name: "ArtistYar", url: "https://artistyaar.ir" },
+  url: "https://artistyaar.ir/studio#mix-mastering",
+  inLanguage: "fa-IR",
+};
+
+const faqs = [
+  { question: "برای سفارش میکس چه فایل‌هایی لازم است؟", answer: "برای شروع، فایل‌های صوتی پروژه، اطلاعات سبک و یک یا چند مرجع شنیداری مفید است. جزئیات دقیق تحویل قبل از شروع پروژه مشخص می‌شود." },
+  { question: "میکس و مسترینگ چه تفاوتی دارند؟", answer: "میکس رابطه و بالانس اجزای داخل پروژه را تنظیم می‌کند؛ مسترینگ روی نسخه نهایی برای کنترل tonal balance، داینامیک و آماده‌سازی انتشار انجام می‌شود." },
+  { question: "آیا سفارش تنظیم و میکس را می‌توان با هم انجام داد؟", answer: "بله. اگر پروژه هنوز در مرحله تنظیم است، می‌توان مسیر تنظیم را از صفحه خدمات تنظیم شروع کرد و سپس پروژه را برای میکس و مسترینگ آماده کرد." },
+];
 
 const tools = [
   {
@@ -33,7 +52,10 @@ const tools = [
 
 export default function StudioPage() {
   return (
-    <main className="container-ay py-10 sm:py-14">
+    <>
+      <Breadcrumbs items={[{ name: "استودیو" }]} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceJsonLd) }} />
+      <main className="container-ay py-10 sm:py-14">
       <p className="eyebrow">STUDIO</p>
       <h1 className="mt-2 text-3xl font-semibold text-sand-50">فضای ساخت و کار روی پروژه</h1>
       <p className="mt-3 max-w-2xl text-sm leading-7 text-ink-500">
@@ -92,6 +114,30 @@ export default function StudioPage() {
           </div>
         </div>
       </section>
+
+      <section className="mt-10 grid gap-4 lg:grid-cols-[1fr_1fr]">
+        <div className="card-ay p-6 sm:p-8">
+          <p className="eyebrow">/ مسیرهای مرتبط</p>
+          <h2 className="mt-2 text-xl font-medium text-sand-50">از آموزش تا اجرای پروژه</h2>
+          <p className="mt-3 text-sm leading-7 text-ink-400">اگر قبل از سفارش می‌خواهی دانش میکس و مسترینگت را تقویت کنی، راهنمای پروژه‌محور آموزش را ببین؛ برای تنظیم هم صفحه خدمات اختصاصی در دسترس است.</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link href="/amoozesh-tanzim-mix-mastering" className="btn-ghost text-xs !py-2.5">راهنمای آموزش تنظیم، میکس و مسترینگ</Link>
+            <Link href="/arrangement" className="btn-ghost text-xs !py-2.5">سفارش تنظیم</Link>
+            <Link href="/courses" className="btn-ghost text-xs !py-2.5">دوره‌های آموزشی</Link>
+          </div>
+        </div>
+        <div className="card-ay p-6 sm:p-8">
+          <p className="eyebrow">/ پرسش‌های متداول</p>
+          <div className="mt-4 space-y-3">
+            {faqs.map((faq) => (
+              <details key={faq.question} className="rounded-2xl border border-white/[.08] p-4">
+                <summary className="cursor-pointer font-medium text-sand-50">{faq.question}</summary>
+                <p className="mt-3 text-sm leading-7 text-ink-400">{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
     </main>
-  );
+    </>\n  );
 }
