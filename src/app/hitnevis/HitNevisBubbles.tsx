@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Check, Copy, Pencil, RefreshCw } from "lucide-react";
+import { Check, Copy, Pencil, RefreshCw, ThumbsDown, ThumbsUp } from "lucide-react";
 import type { HitNevisMode } from "@/lib/hitnevis/intent";
 
 export type ChatMessage = {
@@ -31,6 +31,7 @@ export function Bubble({
   onRetry,
   onEdit,
   onDirection,
+  onFeedback,
 }: {
   msg: ChatMessage;
   copied: boolean;
@@ -45,6 +46,7 @@ export function Bubble({
   onRetry: () => void;
   onEdit: () => void;
   onDirection: (d: string) => void;
+  onFeedback: (signal: "positive" | "negative") => void;
 }) {
   if (msg.role === "user") {
     return (
@@ -125,7 +127,7 @@ export function Bubble({
                   </A>
                 </>
               )}
-              {msg.lastPrompt && (
+              {!isErr && msg.kind !== "analysis" && (\n            <>\n              <A onClick={() => onFeedback("positive")}><ThumbsUp size={11} className="inline" /> مفید بود</A>\n              <A onClick={() => onFeedback("negative")}><ThumbsDown size={11} className="inline" /> نیاز به بهتر شدن داشت</A>\n            </>\n          )}\n          {msg.lastPrompt && (
                 <A onClick={onRegen} disabled={loading}>
                   <RefreshCw size={11} className="inline" /> دوباره
                 </A>
