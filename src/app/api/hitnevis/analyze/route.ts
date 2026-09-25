@@ -7,6 +7,7 @@ import {
   formatHumanTestsReport,
 } from "@/lib/hitnevis/hit-dna";
 import { analyzeProsody, formatProsodyReport } from "@/lib/hitnevis/prosody";
+import { extractLyricFeatures } from "@/lib/hitnevis/kb/lyric-features";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
     const human = runHumanTests(text, artistNotes);
     const cliches = detectCliches(text);
     const prosody = analyzeProsody(text);
+    const corpusFeatures = extractLyricFeatures(text);
 
     if (kind === "dna") {
       return NextResponse.json({ ok: true, dna, report: formatHitDnaReport(dna) });
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
       humanReport: formatHumanTestsReport(human),
       prosodyReport: formatProsodyReport(prosody),
       suggestions: dna.actionableSuggestions || [],
+      corpusFeatures,
     });
   } catch (error) {
     console.error("[hitnevis/analyze]", error instanceof Error ? error.message : error);
