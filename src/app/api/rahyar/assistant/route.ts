@@ -5,6 +5,7 @@ import { runtimeAutoChat } from "@/lib/ai-runtime";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+const MAX_ASSISTANT_BODY_BYTES = 256 * 1024;
 
 function base() {
   return (process.env.RAHYAR_API_URL || process.env.RAHYAR_AI_GATEWAY_URL || "").replace(/\/$/, "");
@@ -13,6 +14,10 @@ function base() {
 const SYSTEM = `تو راه‌یار، دستیار آموزشی آرتیست‌یار هستی. پاسخ‌ها را فارسی، دقیق و کاربردی بنویس.`;
 
 export async function POST(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > MAX_ASSISTANT_BODY_BYTES) {
+    return NextResponse.json({ ok: false, error: "درخواست گفتگو بیش از حد بزرگ است.", reply: "درخواست گفتگو بیش از حد بزرگ است." }, { status: 413 });
+  }
   let body: Record<string, unknown> = {};
   try {
     body = (await request.json()) as Record<string, unknown>;
