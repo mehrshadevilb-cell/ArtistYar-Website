@@ -36,7 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
   const lastModified = new Date();
   const catalog = await getCatalog();
-  const packageRoutes = catalog.items.map((item) => ({
+  const packageRoutes = catalog.items.filter((item) => item.is_active !== false).map((item) => ({
     url: `${baseUrl}/courses/${slugify(item.title)}`,
     lastModified,
     changeFrequency: "weekly" as const,
