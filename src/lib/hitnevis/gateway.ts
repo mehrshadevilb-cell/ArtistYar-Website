@@ -196,6 +196,15 @@ export function validateHitNevisRequest(
   const language =
     b.language === "en" || b.language === "fa-en" || b.language === "fa" ? b.language : "fa";
 
+  const genre =
+    typeof b.genre === "string" && ["pop", "hiphop", "rock", "traditional", "electronic", "rnb", "folk", "other"].includes(b.genre)
+      ? (b.genre as HitNevisGenerateRequest["genre"])
+      : undefined;
+  const tone =
+    typeof b.tone === "string" && ["romantic", "sad", "hopeful", "angry", "playful", "epic", "neutral"].includes(b.tone)
+      ? (b.tone as HitNevisGenerateRequest["tone"])
+      : undefined;
+
   const sectionType =
     typeof b.sectionType === "string" &&
     ["verse", "pre_chorus", "chorus", "bridge", "outro", "hook", "other"].includes(b.sectionType)
@@ -234,8 +243,8 @@ export function validateHitNevisRequest(
       topic,
       existingLyrics,
       sectionType,
-      genre: typeof b.genre === "string" ? (b.genre as HitNevisGenerateRequest["genre"]) : undefined,
-      tone: typeof b.tone === "string" ? (b.tone as HitNevisGenerateRequest["tone"]) : undefined,
+      genre,
+      tone,
       language,
       constraints,
       artistVoice: parseArtistVoice(b.artistVoice),
