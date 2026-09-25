@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "start:standalone": "node .next/standalone/server.js",\n    "seo:verify": "node scripts/verify-seo.mjs",
+    "start:standalone": "node .next/standalone/server.js",
+    "seo:verify": "node scripts/verify-seo.mjs",
     "prebuild": "node scripts/ensure-hero.cjs && node scripts/inflate-telegram-sync.mjs",
     "postinstall": "node scripts/inflate-telegram-sync.mjs"
   },
