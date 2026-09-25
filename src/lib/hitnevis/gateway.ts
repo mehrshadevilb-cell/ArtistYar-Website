@@ -364,6 +364,27 @@ async function hitnevisGenerateInner(
     const text = (result.reply || "").trim();
     if (!text) return mapGatewayError(new Error("empty_reply"), requestId, startedAt);
 
+    const shouldCheckGeneratedText =
+      req.mode !== "critic" && req.mode !== "idea_analyze" && req.mode !== "hit_dna" && req.mode !== "human_tests";
+    if (shouldCheckGeneratedText && text.length >= 40) {
+      const [generatedMatches, inputMatches] = await Promise.all([
+        findHitNevisSimilarity(text, 3),
+        req.existingLyrics ? findHitNevisSimilarity(req.existingLyrics, 3) : Promise.resolve([]),
+      ]);
+      const highRisk = generatedMatches.some((m) => m.score >= 0.18 || m.matchedNgrams >= 4);
+      const inputAlreadyMatches = inputMatches.some((m) => m.score >= 0.18 || m.matchedNgrams >= 4);
+      if (highRisk && !inputAlreadyMatches) {
+        return {
+          ok: false,
+          requestId,
+          error: "خروجی به متن موجود در کورپس مجاز بیش از حد نزدیک شد و برای حفظ اصالت تحویل نشد. دوباره با زاویه‌ای متفاوت امتحان کن.",
+          code: "internal",
+          retryable: true,
+          latencyMs: Date.now() - startedAt,
+        };
+      }
+    }
+
     const directions =
       req.mode === "save_lyric" || req.mode === "hook_lab" ? splitDirections(text) : undefined;
 
