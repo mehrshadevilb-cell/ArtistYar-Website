@@ -1,3 +1,3 @@
 export * from "./types";
 export * from "./util";
-export { EXERCISE_REGISTRY, generateRound, getExercise } from "./registry";
+export { EXERCISE_REGISTRY, getExercise, generateRound } from "./registry";
