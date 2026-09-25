@@ -7,22 +7,27 @@
  */
 html {
   scroll-behavior: auto !important;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
   overflow-y: auto;
+  max-width: 100%;
   /* LTR on the scrolling root keeps the native scrollbar on the physical RIGHT.
      Body keeps dir=rtl for content. */
   direction: ltr;
 }
 
 body {
-  overflow: visible;
+  overflow-x: clip;
+  overflow-y: visible;
   direction: rtl;
   min-height: 100%;
+  max-width: 100%;
 }
 
 .site-root,
 .page-shell {
-  overflow: visible !important;
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+  max-width: 100%;
 }
 
 .scroll-stage {
