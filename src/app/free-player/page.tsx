@@ -112,7 +112,7 @@ export default function FreePlayerPage() {
     <section className="container-ay py-12 sm:py-16">
       {isAdmin ? (
         <div className="mb-5 flex justify-end">
-          <a href="/admin/free-education" className="inline-flex items-center gap-2 rounded-xl border border-gold-400/25 bg-gold-400/[.06] px-4 py-2.5 text-xs font-medium text-gold-200 transition hover:border-gold-400/50 hover:bg-gold-400/[.1]">
+          <a href="/admin/content?tab=free" className="inline-flex items-center gap-2 rounded-xl border border-gold-400/25 bg-gold-400/[.06] px-4 py-2.5 text-xs font-medium text-gold-200 transition hover:border-gold-400/50 hover:bg-gold-400/[.1]">
             <Upload size={14} />
             مدیریت / Upload / Import آموزش رایگان
             <FolderOpen size={13} className="opacity-70" />
