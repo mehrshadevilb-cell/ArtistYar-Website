@@ -96,10 +96,12 @@ export async function discoverAllModels() {
   return Promise.all(providers.map(async (provider) => ({ provider: { id: provider.id, name: provider.name, configured: Boolean(provider.apiKey) }, models: await discoverModels(provider) })));
 }
 
+const MAX_OUT = 1800;
+
 async function chatOpenAI(provider: AIProvider, model: string, messages: ChatMessage[], signal?: AbortSignal): Promise<string> {
   const headers: Record<string, string> = { ...authHeaders(provider) };
   if (provider.id === "openrouter") { headers["HTTP-Referer"] = env("NEXT_PUBLIC_SITE_URL") || "https://artistyaar.ir"; headers["X-Title"] = "ArtistYar"; }
-  const response = await fetch(`${provider.baseUrl}${provider.chatPath || "/chat/completions"}`, { method: "POST", headers, body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 1024 }), signal });
+  const response = await fetch(`${provider.baseUrl}${provider.chatPath || "/chat/completions"}`, { method: "POST", headers, body: JSON.stringify({ model, messages, temperature: 0.55, max_tokens: MAX_OUT }), signal });
   const data = await readJson(response);
   if (!response.ok) throw new Error(String((typeof data?.error === "object" && data?.error?.message) || data?.error || data?.message || `HTTP ${response.status}`).slice(0, 240));
   const reply = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || "";
@@ -110,7 +112,7 @@ async function chatOpenAI(provider: AIProvider, model: string, messages: ChatMes
 async function chatAnthropic(provider: AIProvider, model: string, messages: ChatMessage[], signal?: AbortSignal): Promise<string> {
   const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n");
   const converted = messages.filter((m) => m.role !== "system").map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content }));
-  const response = await fetch(`${provider.baseUrl}${provider.chatPath || "/messages"}`, { method: "POST", headers: authHeaders(provider), body: JSON.stringify({ model, max_tokens: 1024, system: system || undefined, messages: converted }), signal });
+  const response = await fetch(`${provider.baseUrl}${provider.chatPath || "/messages"}`, { method: "POST", headers: authHeaders(provider), body: JSON.stringify({ model, max_tokens: MAX_OUT, system: system || undefined, messages: converted }), signal });
   const data = await readJson(response);
   if (!response.ok) throw new Error(data?.error?.message || `HTTP ${response.status}`);
   const reply = (data?.content || []).map((p: any) => p.text || "").join("");
@@ -122,7 +124,7 @@ async function chatGoogle(provider: AIProvider, model: string, messages: ChatMes
   const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n");
   const contents = messages.filter((m) => m.role !== "system").map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
   const url = `${provider.baseUrl}/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey || "")}`;
-  const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents, systemInstruction: system ? { parts: [{ text: system }] } : undefined, generationConfig: { temperature: 0.3, maxOutputTokens: 1024 } }), signal });
+  const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents, systemInstruction: system ? { parts: [{ text: system }] } : undefined, generationConfig: { temperature: 0.55, maxOutputTokens: MAX_OUT } }), signal });
   const data = await readJson(response);
   if (!response.ok) throw new Error(data?.error?.message || `HTTP ${response.status}`);
   const reply = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "";
