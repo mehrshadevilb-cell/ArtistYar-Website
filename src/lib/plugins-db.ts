@@ -40,8 +40,23 @@ export function getPluginsDb(): SupabaseClient | null {
     cached = null;
     return null;
   }
+  const timeoutMs = 8000;
+  const resilientFetch: typeof fetch = async (input, init) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      if (init?.signal) {
+        if (init.signal.aborted) controller.abort();
+        else init.signal.addEventListener("abort", () => controller.abort(), { once: true });
+      }
+      return await fetch(input, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
   cached = createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: { fetch: resilientFetch },
   });
   return cached;
 }
@@ -131,10 +146,12 @@ export async function queryLatestPlugins(limit = 3): Promise<PluginQueryResult> 
     console.warn("plugins_query_column_fallback", select.split(",")[0], lastDetail.slice(0, 160));
   }
 
-  // Final attempt without status filter (older rows / migration mid-flight).
+  // Final minimal fallback: keep the published filter so a partial schema never
+  // leaks processing/failed/hidden rows into the public catalog.
   const bare = await db
     .from("telegram_plugin_posts")
-    .select("id,title,created_at")
+    .select("id,title,category,telegram_post_url,created_at")
+    .eq("status", "published")
     .order("created_at", { ascending: false })
     .limit(safeLimit);
 
