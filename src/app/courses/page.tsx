@@ -62,7 +62,10 @@ export default async function CoursesPage() {
   };
 
   return (
-    <section className="container-ay py-14 sm:py-16">
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(courseListJsonLd) }} />
+      <Breadcrumbs items={[{ name: "دوره‌ها" }]} />
+      <section className="container-ay py-14 sm:py-16">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <SectionHeading
           eyebrow="محصولات آکادمی راه‌یار"
@@ -160,5 +163,6 @@ export default async function CoursesPage() {
         />
       </div>
     </section>
+    </>
   );
 }
