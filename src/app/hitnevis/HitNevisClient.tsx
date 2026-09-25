@@ -20,7 +20,10 @@ const DEFAULT_SECTIONS: Section[] = [
 function uid(p = "m") {
   return `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
-function sectionsToText(sections: Section[]) {\n  return sections.filter((s) => s.text.trim()).map((s) => `[${s.label}]\\n${s.text.trim()}`).join("\\n\\n");\n}\nfunction emptyVoice(): ArtistVoice {
+function sectionsToText(sections: Section[]) {
+  return sections.filter((s) => s.text.trim()).map((s) => `[${s.label}]\\n${s.text.trim()}`).join("\n\n");
+}
+function emptyVoice(): ArtistVoice {
   return { name: "", styleNotes: "", preferredWords: "", avoidedWords: "" };
 }
 function persianError(raw: unknown) {
@@ -33,12 +36,7 @@ function persianError(raw: unknown) {
 const WELCOME: ChatMessage = {
   id: "welcome",
   role: "assistant",
-  content: "سلام — من همکار ترانه‌نویسی‌ات هستم.
-
-هر چی تو ذهنته بگو: ایده، یک خط، حس، یا «این کورس رو قوی‌تر کن».
-بدون فرم و تنظیمات اضافه، همین‌جا با هم پیش می‌ریم.
-
-متن اصلیت بدون اجازه‌ات عوض نمی‌شه.",
+  content: "سلام — من همکار ترانه‌نویسی‌ات هستم.\n\nهر چی تو ذهنته بگو: ایده، یک خط، حس، یا «این کورس رو قوی‌تر کن».\nبدون فرم و تنظیمات اضافه، همین‌جا با هم پیش می‌ریم.\n\nمتن اصلیت بدون اجازه‌ات عوض نمی‌شه.",
   at: 0,
   kind: "text",
 };
@@ -124,8 +122,7 @@ export default function HitNevisClient() {
   const applyText = (text: string, mode: "replace" | "append" = "replace") => {
     setSections((prev) => prev.map((s) => {
       if (s.id !== activeId) return s;
-      if (mode === "append") return { ...s, text: s.text.trim() ? `${s.text.trim()}
-${text}` : text };
+      if (mode === "append") return { ...s, text: s.text.trim() ? `${s.text.trim()}\n${text}` : text };
       return { ...s, text };
     }));
   };
