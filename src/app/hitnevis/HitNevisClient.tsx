@@ -120,7 +120,7 @@ export default function HitNevisClient() {
     };
   };
 
-  const sendFeedback = useCallback(async (mode: HitNevisMode | undefined, signal: "positive" | "negative", text: string) => {
+  const sendFeedback = useCallback(async (mode: HitNevisMode | undefined, signal: "positive" | "negative" | "used" | "rejected", text: string) => {
     if (!mode) return;
     try {
       await fetch("/api/hitnevis/feedback", {
