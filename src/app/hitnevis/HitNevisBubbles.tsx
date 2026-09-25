@@ -117,8 +117,8 @@ export function Bubble({
               </A>
               {(isLyrics || msg.directions) && (
                 <>
-                  <A onClick={onUse}>جایگزینی در بخش</A>
-                  <A onClick={onAppend}>افزودن</A>
+                  <A onClick={onUse}>جایگزین کردن بخش</A>
+                  <A onClick={onAppend}>افزودن به بخش</A>
                   <A onClick={onContinue} disabled={loading}>
                     ادامه
                   </A>
