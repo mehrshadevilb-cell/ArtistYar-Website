@@ -387,7 +387,7 @@ async function hitnevisGenerateInner(
           ok: false,
           requestId,
           error: "خروجی به متن موجود در کورپس مجاز بیش از حد نزدیک شد و برای حفظ اصالت تحویل نشد. دوباره با زاویه‌ای متفاوت امتحان کن.",
-          code: "internal",
+          code: "similarity",
           retryable: true,
           latencyMs: Date.now() - startedAt,
         };
