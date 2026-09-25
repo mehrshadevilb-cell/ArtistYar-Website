@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
   title: "دوره‌های آموزش تنظیم، میکس و مسترینگ",
