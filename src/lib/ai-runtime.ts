@@ -10,6 +10,8 @@ const deadUntil = new Map<string, number>();
 const MODELS_PER_PROVIDER = 4;
 /** Try many candidates so every env provider gets a turn before failing. */
 const MAX_CANDIDATES = 28;
+/** Per-model attempt budget — creative replies (lyrics) often need >10s on free models. */
+const ATTEMPT_TIMEOUT_MS = 14_000;
 
 function exhausted(message: string) {
   return /402|credit|credits|insufficient|billing|balance|funds|payment required|quota exceeded|out of credits/i.test(
@@ -175,11 +177,10 @@ export async function runtimeAutoChat(
     const providerDead = deadUntil.get(candidate.provider.id) || 0;
     if (providerDead > Date.now()) continue;
 
-    const timeoutMs = 10_000;
     try {
       const reply = await withTimeout(
         chatWithProvider(candidate.provider, candidate.model, messages, signal),
-        timeoutMs,
+        ATTEMPT_TIMEOUT_MS,
         key,
         signal,
       );
