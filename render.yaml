@@ -18,6 +18,8 @@ services:
         value: "22"
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
+      - key: NEXT_PUBLIC_SITE_URL
+        value: "https://artistyaar.ir"
       - key: NODE_OPTIONS
         value: "--max-old-space-size=1536"
       - key: PORT
