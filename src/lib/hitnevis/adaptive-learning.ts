@@ -122,7 +122,7 @@ export async function getAdaptiveHitNevisContext(maxChars = 3200): Promise<strin
       "؛ تکرار پایان‌واژه " + (avgEndRepeat ?? "—") + ".");
   }
   lines.push("از این داده فقط برای تنظیم کیفیت و اولویت پیشنهادها استفاده کن؛ نتیجه‌گیری قطعی یا تقلید از فرد/ترانه انجام نده.");
-  const value = lines.filter(Boolean).join("\n").slice(0, maxChars);
+  const value = lines.filter(Boolean).join("\n");
   adaptiveCache = { expiresAt: Date.now() + ADAPTIVE_CACHE_MS, value };
   return value;
 }
