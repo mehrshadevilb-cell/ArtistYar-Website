@@ -123,5 +123,5 @@ export async function getAdaptiveHitNevisContext(maxChars = 3200): Promise<strin
   lines.push(
     "از این داده فقط برای تنظیم کیفیت و اولویت پیشنهادها استفاده کن؛ نتیجه‌گیری قطعی یا تقلید از فرد/ترانه انجام نده.",
   );
-  return lines.join("\n").slice(0, maxChars);
+  return lines.filter(Boolean).join("\n").slice(0, maxChars);
 }
