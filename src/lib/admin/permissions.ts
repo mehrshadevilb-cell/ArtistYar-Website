@@ -25,6 +25,10 @@ export const ADMIN_PERMISSIONS = [
   "admin.audit.view",
   "admin.problems.view",
   "admin.problems.manage",
+  "admin.seo.view",
+  "admin.security.view",
+  "admin.automation.view",
+  "admin.automation.manage",
   "admin.search.use",
 ] as const;
 
