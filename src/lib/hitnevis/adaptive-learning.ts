@@ -59,21 +59,15 @@ type FeedbackRow = {
 export async function getAdaptiveHitNevisContext(maxChars = 3200): Promise<string> {
   if (!supabase) return "";
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const result = await supabase
-    .from("hitnevis_feedback")
-    .select("mode,signal,feature_snapshot,created_at")
-    .gte("created_at", since)
-    .order("created_at", { ascending: false })
-    .limit(1500);
+  const [profileResult, result] = await Promise.all([
+    supabase.from("hitnevis_adaptive_profile").select("profile,sample_count,generated_at").eq("id", true).maybeSingle(),
+    supabase.from("hitnevis_feedback").select("mode,signal,feature_snapshot,created_at").gte("created_at", since).order("created_at", { ascending: false }).limit(1500),
+  ]);
   if (result.error && !profileResult.data) return "";
 
   const rows = (result.data || []) as FeedbackRow[];
   const byMode = new Map<string, { positive: number; negative: number; used: number; rejected: number }>();
-  let positive = 0;
-  let negative = 0;
-  let used = 0;
-  let rejected = 0;
-
+  let positive = 0, negative = 0, used = 0, rejected = 0;
   for (const row of rows) {
     const item = byMode.get(row.mode) || { positive: 0, negative: 0, used: 0, rejected: 0 };
     item[row.signal] += 1;
@@ -87,25 +81,30 @@ export async function getAdaptiveHitNevisContext(maxChars = 3200): Promise<strin
   const modeLines = [...byMode.entries()]
     .map(([mode, stats]) => {
       const rated = stats.positive + stats.negative;
-      const rate = rated ? Math.round((stats.positive / rated) * 100) : null;
-      return { mode, stats, rate };
+      return { mode, stats, rate: rated ? Math.round((stats.positive / rated) * 100) : null };
     })
     .filter((item) => item.rate !== null)
     .sort((a, b) => (b.stats.positive + b.stats.negative) - (a.stats.positive + a.stats.negative))
     .slice(0, 8)
-    .map((item) =>
-      "- " + item.mode + ": بازخورد مثبت " + item.rate + "% از " +
-      (item.stats.positive + item.stats.negative) + " رأی؛ استفاده " +
-      item.stats.used + "؛ رد " + item.stats.rejected,
-    );
+    .map((item) => "- " + item.mode + ": بازخورد مثبت " + item.rate + "% از " +
+      (item.stats.positive + item.stats.negative) + " رأی؛ استفاده " + item.stats.used + "؛ رد " + item.stats.rejected);
 
   const featureRows = rows.filter((r) => r.signal === "positive" || r.signal === "used");
   const avg = (key: string) => {
     const vals = featureRows.map((r) => Number(r.feature_snapshot?.[key])).filter(Number.isFinite);
     return vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null;
   };
+  const profile = profileResult.data?.profile as Record<string, unknown> | undefined;
+  const averages = profile?.averages as Record<string, unknown> | undefined;
+  const profileLine = averages
+    ? "پروفایل corpus مجاز: " + String(profileResult.data?.sample_count || 0) +
+      " آهنگ؛ میانگین هجا " + String(averages.averageSyllables ?? "—") +
+      "؛ دامنه هجا " + String(averages.syllableSpread ?? "—") +
+      "؛ تکرار خط " + String(averages.repeatedLineRate ?? "—") + "."
+    : "";
 
   const lines = [
+    profileLine,
     "یادگیری تطبیقی ۳۰ روز اخیر: " + rows.length + " سیگنال ناشناس از رفتار کاربر.",
     "مثبت=" + positive + "، منفی=" + negative + "، استفاده‌شده=" + used + "، ردشده=" + rejected + ".",
   ];
@@ -114,14 +113,10 @@ export async function getAdaptiveHitNevisContext(maxChars = 3200): Promise<strin
   const avgRepeat = avg("repeatedLineRate");
   const avgEndRepeat = avg("repeatedEndWordRate");
   if (avgSpread !== null || avgRepeat !== null || avgEndRepeat !== null) {
-    lines.push(
-      "ویژگی متن در نمونه‌های بازخورد مثبت/استفاده‌شده: دامنه هجا " +
+    lines.push("ویژگی متن در نمونه‌های بازخورد مثبت/استفاده‌شده: دامنه هجا " +
       (avgSpread ?? "—") + "؛ تکرار خط " + (avgRepeat ?? "—") +
-      "؛ تکرار پایان‌واژه " + (avgEndRepeat ?? "—") + ".",
-    );
+      "؛ تکرار پایان‌واژه " + (avgEndRepeat ?? "—") + ".");
   }
-  lines.push(
-    "از این داده فقط برای تنظیم کیفیت و اولویت پیشنهادها استفاده کن؛ نتیجه‌گیری قطعی یا تقلید از فرد/ترانه انجام نده.",
-  );
+  lines.push("از این داده فقط برای تنظیم کیفیت و اولویت پیشنهادها استفاده کن؛ نتیجه‌گیری قطعی یا تقلید از فرد/ترانه انجام نده.");
   return lines.filter(Boolean).join("\n").slice(0, maxChars);
 }
