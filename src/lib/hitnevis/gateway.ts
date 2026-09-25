@@ -258,7 +258,7 @@ function buildKbContext(req: HitNevisGenerateRequest): string {
       limit: 4,
     });
     if (!result.patternSummary) return "";
-    const parts = [result.patternSummary];
+    const parts = [result.patternSummary, getCurrentChartContext()];
     if (result.antiCliche.length) {
       parts.push("پرهیز از کلیشه‌های رایج در این فضا: " + result.antiCliche.slice(0, 5).join("؛ "));
     }
