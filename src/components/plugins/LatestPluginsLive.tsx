@@ -159,7 +159,16 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
                       className="relative z-[1] h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                       loading={index === 0 ? "eager" : "lazy"}
                       onError={(e) => {
-                        e.currentTarget.remove();
+                        const image = e.currentTarget;
+                        const fallback = p.telegram_photo_file_id
+                          ? "/api/plugins/image?file_id=" + encodeURIComponent(p.telegram_photo_file_id)
+                          : null;
+                        if (fallback && image.src !== new URL(fallback, window.location.href).href && !image.dataset.fallback) {
+                          image.dataset.fallback = "1";
+                          image.src = fallback;
+                          return;
+                        }
+                        image.remove();
                       }}
                     />
                   ) : null}
