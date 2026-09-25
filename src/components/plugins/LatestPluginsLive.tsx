@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type LatestPlugin = {
   id: string;
@@ -42,8 +42,11 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
   const [items, setItems] = useState<LatestPlugin[]>(initialItems.slice(0, 3));
   const [live, setLive] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const refreshInFlight = useRef(false);
 
   const refresh = useCallback(async () => {
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
     try {
       const response = await fetch("/api/plugins?limit=3", {
         method: "GET",
@@ -64,6 +67,8 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
       setLive(true);
     } catch {
       // Keep last known items.
+    } finally {
+      refreshInFlight.current = false;
     }
   }, []);
 
