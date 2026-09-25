@@ -33,7 +33,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { href: "/admin/students", label: "هنرجویان" },
       { href: "/admin/enrollments", label: "ثبت‌نام‌های راه‌یار" },
-      { href: "/admin/reservations", label: "رزروها" },
       { href: "/admin/teachers", label: "مدرس‌ها", enabled: false },
       { href: "/admin/leads", label: "لیدها", enabled: false },
       { href: "/admin/support", label: "پشتیبانی", enabled: false },
@@ -60,6 +59,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { href: "/admin/commerce", label: "مرکز تجارت" },
       { href: "/admin/payments", label: "پرداخت‌ها" },
+      { href: "/admin/reservations", label: "رزروها" },
       { href: "/admin/practice/subscriptions", label: "اشتراک Practice Pro" },
       { href: "/admin/orders", label: "سفارش‌ها", enabled: false },
       { href: "/admin/coupons", label: "کد تخفیف", enabled: false },
