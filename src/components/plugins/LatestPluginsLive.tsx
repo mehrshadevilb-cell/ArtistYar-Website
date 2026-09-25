@@ -151,6 +151,10 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
                     className="absolute inset-0 opacity-40 bg-[linear-gradient(135deg,rgba(255,255,255,.04),transparent_50%)]"
                     aria-hidden
                   />
+                  <div className="absolute inset-0 flex flex-col justify-end p-4 text-left" aria-hidden="true">
+                    <span className="text-[10px] uppercase tracking-[.28em] text-gold-300/70">ArtistYar / Plugin Lab</span>
+                    <span className="mt-1 line-clamp-2 text-lg font-semibold text-sand-50/90">{p.title}</span>
+                  </div>
                   {src ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -168,7 +172,7 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
                           image.src = fallback;
                           return;
                         }
-                        image.remove();
+                        image.style.opacity = "0";
                       }}
                     />
                   ) : null}

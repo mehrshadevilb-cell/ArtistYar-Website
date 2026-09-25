@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test:telegram-plugins": "node scripts/test-telegram-plugin-sync.mjs",
     "start:standalone": "node .next/standalone/server.js",
     "seo:verify": "node scripts/verify-seo.mjs",
     "prebuild": "node scripts/ensure-hero.cjs",
