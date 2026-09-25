@@ -119,7 +119,9 @@ export async function POST(request: Request) {
               ? 504
               : result.code === "aborted"
                 ? 499
-                : 502;
+                : result.code === "similarity"
+                  ? 409
+                  : 502;
       return NextResponse.json(result, { status });
     }
 
