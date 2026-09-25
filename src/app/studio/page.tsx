@@ -150,5 +150,6 @@ export default function StudioPage() {
         </div>
       </section>
     </main>
-    </>\n  );
+    </>
+  );
 }
