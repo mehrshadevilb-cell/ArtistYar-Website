@@ -109,7 +109,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/system", label: "سلامت سیستم" },
       { href: "/admin/system/integrity", label: "یکپارچگی داده" },
       { href: "/admin/audit", label: "گزارش حسابرسی" },
-      { href: "/admin/settings", label: "تنظیمات" },
+      { href: "/admin/security", label: "امنیت" },\n      { href: "/admin/automation", label: "اتوماسیون" },\n      { href: "/admin/settings", label: "تنظیمات" },
     ],
   },
 ];
