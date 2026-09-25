@@ -13,6 +13,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const catalog = await getCatalog();
   const product = catalog.items.find((item) => slugify(item.title) === slug);
   if (!product) return { title: "دوره پیدا نشد", robots: { index: false, follow: false } };
+  if (product.is_active === false) return { title: product.title, robots: { index: false, follow: false } };
   const description = product.description || "دوره پروژه‌محور ArtistYar برای یادگیری تنظیم، میکس، مسترینگ و تولید موسیقی.";
   return {
     title: product.title,
