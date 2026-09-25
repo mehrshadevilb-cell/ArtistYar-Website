@@ -1,8 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  absorbUserHints,
+  brainToPromptBlock,
+  emptyBrain,
+  loadBrainFromStorage,
+  pushVersion,
+  restoreVersion,
+  saveBrainToStorage,
+  type SongBrain,
+} from "@/lib/hitnevis/song-brain";
+import { detectIntent } from "@/lib/hitnevis/intent";
 
-type Role = "user" | "assistant" | "system";
+type Role = "user" | "assistant";
 type Msg = {
   id: string;
   role: Role;
@@ -10,41 +21,25 @@ type Msg = {
   pending?: boolean;
   error?: boolean;
   retryable?: boolean;
+  /** AI suggestion that can be applied to draft */
+  applyText?: string;
 };
 
 const QUICK = [
   { label: "ترانه کامل", mode: "write_full", seed: "یه ترانه کامل درباره " },
   { label: "کورس قوی", mode: "write_chorus", seed: "یه کورس قوی و ماندگار بساز" },
+  { label: "۳ مسیر", mode: "save_lyric", seed: "سه مسیر متفاوت برای این قسمت بده", directions: true },
   { label: "ادامه بده", mode: "continue", seed: "ادامه‌ش بده" },
   { label: "بهترش کن", mode: "improve", seed: "این قسمت رو بهتر کن" },
   { label: "کلیشه‌ها", mode: "anti_cliche", seed: "کلیشه‌هاشو پیدا کن و جایگزین پیشنهاد بده" },
-  { label: "تحلیل DNA", mode: "hit_dna", seed: "تحلیل Hit DNA این متن رو بده" },
+  { label: "نقد", mode: "critic", seed: "این متن رو صادقانه نقد کن" },
 ] as const;
 
 const WELCOME =
-  "سلام — من همکار ترانه‌نویسی‌ات هستم.\n\nهر چی تو ذهنته بگو: ایده، یک خط، حس، یا «این کورس رو قوی‌تر کن».\nبدون فرم و تنظیمات اضافه، همین‌جا با هم پیش می‌ریم.\n\nمتن اصلیت بدون اجازه‌ات عوض نمی‌شه.";
+  "سلام — من همکار ترانه‌نویسی‌ات هستم.\n\nهر چی تو ذهنته بگو: ایده، یک خط، حس، یا «این کورس رو قوی‌تر کن».\nبدون فرم اضافه، همین‌جا با هم پیش می‌ریم.\n\nمتن اصلیت بدون اجازه‌ات عوض نمی‌شه. پیش‌نویس و نسخه‌ها این‌طرف ذخیره می‌شن.";
 
 function uid() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function detectMode(text: string): string {
-  const t = text.trim();
-  const rules: { mode: string; re: RegExp }[] = [
-    { mode: "hit_dna", re: /hit\s*dna|هیت\s*دی\s*ان\s*ای|تحلیل\s*(الگو|ساختاری)/i },
-    { mode: "anti_cliche", re: /کلیشه/ },
-    { mode: "critic", re: /نقد|منتقد/ },
-    { mode: "hook_lab", re: /هوک|قلاب|hook/i },
-    { mode: "continue", re: /ادامه‌?ش\s*بده|ادامه\s*بده|از\s*اینجا\s*ادامه/ },
-    { mode: "rewrite", re: /بازنویس|از\s*نو\s*بنویس/ },
-    { mode: "improve", re: /بهتر\s*کن|قوی‌?تر\s*کن|اصلاح\s*کن/ },
-    { mode: "shorten", re: /کوتاه|فشرده|خلاصه\s*کن/ },
-    { mode: "emotional", re: /احساسی‌?تر|عمیق‌?تر/ },
-    { mode: "write_chorus", re: /کورس|هوک\s*بساز/ },
-    { mode: "write_full", re: /ترانه\s*کامل|یه\s*آهنگ\s*کامل/ },
-  ];
-  for (const r of rules) if (r.re.test(t)) return r.mode;
-  return "chat";
 }
 
 export default function HitNevisClient() {
@@ -53,20 +48,34 @@ export default function HitNevisClient() {
   ]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState("ترانه بدون عنوان");
+  const [brain, setBrain] = useState<SongBrain>(() => emptyBrain());
+  const [showDraft, setShowDraft] = useState(false);
+  const [workingText, setWorkingText] = useState("");
 
   const listRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
-  /** Monotonic request id — only the latest response may mutate loading/messages. */
   const reqSeq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
-  /** Last failed payload for retry */
   const lastFail = useRef<{
     mode: string;
     topic: string;
-    history: { role: "user" | "assistant"; content: string }[];
     userMsgId: string;
+    wantDirections?: boolean;
   } | null>(null);
+  const brainRef = useRef(brain);
+  brainRef.current = brain;
+
+  useEffect(() => {
+    const saved = loadBrainFromStorage();
+    if (saved) {
+      setBrain(saved);
+      setWorkingText(saved.currentDraft || saved.originalDraft || "");
+    }
+  }, []);
+
+  useEffect(() => {
+    saveBrainToStorage(brain);
+  }, [brain]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -75,40 +84,58 @@ export default function HitNevisClient() {
   const stop = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    // Do not clear loading here if a newer request owns the seq — handled in send
+  }, []);
+
+  const applyToDraft = useCallback((text: string, mode: "replace" | "append" = "replace") => {
+    setBrain((b) => {
+      const prev = b.currentDraft || b.originalDraft || "";
+      let nextDraft = text;
+      if (mode === "append") nextDraft = prev ? `${prev.trim()}\n\n${text.trim()}` : text;
+      let nb = b;
+      if (prev.trim() && prev.trim() !== nextDraft.trim()) {
+        nb = pushVersion(b, `قبل از اعمال`, prev);
+      }
+      if (!nb.originalDraft.trim()) nb = { ...nb, originalDraft: prev || text };
+      nb = {
+        ...nb,
+        currentDraft: nextDraft,
+        updatedAt: new Date().toISOString(),
+      };
+      setWorkingText(nextDraft);
+      return nb;
+    });
+    setShowDraft(true);
   }, []);
 
   const send = useCallback(
-    async (raw: string, forcedMode?: string) => {
+    async (raw: string, forcedMode?: string, wantDirections?: boolean) => {
       const text = raw.trim();
       if (!text || loading) return;
 
-      const mode = forcedMode || detectMode(text);
+      const intent = detectIntent(text);
+      const mode = forcedMode || intent.mode;
       const userMsg: Msg = { id: uid(), role: "user", content: text };
       const pendingId = uid();
 
-      // History for API: prior turns (exclude welcome system-like and pending)
+      setBrain((b) => absorbUserHints(b, text));
+
       const history = messages
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .filter((m) => m.id !== "welcome" && !m.pending && !m.error)
+        .filter((m) => (m.role === "user" || m.role === "assistant") && m.id !== "welcome" && !m.pending && !m.error)
         .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }))
         .slice(-14);
 
-      setMessages((prev) => [
-        ...prev,
-        userMsg,
-        { id: pendingId, role: "assistant", content: "…", pending: true },
-      ]);
+      setMessages((prev) => [...prev, userMsg, { id: pendingId, role: "assistant", content: "…", pending: true }]);
       setDraft("");
       setLoading(true);
 
-      // Cancel previous in-flight request (replaced, not user cancel)
       abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
       const seq = ++reqSeq.current;
+      lastFail.current = { mode, topic: text, userMsgId: userMsg.id, wantDirections };
 
-      lastFail.current = { mode, topic: text, history, userMsgId: userMsg.id };
+      const b = brainRef.current;
+      const brainBlock = brainToPromptBlock(b);
 
       try {
         const res = await fetch("/api/hitnevis/generate", {
@@ -118,8 +145,17 @@ export default function HitNevisClient() {
             mode,
             topic: text.slice(0, 500),
             constraints: text.slice(0, 800),
+            existingLyrics: (b.currentDraft || b.originalDraft || workingText || "").slice(0, 8000) || undefined,
             language: "fa",
             conversationHistory: history,
+            brainBlock,
+            wantDirections: wantDirections || intent.wantDirections,
+            artistVoice: {
+              name: b.artistName,
+              styleNotes: b.styleNotes,
+              preferredWords: b.preferredWords,
+              avoidedWords: b.avoidedWords,
+            },
           }),
           signal: ac.signal,
           cache: "no-store",
@@ -132,34 +168,26 @@ export default function HitNevisClient() {
           data = { ok: false, error: "پاسخ سرور خوانده نشد." };
         }
 
-        // Stale response — ignore
         if (seq !== reqSeq.current) return;
 
         if (!data?.ok || !data?.text) {
           const errText =
             data?.error ||
-            (ac.signal.aborted
-              ? "درخواست لغو شد."
-              : "الان نتونستم جواب بدم. متنت سر جاشه — دوباره بزن.");
+            (ac.signal.aborted ? "درخواست لغو شد." : "الان نتونستم جواب بدم. متنت سر جاشه — دوباره بزن.");
           setMessages((prev) =>
             prev.map((m) =>
               m.id === pendingId
-                ? {
-                    ...m,
-                    pending: false,
-                    error: true,
-                    retryable: data?.retryable !== false,
-                    content: errText,
-                  }
+                ? { ...m, pending: false, error: true, retryable: data?.retryable !== false, content: errText }
                 : m,
             ),
           );
         } else {
           lastFail.current = null;
+          const reply = String(data.text);
           setMessages((prev) =>
             prev.map((m) =>
               m.id === pendingId
-                ? { ...m, pending: false, content: String(data.text) }
+                ? { ...m, pending: false, content: reply, applyText: reply }
                 : m,
             ),
           );
@@ -167,8 +195,6 @@ export default function HitNevisClient() {
       } catch (e: any) {
         if (seq !== reqSeq.current) return;
         const aborted = e?.name === "AbortError" || /abort/i.test(String(e?.message || ""));
-        // If we aborted because a newer request replaced us, stay silent
-        if (aborted && seq !== reqSeq.current) return;
         setMessages((prev) =>
           prev.map((m) =>
             m.id === pendingId
@@ -177,9 +203,7 @@ export default function HitNevisClient() {
                   pending: false,
                   error: true,
                   retryable: true,
-                  content: aborted
-                    ? "درخواست لغو شد."
-                    : "ارتباط قطع شد. پیش‌نویس محفوظ است — دوباره بزن.",
+                  content: aborted ? "درخواست لغو شد." : "ارتباط قطع شد. پیش‌نویس محفوظ است — دوباره بزن.",
                 }
               : m,
           ),
@@ -191,22 +215,19 @@ export default function HitNevisClient() {
         }
       }
     },
-    [loading, messages],
+    [loading, messages, workingText],
   );
 
   const retry = useCallback(() => {
     const fail = lastFail.current;
     if (!fail) return;
-    // Remove trailing error assistant bubble then resend same topic
     setMessages((prev) => {
       const next = [...prev];
       while (next.length && next[next.length - 1].error) next.pop();
-      // also drop the user msg we'll re-add
       if (next.length && next[next.length - 1].id === fail.userMsgId) next.pop();
       return next;
     });
-    // slight delay so state settles
-    setTimeout(() => send(fail.topic, fail.mode), 0);
+    setTimeout(() => send(fail.topic, fail.mode, fail.wantDirections), 0);
   }, [send]);
 
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -216,53 +237,122 @@ export default function HitNevisClient() {
     }
   };
 
+  const newProject = () => {
+    stop();
+    setMessages([{ id: "welcome", role: "assistant", content: WELCOME }]);
+    setDraft("");
+    setWorkingText("");
+    setBrain(emptyBrain());
+    lastFail.current = null;
+  };
+
   return (
     <div className="hn-root" dir="rtl">
       <header className="hn-bar">
         <div className="hn-bar-actions">
-          <button
-            type="button"
-            className="hn-chip"
-            onClick={() => {
-              stop();
-              setMessages([{ id: "welcome", role: "assistant", content: WELCOME }]);
-              setDraft("");
-              setTitle("ترانه بدون عنوان");
-              lastFail.current = null;
-            }}
-          >
+          <button type="button" className="hn-chip" onClick={newProject}>
             تازه
           </button>
-          <span className="hn-title">{title}</span>
+          <button type="button" className="hn-chip" onClick={() => setShowDraft((v) => !v)}>
+            {showDraft ? "چت" : "پیش‌نویس"}
+          </button>
+          <span className="hn-title">{brain.title}</span>
         </div>
         <div className="hn-brand">هیت‌نویس</div>
       </header>
 
-      <div className="hn-thread" ref={listRef}>
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={
-              "hn-bubble " +
-              (m.role === "user" ? "hn-user" : "hn-bot") +
-              (m.error ? " hn-error" : "") +
-              (m.pending ? " hn-pending" : "")
-            }
-          >
-            <div className="hn-bubble-label">
-              {m.role === "user" ? "تو" : "هیت‌نویس"}
-            </div>
-            <div className="hn-bubble-body" style={{ whiteSpace: "pre-wrap" }}>
-              {m.content}
-            </div>
-            {m.error && m.retryable && (
-              <button type="button" className="hn-retry" onClick={retry}>
-                تلاش دوباره
+      {showDraft ? (
+        <div className="hn-draft-panel">
+          <label className="hn-draft-label">پیش‌نویس فعلی (متن اصلیت محفوظ است)</label>
+          <textarea
+            className="hn-draft-area"
+            value={workingText}
+            onChange={(e) => {
+              setWorkingText(e.target.value);
+              setBrain((b) => ({
+                ...b,
+                currentDraft: e.target.value,
+                originalDraft: b.originalDraft || e.target.value,
+                updatedAt: new Date().toISOString(),
+              }));
+            }}
+            placeholder="متن ترانه را اینجا بنویس یا از پاسخ‌ها اعمال کن…"
+            rows={14}
+          />
+          <div className="hn-draft-actions">
+            <button
+              type="button"
+              className="hn-chip"
+              onClick={() => {
+                if (!workingText.trim()) return;
+                setBrain((b) => pushVersion(b, `نسخه ${b.versions.length + 1}`, workingText));
+              }}
+            >
+              ذخیره نسخه
+            </button>
+            {brain.versions.slice(-5).reverse().map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                className="hn-chip"
+                title={v.createdAt}
+                onClick={() => {
+                  const restored = restoreVersion(brain, v.id);
+                  if (restored) {
+                    setBrain(restored);
+                    setWorkingText(restored.currentDraft);
+                  }
+                }}
+              >
+                {v.label}
               </button>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="hn-thread" ref={listRef}>
+          {messages.map((m) => (
+            <div
+              key={m.id}
+              className={
+                "hn-bubble " +
+                (m.role === "user" ? "hn-user" : "hn-bot") +
+                (m.error ? " hn-error" : "") +
+                (m.pending ? " hn-pending" : "")
+              }
+            >
+              <div className="hn-bubble-label">{m.role === "user" ? "تو" : "هیت‌نویس"}</div>
+              <div className="hn-bubble-body" style={{ whiteSpace: "pre-wrap" }}>
+                {m.content}
+              </div>
+              {m.error && m.retryable && (
+                <button type="button" className="hn-retry" onClick={retry}>
+                  تلاش دوباره
+                </button>
+              )}
+              {!m.error && !m.pending && m.applyText && m.role === "assistant" && m.id !== "welcome" && (
+                <div className="hn-apply-row">
+                  <button type="button" className="hn-retry" onClick={() => applyToDraft(m.applyText!, "replace")}>
+                    جایگزینی در پیش‌نویس
+                  </button>
+                  <button type="button" className="hn-retry" onClick={() => applyToDraft(m.applyText!, "append")}>
+                    افزودن به پیش‌نویس
+                  </button>
+                  <button
+                    type="button"
+                    className="hn-retry"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(m.content);
+                    }}
+                  >
+                    کپی
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="hn-composer">
         <div className="hn-quick">
@@ -277,7 +367,7 @@ export default function HitNevisClient() {
                   setDraft(q.seed);
                   taRef.current?.focus();
                 } else {
-                  void send(q.seed, q.mode);
+                  void send(q.seed, q.mode, "directions" in q && q.directions);
                 }
               }}
             >
@@ -290,7 +380,7 @@ export default function HitNevisClient() {
             ref={taRef}
             className="hn-input"
             rows={2}
-            placeholder="پیامت را بنویس…"
+            placeholder="پیامت را بنویس… مثلاً: این کورس خوبه ولی زیادی غمگینه"
             value={draft}
             disabled={loading}
             onChange={(e) => setDraft(e.target.value)}
@@ -312,7 +402,7 @@ export default function HitNevisClient() {
             </button>
           )}
         </div>
-        <div className="hn-hint">Enter ارسال · Shift+Enter خط جدید</div>
+        <div className="hn-hint">Enter ارسال · Shift+Enter خط جدید · پیش‌نویس جدا از چت ذخیره می‌شود</div>
       </div>
 
       <style jsx>{`
@@ -349,7 +439,6 @@ export default function HitNevisClient() {
         .hn-brand {
           font-size: 13px;
           font-weight: 600;
-          letter-spacing: 0.02em;
           opacity: 0.85;
         }
         .hn-thread {
@@ -359,6 +448,36 @@ export default function HitNevisClient() {
           display: flex;
           flex-direction: column;
           gap: 14px;
+        }
+        .hn-draft-panel {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          padding: 16px;
+          gap: 10px;
+          min-height: 0;
+        }
+        .hn-draft-label {
+          font-size: 12px;
+          opacity: 0.6;
+        }
+        .hn-draft-area {
+          flex: 1;
+          min-height: 240px;
+          border-radius: 14px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.04);
+          color: inherit;
+          padding: 14px;
+          font-size: 15px;
+          line-height: 1.7;
+          font-family: inherit;
+          resize: vertical;
+        }
+        .hn-draft-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
         }
         .hn-bubble {
           max-width: 92%;
@@ -391,6 +510,7 @@ export default function HitNevisClient() {
         }
         .hn-retry {
           margin-top: 8px;
+          margin-left: 6px;
           font-size: 12px;
           padding: 6px 12px;
           border-radius: 999px;
@@ -398,6 +518,11 @@ export default function HitNevisClient() {
           background: transparent;
           color: inherit;
           cursor: pointer;
+        }
+        .hn-apply-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
         }
         .hn-composer {
           border-top: 1px solid rgba(255, 255, 255, 0.06);
