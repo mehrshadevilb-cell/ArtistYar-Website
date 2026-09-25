@@ -42,6 +42,23 @@ export default async function CoursesPage() {
   const catalog = await getCatalog();
   const items = catalog.items || [];
   const source = catalog.source;
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
+  const courseListJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "دوره‌های آموزش تنظیم، میکس، مسترینگ و تئوری موسیقی",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: siteUrl + "/courses/" + slugify(item.title),
+      item: {
+        "@type": "Course",
+        name: item.title,
+        description: item.description || "دوره آموزشی پروژه‌محور تولید موسیقی در ArtistYar.",
+        provider: { "@type": "Organization", name: "ArtistYar", sameAs: siteUrl },
+      },
+    })),
+  };
 
   return (
     <section className="container-ay py-14 sm:py-16">
