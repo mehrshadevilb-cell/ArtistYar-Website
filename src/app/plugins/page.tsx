@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   title: "کتابخانه پلاگین | ArtistYar",
   description:
     "سه پلاگین تازه منتشرشده ArtistYar با کاور، مشخصات فارسی و دانلود مستقیم از تلگرام.",
+  alternates: { canonical: "/plugins" },
+  openGraph: { type: "website", url: "/plugins", title: "کتابخانه پلاگین ArtistYar" },
 };
 
 type Plugin = LatestPlugin & {
