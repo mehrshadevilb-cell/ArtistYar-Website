@@ -120,7 +120,7 @@ export function MediaPlayer({
             ref.current = node;
           }}
           src={src}
-          preload="none"
+          preload="metadata"
           poster={coverUrl || undefined}
           controlsList={protectDownload ? "nodownload noplaybackrate noremoteplayback" : undefined}
           disablePictureInPicture={protectDownload}
@@ -146,7 +146,7 @@ export function MediaPlayer({
               ref.current = node;
             }}
             src={src}
-            preload="none"
+            preload="metadata"
             controlsList={protectDownload ? "nodownload" : undefined}
             onLoadedMetadata={onLoaded}
             onCanPlay={() => setReady(true)}
