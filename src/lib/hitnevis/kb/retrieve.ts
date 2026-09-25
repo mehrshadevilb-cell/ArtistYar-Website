@@ -4,6 +4,7 @@
  */
 
 import { getHitKb, HIT_KB_VERSION, HIT_KB_SOURCE, type HitKbRecord, getHitKbStats } from "./dataset";
+import { getRecentHitCorpusStats, RECENT_HIT_CORPUS_SOURCE, RECENT_HIT_CORPUS_DATE } from "./recent-hit-corpus";
 
 export type RetrieveQuery = {
   genre?: string;
@@ -23,6 +24,12 @@ export type RetrieveResult = {
   patternSummary: string;
   antiCliche: string[];
   originality: string[];
+  recentCorpus: {
+    songCount: number;
+    date: string;
+    source: string;
+    topArtists: [string, number][];
+  };
 };
 
 type Stats = {
@@ -141,6 +148,7 @@ export function retrieveHitPatterns(query: RetrieveQuery): RetrieveResult {
   const antiCliche = Array.from(new Set(top.flatMap((r) => r.clicheRisks))).slice(0, 8);
   const originality = Array.from(new Set(top.flatMap((r) => r.originalityTechniques))).slice(0, 6);
   const patternSummary = formatPatternSummary(top);
+  const recentCorpus = getRecentHitCorpusStats();
 
   return {
     version: HIT_KB_VERSION,
@@ -150,12 +158,16 @@ export function retrieveHitPatterns(query: RetrieveQuery): RetrieveResult {
     patternSummary,
     antiCliche,
     originality,
+    recentCorpus,
   };
 }
 
 function formatPatternSummary(records: HitKbRecord[]): string {
   if (!records.length) return "";
+  const recent = getRecentHitCorpusStats();
   const lines: string[] = [
+    `کورپس روندی اخیر: ${recent.songCount} قطعه از ${RECENT_HIT_CORPUS_DATE} (${RECENT_HIT_CORPUS_SOURCE}).`,
+    "متن کامل ترانه‌ها ذخیره نمی‌شود؛ فقط ویژگی‌ها و الگوهای انتزاعی مجاز برای یادگیری سبک استخراج می‌شوند.",
     "الگوهای انتزاعی از دانش‌پایهٔ ترانه‌های محبوب فارسی اخیر (بدون کپی متن ترانه):",
   ];
   for (const r of records.slice(0, 5)) {
