@@ -41,3 +41,8 @@ jobs:
 
       - name: Verify generated standalone output
         run: test -f .next/standalone/server.js
+
+      - name: Verify SEO, sitemap, robots, canonical and indexability
+        run: npm run seo:verify
+        env:
+          SEO_EXPECTED_SITE_URL: https://artistyaar.ir
