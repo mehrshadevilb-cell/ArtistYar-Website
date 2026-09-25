@@ -269,6 +269,7 @@ export default function HitNevisClient() {
               onRetry={() => m.lastPrompt && void runRequest(m.lastPrompt, { forcedMode: m.mode, skipUserBubble: true })}
               onEdit={() => { if (m.role === "user" && !loading) { setEditingId(m.id); setInput(m.content); inputRef.current?.focus(); } }}
               onDirection={(d) => applyText(d, "replace")}
+              onFeedback={(signal) => void sendFeedback(m.mode, signal, m.content)}
             />
           ))}
           {loading && (
