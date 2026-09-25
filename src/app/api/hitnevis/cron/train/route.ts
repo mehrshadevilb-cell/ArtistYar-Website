@@ -79,8 +79,8 @@ export async function POST(request: Request) {
       .filter((x) => authorizedLicense(x.license))
       .filter((x) => typeof x.title === "string" && typeof x.artist === "string" && typeof x.lyrics === "string")
       .filter((x) => typeof x.sourceUrl === "string" && /^https?:\/\//i.test(x.sourceUrl))
-      .filter((x) => targetKeys.has(songKey(x.title as string, x.artist as string)))
-      .slice(0, 100);
+      .filter((x) => targetKeys.has(songKey(x.title as string, x.artist as string)) || x.daily === true)
+      .slice(0, 110);
 
     let ingested = 0;
     for (const song of songs) {
