@@ -11,7 +11,7 @@ export const maxDuration = 120;
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const secret = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "");
 const feedUrl = String(process.env.HITNEVIS_AUTHORIZED_LYRIC_FEED_URL || "").trim();
-const cronSecret = String(process.env.HITNEVIS_TRAIN_SECRET || "").trim();
+const cronSecret = String(process.env.HITNEVIS_TRAIN_SECRET || process.env.WEB_ADMIN_API_KEY || "").trim();
 const supabase = url && secret ? createClient(url, secret, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
 type FeedSong = { title?: unknown; artist?: unknown; lyrics?: unknown; sourceUrl?: unknown; license?: unknown; updatedAt?: unknown; daily?: unknown };
