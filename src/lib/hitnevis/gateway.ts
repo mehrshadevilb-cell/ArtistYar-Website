@@ -162,7 +162,7 @@ export function validateHitNevisRequest(
   }
   const topic = typeof b.topic === "string" ? b.topic.trim().slice(0, MAX_TOPIC) : undefined;
   const existingLyrics =
-    typeof b.existingLyrics === "string" ? b.existingLyrics.trim().slice(0, MAX_LYRICS) : undefined;
+    typeof b.existingLyrics === "string" ? b.existingLyrics.slice(0, MAX_LYRICS) : undefined;
   const constraints =
     typeof b.constraints === "string" ? b.constraints.trim().slice(0, MAX_CONSTRAINTS) : undefined;
 
