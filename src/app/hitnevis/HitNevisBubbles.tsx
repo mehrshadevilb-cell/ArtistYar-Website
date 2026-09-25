@@ -26,6 +26,7 @@ export function Bubble({
   onUse,
   onAppend,
   onContinue,
+  onComplete,
   onRewrite,
   onRegen,
   onRetry,
