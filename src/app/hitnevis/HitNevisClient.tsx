@@ -21,7 +21,7 @@ function uid(p = "m") {
   return `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 function sectionsToText(sections: Section[]) {
-  return sections.filter((s) => s.text.trim()).map((s) => `[${s.label}]\\n${s.text.trim()}`).join("\n\n");
+  return sections.filter((s) => s.text.trim()).map((s) => `[${s.label}]\n${s.text.trim()}`).join("\n\n");
 }
 function emptyVoice(): ArtistVoice {
   return { name: "", styleNotes: "", preferredWords: "", avoidedWords: "" };
@@ -186,8 +186,7 @@ export default function HitNevisClient() {
         else {
           const list = (Array.isArray(data.cliches) ? data.cliches : []) as string[];
           content = list.length ? `چند عبارت نزدیک به کلیشه:
-• ${list.join("
-• ")}
+• ${list.join("\n• ")}
 
 اگر بخواهی جایگزین طبیعی می‌نویسم.` : "کلیشهٔ واضحی ندیدم — مسیر نسبتاً تازه‌ای داری.";
         }
