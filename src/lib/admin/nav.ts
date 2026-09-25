@@ -23,7 +23,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "مرکز کنترل",
     items: [
       { href: "/admin", label: "نمای کلی" },
-      { href: "/admin/problems", label: "مرکز مشکلات" },
+      { href: "/admin/problems", label: "مرکز مشکلات" },\n      { href: "/admin/search", label: "جستجوی سراسری" },
     ],
   },
   {
@@ -61,7 +61,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     id: "commerce",
     label: "تجارت",
     items: [
-      { href: "/admin/payments", label: "پرداخت‌ها" },
+      { href: "/admin/commerce", label: "مرکز تجارت" },\n      { href: "/admin/payments", label: "پرداخت‌ها" },
       { href: "/admin/practice/subscriptions", label: "اشتراک Practice Pro" },
       { href: "/admin/orders", label: "سفارش‌ها", enabled: false },
       { href: "/admin/coupons", label: "کد تخفیف", enabled: false },
