@@ -8,6 +8,7 @@ import {
 } from "@/lib/hitnevis/hit-dna";
 import { analyzeProsody, formatProsodyReport } from "@/lib/hitnevis/prosody";
 import { extractLyricFeatures } from "@/lib/hitnevis/kb/lyric-features";
+import { findHitNevisSimilarity } from "@/lib/hitnevis/copyright-similarity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,15 +40,16 @@ export async function POST(request: Request) {
     const cliches = detectCliches(text);
     const prosody = analyzeProsody(text);
     const corpusFeatures = extractLyricFeatures(text);
+    const similarity = await findHitNevisSimilarity(text);
 
     if (kind === "dna") {
-      return NextResponse.json({ ok: true, dna, report: formatHitDnaReport(dna) });
+      return NextResponse.json({ ok: true, dna, report: formatHitDnaReport(dna), similarity });
     }
     if (kind === "human") {
-      return NextResponse.json({ ok: true, human, report: formatHumanTestsReport(human) });
+      return NextResponse.json({ ok: true, human, report: formatHumanTestsReport(human), similarity });
     }
     if (kind === "cliche") {
-      return NextResponse.json({ ok: true, cliches });
+      return NextResponse.json({ ok: true, cliches, similarity });
     }
     return NextResponse.json({
       ok: true,
@@ -60,6 +62,7 @@ export async function POST(request: Request) {
       prosodyReport: formatProsodyReport(prosody),
       suggestions: dna.actionableSuggestions || [],
       corpusFeatures,
+      similarity,
     });
   } catch (error) {
     console.error("[hitnevis/analyze]", error instanceof Error ? error.message : error);
