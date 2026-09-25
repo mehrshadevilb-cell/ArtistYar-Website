@@ -154,8 +154,28 @@ export async function getRuntimeProviderPool(): Promise<AIProvider[]> {
     (a, b) => (FAST_PROVIDER_ORDER[a.id] ?? 50) - (FAST_PROVIDER_ORDER[b.id] ?? 50),
   );
 
-  poolCache = { at: now, providers: merged };
-  return merged;
+  // Discover currently available models from every active provider.
+  // This runs only when the 5-minute pool cache expires, not on every chat request.
+  const enriched = await Promise.all(
+    merged.map(async (provider) => {
+      try {
+        const discovered = await Promise.race([
+          discoverModels(provider),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("model_discovery_timeout")), 4_000),
+          ),
+        ]);
+        const discoveredIds = discovered.map((m) => m.id).filter(Boolean);
+        const models = [...new Set([...(provider.defaultModels || []), ...discoveredIds])];
+        return models.length ? { ...provider, defaultModels: models.slice(0, 32) } : provider;
+      } catch {
+        return provider;
+      }
+    }),
+  );
+
+  poolCache = { at: now, providers: enriched };
+  return enriched;
 }
 
 /** Invalidate cache after admin changes providers (optional hook). */
