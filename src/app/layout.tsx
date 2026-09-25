@@ -35,7 +35,8 @@ const vazirmatn = Vazirmatn({
 });
 
 const backend = (process.env.RAHYAR_API_URL || "").replace(/\/$/, "");
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");\nconst googleSiteVerification = (process.env.GOOGLE_SITE_VERIFICATION || "").trim();
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
+const googleSiteVerification = (process.env.GOOGLE_SITE_VERIFICATION || "").trim();
 
 const organizationJsonLd = {
   "@context": "https://schema.org",
@@ -114,7 +115,8 @@ export const metadata: Metadata = {
     title: "ArtistYar | آکادمی راه‌یار",
     description: "آموزش تنظیم، میکس و مسترینگ با راه‌یار AI",
   },
-  metadataBase: new URL(siteUrl),\n  ...(googleSiteVerification ? { verification: { google: googleSiteVerification } } : {}),
+  metadataBase: new URL(siteUrl),
+  ...(googleSiteVerification ? { verification: { google: googleSiteVerification } } : {}),
 };
 
 export const viewport: Viewport = {
