@@ -37,7 +37,25 @@ const vazirmatn = Vazirmatn({
 const backend = (process.env.RAHYAR_API_URL || "").replace(/\/$/, "");
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
 
-const organizationJsonLd = {\n  "@context": "https://schema.org",\n  "@type": "Organization",\n  name: "ArtistYar",\n  alternateName: "آکادمی راه‌یار",\n  url: siteUrl,\n  sameAs: ["https://www.instagram.com/prodbymehrshad/"],\n};\n\nconst websiteJsonLd = {\n  "@context": "https://schema.org",\n  "@type": "WebSite",\n  name: "ArtistYar",\n  alternateName: "آرتیست‌یار",\n  url: siteUrl,\n  inLanguage: "fa-IR",\n};\n\nexport const metadata: Metadata = {
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "ArtistYar",
+  alternateName: "آکادمی راه‌یار",
+  url: siteUrl,
+  sameAs: ["https://www.instagram.com/prodbymehrshad/"],
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "ArtistYar",
+  alternateName: "آرتیست‌یار",
+  url: siteUrl,
+  inLanguage: "fa-IR",
+};
+
+export const metadata: Metadata = {
   other: { enamad: "43325481" },
   title: {
     default: "آرتیست‌یار | آموزش تنظیم، میکس و مسترینگ + راه‌یار AI",
@@ -122,7 +140,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           charSet="utf-8"
         />
       </head>
-      <body dir="rtl" className="font-sans antialiased">\n        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />\n        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
+      <body dir="rtl" className="font-sans antialiased">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
         <SmoothScroll />
         <ThemeProvider>
           <AuthProvider>
