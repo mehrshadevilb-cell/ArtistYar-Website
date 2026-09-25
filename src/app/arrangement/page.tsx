@@ -68,7 +68,10 @@ const workflow = [
 
 export default function ArrangementPage() {
   return (
-    <main className="container-ay py-14 sm:py-18">
+    <>
+      <Breadcrumbs items={[{ name: "استودیو", href: "/studio" }, { name: "سفارش تنظیم" }]} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceJsonLd) }} />
+      <main className="container-ay py-14 sm:py-18">
       <section className="grid gap-8 lg:grid-cols-[1.1fr_.9fr] lg:items-center">
         <div>
           <p className="eyebrow">/ خدمات تنظیم آثار موسیقی</p>
@@ -196,5 +199,6 @@ export default function ArrangementPage() {
         </div>
       </section>
     </main>
+    </>
   );
 }
