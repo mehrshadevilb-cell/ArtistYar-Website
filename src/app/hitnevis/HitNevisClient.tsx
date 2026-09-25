@@ -21,7 +21,7 @@ function uid(p = "m") {
   return `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 function sectionsToText(sections: Section[]) {
-  return sections.filter((s) => s.text.trim()).map((s) => `[${s.label}]\n${s.text.trim()}`).join("\n\n");
+  return sections.filter((s) => s.text.length > 0).map((s) => `[${s.label}]\n${s.text}`).join("\n\n");
 }
 function emptyVoice(): ArtistVoice {
   return { name: "", styleNotes: "", preferredWords: "", avoidedWords: "" };
@@ -135,7 +135,7 @@ export default function HitNevisClient() {
   const applyText = (text: string, mode: "replace" | "append" = "replace") => {
     setSections((prev) => prev.map((s) => {
       if (s.id !== activeId) return s;
-      if (mode === "append") return { ...s, text: s.text.trim() ? `${s.text.trim()}\n${text}` : text };
+      if (mode === "append") return { ...s, text: s.text.length ? `${s.text}\n${text}` : text };
       return { ...s, text };
     }));
   };
@@ -235,7 +235,7 @@ export default function HitNevisClient() {
         setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: "پاسخ خالی برگشت. دوباره امتحان کن.", at: Date.now(), kind: "error", retryable: true, lastPrompt: trimmed, mode }]);
         return;
       }
-      const isLyric = mode === "chat" || mode.startsWith("write_") || ["continue", "rewrite", "improve", "shorten", "emotional", "conversational", "visual", "bold", "rhyme", "artist_voice"].includes(mode);
+      const isLyric = mode.startsWith("write_") || ["complete", "continue", "rewrite", "improve", "shorten", "emotional", "conversational", "visual", "bold", "rhyme", "artist_voice"].includes(mode);
       setMessages((prev) => [...prev, {
         id: uid(), role: "assistant", content: text, at: Date.now(),
         kind: isLyric ? "lyrics" : "analysis",
