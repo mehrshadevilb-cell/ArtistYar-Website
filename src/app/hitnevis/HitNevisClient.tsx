@@ -171,7 +171,7 @@ export default function HitNevisClient() {
     abortRef.current = ac;
 
     const existing =
-      mode === "write_full" || mode === "structure" || mode === "title_ideas" || mode === "idea_analyze"
+      mode.startsWith("write_") || mode === "structure" || mode === "title_ideas" || mode === "idea_analyze"
         ? fullLyrics || active?.text || ""
         : (active?.text?.length ? active.text : fullLyrics);
     const history = buildHistory(Boolean(opts?.skipUserBubble || opts?.replaceUserId));
