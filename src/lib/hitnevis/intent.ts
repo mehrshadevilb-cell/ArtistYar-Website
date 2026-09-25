@@ -15,6 +15,7 @@ export type HitNevisMode =
   | "title_ideas"
   | "structure"
   | "continue"
+  | "complete"
   | "rewrite"
   | "shorten"
   | "emotional"
@@ -119,6 +120,12 @@ const RULES: Rule[] = [
     label: "ادامه",
     weight: 84,
     patterns: [/ادامه/, /ادامه‌?ش/, /برام\s*ادامه/, /ادامه‌?ش\s*بده/, /از\s*اینجا\s*ادامه/],
+  },
+  {
+    mode: "complete",
+    label: "تکمیل",
+    weight: 83,
+    patterns: [/کاملش\s*کن/, /کامل\s*کن/, /تکمیل/, /این\s*(قسمت|بخش|خط)\s*رو\s*تموم/, /complete/i],
   },
   {
     mode: "rewrite",
