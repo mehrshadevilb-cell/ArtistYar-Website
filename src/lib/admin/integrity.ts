@@ -168,6 +168,94 @@ export async function runIntegrityScan(limit = 50): Promise<IntegrityReport> {
     // Education tables may not be deployed in older environments.
   }
 
+  // Class / session / attendance integrity (Phase 2)
+  checksRun++;
+  try {
+    const { data: sessions, error } = await sb
+      .from("ay_class_sessions")
+      .select("id, class_id, status, attendance_finalized, scheduled_end")
+      .eq("status", "completed")
+      .eq("attendance_finalized", false)
+      .limit(limit);
+    if (!error && sessions && sessions.length > 0) {
+      findings.push({
+        id: "class_incomplete_attendance",
+        severity: "medium",
+        category: "data",
+        title: "جلسات تکمیل‌شده بدون حضور و غیاب نهایی",
+        description: `${sessions.length} جلسه با وضعیت completed که attendance_finalized=false است.`,
+        entity_type: "ay_class_sessions",
+        count: sessions.length,
+        sample_ids: sessions.slice(0, 5).map((r: { id: string }) => String(r.id)),
+      });
+    }
+  } catch {
+    // optional
+  }
+
+  checksRun++;
+  try {
+    const { data: activeClasses, error } = await sb
+      .from("ay_classes")
+      .select("id, title, capacity")
+      .eq("status", "active")
+      .limit(limit);
+    if (!error && activeClasses) {
+      const over: string[] = [];
+      for (const c of activeClasses as { id: string; capacity: number | null }[]) {
+        if (c.capacity == null) continue;
+        const { count } = await sb
+          .from("ay_class_enrollments")
+          .select("id", { count: "exact", head: true })
+          .eq("class_id", c.id)
+          .eq("status", "active");
+        if ((count ?? 0) > c.capacity) over.push(String(c.id));
+      }
+      if (over.length) {
+        findings.push({
+          id: "class_over_capacity",
+          severity: "high",
+          category: "data",
+          title: "کلاس فعال با ثبت‌نام بیش از ظرفیت",
+          description: `${over.length} کلاس فعال تعداد ثبت‌نام فعال بیش از capacity دارد.`,
+          entity_type: "ay_classes",
+          count: over.length,
+          sample_ids: over.slice(0, 5),
+        });
+      }
+    }
+  } catch {
+    // optional
+  }
+
+  checksRun++;
+  try {
+    const { data: orphanAtt, error } = await sb
+      .from("ay_session_attendance")
+      .select("id, session_id, enrollment_id")
+      .limit(limit);
+    if (!error && orphanAtt && orphanAtt.length > 0) {
+      const sessionIds = [...new Set(orphanAtt.map((a: { session_id: string }) => a.session_id))];
+      const { data: existing } = await sb.from("ay_class_sessions").select("id").in("id", sessionIds);
+      const existSet = new Set((existing || []).map((s: { id: string }) => s.id));
+      const bad = orphanAtt.filter((a: { session_id: string }) => !existSet.has(a.session_id));
+      if (bad.length) {
+        findings.push({
+          id: "attendance_orphan_session",
+          severity: "high",
+          category: "data",
+          title: "حضور و غیاب با جلسه ناموجود",
+          description: `${bad.length} رکورد attendance به session موجود اشاره نمی‌کند.`,
+          entity_type: "ay_session_attendance",
+          count: bad.length,
+          sample_ids: bad.slice(0, 5).map((r: { id: string }) => String(r.id)),
+        });
+      }
+    }
+  } catch {
+    // optional
+  }
+
   if (findings.length === 0) {
     findings.push({
       id: "clean",
