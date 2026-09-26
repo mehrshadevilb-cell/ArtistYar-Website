@@ -49,5 +49,9 @@ export type ExerciseDefinition = {
   titleFa: string;
   skill: PracticeSkillKey;
   description: string;
+  /** Optional API / catalog bridge id */
+  gameId?: string;
+  answerMode?: AnswerMode;
+  supportsAb?: boolean;
   generate: (difficulty: number, seed: number) => GeneratedRound;
 };
