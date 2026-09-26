@@ -117,7 +117,7 @@ export function generateCompDetective(level: number, seed: number): GameRound {
     gameId: "comp-detective",
     mode: "choice",
     prompt: "رفتار Attack کمپرسور را تشخیص بده",
-    hint: "به لبهٔ اول ضربه (transient) گوش کن",
+    hint: "A بدون کمپرس، B با کمپرس — به لبهٔ transient گوش کن",
     reviewText: `Attack ${isFast ? "سریع" : "آهسته"} (~${Math.round(attack * 1000)} ms)`,
     source: { kind: "percussion", hits: 4, spacing: 0.38, toneHz: 170 },
     challengeDsp: {
@@ -127,6 +127,7 @@ export function generateCompDetective(level: number, seed: number): GameRound {
       ratio: level > 25 ? 10 : 6,
       threshold: -26,
     },
+    referenceDsp: { type: "none" },
     options: shuffleIds(options, seed),
     correctOptionId: correct,
     itemKey: key(["comp-detective", level, correct, seed]),
