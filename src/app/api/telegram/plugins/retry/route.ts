@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPluginsDb } from "@/lib/plugins-db";
-import { processPendingPluginPairs, reapplyPluginCaption } from "@/lib/telegram-plugin-sync";
+import { processPendingPluginPairs } from "@/lib/telegram-plugin-sync";
+import { reapplyPluginCaption } from "@/lib/telegram-plugin-caption";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
