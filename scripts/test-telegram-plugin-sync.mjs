@@ -15,6 +15,10 @@ assert.match(migration, /add column if not exists thumbnail_file_id/);
 assert.match(migration, /create or replace function public\.claim_telegram_plugin_item/);
 assert.match(migration, /create or replace function public\.claim_telegram_plugin_pair/);
 assert.match(card, /ArtistYar \/ Plugin Lab/);
+assert.match(card, /api\/plugins\/image\?file_id=/);
 assert.match(card, /image\.style\.opacity = "0"/);
+const caption = readFileSync(new URL("../src/lib/telegram-plugin-caption.ts", import.meta.url), "utf8");
+assert.match(caption, /reply_markup/);
+assert.match(caption, /وب‌سایت ArtistYar/);
 
 console.log("telegram plugin sync regression checks passed");
