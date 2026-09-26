@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Activity, Brain, Flame, Gauge, Target, Timer, Trophy } from "lucide-react";
 import { SafeLink } from "@/components/SafeLink";
 import { useAuth } from "@/components/AuthProvider";
+import { FrequencySkillOverview } from "@/components/FrequencySkillOverview";
+import type { FrequencySkillProfile, TrainingEffectiveness } from "@/lib/practice-game/frequency-mastery";
 
 type Skill = {
   key:string; title:string; label:string; short:string; xp:number; level:number; progress:number;
@@ -15,6 +17,9 @@ type Dashboard = {
   weakestSkill:string; recommendation:string;
   skills:Skill[];
   missions:Array<{id:number;skill:string;title:string;target:number;progress:number;xp_reward:number;completed:boolean}>;
+  frequencySkills?: FrequencySkillProfile | null;
+  trainingEffectiveness?: TrainingEffectiveness | null;
+  curriculumFeedbackFa?: string | null;
 };
 
 function ratingLabel(r:number) {
@@ -62,6 +67,12 @@ export function SkillEngineDashboard() {
         <div><p className="eyebrow">NEXT WORKOUT · ADAPTIVE</p><h3 className="mt-2 text-lg text-sand-50">{data.recommendation}</h3><p className="mt-1 text-xs text-ink-500">سیستم بر اساس عملکرد اخیر، سختی تمرین بعدی را تنظیم می‌کند.</p></div>
       <SafeLink href="/practice" className="btn-primary !px-4 !py-2 text-xs">شروع تمرین</SafeLink>
     </div>
+
+    <FrequencySkillOverview
+      profile={data.frequencySkills}
+      effectiveness={data.trainingEffectiveness}
+      curriculumFeedbackFa={data.curriculumFeedbackFa}
+    />
 
     <div className="card-ay p-5">
       <div className="flex items-center gap-2"><Target size={16} className="text-rose-300"/><div><p className="eyebrow">WEAK POINTS</p><h3 className="mt-1 text-lg text-sand-50">نقاط قابل بهبود شما</h3></div></div>
