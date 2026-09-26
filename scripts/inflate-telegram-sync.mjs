@@ -34,9 +34,14 @@ let source = inflateSync(Buffer.from(b64, "base64")).toString("utf8");
 source = source.replace(
   /function botToken\(\) \{[\s\S]*?\n\}/,
   `function botToken() {
+  // Must match src/lib/telegram-plugin-bot.ts resolvePluginBotToken()
   const plugin = (process.env.TELEGRAM_PLUGIN_BOT_TOKEN || "").trim();
   if (plugin) return plugin;
-  return (process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN || "").trim();
+  const legacy = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
+  if (legacy) return legacy;
+  const token = (process.env.TELEGRAM_TOKEN || "").trim();
+  if (token) return token;
+  return (process.env.BOT_TOKEN || "").trim();
 }`
 );
 
@@ -224,7 +229,6 @@ source = source.replace(
   'return (value + "\\n\\n🎛️ ArtistYar — https://artistyaar.ir\\n📢 Channel: " + channelHandle()).slice(0, 1000);'
 );
 
-// Title fallback from archive filename when AI returns empty / "پلاگین بدون نام"
 if (!source.includes("function titleFromFileName")) {
   source = source.replace(
     /function enforceCaptionFacts\(data: PluginData, rawCaption: string\): PluginData \{/,
