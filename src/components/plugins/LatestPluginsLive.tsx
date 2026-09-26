@@ -41,8 +41,13 @@ function isPluginCoverUrl(url: string | null | undefined) {
 }
 
 function coverSrc(p: LatestPlugin) {
-  // Only show real stored plugin artwork — never channel logo, never unverified bot thumbs
+  // Prefer the persisted cover, but fall back to the exact photo from the
+  // Telegram post. The API verifies that the file belongs to a published post,
+  // so a missing Storage cover never turns a real plugin into a generic card.
   if (isPluginCoverUrl(p.cover_public_url)) return p.cover_public_url as string;
+  if (p.telegram_photo_file_id) {
+    return "/api/plugins/image?file_id=" + encodeURIComponent(p.telegram_photo_file_id);
+  }
   return null;
 }
 
@@ -98,7 +103,7 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
       void refresh();
       timer = setInterval(() => {
         if (document.visibilityState === "visible") void refresh();
-      }, 6000);
+      }, 5000);
     };
 
     start();
@@ -125,7 +130,7 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
           </h2>
           <p className="mt-1 text-xs text-ink-500">
             کاور ذخیره‌شده · دانلود مستقیم از تلگرام
-            {live ? " · متصل" : ""}
+            {live ? " · زنده" : " · در حال همگام‌سازی"}
             {updatedAt ? " · " + new Date(updatedAt).toLocaleTimeString("fa-IR") : ""}
           </p>
         </div>
@@ -175,6 +180,7 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
                       alt={p.title}
                       className="relative z-[1] h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                       loading={index === 0 ? "eager" : "lazy"}
+                      fetchPriority={index === 0 ? "high" : "auto"}
                       onError={(e) => {
                         e.currentTarget.style.opacity = "0";
                       }}
