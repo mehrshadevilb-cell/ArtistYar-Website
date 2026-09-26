@@ -142,6 +142,22 @@ export function selectFreqExercise(opts: {
     preferred = "challenge";
   }
 
+  // Advanced ear: relative / octave when precision is stable and evidence is rich
+  // Still subject to anti-overtraining below — never locks the session.
+  if (
+    profile.overallSamples >= 16 &&
+    profile.precision.value >= 65 &&
+    profile.precision.confidence >= 45 &&
+    sessionRoundIndex >= 2
+  ) {
+    const advancedRecent = recentExerciseTypes.filter((x) => x === "relative" || x === "octave").length;
+    if (advancedRecent < 2) {
+      const roll = (sessionRoundIndex * 17 + totalRounds * 3) % 10;
+      if (roll === 0 || roll === 1) preferred = "relative";
+      else if (roll === 2) preferred = "octave";
+    }
+  }
+
   const last3 = recentExerciseTypes.slice(-3);
   if (last3.length >= 2 && last3.every((t) => t === preferred)) {
     const fallback: FreqExerciseType[] = [
@@ -230,10 +246,13 @@ export function generateFreqExerciseRound(
       finalTarget = pickTargetHz(near, seed + 3, recentTargets);
     }
   }
-  if (exercise === "relative" && recentTargets.length) {
-    const last = safeHz(recentTargets[recentTargets.length - 1], finalTarget);
+  if (exercise === "relative") {
+    // Relative to previous target when available; otherwise invent a controlled interval from a mid anchor.
+    const anchor = recentTargets.length
+      ? safeHz(recentTargets[recentTargets.length - 1], finalTarget)
+      : safeHz(pick(MID_POOL.length ? MID_POOL : FULL_POOL, seed + 37), 440);
     const semis = pick([2, 3, 4, 5, 7, -2, -3, -4, -5, -7], seed + 41);
-    const candidate = last * Math.pow(2, semis / 12);
+    const candidate = anchor * Math.pow(2, semis / 12);
     if (candidate >= 60 && candidate <= 10000) finalTarget = safeHz(candidate, finalTarget);
   }
   if (exercise === "octave") {
