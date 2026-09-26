@@ -530,7 +530,7 @@ export function PracticeGameSession({
             {freeLocked && <span className="text-amber-300">سقف مرحلهٔ رایگان</span>}
           </div>
           {isFreq && activeExercise !== "general" && FREQ_EXERCISES[activeExercise] && (
-            <p className="text-[11px] text-ink-500">{FREQ_EXERCISES[activeExercise].hintFa}</p>
+            <p className="text-[11px] text-ink-500">{FREQ_EXERCISES[activeExercise].purposeFa}</p>
           )}
           <h2 className="text-base font-medium text-sand-50 sm:text-lg">{round.prompt}</h2>
           {round.hint && <p className="text-[12px] leading-6 text-ink-500">{round.hint}</p>}
