@@ -102,9 +102,11 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
   }, []);
 
   const tier = tierIndex(xp, round);
+  // Fresh salt every round so the same (mode,round) never repeats a fixed bank index
+  const [roundSalt, setRoundSalt] = useState(() => Math.floor(Math.random() * 1e9));
   const seed = useMemo(
-    () => Math.floor(Date.now() / 86400000) + round * 7919 + (mode === "chord" ? 313 : 97) + xp,
-    [mode, round, xp],
+    () => (round * 7919 + (mode === "chord" ? 313 : 97) + xp * 17 + roundSalt) >>> 0,
+    [mode, round, xp, roundSalt],
   );
 
   const pool = useMemo(() => {
@@ -187,6 +189,7 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
   const next = () => {
     setAnswer(null);
     setPlayed(false);
+    setRoundSalt(Math.floor(Math.random() * 1e9));
     setRound((v) => v + 1);
   };
 
@@ -254,6 +257,7 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
               onClick={() => {
                 setMode("interval");
                 setAnswer(null);
+                setRoundSalt(Math.floor(Math.random() * 1e9));
                 setRound((v) => v + 1);
               }}
             >
@@ -266,6 +270,7 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
               onClick={() => {
                 setMode("chord");
                 setAnswer(null);
+                setRoundSalt(Math.floor(Math.random() * 1e9));
                 setRound((v) => v + 1);
               }}
             >
