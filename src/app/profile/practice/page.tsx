@@ -26,10 +26,10 @@ export default function PracticeProfilePage() {
 
   useEffect(() => {
     const map: Record<string, number> = {};
-    for (const g of PRACTICE_GAMES) map[g.id] = loadLocalLevel(g.id);
+    for (const g of PRACTICE_GAMES) map[g.id] = loadLocalLevel(g.id, user?.id);
     setLevels(map);
-    setStats(loadLocalStats());
-  }, []);
+    setStats(loadLocalStats(user?.id));
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
