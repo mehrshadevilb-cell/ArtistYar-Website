@@ -87,13 +87,12 @@ function makeCaption(p: {
   const footer = "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\n📢 Channel: " + handle;
   const lines = [
     "🎛️ <b>" + esc(p.title) + "</b>",
-    "✨ <i>معرفی هوشمند پلاگین توسط ArtistYar</i>",
-    p.developer ? "🏷 <b>Developer:</b> " + esc(String(p.developer)) : "",
-    p.version ? "🔢 <b>Version:</b> " + esc(String(p.version)) : "",
-    p.category ? "🎚 <b>Category:</b> " + esc(String(p.category)) : "",
-    p.formats?.length ? "🔌 <b>Format:</b> " + esc(p.formats.join(" / ")) : "",
-    p.platforms?.length ? "💻 <b>Platform:</b> " + esc(p.platforms.join(" / ")) : "",
-    p.description ? "\n" + esc(String(p.description).slice(0, 600)) : "",
+    p.developer ? "🏷 <b>سازنده:</b> " + esc(String(p.developer)) : "",
+    p.version ? "🔢 <b>نسخه:</b> " + esc(String(p.version)) : "",
+    p.category ? "🎚 <b>دسته:</b> " + esc(String(p.category)) : "",
+    p.formats?.length ? "🔌 <b>فرمت:</b> " + esc(p.formats.join(" / ")) : "",
+    p.platforms?.length ? "💻 <b>سیستم‌عامل:</b> " + esc(p.platforms.join(" / ")) : "",
+    p.description ? "\n📝 <b>توضیحات:</b>\n" + esc(String(p.description).slice(0, 700)) : "",
   ].filter(Boolean);
   const bodyBudget = 1024 - footer.length;
   return lines.join("\n").slice(0, bodyBudget).trimEnd() + footer;
