@@ -36,8 +36,11 @@ export function stopPracticePlayback() {
 export async function unlockPracticeAudio(): Promise<boolean> {
   const ctx = await getPracticeAudioContext();
   if (!ctx) return false;
-  if (ctx.state === "suspended") {
-    try { await ctx.resume(); } catch { return false; }
+  // Always attempt resume on user gesture
+  try {
+    if (ctx.state !== "running") await ctx.resume();
+  } catch {
+    return false;
   }
   // Silent buffer tick to fully unlock some mobile browsers
   try {
@@ -49,7 +52,7 @@ export async function unlockPracticeAudio(): Promise<boolean> {
     src.connect(g).connect(ctx.destination);
     src.start(0);
   } catch { /* ignore */ }
-  return ctx.state === "running" || ctx.state === "suspended";
+  return ctx.state === "running";
 }
 
 function makeNoise(ctx: AudioContext, seconds: number, color: "white" | "pink" | "brown" = "white"): AudioBuffer {
@@ -147,12 +150,16 @@ export async function playExerciseRound(opts: {
   dsp: DspChain;
 }): Promise<PracticePlaybackHandle | null> {
   stopPracticePlayback();
-  const ctx = await getPracticeAudioContext();
-  if (!ctx) return null;
-  if (ctx.state === "suspended") {
-    try { await ctx.resume(); } catch { return null; }
+  const unlocked = await unlockPracticeAudio();
+  if (!unlocked) {
+    // One more resume attempt
+    const ctxTry = await getPracticeAudioContext();
+    if (!ctxTry) return null;
+    try { await ctxTry.resume(); } catch { return null; }
+    if (ctxTry.state !== "running") return null;
   }
-  if (ctx.state !== "running") return null;
+  const ctx = await getPracticeAudioContext();
+  if (!ctx || ctx.state !== "running") return null;
 
   const now = ctx.currentTime + 0.03;
   const scheduled: Array<OscillatorNode | AudioBufferSourceNode> = [];
