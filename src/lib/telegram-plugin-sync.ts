@@ -8,6 +8,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { resolvePluginBotToken } from "@/lib/telegram-plugin-bot";
 import { reapplyPluginCaption, reapplyLatestPluginCaptions } from "@/lib/telegram-plugin-caption";
+import { getConfiguredProviders } from "@/lib/ai-providers";
 
 const TG = "https://api.telegram.org";
 const SUPABASE_URL = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
@@ -473,7 +474,7 @@ async function markQueueDone(ids: string[]) {
   await db.from("telegram_plugin_ingest_queue").delete().in("id", ids);
 }
 
-async function processPluginPair(photo: any, document: any) {
+async function processQueuedPair(photo: any, document: any) {
   if (!db) throw new Error("supabase_not_configured");
   const photoFileId = String(photo.file_id || "");
   const documentFileId = String(document.file_id || "");
@@ -553,7 +554,7 @@ export async function processPendingPluginPairs(limit = 5) {
     const claimed = await claimPair(ids[0], ids[1]);
     if (!claimed) continue;
     try {
-      const result = await processPluginPair(pair.photo, pair.document);
+      const result = await processQueuedPair(pair.photo, pair.document);
       results.push(result);
     } catch (error) {
       const message = clean(error instanceof Error ? error.message : String(error), 500);
@@ -601,23 +602,18 @@ async function processPluginPairInternal(photo: TgMessage, document: TgMessage) 
     mime_type: d.mime_type || null,
     file_size: d.file_size || null,
   };
-  return processPluginPair(fakePhotoRow, fakeDocumentRow);
+  return processQueuedPair(fakePhotoRow, fakeDocumentRow);
 }
 
 export function getAiRoutingDiagnostics() {
-  try {
-    const { getConfiguredProviders } = require("@/lib/ai-providers") as typeof import("@/lib/ai-providers");
-    return {
-      providers: getConfiguredProviders().map((p) => ({
-        provider: p.id,
-        name: p.name,
-        configured: Boolean(p.apiKey),
-        models: (p.defaultModels || []).slice(0, 5).map((model) => ({ model })),
-      })),
-    };
-  } catch {
-    return { providers: [] };
-  }
+  return {
+    providers: getConfiguredProviders().map((p) => ({
+      provider: p.id,
+      name: p.name,
+      configured: Boolean(p.apiKey),
+      models: (p.defaultModels || []).slice(0, 5).map((model) => ({ model })),
+    })),
+  };
 }
 
 export { reapplyPluginCaption, reapplyLatestPluginCaptions };
