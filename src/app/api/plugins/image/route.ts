@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server";
 import { getPluginsDb } from "@/lib/plugins-db";
+import { pluginImageResponse } from "@/lib/telegram-plugin-media";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Plugin covers must be real plugin artwork stored by ArtistYar (Supabase storage).
- * Do NOT serve Telegram channel logos from public embeds or unverified bot thumbs.
+ * Trusted stored covers only (Supabase / ArtistYar).
+ * Telegram public CDN (telesco.pe) is the channel logo — never use it.
  */
-function isTrustedPluginCoverUrl(url: string | null | undefined) {
+function isTrustedStoredCover(url: string | null | undefined) {
   const value = String(url || "").trim().toLowerCase();
   if (!value) return false;
   if (value.includes("telesco.pe")) return false;
   if (value.includes("telegram.org")) return false;
   if (value.includes("telegram-cdn.org")) return false;
-  // Accept Supabase storage / our site / known media host
   if (value.includes("supabase.co")) return true;
   if (value.includes("artistyaar.ir")) return true;
   if (value.includes("artistyar")) return true;
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
   const known = await db
     .from("telegram_plugin_posts")
-    .select("id,cover_public_url,cover_storage_path")
+    .select("id,cover_public_url,cover_storage_path,title")
     .eq("status", "published")
     .eq("telegram_photo_file_id", fileId)
     .limit(1)
@@ -48,38 +48,67 @@ export async function GET(request: Request) {
     ? String(known.data.cover_public_url)
     : null;
 
-  if (!isTrustedPluginCoverUrl(coverPublicUrl)) {
-    return NextResponse.json(
-      {
-        error: "plugin_cover_not_ready",
-        detail: "Real plugin cover not stored yet. Channel logos are not used.",
-      },
-      { status: 404 },
-    );
+  // 1) Prefer real stored plugin cover (Supabase)
+  if (isTrustedStoredCover(coverPublicUrl)) {
+    try {
+      const upstream = await fetch(coverPublicUrl!, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(15000),
+        headers: { accept: "image/*" },
+      });
+      if (upstream.ok) {
+        const bytes = Buffer.from(await upstream.arrayBuffer());
+        if (bytes.length >= 4000) {
+          return new NextResponse(bytes, {
+            status: 200,
+            headers: {
+              "content-type": upstream.headers.get("content-type") || "image/jpeg",
+              "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
+            },
+          });
+        }
+      }
+    } catch {
+      // fall through to Telegram bot download
+    }
   }
 
+  // 2) Real Telegram post photo via bot (server-side only — no secrets to client)
   try {
-    const upstream = await fetch(coverPublicUrl!, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(15000),
-      headers: { accept: "image/*" },
-    });
-    if (!upstream.ok) {
-      return NextResponse.json({ error: "cover_fetch_failed" }, { status: 502 });
+    const upstream = await pluginImageResponse(fileId);
+    const contentType =
+      typeof upstream.headers?.get === "function"
+        ? upstream.headers.get("content-type") || "image/jpeg"
+        : "image/jpeg";
+    const body = upstream.body as Buffer;
+
+    // Best-effort: persist to storage for next time (latest-3 covers)
+    if (Buffer.isBuffer(body) && body.length >= 8000 && known.data.id) {
+      try {
+        const { syncPublishedPluginCover } = await import("@/lib/telegram-plugin-covers");
+        void syncPublishedPluginCover({
+          postId: String(known.data.id),
+          photoFileId: fileId,
+        }).catch(() => undefined);
+      } catch {
+        // non-fatal
+      }
     }
-    const bytes = Buffer.from(await upstream.arrayBuffer());
-    return new NextResponse(bytes, {
+
+    return new NextResponse(body as BodyInit, {
       status: 200,
       headers: {
-        "content-type": upstream.headers.get("content-type") || "image/jpeg",
-        "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
+        "content-type": contentType,
+        "cache-control": "public, max-age=600, stale-while-revalidate=3600",
       },
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
+    console.error("plugin_image_bot_failed", detail.slice(0, 300));
+    const status = /telegram_bot_token_missing|unauthorized|401/i.test(detail) ? 503 : 404;
     return NextResponse.json(
-      { error: "cover_fetch_failed", detail: detail.slice(0, 180) },
-      { status: 502 },
+      { error: "image_unavailable", detail: detail.slice(0, 180) },
+      { status },
     );
   }
 }
