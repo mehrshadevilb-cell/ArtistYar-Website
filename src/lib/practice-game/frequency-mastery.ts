@@ -3,7 +3,7 @@
  * Authority: Recommendation=suggestion, Training plan=guidance, Adaptive=difficulty.
  * No global ranking. Skills are personal dimensions with confidence gates.
  */
-import { clamp } from "./difficulty";
+import { clamp, safeHz, safeNumber } from "./difficulty";
 
 export type HearingSkillKey = "precision" | "consistency" | "rangeHandling" | "difficultyTolerance";
 export type SkillTrend = "improving" | "stable" | "limited" | "unknown";
@@ -237,26 +237,49 @@ export function skillTitleFa(key: HearingSkillKey): string {
   }
 }
 
+const KNOWN_FOCUS: TrainingFocus[] = ["precision", "consistency", "difficulty", "range", "general"];
+
+function coerceFocus(v: unknown): TrainingFocus | null {
+  return typeof v === "string" && (KNOWN_FOCUS as string[]).includes(v) ? (v as TrainingFocus) : null;
+}
+
 export function sampleFromEventRow(row: {
   accuracy?: number; correct?: boolean; difficulty?: number; created_at?: string;
   metadata?: Record<string, unknown> | null; response_time_ms?: number | null;
 }): FreqEventSample {
   const m = (row.metadata || {}) as Record<string, unknown>;
-  const targetHz = typeof m.targetHz === "number" ? m.targetHz : typeof m.target_hz === "number" ? m.target_hz : null;
-  const guessHz = typeof m.guessHz === "number" ? m.guessHz : typeof m.guess_hz === "number" ? m.guess_hz : null;
-  let errorHz: number | null =
-    typeof m.errorHz === "number" ? Math.abs(m.errorHz) : typeof m.hzErr === "number" ? Math.abs(m.hzErr) : null;
+  const rawTarget = typeof m.targetHz === "number" ? m.targetHz : typeof m.target_hz === "number" ? m.target_hz : null;
+  const rawGuess = typeof m.guessHz === "number" ? m.guessHz : typeof m.guess_hz === "number" ? m.guess_hz : null;
+  const targetHz = rawTarget != null && Number.isFinite(rawTarget) && rawTarget > 0 ? rawTarget : null;
+  const guessHz = rawGuess != null && Number.isFinite(rawGuess) && rawGuess > 0 ? rawGuess : null;
+  let errorHz: number | null = null;
+  if (typeof m.errorHz === "number" && Number.isFinite(m.errorHz)) errorHz = Math.abs(m.errorHz);
+  else if (typeof m.hzErr === "number" && Number.isFinite(m.hzErr)) errorHz = Math.abs(m.hzErr);
   if (errorHz == null && targetHz != null && guessHz != null) errorHz = Math.abs(guessHz - targetHz);
-  const focus =
-    typeof m.trainingFocus === "string" ? (m.trainingFocus as TrainingFocus)
-    : typeof m.focus === "string" ? (m.focus as TrainingFocus) : null;
+  if (errorHz != null && !Number.isFinite(errorHz)) errorHz = null;
+  const focus = coerceFocus(m.trainingFocus) || coerceFocus(m.focus);
+  const sessionId = typeof m.sessionId === "string" && m.sessionId.length > 0 && m.sessionId.length < 160
+    ? m.sessionId
+    : null;
+  const rtRaw = row.response_time_ms != null ? Number(row.response_time_ms)
+    : typeof m.responseTimeMs === "number" ? m.responseTimeMs : null;
+  const responseTimeMs = rtRaw != null && Number.isFinite(rtRaw) && rtRaw > 0
+    ? Math.min(120000, rtRaw)
+    : null;
   return {
-    accuracy: Number(row.accuracy) || 0, correct: Boolean(row.correct), difficulty: Number(row.difficulty) || 0,
-    level: typeof m.level === "number" ? m.level : undefined,
-    responseTimeMs: row.response_time_ms != null ? Number(row.response_time_ms)
-      : typeof m.responseTimeMs === "number" ? m.responseTimeMs : null,
-    errorHz, targetHz, guessHz, createdAt: row.created_at,
-    sessionId: typeof m.sessionId === "string" ? m.sessionId : null, focus,
+    accuracy: clamp(safeNumber(row.accuracy, 0), 0, 100),
+    correct: Boolean(row.correct),
+    difficulty: clamp(safeNumber(row.difficulty, 0), 0, 500),
+    level: typeof m.level === "number" && Number.isFinite(m.level)
+      ? clamp(m.level, 1, 50)
+      : undefined,
+    responseTimeMs,
+    errorHz,
+    targetHz,
+    guessHz,
+    createdAt: typeof row.created_at === "string" ? row.created_at : undefined,
+    sessionId,
+    focus,
   };
 }
 
@@ -285,7 +308,6 @@ function stageFromSkill(skill: HearingSkill, priorValue: number | null): { stage
     return { stage: "unknown", reasonFa: "پس از چند راند، مرحلهٔ مهارت نمایش داده می‌شود." };
   }
   const v = skill.value;
-  // Hysteresis: prefer staying in stage unless clear move
   if (v >= 78 && skill.confidence >= 60) return { stage: "advanced", reasonFa: "دقت و اطمینان بالا — مهارت تثبیت‌شده." };
   if (v >= 62 && skill.confidence >= 45) return { stage: "stable", reasonFa: "عملکرد پایدار در محدودهٔ خوب." };
   if (v >= 40) return { stage: "building", reasonFa: "در حال ساخت پایه؛ ادامه بده." };
@@ -339,7 +361,7 @@ export type SessionPlan = {
   structureFa: string;
   goalFa: string;
   avoidFa: string | null;
-  exercisePreference: "precision" | "range" | "stability" | "challenge" | "general";
+  exercisePreference: "precision" | "range" | "stability" | "challenge" | "relative" | "octave" | "general";
   confidence: number;
   isPersonalized: boolean;
   summaryFa: string;
@@ -371,7 +393,6 @@ export function buildSessionPlan(opts: {
   const focusSug = suggestTrainingFocus(profile);
   let focus = focusSug.focus;
 
-  // Balance: avoid repeating same focus 3+ times
   const sameCount = recentFocuses.filter((f) => f === focus).length;
   if (sameCount >= 2) {
     const skills = [
