@@ -27,21 +27,22 @@ type Props = {
 };
 
 function isPluginCoverUrl(url: string | null | undefined) {
-  const value = String(url || "").trim();
+  const value = String(url || "").trim().toLowerCase();
   if (!value) return false;
-  // Never show Telegram channel avatar / public embed logos as plugin covers
-  if (/telesco\.pe/i.test(value)) return false;
-  if (/cdn\d*\.telegram-cdn\.org/i.test(value)) return false;
-  return true;
+  // Never show Telegram channel avatar / public CDN logos
+  if (value.includes("telesco.pe")) return false;
+  if (value.includes("telegram.org")) return false;
+  if (value.includes("telegram-cdn.org")) return false;
+  // Only trusted stored covers (Supabase / ArtistYar media)
+  if (value.includes("supabase.co")) return true;
+  if (value.includes("artistyaar.ir")) return true;
+  if (value.includes("artistyar")) return true;
+  return false;
 }
 
 function coverSrc(p: LatestPlugin) {
+  // Only show real stored plugin artwork — never channel logo, never unverified bot thumbs
   if (isPluginCoverUrl(p.cover_public_url)) return p.cover_public_url as string;
-  const fileId = String(p.telegram_photo_file_id || "").trim();
-  // Prefer bot proxy only when we have a real plugin photo file_id.
-  // If bot token cannot access the file, the <img> onError hides the image
-  // and the designed empty state remains — never a channel logo.
-  if (fileId) return "/api/plugins/image?file_id=" + encodeURIComponent(fileId);
   return null;
 }
 
@@ -175,9 +176,7 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
                       className="relative z-[1] h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                       loading={index === 0 ? "eager" : "lazy"}
                       onError={(e) => {
-                        const image = e.currentTarget;
-                        // Hide broken image — never fall back to channel logo CDN
-                        image.style.opacity = "0";
+                        e.currentTarget.style.opacity = "0";
                       }}
                     />
                   ) : null}
