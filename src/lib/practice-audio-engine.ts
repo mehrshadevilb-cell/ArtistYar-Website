@@ -1,6 +1,6 @@
 /**
- * Practice Audio Engine — Web Audio synthesis for ear-training rounds.
- * source → DSP chain → safety limiter → master gain → destination
+ * Practice Audio Engine — reliable Web Audio synthesis for ear-training.
+ * Design goals: always audible on desktop + mobile, simple graph, no silent fails.
  */
 import type { AudioProgram, DspChain } from "@/lib/practice-exercises/types";
 
@@ -18,66 +18,77 @@ function getAC(): typeof AudioContext | null {
 export async function getPracticeAudioContext(): Promise<AudioContext | null> {
   const AC = getAC();
   if (!AC) return null;
-  sharedCtx ||= new AC();
-  if (sharedCtx.state === "suspended") {
-    try { await sharedCtx.resume(); } catch { /* user gesture required */ }
+  if (!sharedCtx || sharedCtx.state === "closed") {
+    sharedCtx = new AC();
   }
-  return sharedCtx.state === "running" || sharedCtx.state === "suspended" ? sharedCtx : null;
+  try {
+    if (sharedCtx.state === "suspended") await sharedCtx.resume();
+  } catch {
+    /* need user gesture */
+  }
+  return sharedCtx;
 }
 
 export function stopPracticePlayback() {
   if (activeStop) {
-    try { activeStop(); } catch { /* */ }
+    try {
+      activeStop();
+    } catch {
+      /* */
+    }
     activeStop = null;
   }
 }
 
-/** Call from a user gesture (tap) so iOS/Android allow audio. */
+/** Must be called from a user gesture (tap/click). */
 export async function unlockPracticeAudio(): Promise<boolean> {
   const ctx = await getPracticeAudioContext();
   if (!ctx) return false;
-  // Always attempt resume on user gesture
   try {
     if (ctx.state !== "running") await ctx.resume();
   } catch {
     return false;
   }
-  // Silent buffer tick to fully unlock some mobile browsers
+  // Audible-ish silent tick (very quiet) unlocks iOS
   try {
-    const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
+    const o = ctx.createOscillator();
     const g = ctx.createGain();
-    g.gain.value = 0.0001;
-    src.connect(g).connect(ctx.destination);
-    src.start(0);
-  } catch { /* ignore */ }
-  return ctx.state === "running";
+    g.gain.value = 0.00001;
+    o.connect(g).connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.03);
+  } catch {
+    /* */
+  }
+  return ctx.state === "running" || ctx.state === "suspended";
 }
 
-function makeNoise(ctx: AudioContext, seconds: number, color: "white" | "pink" | "brown" = "white"): AudioBuffer {
+function makeNoise(ctx: AudioContext, seconds: number, color: "white" | "pink" | "brown" = "pink"): AudioBuffer {
   const len = Math.max(1, Math.floor(ctx.sampleRate * seconds));
   const buf = ctx.createBuffer(1, len, ctx.sampleRate);
   const data = buf.getChannelData(0);
-  let b0 = 0, b1 = 0, b2 = 0, last = 0;
+  let b0 = 0,
+    b1 = 0,
+    b2 = 0,
+    last = 0;
   for (let i = 0; i < len; i++) {
     const white = Math.random() * 2 - 1;
     if (color === "pink") {
       b0 = 0.99886 * b0 + white * 0.0555179;
       b1 = 0.99332 * b1 + white * 0.0750759;
       b2 = 0.969 * b2 + white * 0.153852;
-      data[i] = (b0 + b1 + b2 + white * 0.3) * 0.11;
+      data[i] = (b0 + b1 + b2 + white * 0.25) * 0.18;
     } else if (color === "brown") {
       last = (last + 0.02 * white) / 1.02;
-      data[i] = last * 3.5;
+      data[i] = last * 4;
     } else {
-      data[i] = white;
+      data[i] = white * 0.35;
     }
   }
   return buf;
 }
 
-function applyDsp(ctx: AudioContext, input: AudioNode, dsp: DspChain): AudioNode {
+function applyDsp(ctx: AudioContext, input: AudioNode, dsp: DspChain | undefined): AudioNode {
   if (!dsp || dsp.type === "none") return input;
   if (dsp.type === "peaking") {
     const f = ctx.createBiquadFilter();
@@ -95,10 +106,14 @@ function applyDsp(ctx: AudioContext, input: AudioNode, dsp: DspChain): AudioNode
     return g;
   }
   if (dsp.type === "pan") {
-    const p = ctx.createStereoPanner();
-    p.pan.value = Math.max(-1, Math.min(1, Number(dsp.value) || 0));
-    input.connect(p);
-    return p;
+    try {
+      const p = ctx.createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, Number(dsp.value) || 0));
+      input.connect(p);
+      return p;
+    } catch {
+      return input;
+    }
   }
   if (dsp.type === "compressor") {
     const comp = ctx.createDynamicsCompressor();
@@ -118,91 +133,92 @@ function applyDsp(ctx: AudioContext, input: AudioNode, dsp: DspChain): AudioNode
   return input;
 }
 
-function createMasterBus(ctx: AudioContext) {
-  const limiter = ctx.createDynamicsCompressor();
-  limiter.threshold.value = -6;
-  limiter.knee.value = 4;
-  limiter.ratio.value = 12;
-  limiter.attack.value = 0.003;
-  limiter.release.value = 0.12;
-  const master = ctx.createGain();
-  master.gain.value = 0.55;
-  limiter.connect(master);
-  master.connect(ctx.destination);
-  return {
-    input: limiter as AudioNode,
-    disconnect: () => {
-      try { limiter.disconnect(); } catch { /* */ }
-      try { master.disconnect(); } catch { /* */ }
-    },
-  };
+/** Linear envelope — never uses exponentialRamp (avoids silent Web Audio failures). */
+function linEnv(g: GainNode, now: number, duration: number, peak = 0.45) {
+  const p = Math.max(0.05, Math.min(0.9, peak));
+  g.gain.cancelScheduledValues(now);
+  g.gain.setValueAtTime(0, now);
+  g.gain.linearRampToValueAtTime(p, now + 0.025);
+  g.gain.setValueAtTime(p, now + Math.max(0.06, duration - 0.08));
+  g.gain.linearRampToValueAtTime(0, now + duration);
 }
 
-function scheduleEnvelope(g: GainNode, now: number, duration: number, peak = 0.35) {
-  g.gain.setValueAtTime(0.0001, now);
-  g.gain.exponentialRampToValueAtTime(peak, now + 0.02);
-  g.gain.setValueAtTime(peak, now + Math.max(0.05, duration - 0.08));
-  g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-}
-
+/**
+ * Play one exercise round. Always tries to produce audible output.
+ */
 export async function playExerciseRound(opts: {
   source: AudioProgram;
   dsp: DspChain;
 }): Promise<PracticePlaybackHandle | null> {
   stopPracticePlayback();
-  const unlocked = await unlockPracticeAudio();
-  if (!unlocked) {
-    // One more resume attempt
-    const ctxTry = await getPracticeAudioContext();
-    if (!ctxTry) return null;
-    try { await ctxTry.resume(); } catch { return null; }
-    if (ctxTry.state !== "running") return null;
-  }
-  const ctx = await getPracticeAudioContext();
-  if (!ctx || ctx.state !== "running") return null;
 
-  const now = ctx.currentTime + 0.03;
+  await unlockPracticeAudio();
+  const ctx = await getPracticeAudioContext();
+  if (!ctx) return null;
+
+  try {
+    if (ctx.state !== "running") await ctx.resume();
+  } catch {
+    return null;
+  }
+
+  const now = ctx.currentTime + 0.02;
   const scheduled: Array<OscillatorNode | AudioBufferSourceNode> = [];
-  const bus = createMasterBus(ctx);
+  const master = ctx.createGain();
+  master.gain.value = 0.7;
+  master.connect(ctx.destination);
+
   const source = opts.source;
   const dsp = opts.dsp || { type: "none" };
 
   const stop = () => {
     for (const s of scheduled) {
-      try { s.stop(); } catch { /* */ }
-      try { s.disconnect(); } catch { /* */ }
+      try {
+        s.stop();
+      } catch {
+        /* */
+      }
+      try {
+        s.disconnect();
+      } catch {
+        /* */
+      }
     }
     scheduled.length = 0;
-    bus.disconnect();
+    try {
+      master.disconnect();
+    } catch {
+      /* */
+    }
     activeStop = null;
   };
   activeStop = stop;
 
   try {
     if (source.kind === "noise") {
-      const seconds = Math.min(4, Math.max(0.4, source.seconds || 1.2));
-      const buf = makeNoise(ctx, seconds, source.color || "white");
+      const seconds = Math.min(4, Math.max(0.5, source.seconds || 1.2));
+      const buf = makeNoise(ctx, seconds, source.color || "pink");
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const g = ctx.createGain();
-      scheduleEnvelope(g, now, seconds, 0.28);
+      linEnv(g, now, seconds, 0.5);
       const processed = applyDsp(ctx, src, dsp);
-      processed.connect(g).connect(bus.input);
+      processed.connect(g).connect(master);
       src.start(now);
       src.stop(now + seconds + 0.05);
       scheduled.push(src);
     } else if (source.kind === "harmonic") {
-      const duration = Math.min(3, Math.max(0.4, source.duration || 1.2));
+      const duration = Math.min(3, Math.max(0.45, source.duration || 1.0));
       const fund = Math.max(40, Math.min(16000, source.fundamental || 440));
-      const partials = source.partials?.length ? source.partials : [1, 0.4, 0.2];
+      const partials = source.partials?.length ? source.partials : [1, 0.35, 0.15];
       const intervalHz = Number((source as { intervalHz?: number }).intervalHz) || 0;
       const mix = ctx.createGain();
       mix.gain.value = 1;
       const processed = applyDsp(ctx, mix, dsp);
       const outG = ctx.createGain();
-      const totalDur = intervalHz > 0 ? duration * 2 + 0.18 : duration;
-      scheduleEnvelope(outG, now, totalDur, 0.32);
-      processed.connect(outG).connect(bus.input);
+      const totalDur = intervalHz > 40 ? duration * 2 + 0.2 : duration;
+      linEnv(outG, now, totalDur, 0.55);
+      processed.connect(outG).connect(master);
       partials.forEach((amp, i) => {
         const o = ctx.createOscillator();
         const pg = ctx.createGain();
@@ -215,7 +231,7 @@ export async function playExerciseRound(opts: {
         scheduled.push(o);
       });
       if (intervalHz > 40) {
-        const t2 = now + duration + 0.15;
+        const t2 = now + duration + 0.18;
         partials.forEach((amp, i) => {
           const o = ctx.createOscillator();
           const pg = ctx.createGain();
@@ -238,14 +254,14 @@ export async function playExerciseRound(opts: {
         const g = ctx.createGain();
         o.type = "triangle";
         o.frequency.setValueAtTime(toneHz, t);
-        o.frequency.exponentialRampToValueAtTime(toneHz * 0.4, t + 0.12);
-        g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(0.4, t + 0.005);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+        o.frequency.linearRampToValueAtTime(toneHz * 0.45, t + 0.1);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.55, t + 0.008);
+        g.gain.linearRampToValueAtTime(0, t + 0.16);
         const processed = applyDsp(ctx, o, dsp);
-        processed.connect(g).connect(bus.input);
+        processed.connect(g).connect(master);
         o.start(t);
-        o.stop(t + 0.22);
+        o.stop(t + 0.2);
         scheduled.push(o);
       }
     } else if (source.kind === "loop") {
@@ -260,14 +276,14 @@ export async function playExerciseRound(opts: {
       const mix = ctx.createGain();
       const processed = applyDsp(ctx, mix, dsp);
       const outG = ctx.createGain();
-      scheduleEnvelope(outG, now, duration, 0.28);
-      processed.connect(outG).connect(bus.input);
+      linEnv(outG, now, duration, 0.45);
+      processed.connect(outG).connect(master);
       freqs.forEach((hz, i) => {
         const o = ctx.createOscillator();
         const pg = ctx.createGain();
         o.type = source.pattern === "bass" ? "sawtooth" : source.pattern === "pluck" ? "triangle" : "sine";
         o.frequency.value = hz;
-        pg.gain.value = 0.2 / freqs.length + (i === 0 ? 0.08 : 0);
+        pg.gain.value = 0.22 / freqs.length + (i === 0 ? 0.1 : 0);
         o.connect(pg).connect(mix);
         o.start(now);
         o.stop(now + duration + 0.05);
@@ -278,19 +294,32 @@ export async function playExerciseRound(opts: {
       (source.stems || []).forEach((stem) => {
         const o = ctx.createOscillator();
         const g = ctx.createGain();
-        const panner = ctx.createStereoPanner();
         o.type = "sine";
         o.frequency.value = Math.max(40, Math.min(12000, stem.toneHz || 220));
-        const gainLin = Math.pow(10, (Number(stem.gainDb) || 0) / 20) * 0.2;
-        scheduleEnvelope(g, now, duration, Math.min(0.4, gainLin));
-        panner.pan.value = Math.max(-1, Math.min(1, Number(stem.pan) || 0));
-        o.connect(g).connect(panner);
-        const processed = applyDsp(ctx, panner, dsp);
-        processed.connect(bus.input);
+        const gainLin = Math.pow(10, (Number(stem.gainDb) || 0) / 20) * 0.25;
+        linEnv(g, now, duration, Math.min(0.5, gainLin));
+        try {
+          const panner = ctx.createStereoPanner();
+          panner.pan.value = Math.max(-1, Math.min(1, Number(stem.pan) || 0));
+          o.connect(g).connect(panner);
+          const processed = applyDsp(ctx, panner, dsp);
+          processed.connect(master);
+        } catch {
+          o.connect(g).connect(master);
+        }
         o.start(now);
         o.stop(now + duration + 0.05);
         scheduled.push(o);
       });
+    } else {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.value = 440;
+      linEnv(g, now, 0.6, 0.4);
+      o.connect(g).connect(master);
+      o.start(now);
+      o.stop(now + 0.65);
+      scheduled.push(o);
     }
   } catch {
     stop();
@@ -298,4 +327,33 @@ export async function playExerciseRound(opts: {
   }
 
   return { stop, startTime: now };
+}
+
+/** Simple test tone — useful for debugging playback path. */
+export async function playTestTone(hz = 440, seconds = 0.5): Promise<boolean> {
+  await unlockPracticeAudio();
+  const ctx = await getPracticeAudioContext();
+  if (!ctx) return false;
+  try {
+    if (ctx.state !== "running") await ctx.resume();
+  } catch {
+    return false;
+  }
+  stopPracticePlayback();
+  const now = ctx.currentTime + 0.02;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.frequency.value = hz;
+  linEnv(g, now, seconds, 0.5);
+  o.connect(g).connect(ctx.destination);
+  o.start(now);
+  o.stop(now + seconds + 0.05);
+  activeStop = () => {
+    try {
+      o.stop();
+    } catch {
+      /* */
+    }
+  };
+  return true;
 }
