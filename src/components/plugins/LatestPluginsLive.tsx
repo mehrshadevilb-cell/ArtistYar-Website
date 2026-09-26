@@ -26,9 +26,21 @@ type Props = {
   hideHeader?: boolean;
 };
 
+function isPluginCoverUrl(url: string | null | undefined) {
+  const value = String(url || "").trim();
+  if (!value) return false;
+  // Never show Telegram channel avatar / public embed logos as plugin covers
+  if (/telesco\.pe/i.test(value)) return false;
+  if (/cdn\d*\.telegram-cdn\.org/i.test(value)) return false;
+  return true;
+}
+
 function coverSrc(p: LatestPlugin) {
-  if (p.cover_public_url) return p.cover_public_url;
+  if (isPluginCoverUrl(p.cover_public_url)) return p.cover_public_url as string;
   const fileId = String(p.telegram_photo_file_id || "").trim();
+  // Prefer bot proxy only when we have a real plugin photo file_id.
+  // If bot token cannot access the file, the <img> onError hides the image
+  // and the designed empty state remains — never a channel logo.
   if (fileId) return "/api/plugins/image?file_id=" + encodeURIComponent(fileId);
   return null;
 }
@@ -164,14 +176,7 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
                       loading={index === 0 ? "eager" : "lazy"}
                       onError={(e) => {
                         const image = e.currentTarget;
-                        const fallback = p.telegram_photo_file_id
-                          ? "/api/plugins/image?file_id=" + encodeURIComponent(p.telegram_photo_file_id)
-                          : null;
-                        if (fallback && image.src !== new URL(fallback, window.location.href).href && !image.dataset.fallback) {
-                          image.dataset.fallback = "1";
-                          image.src = fallback;
-                          return;
-                        }
+                        // Hide broken image — never fall back to channel logo CDN
                         image.style.opacity = "0";
                       }}
                     />
