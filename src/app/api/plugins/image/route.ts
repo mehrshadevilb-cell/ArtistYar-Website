@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     if (!known.data) {
       return NextResponse.json({ error: "image_not_found" }, { status: 404 });
     }
-    postMeta = known.data as typeof postMeta;
+    postMeta = known.data as unknown as NonNullable<typeof postMeta>;
   }
 
   // Prefer already-known public cover URL when present
