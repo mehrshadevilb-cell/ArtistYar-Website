@@ -296,24 +296,73 @@ function titleFromCaption(caption: string) {
   return value.slice(0, 160);
 }
 
+function extractVersion(fileName: string, caption: string) {
+  const source = String(fileName || "") + " " + String(caption || "");
+  const match = source.match(/\bv?(\d+(?:\.\d+){1,4})\b/i);
+  return match?.[1] || "";
+}
+
+function inferDeveloper(title: string) {
+  const known = [
+    "BABY Audio","iZotope","Native Instruments","FabFilter","Waves","Arturia","Sonible",
+    "Pulsar Modular","Excite Audio","Mastering The Mix","KeySolutions Sounds","Lemur Audio",
+    "Soundtoys","Plugin Alliance","Softube","Universal Audio","Slate Digital","Eventide",
+    "Valhalla DSP","UAD","MeldaProduction","Output","Spitfire Audio","XLN Audio","Evolution Series",
+  ];
+  const lower = title.toLowerCase();
+  return known.find((name) => lower.startsWith(name.toLowerCase() + " ")) || "";
+}
+
+function inferFormats(fileName: string, caption: string) {
+  const source = (String(fileName || "") + " " + String(caption || "")).toLowerCase();
+  const formats: string[] = [];
+  if (/\bvst3?\b|\.vst3?\b/.test(source)) formats.push("VST");
+  if (/\bau\b|audio unit|\.component\b/.test(source)) formats.push("AU");
+  if (/\baax\b|\.aaxplugin\b/.test(source)) formats.push("AAX");
+  if (/\bclap\b|\.clap\b/.test(source)) formats.push("CLAP");
+  if (/standalone/.test(source)) formats.push("Standalone");
+  return Array.from(new Set(formats));
+}
+
+function inferPlatforms(fileName: string, caption: string) {
+  const source = String(fileName || "") + " " + String(caption || "");
+  const platforms: string[] = [];
+  if (/\b(win|windows|pc)\b/i.test(source)) platforms.push("Windows");
+  if (/\b(mac|macos|osx|apple)\b/i.test(source)) platforms.push("macOS");
+  if (/\blinux\b/i.test(source)) platforms.push("Linux");
+  return Array.from(new Set(platforms));
+}
+
+function inferCategory(title: string, caption: string) {
+  const source = (String(title || "") + " " + String(caption || "")).toLowerCase();
+  if (/\b(eq|equalizer|compressor|limiter|saturation|distortion|reverb|delay|chorus|phaser|flanger|gate|de-?esser|filter)\b/.test(source)) return "Effect";
+  if (/\b(synth|synthesizer|instrument|piano|keys|drum|sampler)\b/.test(source)) return "Instrument";
+  return "Audio Plugin";
+}
+
 function deterministicMetadata(fileName: string, caption: string): PluginData {
   const title = titleFromFileName(fileName) || titleFromCaption(caption) || "پلاگین جدید";
-  const formats = [];
-  const lower = String(fileName || "").toLowerCase();
-  if (/vst3?/.test(lower)) formats.push("VST");
-  if (/component|\bau\b/.test(lower)) formats.push("AU");
-  if (/aaxplugin/.test(lower)) formats.push("AAX");
+  const developer = inferDeveloper(title);
+  const version = extractVersion(fileName, caption);
+  const formats = inferFormats(fileName, caption);
+  const platforms = inferPlatforms(fileName, caption);
+  const category = inferCategory(title, caption);
+  const evidence = String(caption || "").trim();
+  const description = evidence
+    ? "مشخصات استخراج‌شده از منبع Telegram: " + evidence.slice(0, 600)
+    : [developer, version ? "نسخه " + version : "", formats.length ? "فرمت " + formats.join("، ") : "", platforms.length ? "مناسب برای " + platforms.join(" و ") : ""]
+        .filter(Boolean).join(" · ") || "اطلاعات تکمیلی پلاگین از منبع اصلی در دسترس نیست.";
   return {
     title,
-    developer: "",
-    version: "",
-    category: "Audio Plugin",
-    formats: Array.from(new Set(formats)),
-    platforms: /mac|osx/i.test(lower) ? ["macOS"] : /win/i.test(lower) ? ["Windows"] : [],
-    description: String(caption || "").trim().slice(0, 600),
+    developer,
+    version,
+    category,
+    formats,
+    platforms,
+    description,
     features: [],
-    tags: [],
-    translatedCaption: "",
+    tags: [developer, title, category].filter(Boolean),
+    translatedCaption: description,
   };
 }
 
@@ -328,10 +377,10 @@ function parsePluginJson(raw: string, fallback: PluginData) {
       category: clean(parsed.category || fallback.category, 80) || fallback.category,
       formats: Array.isArray(parsed.formats) ? parsed.formats.map((x: unknown) => clean(x, 40)).filter(Boolean).slice(0, 8) : fallback.formats,
       platforms: Array.isArray(parsed.platforms) ? parsed.platforms.map((x: unknown) => clean(x, 40)).filter(Boolean).slice(0, 8) : fallback.platforms,
-      description: clean(parsed.description || fallback.description, 700),
+      description: clean(parsed.description || parsed.translatedCaption || fallback.description, 900),
       features: Array.isArray(parsed.features) ? parsed.features.map((x: unknown) => clean(x, 120)).filter(Boolean).slice(0, 8) : fallback.features,
       tags: Array.isArray(parsed.tags) ? parsed.tags.map((x: unknown) => clean(x, 40)).filter(Boolean).slice(0, 12) : fallback.tags,
-      translatedCaption: clean(parsed.translatedCaption || "", 850),
+      translatedCaption: clean(parsed.translatedCaption || parsed.description || fallback.translatedCaption || "", 900),
     } as PluginData;
   } catch {
     return fallback;
@@ -345,10 +394,13 @@ async function aiMetadata(fileName: string, caption: string): Promise<{ data: Pl
     const candidates = await buildRankedCandidates(12);
     const prompt = [
       "Return ONLY valid JSON.",
-      "Analyze this audio plugin release metadata from filename and Telegram caption.",
-      "Never claim facts not supported by the input.",
+      "You are extracting accurate product metadata for an audio-plugin catalog.",
+      "Use ONLY facts supported by the filename and Telegram caption. Never invent specs.",
+      "Write description and translatedCaption in Persian, concise but informative.",
+      "Preserve developer/version/formats/platforms when directly present or clearly inferable.",
+      "description must explain what the plugin is or does when supported by the source; never mention ArtistYar or smart introduction.",
+      "features should contain concrete capabilities stated or clearly supported by the source.",
       "Schema: title, developer, version, category, formats[], platforms[], description, features[], tags[], translatedCaption.",
-      "translatedCaption must be concise Persian and may be empty.",
       "FILENAME: " + String(fileName || ""),
       "TELEGRAM CAPTION: " + String(caption || ""),
     ].join("\n");
@@ -362,7 +414,7 @@ async function aiMetadata(fileName: string, caption: string): Promise<{ data: Pl
           AbortSignal.timeout(12000),
         );
         const parsed = parsePluginJson(result.reply, fallback);
-        if (parsed.title) return { data: parsed, provider: candidate.providerId, model: candidate.modelId };
+        if (parsed.title && parsed.description.trim()) return { data: parsed, provider: candidate.providerId, model: candidate.modelId };
       } catch {
         // Provider/model failures fall through to the next configured candidate.
       }
@@ -375,16 +427,17 @@ async function aiMetadata(fileName: string, caption: string): Promise<{ data: Pl
 
 function captionFor(p: PluginData) {
   const handle = channelHandle();
-  const footer = "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\n📢 Channel: " + handle;
+  const footer = "\n\n🎛️ <b>ArtistYar</b> — " + siteUrl() + "\n📢 Channel: " + handle;
+  const description = String(p.translatedCaption || p.description || "").trim();
   const lines = [
     "🎛️ <b>" + String(p.title || "پلاگین جدید").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</b>",
-    "✨ <i>معرفی هوشمند پلاگین توسط ArtistYar</i>",
-    p.developer ? "🏷 <b>Developer:</b> " + clean(p.developer, 120) : "",
-    p.version ? "🔢 <b>Version:</b> " + clean(p.version, 80) : "",
-    p.category ? "🎚 <b>Category:</b> " + clean(p.category, 80) : "",
-    p.formats?.length ? "🔌 <b>Format:</b> " + clean(p.formats.join(" / "), 180) : "",
-    p.platforms?.length ? "💻 <b>Platform:</b> " + clean(p.platforms.join(" / "), 120) : "",
-    p.description ? "\n" + clean(p.description, 600) : "",
+    p.developer ? "🏷 <b>سازنده:</b> " + clean(p.developer, 120) : "",
+    p.version ? "🔢 <b>نسخه:</b> " + clean(p.version, 80) : "",
+    p.category ? "🎚 <b>دسته:</b> " + clean(p.category, 80) : "",
+    p.formats?.length ? "🔌 <b>فرمت:</b> " + clean(p.formats.join(" / "), 180) : "",
+    p.platforms?.length ? "💻 <b>سیستم‌عامل:</b> " + clean(p.platforms.join(" / "), 120) : "",
+    description ? "\n📝 <b>توضیحات:</b>\n" + clean(description, 700) : "",
+    p.features?.length ? "\n✨ <b>ویژگی‌ها:</b>\n• " + p.features.map((x) => clean(x, 120)).join("\n• ") : "",
   ].filter(Boolean);
   return lines.join("\n").slice(0, Math.max(1, 1024 - footer.length)).trimEnd() + footer;
 }
