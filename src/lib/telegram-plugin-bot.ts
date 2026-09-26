@@ -9,6 +9,28 @@
  */
 const TG = "https://api.telegram.org";
 
+/**
+ * Normalize a raw env token value.
+ * - trim whitespace
+ * - strip surrounding quotes
+ * - strip a mistaken leading "bot" prefix (BotFather tokens are "123:ABC", not "bot123:ABC")
+ *   because callers always build URLs as `/bot` + token + `/method`
+ */
+export function normalizeTelegramBotToken(raw: unknown): string {
+  let value = String(raw ?? "").trim();
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim();
+  }
+  // Common Render/env mistake: paste includes the "bot" path segment.
+  if (/^bot\d+:/i.test(value)) {
+    value = value.replace(/^bot/i, "");
+  }
+  return value;
+}
+
 /** Ordered resolution — first non-empty wins. Keep in sync across all callers. */
 export function resolvePluginBotToken(): string {
   const candidates = [
@@ -18,7 +40,7 @@ export function resolvePluginBotToken(): string {
     process.env.BOT_TOKEN,
   ];
   for (const raw of candidates) {
-    const value = String(raw || "").trim();
+    const value = normalizeTelegramBotToken(raw);
     if (value) return value;
   }
   return "";
@@ -31,10 +53,18 @@ export function pluginBotTokenSource():
   | "TELEGRAM_TOKEN"
   | "BOT_TOKEN"
   | "missing" {
-  if ((process.env.TELEGRAM_PLUGIN_BOT_TOKEN || "").trim()) return "TELEGRAM_PLUGIN_BOT_TOKEN";
-  if ((process.env.TELEGRAM_BOT_TOKEN || "").trim()) return "TELEGRAM_BOT_TOKEN";
-  if ((process.env.TELEGRAM_TOKEN || "").trim()) return "TELEGRAM_TOKEN";
-  if ((process.env.BOT_TOKEN || "").trim()) return "BOT_TOKEN";
+  if (normalizeTelegramBotToken(process.env.TELEGRAM_PLUGIN_BOT_TOKEN)) {
+    return "TELEGRAM_PLUGIN_BOT_TOKEN";
+  }
+  if (normalizeTelegramBotToken(process.env.TELEGRAM_BOT_TOKEN)) {
+    return "TELEGRAM_BOT_TOKEN";
+  }
+  if (normalizeTelegramBotToken(process.env.TELEGRAM_TOKEN)) {
+    return "TELEGRAM_TOKEN";
+  }
+  if (normalizeTelegramBotToken(process.env.BOT_TOKEN)) {
+    return "BOT_TOKEN";
+  }
   return "missing";
 }
 
@@ -60,11 +90,16 @@ export function pluginBotTokenWarnings(): string[] {
         " — set TELEGRAM_PLUGIN_BOT_TOKEN to the bot that receives @ProAudios channel posts",
     );
   }
-  const plugin = (process.env.TELEGRAM_PLUGIN_BOT_TOKEN || "").trim();
-  const other = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
+  const plugin = normalizeTelegramBotToken(process.env.TELEGRAM_PLUGIN_BOT_TOKEN);
+  const other = normalizeTelegramBotToken(process.env.TELEGRAM_BOT_TOKEN);
   if (plugin && other && plugin !== other) {
-    // Both set to different values is fine — plugin token wins. Log for ops clarity.
     warnings.push("plugin_token_overrides_TELEGRAM_BOT_TOKEN");
+  }
+  const active = resolvePluginBotToken();
+  if (active && !/^\d+:[A-Za-z0-9_-]+$/.test(active)) {
+    warnings.push(
+      "plugin_bot_token_format_suspicious — expected BotFather shape digits:secret (no bot prefix, no quotes)",
+    );
   }
   return warnings;
 }
@@ -79,6 +114,57 @@ export type PluginBotIdentity = {
   error?: string;
 };
 
+async function getMeForToken(token: string): Promise<{
+  ok: boolean;
+  bot_id?: number;
+  bot_username?: string;
+  can_join_groups?: boolean;
+  error?: string;
+  http_status?: number;
+}> {
+  const t = normalizeTelegramBotToken(token);
+  if (!t) return { ok: false, error: "telegram_bot_token_missing" };
+  try {
+    const res = await fetch(TG + "/bot" + t + "/getMe", {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(12000),
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.ok) {
+      return {
+        ok: true,
+        bot_id: data.result?.id,
+        bot_username: data.result?.username,
+        can_join_groups: data.result?.can_join_groups,
+        http_status: res.status,
+      };
+    }
+    const description = String(data?.description || "getMe_failed").slice(0, 200);
+    if (/not found/i.test(description) || res.status === 404) {
+      return {
+        ok: false,
+        error:
+          "getMe_not_found — TELEGRAM_PLUGIN_BOT_TOKEN is not a live bot token (revoked, typo, extra quotes, or includes a leading 'bot' prefix)",
+        http_status: res.status,
+      };
+    }
+    if (/unauthorized|401/i.test(description) || res.status === 401) {
+      return {
+        ok: false,
+        error: "getMe_unauthorized — token rejected by Telegram (invalid or revoked)",
+        http_status: res.status,
+      };
+    }
+    return { ok: false, error: description, http_status: res.status };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200),
+    };
+  }
+}
+
 /** Safe identity probe — never returns the token. */
 export async function probePluginBotIdentity(): Promise<PluginBotIdentity> {
   const source = pluginBotTokenSource();
@@ -87,37 +173,67 @@ export async function probePluginBotIdentity(): Promise<PluginBotIdentity> {
   if (!token) {
     return { configured: false, token_source: source, warnings, error: "telegram_bot_token_missing" };
   }
-  try {
-    const res = await fetch(TG + "/bot" + token + "/getMe", {
-      method: "GET",
-      cache: "no-store",
-      signal: AbortSignal.timeout(12000),
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.ok) {
-      return {
-        configured: true,
-        token_source: source,
-        warnings,
-        error: String(data?.description || "getMe_failed").slice(0, 200),
-      };
-    }
+  const me = await getMeForToken(token);
+  if (!me.ok) {
     return {
       configured: true,
       token_source: source,
       warnings,
-      bot_id: data.result?.id,
-      bot_username: data.result?.username,
-      can_join_groups: data.result?.can_join_groups,
-    };
-  } catch (error) {
-    return {
-      configured: true,
-      token_source: source,
-      warnings,
-      error: error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200),
+      error: me.error,
     };
   }
+  return {
+    configured: true,
+    token_source: source,
+    warnings,
+    bot_id: me.bot_id,
+    bot_username: me.bot_username,
+    can_join_groups: me.can_join_groups,
+  };
+}
+
+/**
+ * Diagnostics-only: probe alternate env tokens WITHOUT selecting them for runtime.
+ * Helps ops see whether TELEGRAM_BOT_TOKEN is healthy while PLUGIN token is broken.
+ * Never returns token values.
+ */
+export async function probeAlternateBotTokens(): Promise<
+  Array<{
+    source: string;
+    configured: boolean;
+    ok: boolean;
+    bot_id?: number;
+    bot_username?: string;
+    error?: string;
+    same_as_active?: boolean;
+  }>
+> {
+  const active = resolvePluginBotToken();
+  const pairs: Array<{ source: string; raw: string }> = [
+    { source: "TELEGRAM_PLUGIN_BOT_TOKEN", raw: process.env.TELEGRAM_PLUGIN_BOT_TOKEN || "" },
+    { source: "TELEGRAM_BOT_TOKEN", raw: process.env.TELEGRAM_BOT_TOKEN || "" },
+    { source: "TELEGRAM_TOKEN", raw: process.env.TELEGRAM_TOKEN || "" },
+    { source: "BOT_TOKEN", raw: process.env.BOT_TOKEN || "" },
+  ];
+  const out = [];
+  for (const pair of pairs) {
+    const normalized = normalizeTelegramBotToken(pair.raw);
+    if (!normalized) {
+      out.push({ source: pair.source, configured: false, ok: false, error: "unset" });
+      continue;
+    }
+    const me = await getMeForToken(normalized);
+    out.push({
+      source: pair.source,
+      configured: true,
+      ok: me.ok,
+      bot_id: me.bot_id,
+      bot_username: me.bot_username,
+      error: me.error,
+      same_as_active: normalized === active,
+    });
+  }
+  return out;
 }
 
 /**
@@ -146,11 +262,11 @@ export async function probeTelegramFileId(fileId: string): Promise<{
       return { ok: true, has_path: true };
     }
     const description = String(data?.description || "getFile_failed").slice(0, 200);
-    // Map classic wrong-bot failure
     if (/not found|404/i.test(description) || res.status === 404) {
       return {
         ok: false,
-        error: "file_id_not_found_for_configured_bot — token may belong to a different bot than the one that received the post",
+        error:
+          "file_id_not_found_for_configured_bot — token may belong to a different bot than the one that received the post",
       };
     }
     return { ok: false, error: description };
