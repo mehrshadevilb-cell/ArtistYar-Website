@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, Play, Waves, Zap, Layers, AudioLines } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { usePracticeAccess } from "@/components/usePracticeAccess";
@@ -155,7 +155,7 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
   }
 
   const meta = SKILLS.find((s) => s.id === skill)!;
-  const options =
+  const bank =
     skill === "reverb"
       ? ["Room کوتاه", "Hall بلند", "Plate فلزی", "بدون Reverb"]
       : skill === "saturation"
@@ -163,7 +163,20 @@ export function ProArcadeLab({ onBack }: { onBack: () => void }) {
         : skill === "masking"
           ? ["Sub (~60Hz)", "Low-mid (~250Hz)", "Presence (~3kHz)", "Air (~10kHz)"]
           : ["Attack تند", "Attack نرم", "Sustain بلند", "Release سریع"];
-  const answer = options[0];
+
+  // New random correct answer + shuffled options every round
+  const { answer, options } = useMemo(() => {
+    const salt = Math.floor(Math.random() * 1e9) ^ (round * 9973) ^ Date.now();
+    const idx = Math.abs(salt) % bank.length;
+    const correct = bank[idx];
+    const opts = [...bank];
+    for (let i = opts.length - 1; i > 0; i--) {
+      const j = Math.abs((salt + i * 17) * 2654435761) % (i + 1);
+      [opts[i], opts[j]] = [opts[j], opts[i]];
+    }
+    return { answer: correct, options: opts };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skill, round]);
 
   return (
     <section className="mt-10" dir="rtl">
