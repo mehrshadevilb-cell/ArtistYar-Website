@@ -115,7 +115,27 @@ export function generateIntervalRecognition(
   const recent = (opts?.recentIntervalIds || []).filter(Boolean).slice(-6);
 
   let candidates = pool.filter((i) => !recent.includes(i.id));
-  if (candidates.length < 2) candidates = [...pool];
+  if (candidates.length === 0) {
+    // Beginner pools can be smaller than the six-item history window. In that
+    // case, prefer the least-recently-used interval instead of reopening the
+    // whole pool and allowing an immediate repeat.
+    const lastSeen = new Map<string, number>();
+    recent.forEach((id, index) => lastSeen.set(id, index));
+    const ranked = [...pool].sort((a, b) => {
+      const aSeen = lastSeen.has(a.id) ? (lastSeen.get(a.id) as number) : -1;
+      const bSeen = lastSeen.has(b.id) ? (lastSeen.get(b.id) as number) : -1;
+      return aSeen - bSeen;
+    });
+    const oldest = ranked.filter((i) => {
+      const seen = lastSeen.get(i.id);
+      return seen === undefined || seen === Math.min(
+        ...ranked
+          .map((item) => lastSeen.get(item.id))
+          .filter((value): value is number => value !== undefined),
+      );
+    });
+    candidates = oldest.length ? oldest : ranked.slice(0, 1);
+  }
 
   const picked = pick(candidates, seed);
   const def = BY_ID[picked.id] || picked;
