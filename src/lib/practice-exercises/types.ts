@@ -4,7 +4,7 @@ export type PracticeSkillKey =
 export type SoundGymExerciseId = string;
 export type AudioProgram =
   | { kind: "noise"; seconds: number; color?: "white" | "pink" | "brown" }
-  | { kind: "harmonic"; fundamental: number; partials: number[]; duration?: number }
+  | { kind: "harmonic"; fundamental: number; partials: number[]; duration?: number; intervalHz?: number }
   | { kind: "percussion"; hits: number; spacing: number; toneHz: number }
   | { kind: "loop"; pattern: "pad" | "pluck" | "bass" | "kit"; duration?: number }
   | {
@@ -24,6 +24,7 @@ export type DspChain =
   | { type: "peaking"; frequency: number; gainDb: number; q?: number }
   | { type: "gain"; gainDb: number }
   | { type: "pan"; value: number }
+  | { type: "compressor"; threshold?: number; ratio?: number; attack?: number; release?: number; knee?: number }
   | { type: "stack"; nodes: DspChain[] }
   | Record<string, unknown>;
 export type RoundOption = { id: string; label: string; dsp?: DspChain };
@@ -48,9 +49,5 @@ export type ExerciseDefinition = {
   titleFa: string;
   skill: PracticeSkillKey;
   description: string;
-  gameId: string;
-  answerMode: AnswerMode;
-  supportsAb: boolean;
-  keyboardHints?: string;
   generate: (difficulty: number, seed: number) => GeneratedRound;
 };
