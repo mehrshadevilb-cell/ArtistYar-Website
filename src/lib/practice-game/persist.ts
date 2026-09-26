@@ -76,48 +76,63 @@ export async function persistPracticeRound(input: PersistRoundInput): Promise<Pe
 }
 
 const LEVEL_KEY = "artistyar_practice_levels_v1";
+const STATS_KEY = "artistyar_practice_stats_v1";
 
-export function loadLocalLevel(gameId: string): number {
+/** Scope local keys by user identity so guest and authenticated users stay isolated. */
+function scopedKey(base: string, userId?: string | null): string {
+  const id = typeof userId === "string" && userId.trim() ? userId.trim().slice(0, 64) : "guest";
+  return `${base}::${id}`;
+}
+
+export function loadLocalLevel(gameId: string, userId?: string | null): number {
   try {
-    const raw = JSON.parse(localStorage.getItem(LEVEL_KEY) || "{}");
-    const n = Number(raw[gameId]);
+    const key = scopedKey(LEVEL_KEY, userId);
+    let raw = JSON.parse(localStorage.getItem(key) || "null");
+    // One-time migration from pre-scoped guest key (no identity leakage across users).
+    if (!raw && (!userId || userId === "guest")) {
+      raw = JSON.parse(localStorage.getItem(LEVEL_KEY) || "{}");
+    }
+    const n = Number(raw?.[gameId]);
     return Number.isFinite(n) ? Math.max(1, Math.min(50, Math.round(n))) : 1;
   } catch {
     return 1;
   }
 }
 
-export function saveLocalLevel(gameId: string, level: number) {
+export function saveLocalLevel(gameId: string, level: number, userId?: string | null) {
   try {
-    const raw = JSON.parse(localStorage.getItem(LEVEL_KEY) || "{}");
+    const key = scopedKey(LEVEL_KEY, userId);
+    const raw = JSON.parse(localStorage.getItem(key) || "{}");
     raw[gameId] = Math.max(1, Math.min(50, Math.round(level)));
-    localStorage.setItem(LEVEL_KEY, JSON.stringify(raw));
+    localStorage.setItem(key, JSON.stringify(raw));
   } catch {
     /* private mode */
   }
 }
 
-const STATS_KEY = "artistyar_practice_stats_v1";
-
 export type LocalStats = { xp: number; streak: number; bestStreak: number; plays: number };
 
-export function loadLocalStats(): LocalStats {
+export function loadLocalStats(userId?: string | null): LocalStats {
   try {
-    const raw = JSON.parse(localStorage.getItem(STATS_KEY) || "{}");
+    const key = scopedKey(STATS_KEY, userId);
+    let raw = JSON.parse(localStorage.getItem(key) || "null");
+    if (!raw && (!userId || userId === "guest")) {
+      raw = JSON.parse(localStorage.getItem(STATS_KEY) || "{}");
+    }
     return {
-      xp: Number(raw.xp) || 0,
-      streak: Number(raw.streak) || 0,
-      bestStreak: Number(raw.bestStreak) || 0,
-      plays: Number(raw.plays) || 0,
+      xp: Number(raw?.xp) || 0,
+      streak: Number(raw?.streak) || 0,
+      bestStreak: Number(raw?.bestStreak) || 0,
+      plays: Number(raw?.plays) || 0,
     };
   } catch {
     return { xp: 0, streak: 0, bestStreak: 0, plays: 0 };
   }
 }
 
-export function saveLocalStats(stats: LocalStats) {
+export function saveLocalStats(stats: LocalStats, userId?: string | null) {
   try {
-    localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+    localStorage.setItem(scopedKey(STATS_KEY, userId), JSON.stringify(stats));
   } catch {
     /* */
   }
