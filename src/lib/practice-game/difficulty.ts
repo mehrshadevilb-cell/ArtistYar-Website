@@ -7,7 +7,20 @@ export const GAME_LEVEL_MIN = 1;
 export const GAME_LEVEL_MAX = 50;
 
 export function clamp(n: number, min: number, max: number) {
+  if (!Number.isFinite(n)) return min;
   return Math.max(min, Math.min(max, n));
+}
+
+/** Coerce unknown values to a finite number; otherwise fallback. */
+export function safeNumber(n: unknown, fallback = 0): number {
+  const v = typeof n === "number" ? n : typeof n === "string" ? Number(n) : NaN;
+  return Number.isFinite(v) ? v : fallback;
+}
+
+/** Positive finite Hz only — never NaN/Inf/negative. */
+export function safeHz(n: unknown, fallback = 440): number {
+  const v = safeNumber(n, fallback);
+  return v > 0 && v < 24000 ? v : fallback;
 }
 
 export function lerp(a: number, b: number, t: number) {
@@ -68,8 +81,15 @@ export type RoundOutcome = {
  * Adaptive step: 3+ strong hits climb, 2 misses drop, slow answers stall.
  */
 export function nextLevel(current: number, recent: RoundOutcome[]): number {
-  const window = recent.slice(-6);
-  if (!window.length) return current;
+  const base = clamp(safeNumber(current, 1), GAME_LEVEL_MIN, GAME_LEVEL_MAX);
+  const window = (recent || [])
+    .slice(-6)
+    .map((r) => ({
+      correct: Boolean(r?.correct),
+      accuracy: clamp(safeNumber(r?.accuracy, 0), 0, 100),
+      responseTimeMs: clamp(safeNumber(r?.responseTimeMs, 3000), 1, 120000),
+    }));
+  if (!window.length) return base;
   const acc = window.reduce((s, r) => s + r.accuracy, 0) / window.length;
   const misses = window.filter((r) => !r.correct).length;
   const avgRt = window.reduce((s, r) => s + r.responseTimeMs, 0) / window.length;
@@ -78,7 +98,9 @@ export function nextLevel(current: number, recent: RoundOutcome[]): number {
   else if (acc >= 74) delta = 1;
   else if (acc < 45 || misses >= 3) delta = -2;
   else if (acc < 62) delta = -1;
-  return clamp(current + delta, 1, 50);
+  // Cap single-step change to avoid unexplained jumps
+  delta = clamp(delta, -2, 2);
+  return clamp(base + delta, GAME_LEVEL_MIN, GAME_LEVEL_MAX);
 }
 
 export function seeded(seed: number) {
