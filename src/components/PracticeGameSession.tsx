@@ -87,13 +87,17 @@ export function PracticeGameSession({
 
   const buildRound = useCallback(
     (lvl: number, idx: number) => {
-      const seed = seedBase.current + idx * 97 + lvl * 13;
+      // Fresh entropy every round so questions never repeat the same sequence
+      const entropy = Math.floor(Math.random() * 1_000_000_000) ^ (Date.now() & 0xffffffff);
+      const seed = (seedBase.current + idx * 97 + lvl * 13 + entropy) >>> 0;
       const r = generateRoundForGame(gameId, lvl, seed);
       setRound(r);
       setHeard(false);
       setPicked(null);
       setFeedback(null);
       setAudioError(null);
+      setPlaying(false);
+      stopPracticePlayback();
       setGuessHz(r.targetHz ? Math.round((r.sliderMin! + r.sliderMax!) / 2) : 440);
       startedAt.current = Date.now();
     },
@@ -120,11 +124,18 @@ export function PracticeGameSession({
   }, [autoStart, gameId]);
 
   const playAudio = async (which: "challenge" | "reference" = "challenge") => {
-    if (!round || playing) return;
+    if (!round) return;
+    // Always allow re-tap: stop previous playback first
+    stopPracticePlayback();
     setAudioError(null);
     setPlaying(true);
     try {
-      await unlockPracticeAudio();
+      const unlocked = await unlockPracticeAudio();
+      if (!unlocked) {
+        setAudioError("مرورگر اجازهٔ صدا نداد. یک‌بار صفحه را لمس کن و دوباره پخش را بزن.");
+        setPlaying(false);
+        return;
+      }
       const dsp = which === "reference" && round.referenceDsp ? round.referenceDsp : round.challengeDsp;
       const handle = await playExerciseRound({
         source: round.source,
@@ -139,7 +150,9 @@ export function PracticeGameSession({
       const src = round.source as { duration?: number; seconds?: number; intervalHz?: number };
       const base = src.duration || src.seconds || 1.2;
       const factor = src.intervalHz ? 2.2 : 1;
-      const ms = Math.round(base * factor * 1000) + 250;
+      const hits = (round.source as { hits?: number }).hits;
+      const percMs = hits ? hits * ((round.source as { spacing?: number }).spacing || 0.38) * 1000 + 400 : 0;
+      const ms = Math.max(percMs, Math.round(base * factor * 1000) + 250);
       window.setTimeout(() => setPlaying(false), ms);
     } catch {
       setPlaying(false);
@@ -221,6 +234,9 @@ export function PracticeGameSession({
 
   const goNext = () => {
     stopPracticePlayback();
+    setPlaying(false);
+    // New entropy for the next round
+    seedBase.current = Date.now() ^ Math.floor(Math.random() * 1e9);
     if (roundIndex + 1 >= totalRounds || quotaBlocked) {
       const summary = {
         correct: outcomes.filter((o) => o.correct).length,
