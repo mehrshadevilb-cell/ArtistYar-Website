@@ -104,6 +104,7 @@ source = source.replace(
   /async function editCaption\(chatId: string \| number, messageId: number, caption: string\) \{[\s\S]*?\n\}/,
   `async function editCaption(chatId: string | number, messageId: number, caption: string) {
   const body = caption.slice(0, 1024);
+  const handle = channelHandle();
   try {
     return await tg("editMessageCaption", {
       chat_id: chatId,
