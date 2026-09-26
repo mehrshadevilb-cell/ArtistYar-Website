@@ -21,6 +21,7 @@ function pickTargetHz(pool,seed,recent=[]){
 
 function assert(c,m){if(!c){console.error('FAIL',m);process.exitCode=1}else console.log('OK',m)}
 
+// Long session diversity
 {
   const recent=[];
   const seen=new Set();
@@ -34,14 +35,20 @@ function assert(c,m){if(!c){console.error('FAIL',m);process.exitCode=1}else cons
   assert(seen.size>=8,`long session target diversity ${seen.size}`);
   assert(exactRep===0,`no consecutive exact repeat (${exactRep})`);
 }
+
+// New user low confidence
 {
   assert(true,'new user: low confidence path uses general exercise');
 }
+
+// Exercise balance - prefer not same 3 times
 {
   const types=['precision','precision','precision','stability'];
   const last=types.slice(-2);
   assert(last.filter(t=>t==='precision').length<=2,'avoid 3-in-a-row preferred (selector rotates)');
 }
+
+// Mastery hysteresis concept
 {
   function stage(v,conf,samples){
     if(conf<35||samples<4)return 'unknown';
