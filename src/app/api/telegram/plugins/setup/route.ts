@@ -1,6 +1,11 @@
 import { createHash } from "crypto";
 import { NextResponse } from "next/server";
 import { getPluginWebhookInfo, setPluginWebhook, pluginTokenConfigured } from "@/lib/telegram-plugin-sync";
+import {
+  resolvePluginBotToken,
+  pluginBotTokenSource,
+  pluginBotTokenWarnings,
+} from "@/lib/telegram-plugin-bot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,13 +27,7 @@ function authorized(request: Request) {
 function webhookSecret() {
   const explicit = (process.env.TELEGRAM_PLUGIN_WEBHOOK_SECRET || "").trim();
   if (explicit) return explicit;
-  const token = (
-    process.env.TELEGRAM_PLUGIN_BOT_TOKEN ||
-    process.env.TELEGRAM_BOT_TOKEN ||
-    process.env.TELEGRAM_TOKEN ||
-    process.env.BOT_TOKEN ||
-    ""
-  ).trim();
+  const token = resolvePluginBotToken();
   return token
     ? createHash("sha256").update("artistyar-plugin-webhook:" + token).digest("hex").slice(0, 48)
     : "";
@@ -63,11 +62,8 @@ export async function GET(request: Request) {
       secret_mode: (process.env.TELEGRAM_PLUGIN_WEBHOOK_SECRET || "").trim()
         ? "explicit"
         : "token-derived",
-      token_source: (process.env.TELEGRAM_PLUGIN_BOT_TOKEN || "").trim()
-        ? "TELEGRAM_PLUGIN_BOT_TOKEN"
-        : (process.env.TELEGRAM_BOT_TOKEN || "").trim()
-          ? "TELEGRAM_BOT_TOKEN"
-          : "fallback",
+      token_source: pluginBotTokenSource(),
+      token_warnings: pluginBotTokenWarnings(),
       webhook: info,
     });
   } catch (error) {
