@@ -142,7 +142,7 @@ export function PracticeEngine() {
         </p>
       </header>
 
-      <PracticeProBanner onUpgrade={() => open("pro-arcade", "ear")} />
+      <PracticeProBanner onUpgrade={() => open("soundgym", "ear")} />
 
       <div className="mt-5 space-y-3">
         {tab === "today" && (
@@ -162,12 +162,11 @@ export function PracticeEngine() {
 
         {tab === "ear" && (
           <>
-            <Card accent="emerald" eyebrow="تمرین‌های اصلی گوش" title="باشگاه گوش (SoundGym)"
-              subtitle="۶ بازی: حافظهٔ فرکانس، EQ، کمپرسور، استریو، pitch و ریتم · سطح ۱–۵۰" onClick={() => open("soundgym", "ear")} />
-            <Card accent="cyan" eyebrow="Core" title="Core Ear Gym"
-              subtitle="فرکانس · اکولایزر · کمپرسور · فاز با سختی شخصی" onClick={() => open("core-ear", "ear")} />
-            <Card accent="amber" eyebrow="Arcade" title="Pro Arcade"
-              subtitle="ریورب، سچوریشن، ماسکینگ، ترنزینت — رایگان محدود / پرو نامحدود" onClick={() => open("pro-arcade", "ear")} />
+            <Card accent="emerald" eyebrow="Arcade · Ear Training" title="باشگاه گوش"
+              subtitle="یک بازی واحد با ۶ مهارت: فرکانس، EQ، کمپرسور، استریو، pitch و ریتم · سطح ۱–۵۰"
+              onClick={() => open("soundgym", "ear")} />
+            <Card accent="cyan" eyebrow="تئوری" title="آزمایشگاه تئوری"
+              subtitle="فواصل و آکورد — تمرین شنیداری" onClick={() => open("theory", "music")} />
           </>
         )}
 
