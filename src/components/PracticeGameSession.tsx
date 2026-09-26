@@ -570,7 +570,6 @@ export function PracticeGameSession({
             </p>
           )}
           <section className="card-ay space-y-4 p-5">
-          <section className="card-ay space-y-4 p-5">
             <p className="text-[14px] font-medium text-sand-50">{round.prompt}</p>
             {round.hint && <p className="text-[12px] text-ink-500">{round.hint}</p>}
             <div className="flex flex-wrap gap-2">
