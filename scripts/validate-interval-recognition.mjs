@@ -83,7 +83,7 @@ function runStress(n, label) {
     if (prev && r.id === prev) consecutiveSame++; else consecutiveSame = 1;
     maxConsec = Math.max(maxConsec, consecutiveSame);
     assert(!(prev && r.id === prev), label + " no consecutive repeat @" + i);
-    if (ids.length >= 2) assert(!(ids[ids.length - 2] === prev && r.id === ids[ids.length - 2]), label + " no ABA @" + i);
+    if (ids.length >= 2) assert(!(ids[ids.length - 2] === r.id), label + " no ABA @" + i);
     ids.push(r.id); recent.push(r.id); if (recent.length > 6) recent.shift(); prev = r.id;
     const acc = 50 + (seed % 50);
     outcomes.push({ accuracy: acc }); if (outcomes.length > 24) outcomes.shift();
