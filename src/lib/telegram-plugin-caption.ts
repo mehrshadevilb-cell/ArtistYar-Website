@@ -88,6 +88,7 @@ function makeCaption(p: {
   const footer = "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\n📢 Channel: " + handle;
   const lines = [
     "🎛️ <b>" + esc(p.title) + "</b>",
+    "✨ <i>معرفی هوشمند پلاگین توسط ArtistYar</i>",
     p.developer ? "🏷 <b>Developer:</b> " + esc(String(p.developer)) : "",
     p.version ? "🔢 <b>Version:</b> " + esc(String(p.version)) : "",
     p.category ? "🎚 <b>Category:</b> " + esc(String(p.category)) : "",
@@ -101,12 +102,20 @@ function makeCaption(p: {
 
 async function editCaption(chatId: string | number, messageId: number, caption: string) {
   const body = caption.slice(0, 1024);
+  const handle = channelHandle().replace(/^@/, "");
+  const replyMarkup = {
+    inline_keyboard: [[
+      { text: "🌐 وب‌سایت ArtistYar", url: "https://artistyaar.ir" },
+      { text: "📢 کانال پلاگین‌ها", url: "https://t.me/" + handle },
+    ]],
+  };
   try {
     return await tg("editMessageCaption", {
       chat_id: chatId,
       message_id: messageId,
       caption: body,
       parse_mode: "HTML",
+      reply_markup: replyMarkup,
     });
   } catch (error) {
     const message = clean(error instanceof Error ? error.message : String(error), 300);
@@ -118,6 +127,7 @@ async function editCaption(chatId: string | number, messageId: number, caption: 
           chat_id: chatId,
           message_id: messageId,
           caption: plain.slice(0, 1024),
+          reply_markup: replyMarkup,
         });
       } catch (retryError) {
         const retryMessage = clean(retryError instanceof Error ? retryError.message : String(retryError), 300);
