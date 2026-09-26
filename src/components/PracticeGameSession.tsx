@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { usePracticeAccess } from "@/components/usePracticeAccess";
-import { playExerciseRound, stopPracticePlayback } from "@/lib/practice-audio-engine";
+import { playExerciseRound, stopPracticePlayback, unlockPracticeAudio } from "@/lib/practice-audio-engine";
 import {
   BAND_LABEL,
   bandForLevel,
@@ -37,9 +37,17 @@ type Phase = "intro" | "play" | "result" | "summary";
 export function PracticeGameSession({
   gameId,
   onBack,
+  maxRounds,
+  onSessionEnd,
+  hideBack,
+  autoStart = false,
 }: {
   gameId: string;
   onBack: () => void;
+  maxRounds?: number;
+  onSessionEnd?: (summary: { correct: number; total: number; xp: number; gameId: string }) => void;
+  hideBack?: boolean;
+  autoStart?: boolean;
 }) {
   const game = getPracticeGame(gameId);
   const { user } = useAuth();
@@ -66,7 +74,7 @@ export function PracticeGameSession({
   const startedAt = useRef(0);
   const seedBase = useRef(Date.now());
 
-  const totalRounds = game?.rounds ?? 8;
+  const totalRounds = Math.max(1, maxRounds ?? game?.rounds ?? 8);
   const stageNumber = roundIndex + 1;
   const freeLocked = !accessLoading && !pro && stageNumber > (stageLimit || 5);
 
@@ -93,6 +101,7 @@ export function PracticeGameSession({
   );
 
   const startSession = () => {
+    void unlockPracticeAudio();
     setPhase("play");
     setRoundIndex(0);
     setOutcomes([]);
@@ -103,11 +112,19 @@ export function PracticeGameSession({
     buildRound(warm, 0);
   };
 
+  useEffect(() => {
+    if (!autoStart || !game) return;
+    const id = window.setTimeout(() => startSession(), 0);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, gameId]);
+
   const playAudio = async (which: "challenge" | "reference" = "challenge") => {
     if (!round || playing) return;
     setAudioError(null);
     setPlaying(true);
     try {
+      await unlockPracticeAudio();
       const dsp = which === "reference" && round.referenceDsp ? round.referenceDsp : round.challengeDsp;
       const handle = await playExerciseRound({
         source: round.source,
@@ -205,6 +222,16 @@ export function PracticeGameSession({
   const goNext = () => {
     stopPracticePlayback();
     if (roundIndex + 1 >= totalRounds || quotaBlocked) {
+      const summary = {
+        correct: outcomes.filter((o) => o.correct).length,
+        total: outcomes.length,
+        xp: sessionXp,
+        gameId,
+      };
+      if (onSessionEnd) {
+        onSessionEnd(summary);
+        return;
+      }
       setPhase("summary");
       return;
     }
@@ -233,13 +260,15 @@ export function PracticeGameSession({
     <main className="practice-shell container-ay relative pb-16 pt-6 sm:pt-10" dir="rtl">
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <button
-            type="button"
-            onClick={onBack}
-            className="mb-2 inline-flex items-center gap-1 text-xs text-ink-500 hover:text-ink-300"
-          >
-            <ArrowRight size={14} aria-hidden /> بازگشت
-          </button>
+          {!hideBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="mb-2 inline-flex items-center gap-1 text-xs text-ink-500 hover:text-ink-300"
+            >
+              <ArrowRight size={14} aria-hidden /> بازگشت
+            </button>
+          )}
           <p className="text-[11px] font-medium text-amber-300/90">{game.title}</p>
           <h1 className="mt-0.5 text-xl font-semibold text-sand-50 sm:text-2xl">{game.titleFa}</h1>
           <p className="mt-1 text-[12px] text-ink-500">{game.tagline}</p>
