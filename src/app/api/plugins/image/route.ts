@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPluginsDb } from "@/lib/plugins-db";
-import { pluginImageResponse } from "@/lib/telegram-plugin-sync";
+import { pluginImageResponse } from "@/lib/telegram-plugin-media";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
