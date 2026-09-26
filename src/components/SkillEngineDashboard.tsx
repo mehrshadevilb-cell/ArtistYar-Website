@@ -20,6 +20,8 @@ type Dashboard = {
   frequencySkills?: FrequencySkillProfile | null;
   trainingEffectiveness?: TrainingEffectiveness | null;
   curriculumFeedbackFa?: string | null;
+  sessionPlan?: import("@/lib/practice-game/frequency-mastery").SessionPlan | null;
+  masteryProfile?: import("@/lib/practice-game/frequency-mastery").MasteryProfile | null;
 };
 
 function ratingLabel(r:number) {
@@ -72,6 +74,7 @@ export function SkillEngineDashboard() {
       profile={data.frequencySkills}
       effectiveness={data.trainingEffectiveness}
       curriculumFeedbackFa={data.curriculumFeedbackFa}
+      sessionPlan={data.sessionPlan}
     />
 
     <div className="card-ay p-5">
