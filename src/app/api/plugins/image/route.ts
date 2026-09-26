@@ -5,6 +5,8 @@ import { pluginImageResponse } from "@/lib/telegram-plugin-media";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const MIN_PUBLIC_BYTES = 1500;
+
 async function fetchPublicTelegramCover(postUrl: string | null, photoMessageId: number | null) {
   const candidates: string[] = [];
   const channelMatch = String(postUrl || "").match(/t\.me\/([^/]+)\/(\d+)/i);
@@ -47,10 +49,9 @@ async function fetchPublicTelegramCover(postUrl: string | null, photoMessageId: 
           });
           if (!img.ok) continue;
           const bytes = Buffer.from(await img.arrayBuffer());
-          // Skip tiny channel logos
-          if (bytes.length < 8000) continue;
+          if (bytes.length < MIN_PUBLIC_BYTES) continue;
           const contentType = img.headers.get("content-type") || "image/jpeg";
-          return { bytes, contentType };
+          return { bytes, contentType, sourceUrl: imgUrl };
         } catch {
           // try next
         }
@@ -102,7 +103,7 @@ export async function GET(request: Request) {
       });
       if (upstream.ok) {
         const bytes = Buffer.from(await upstream.arrayBuffer());
-        if (bytes.length >= 8000) {
+        if (bytes.length >= MIN_PUBLIC_BYTES) {
           return new NextResponse(bytes, {
             status: 200,
             headers: {
@@ -143,6 +144,20 @@ export async function GET(request: Request) {
       postMeta.photo_message_id,
     );
     if (pub) {
+      // Persist so next page load uses cover_public_url directly
+      if (db && postMeta.id && pub.sourceUrl) {
+        try {
+          await db
+            .from("telegram_plugin_posts")
+            .update({
+              cover_public_url: pub.sourceUrl,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", postMeta.id);
+        } catch {
+          // non-fatal
+        }
+      }
       return new NextResponse(pub.bytes, {
         status: 200,
         headers: {
