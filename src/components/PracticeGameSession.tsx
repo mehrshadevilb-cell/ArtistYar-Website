@@ -299,10 +299,13 @@ export function PracticeGameSession({
             دقت و سرعتت تنظیم می‌شود — تصادفی نیست.
           </p>
           <ul className="space-y-2 text-[13px] text-ink-400">
-            <li>۱) گوش بده</li>
-            <li>۲) تصمیم بگیر</li>
-            <li>۳) بازخورد ببین و سطح بالا برود</li>
+            <li>۱) پخش را بزن و با دقت گوش بده</li>
+            <li>۲) پاسخ را انتخاب کن</li>
+            <li>۳) توضیح را بخوان و به راند بعد برو</li>
           </ul>
+          <p className="text-[11px] leading-6 text-ink-500">
+            برای فعال‌شدن صدا در موبایل، دکمهٔ «شروع بازی» یا «پخش» را با لمس خودت بزن.
+          </p>
           {!pro && (
             <p className="text-[12px] text-amber-200/80">رایگان: تا {stageLimit || 5} مرحله در روز</p>
           )}
@@ -367,11 +370,27 @@ export function PracticeGameSession({
                   {playing ? "در حال پخش…" : heard ? "پخش دوباره" : "پخش نمونه"}
                 </button>
               )}
-              {audioError && <p className="w-full text-[12px] text-rose-300">{audioError}</p>}
+              {audioError && (
+                <div className="mt-3 w-full rounded-xl border border-rose-400/30 bg-rose-400/10 p-3 text-right">
+                  <p className="text-[12px] leading-6 text-rose-200">{audioError}</p>
+                  <button
+                    type="button"
+                    className="btn-ay mt-2 !px-3 !py-1.5 text-xs"
+                    onClick={() => void playAudio("challenge")}
+                  >
+                    تلاش دوباره
+                  </button>
+                </div>
+              )}
             </div>
 
-            {!heard && (
+            {!heard && !audioError && (
               <p className="mt-4 text-[12px] text-ink-500">اول نمونه را پخش کن، بعد پاسخ بده.</p>
+            )}
+            {playing && (
+              <p className="mt-2 text-[11px] text-cyan-300/90" aria-live="polite">
+                در حال پخش…
+              </p>
             )}
 
             {round.mode === "slider" && heard && (
