@@ -3,14 +3,13 @@
  * and edits the source channel message when the bot has can_edit_messages.
  */
 import { createClient } from "@supabase/supabase-js";
-import { telegramBytes } from "@/lib/telegram-plugin-media";
+import { resolvePluginBotToken } from "@/lib/telegram-plugin-bot";
 
 const TG = "https://api.telegram.org";
 
 function botToken() {
-  const plugin = (process.env.TELEGRAM_PLUGIN_BOT_TOKEN || "").trim();
-  if (plugin) return plugin;
-  return (process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN || "").trim();
+  // Same resolution as webhook / getFile / covers — file_ids are bot-specific.
+  return resolvePluginBotToken();
 }
 
 function channelHandle() {
@@ -185,6 +184,9 @@ export async function reapplyPluginCaption(postId: string): Promise<{
     platforms: post.platforms,
     description: post.description,
   });
+  if (!String(caption || "").trim()) {
+    return { ok: false, error: "plugin_caption_generation_empty", title };
+  }
 
   // Prefer editing the photo message (caption lives on media), else document message
   const channelId = String(post.channel_id || "").trim();
