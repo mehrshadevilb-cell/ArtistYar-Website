@@ -97,3 +97,23 @@ export const PRACTICE_GAMES: PracticeGameDef[] = [
 export function getPracticeGame(id: string) {
   return PRACTICE_GAMES.find((g) => g.id === id);
 }
+
+const LEGACY_TITLES: Record<string, string> = {
+  tone: "فرکانس",
+  eq: "اکولایزر",
+  compressor: "کمپرسور",
+  phase: "فاز",
+  "freq-memory": "حافظهٔ فرکانس",
+  "eq-detective": "کارآگاه اکولایزر",
+  "comp-detective": "کارآگاه کمپرسور",
+  "stereo-space": "استریو و فضا",
+  "pitch-lab": "آزمایشگاه زیروبمی",
+  "rhythm-lab": "آزمایشگاه ریتم",
+};
+
+/** Resolve a Persian title for any practice game_id (new or legacy). */
+export function practiceGameTitleFa(gameId: string) {
+  const fromCatalog = PRACTICE_GAMES.find((g) => g.id === gameId || g.apiGameId === gameId);
+  if (fromCatalog) return fromCatalog.titleFa;
+  return LEGACY_TITLES[gameId] || gameId;
+}
