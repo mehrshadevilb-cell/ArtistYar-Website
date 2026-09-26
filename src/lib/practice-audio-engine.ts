@@ -77,6 +77,16 @@ function applyDsp(ctx: AudioContext, input: AudioNode, dsp: DspChain): AudioNode
     input.connect(p);
     return p;
   }
+  if (dsp.type === "compressor") {
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = Number((dsp as { threshold?: number }).threshold) || -28;
+    comp.knee.value = Number((dsp as { knee?: number }).knee) || 6;
+    comp.ratio.value = Number((dsp as { ratio?: number }).ratio) || 6;
+    comp.attack.value = Number((dsp as { attack?: number }).attack) || 0.01;
+    comp.release.value = Number((dsp as { release?: number }).release) || 0.2;
+    input.connect(comp);
+    return comp;
+  }
   if (dsp.type === "stack" && Array.isArray(dsp.nodes)) {
     let node: AudioNode = input;
     for (const child of dsp.nodes) node = applyDsp(ctx, node, child as DspChain);
@@ -158,11 +168,13 @@ export async function playExerciseRound(opts: {
       const duration = Math.min(3, Math.max(0.4, source.duration || 1.2));
       const fund = Math.max(40, Math.min(16000, source.fundamental || 440));
       const partials = source.partials?.length ? source.partials : [1, 0.4, 0.2];
+      const intervalHz = Number((source as { intervalHz?: number }).intervalHz) || 0;
       const mix = ctx.createGain();
       mix.gain.value = 1;
       const processed = applyDsp(ctx, mix, dsp);
       const outG = ctx.createGain();
-      scheduleEnvelope(outG, now, duration, 0.32);
+      const totalDur = intervalHz > 0 ? duration * 2 + 0.18 : duration;
+      scheduleEnvelope(outG, now, totalDur, 0.32);
       processed.connect(outG).connect(bus.input);
       partials.forEach((amp, i) => {
         const o = ctx.createOscillator();
@@ -175,6 +187,20 @@ export async function playExerciseRound(opts: {
         o.stop(now + duration + 0.05);
         scheduled.push(o);
       });
+      if (intervalHz > 40) {
+        const t2 = now + duration + 0.15;
+        partials.forEach((amp, i) => {
+          const o = ctx.createOscillator();
+          const pg = ctx.createGain();
+          o.type = "sine";
+          o.frequency.value = intervalHz * (i + 1);
+          pg.gain.value = Math.max(0, Math.min(1, Number(amp) || 0));
+          o.connect(pg).connect(mix);
+          o.start(t2);
+          o.stop(t2 + duration + 0.05);
+          scheduled.push(o);
+        });
+      }
     } else if (source.kind === "percussion") {
       const hits = Math.min(8, Math.max(1, source.hits || 3));
       const spacing = Math.max(0.12, source.spacing || 0.35);
