@@ -1,0 +1,2 @@
+test-jsx: <button>ok</button>
+interval-recognition-restore-path-check
