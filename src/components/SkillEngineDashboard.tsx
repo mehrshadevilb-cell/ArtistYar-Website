@@ -50,25 +50,41 @@ export function SkillEngineDashboard() {
   if (loading && !data) return <section className="mt-8 card-ay p-6 text-sm text-ink-500">در حال ساخت پروفایل شنیداری…</section>;
   if (!data) return null;
 
-  const activeSkills = data.skills.filter(s=>s.attempts>0);
-  const weak = [...data.skills].sort((a,b)=>a.rating-b.rating)[0];
-
   return <section className="mt-8 space-y-4">
     <div className="grid gap-3 sm:grid-cols-4">
-      <div className="card-ay p-4"><div className="flex items-center gap-2 text-xs text-ink-500"><Gauge size={15} className="text-gold-300"/> Ear Rating</div><strong className="mt-2 block text-2xl text-sand-50">{data.overallRating || "—"}</strong><span className="text-xs text-gold-300">{ratingLabel(data.overallRating)}</span></div>
-      <div className="card-ay p-4"><div className="flex items-center gap-2 text-xs text-ink-500"><Target size={15} className="text-cyan-200"/> دقت کلی</div><strong className="mt-2 block text-2xl text-sand-50">{data.overallAccuracy || 0}%</strong><span className="text-xs text-ink-500">بر اساس تلاش‌های ثبت‌شده</span></div>
-      <div className="card-ay p-4"><div className="flex items-center gap-2 text-xs text-ink-500"><Flame size={15} className="text-orange-300"/> Streak</div><strong className="mt-2 block text-2xl text-sand-50">{data.streak}</strong><span className="text-xs text-ink-500">روز پیوسته</span></div>
-      <div className="card-ay p-4"><div className="flex items-center gap-2 text-xs text-ink-500"><Trophy size={15} className="text-gold-300"/> XP</div><strong className="mt-2 block text-2xl text-sand-50">{data.totalXp.toLocaleString()}</strong><span className="text-xs text-ink-500">Level {data.level}</span></div>
+      <div className="card-ay p-4"><Trophy size={16} className="text-gold-300"/><p className="mt-2 text-[11px] text-ink-500">Rating کلی</p><strong className="mt-1 block text-xl text-sand-50">{data.overallRating||"—"}</strong><span className="text-[10px] text-ink-500">{ratingLabel(data.overallRating)}</span></div>
+      <div className="card-ay p-4"><Gauge size={16} className="text-cyan-300"/><p className="mt-2 text-[11px] text-ink-500">دقت کلی</p><strong className="mt-1 block text-xl text-sand-50">{data.overallAccuracy}%</strong></div>
+      <div className="card-ay p-4"><Flame size={16} className="text-orange-300"/><p className="mt-2 text-[11px] text-ink-500">استریک</p><strong className="mt-1 block text-xl text-sand-50">{data.streak}</strong></div>
+      <div className="card-ay p-4"><Brain size={16} className="text-violet-300"/><p className="mt-2 text-[11px] text-ink-500">سطح کلی</p><strong className="mt-1 block text-xl text-sand-50">{data.level}</strong></div>
     </div>
 
-    <div className="card-ay border-gold-400/15 bg-gradient-to-l from-gold-400/[.08] to-white/[.02] p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="card-ay border-cyan-400/15 bg-cyan-400/[.04] p-5 flex flex-wrap items-center justify-between gap-4">
         <div><p className="eyebrow">NEXT WORKOUT · ADAPTIVE</p><h3 className="mt-2 text-lg text-sand-50">{data.recommendation}</h3><p className="mt-1 text-xs text-ink-500">سیستم بر اساس عملکرد اخیر، سختی تمرین بعدی را تنظیم می‌کند.</p></div>
-        <div className="flex items-center gap-2 rounded-full border border-gold-400/20 bg-black/20 px-3 py-2 text-xs text-gold-200"><Brain size={14}/> {activeSkills.length ? "Personalized" : "Baseline"} · ۱۰ دقیقه</div>
-      </div>
+      <SafeLink href="/practice" className="btn-primary !px-4 !py-2 text-xs">شروع تمرین</SafeLink>
     </div>
 
-    <div className="card-ay p-5 sm:p-6">
+    <div className="card-ay p-5">
+      <div className="flex items-center gap-2"><Target size={16} className="text-rose-300"/><div><p className="eyebrow">WEAK POINTS</p><h3 className="mt-1 text-lg text-sand-50">نقاط قابل بهبود شما</h3></div></div>
+      <p className="mt-2 text-xs leading-6 text-ink-500">بر اساس دقت و rating واقعی — نه برچسب‌های دلخواه.</p>
+      <div className="mt-4 space-y-2">
+        {[...data.skills].sort((a,b)=>(a.rating||0)-(b.rating||0)||(a.recentAccuracy||0)-(b.recentAccuracy||0)).slice(0,4).map(skill=>{
+          const label = !skill.attempts ? "هنوز تمرین نشده" : skill.recentAccuracy < 55 || skill.rating < 250 ? "نیاز به تمرین بیشتر" : skill.recentAccuracy < 75 ? "متوسط" : "خوب";
+          const tone = label === "نیاز به تمرین بیشتر" ? "text-rose-300" : label === "متوسط" ? "text-amber-300" : label === "خوب" ? "text-emerald-300" : "text-ink-500";
+          return (
+            <div key={skill.key} className="flex items-center justify-between gap-3 rounded-xl border border-white/[.07] bg-white/[.02] px-3 py-2.5">
+              <div>
+                <strong className="block text-sm text-sand-100">{skill.title}</strong>
+                <span className="text-[10px] text-ink-500">{skill.attempts ? `${skill.recentAccuracy}% دقت اخیر · ${skill.attempts} تلاش` : "بدون داده"}</span>
+              </div>
+              <span className={`text-[11px] font-medium ${tone}`}>{label}</span>
+            </div>
+          );
+        })}
+      </div>
+      <SafeLink href="/practice" className="mt-4 inline-block text-xs text-gold-300 hover:text-gold-200">ادامه تمرین روی نقاط ضعف ←</SafeLink>
+    </div>
+
+      <div className="card-ay p-5">
       <div className="flex items-end justify-between gap-3"><div><p className="eyebrow">SKILL PROFILE</p><h3 className="mt-2 text-lg text-sand-50">نقشه مهارت شنیداری</h3></div><span className="text-[10px] text-ink-500">Rating مستقل از XP · ۱ تا ۵۰۰</span></div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {data.skills.map(skill=><div key={skill.key} className="rounded-xl border border-white/[.07] bg-white/[.02] p-4">
