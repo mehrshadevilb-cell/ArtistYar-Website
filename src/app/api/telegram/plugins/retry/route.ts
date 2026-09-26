@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPluginsDb } from "@/lib/plugins-db";
-import { processPendingPluginPairs } from "@/lib/telegram-plugin-sync";
+import { processPendingPluginPairs, reapplyPluginCaption } from "@/lib/telegram-plugin-sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,7 +59,15 @@ export async function POST(request: Request) {
     }
   }
 
-  if (!["retry", "caption"].includes(action)) return NextResponse.json({ ok: false, error: "unsupported_action" }, { status: 400 });
+  if (action === "caption") {
+    const result = await reapplyPluginCaption(id);
+    return NextResponse.json(
+      { ok: result.ok, action, result },
+      { status: result.ok ? 200 : 502 },
+    );
+  }
+
+  if (!["retry"].includes(action)) return NextResponse.json({ ok: false, error: "unsupported_action" }, { status: 400 });
   const channelId = String(post.channel_id || "").trim();
   const documentMessageId = Number(post.document_message_id || 0);
   if (!channelId || !documentMessageId || !post.telegram_file_id) {
