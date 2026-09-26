@@ -18,13 +18,16 @@ function getAC(): typeof AudioContext | null {
 export async function getPracticeAudioContext(): Promise<AudioContext | null> {
   const AC = getAC();
   if (!AC) return null;
-  if (!sharedCtx || sharedCtx.state === "closed") {
-    sharedCtx = new AC();
-  }
   try {
-    if (sharedCtx.state === "suspended") await sharedCtx.resume();
+    if (!sharedCtx || sharedCtx.state === "closed") {
+      sharedCtx = new AC();
+    }
+    // Resume whenever possible — browsers only allow this after a user gesture
+    if (sharedCtx.state === "suspended") {
+      await sharedCtx.resume();
+    }
   } catch {
-    /* need user gesture */
+    return sharedCtx; // may still be usable after next gesture
   }
   return sharedCtx;
 }
@@ -40,27 +43,34 @@ export function stopPracticePlayback() {
   }
 }
 
-/** Must be called from a user gesture (tap/click). */
+/** Must be called from a user gesture (tap/click). Creates + resumes context. */
 export async function unlockPracticeAudio(): Promise<boolean> {
-  const ctx = await getPracticeAudioContext();
-  if (!ctx) return false;
+  const AC = getAC();
+  if (!AC) return false;
   try {
-    if (ctx.state !== "running") await ctx.resume();
+    // Create on the gesture path so iOS/Safari allow audio
+    if (!sharedCtx || sharedCtx.state === "closed") {
+      sharedCtx = new AC();
+    }
+    if (sharedCtx.state === "suspended") {
+      await sharedCtx.resume();
+    }
   } catch {
     return false;
   }
-  // Audible-ish silent tick (very quiet) unlocks iOS
+  // Quiet oscillator tick — fully unlocks mobile autoplay policies
   try {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
+    const o = sharedCtx.createOscillator();
+    const g = sharedCtx.createGain();
     g.gain.value = 0.00001;
-    o.connect(g).connect(ctx.destination);
+    o.connect(g).connect(sharedCtx.destination);
     o.start();
-    o.stop(ctx.currentTime + 0.03);
+    o.stop(sharedCtx.currentTime + 0.04);
   } catch {
     /* */
   }
-  return ctx.state === "running" || ctx.state === "suspended";
+  // Accept suspended: some engines report late; playback still often works
+  return sharedCtx.state === "running" || sharedCtx.state === "suspended";
 }
 
 function makeNoise(ctx: AudioContext, seconds: number, color: "white" | "pink" | "brown" = "pink"): AudioBuffer {
@@ -152,17 +162,18 @@ export async function playExerciseRound(opts: {
 }): Promise<PracticePlaybackHandle | null> {
   stopPracticePlayback();
 
-  await unlockPracticeAudio();
-  const ctx = await getPracticeAudioContext();
+  const unlocked = await unlockPracticeAudio();
+  const ctx = sharedCtx || (await getPracticeAudioContext());
   if (!ctx) return null;
 
   try {
-    if (ctx.state !== "running") await ctx.resume();
+    if (ctx.state === "suspended") await ctx.resume();
   } catch {
-    return null;
+    if (!unlocked) return null;
   }
 
-  const now = ctx.currentTime + 0.02;
+  // Proceed even if state is still "suspended" — scheduling often still produces audio
+  const now = Math.max(0, ctx.currentTime) + 0.02;
   const scheduled: Array<OscillatorNode | AudioBufferSourceNode> = [];
   const master = ctx.createGain();
   master.gain.value = 0.7;
