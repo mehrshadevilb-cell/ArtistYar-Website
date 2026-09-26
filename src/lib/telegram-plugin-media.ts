@@ -4,13 +4,12 @@
  * even when the heavy ingest pipeline is being restored.
  */
 import https from "https";
+import { resolvePluginBotToken, pluginBotTokenConfigured } from "@/lib/telegram-plugin-bot";
 
 const TG = "https://api.telegram.org";
 
 function botToken() {
-  const plugin = (process.env.TELEGRAM_PLUGIN_BOT_TOKEN || "").trim();
-  if (plugin) return plugin;
-  return (process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN || "").trim();
+  return resolvePluginBotToken();
 }
 
 function clean(v: unknown, max = 500) {
@@ -174,5 +173,5 @@ export async function pluginImageResponse(fileId: string) {
 }
 
 export function pluginTokenConfigured() {
-  return Boolean(botToken());
+  return pluginBotTokenConfigured();
 }
