@@ -37,7 +37,14 @@ function midiToHz(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
 function gen(level, seed, recent = []) {
   const pool = poolForLevel(level);
   let candidates = pool.filter((i) => !recent.includes(i.id));
-  if (candidates.length < 2) candidates = [...pool];
+  if (!candidates.length) {
+    const lastSeen = new Map();
+    recent.forEach((id, index) => lastSeen.set(id, index));
+    const seenValues = [...lastSeen.values()];
+    const oldestIndex = seenValues.length ? Math.min(...seenValues) : -1;
+    candidates = pool.filter((i) => !lastSeen.has(i.id) || lastSeen.get(i.id) === oldestIndex);
+    if (!candidates.length) candidates = [pool[0]];
+  }
   const picked = pick(candidates, seed);
   const rootMidi = 48 + Math.floor(seeded(seed + 9) * 16);
   let otherMidi = rootMidi + picked.semitones;
@@ -75,6 +82,8 @@ function runStress(n, label) {
     assert(new Set(poolForLevel(level).map((x) => x.id)).has(r.id), label + " pool level " + level + " @" + i);
     if (prev && r.id === prev) consecutiveSame++; else consecutiveSame = 1;
     maxConsec = Math.max(maxConsec, consecutiveSame);
+    assert(!(prev && r.id === prev), label + " no consecutive repeat @" + i);
+    if (ids.length >= 2) assert(!(ids[ids.length - 2] === prev && r.id === ids[ids.length - 2]), label + " no ABA @" + i);
     ids.push(r.id); recent.push(r.id); if (recent.length > 6) recent.shift(); prev = r.id;
     const acc = 50 + (seed % 50);
     outcomes.push({ accuracy: acc }); if (outcomes.length > 24) outcomes.shift();
@@ -82,7 +91,7 @@ function runStress(n, label) {
   }
   const unique = new Set(ids).size;
   assert(unique >= 5, label + " diversity unique=" + unique);
-  assert(maxConsec <= 4, label + " max consecutive " + maxConsec);
+  assert(maxConsec <= 1, label + " max consecutive " + maxConsec);
   assert(level >= 1 && level <= 50, label + " level bounds");
   console.log("OK " + label + ": " + n + " rounds unique=" + unique + " maxConsec=" + maxConsec + " endLevel=" + level);
 }
