@@ -73,7 +73,10 @@ export default async function PluginsPage() {
               کپشن هوشمند فارسی
             </span>
             <span className="rounded-full border border-white/[.08] px-3 py-1.5">دانلود از تلگرام</span>
-            <span className="rounded-full border border-white/[.08] px-3 py-1.5">۳ کاور آخر</span>
+            <span className="rounded-full border border-white/[.08] px-3 py-1.5">۳ کاور واقعی پست</span>
+            <span className="rounded-full border border-emerald-300/15 bg-emerald-300/[.04] px-3 py-1.5 text-emerald-200">
+              به‌روزرسانی زنده
+            </span>
           </div>
           <div className="mt-5">
             <a
