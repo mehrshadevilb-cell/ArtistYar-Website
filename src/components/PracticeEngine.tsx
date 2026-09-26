@@ -236,3 +236,5 @@ export function PracticeEngine() {
     </main>
   );
 }
+
+export default PracticeEngine;
