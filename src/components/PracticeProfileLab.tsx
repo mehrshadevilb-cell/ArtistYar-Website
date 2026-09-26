@@ -11,19 +11,21 @@ import {
   BAND_LABEL,
   practiceGameTitleFa,
 } from "@/lib/practice-game";
+import { useAuth } from "@/components/AuthProvider";
 
 type Props = { onBack?: () => void };
 
 export function PracticeProfileLab({ onBack }: Props) {
+  const { user } = useAuth();
   const [levels, setLevels] = useState<Record<string, number>>({});
   const [stats, setStats] = useState({ xp: 0, streak: 0, bestStreak: 0, plays: 0 });
 
   useEffect(() => {
     const map: Record<string, number> = {};
-    for (const g of PRACTICE_GAMES) map[g.id] = loadLocalLevel(g.id);
+    for (const g of PRACTICE_GAMES) map[g.id] = loadLocalLevel(g.id, user?.id);
     setLevels(map);
-    setStats(loadLocalStats());
-  }, []);
+    setStats(loadLocalStats(user?.id));
+  }, [user?.id]);
 
   return (
     <main className="practice-shell container-ay relative pb-16 pt-6 sm:pt-10" dir="rtl">
