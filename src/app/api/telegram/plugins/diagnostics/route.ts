@@ -231,7 +231,7 @@ export async function GET(request: Request) {
       " — either fix TELEGRAM_PLUGIN_BOT_TOKEN to that live token, or remove the broken PLUGIN token so fallback can win";
   } else if (identity.error) {
     out.recovery_hint =
-      "TELEGRAM_PLUGIN_BOT_TOKEN is set but getMe fails. Replace it with a live BotFather token for the @ProAudioS admin bot (shape: 123456:ABC... — no leading 'bot', no quotes). Then re-run /api/telegram/plugins/setup and post a NEW channel message.";
+      "TELEGRAM_PLUGIN_BOT_TOKEN is set but getMe fails. Replace it with a live BotFather token for the @ProAudios admin bot (shape: 123456:ABC... — no leading 'bot', no quotes). Then re-run /api/telegram/plugins/setup and post a NEW channel message.";
   }
   return NextResponse.json(out, {
     headers: { "cache-control": "no-store" },
