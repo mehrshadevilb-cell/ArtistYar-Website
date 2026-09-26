@@ -87,7 +87,6 @@ export function PracticeGameSession({
 
   const buildRound = useCallback(
     (lvl: number, idx: number) => {
-      // Fresh entropy every round so questions never repeat the same sequence
       const entropy = Math.floor(Math.random() * 1_000_000_000) ^ (Date.now() & 0xffffffff);
       const seed = (seedBase.current + idx * 97 + lvl * 13 + entropy) >>> 0;
       const r = generateRoundForGame(gameId, lvl, seed);
@@ -125,7 +124,6 @@ export function PracticeGameSession({
 
   const playAudio = async (which: "challenge" | "reference" = "challenge") => {
     if (!round) return;
-    // Always allow re-tap: stop previous playback first
     stopPracticePlayback();
     setAudioError(null);
     setPlaying(true);
@@ -235,7 +233,6 @@ export function PracticeGameSession({
   const goNext = () => {
     stopPracticePlayback();
     setPlaying(false);
-    // New entropy for the next round
     seedBase.current = Date.now() ^ Math.floor(Math.random() * 1e9);
     if (roundIndex + 1 >= totalRounds || quotaBlocked) {
       const summary = {
@@ -344,7 +341,7 @@ export function PracticeGameSession({
                     type="button"
                     className="btn-ay inline-flex items-center gap-2"
                     onClick={() => void playAudio("reference")}
-                    disabled={playing || freeLocked}
+                    disabled={freeLocked}
                   >
                     <Play size={16} aria-hidden />
                     {playing ? "…" : "A · اصلی"}
@@ -353,7 +350,7 @@ export function PracticeGameSession({
                     type="button"
                     className="btn-ay btn-ay-primary inline-flex items-center gap-2"
                     onClick={() => void playAudio("challenge")}
-                    disabled={playing || freeLocked}
+                    disabled={freeLocked}
                   >
                     <Play size={16} aria-hidden />
                     {playing ? "…" : "B · تغییر یافته"}
@@ -364,7 +361,7 @@ export function PracticeGameSession({
                   type="button"
                   className="btn-ay inline-flex items-center gap-2"
                   onClick={() => void playAudio("challenge")}
-                  disabled={playing || freeLocked}
+                  disabled={freeLocked}
                 >
                   <Play size={16} aria-hidden />
                   {playing ? "در حال پخش…" : heard ? "پخش دوباره" : "پخش نمونه"}
