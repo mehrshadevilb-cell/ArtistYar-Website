@@ -99,17 +99,19 @@ export function PracticeGameSession({
     setSessionXp(0);
     setQuotaBlocked(false);
     seedBase.current = Date.now();
-    buildRound(level, 0);
+    const warm = Math.max(1, level - (game?.warmup ? 6 : 0));
+    buildRound(warm, 0);
   };
 
-  const playAudio = async () => {
+  const playAudio = async (which: "challenge" | "reference" = "challenge") => {
     if (!round || playing) return;
     setAudioError(null);
     setPlaying(true);
     try {
+      const dsp = which === "reference" && round.referenceDsp ? round.referenceDsp : round.challengeDsp;
       const handle = await playExerciseRound({
         source: round.source,
-        dsp: round.challengeDsp,
+        dsp,
       });
       if (!handle) {
         setAudioError("پخش شروع نشد. اجازهٔ صدا را در مرورگر فعال کن و دوباره بزن.");
@@ -117,12 +119,10 @@ export function PracticeGameSession({
         return;
       }
       setHeard(true);
-      const ms =
-        Math.round(
-          ((round.source as { duration?: number; seconds?: number }).duration ||
-            (round.source as { seconds?: number }).seconds ||
-            1.2) * 1000,
-        ) + 200;
+      const src = round.source as { duration?: number; seconds?: number; intervalHz?: number };
+      const base = src.duration || src.seconds || 1.2;
+      const factor = src.intervalHz ? 2.2 : 1;
+      const ms = Math.round(base * factor * 1000) + 250;
       window.setTimeout(() => setPlaying(false), ms);
     } catch {
       setPlaying(false);
@@ -211,7 +211,9 @@ export function PracticeGameSession({
     const idx = roundIndex + 1;
     setRoundIndex(idx);
     setPhase("play");
-    buildRound(level, idx);
+    const warmRounds = game?.warmup ?? 2;
+    const effective = idx < warmRounds ? Math.max(1, level - 6) : level;
+    buildRound(effective, idx);
   };
 
   const band = bandForLevel(level);
@@ -291,15 +293,38 @@ export function PracticeGameSession({
             <p className="mt-2 text-[12px] leading-6 text-ink-500">{round.hint}</p>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="btn-ay inline-flex items-center gap-2"
-                onClick={() => void playAudio()}
-                disabled={playing || freeLocked}
-              >
-                <Play size={16} aria-hidden />
-                {playing ? "در حال پخش…" : heard ? "پخش دوباره" : "پخش نمونه"}
-              </button>
+              {round.referenceDsp ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn-ay inline-flex items-center gap-2"
+                    onClick={() => void playAudio("reference")}
+                    disabled={playing || freeLocked}
+                  >
+                    <Play size={16} aria-hidden />
+                    {playing ? "…" : "A · اصلی"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ay btn-ay-primary inline-flex items-center gap-2"
+                    onClick={() => void playAudio("challenge")}
+                    disabled={playing || freeLocked}
+                  >
+                    <Play size={16} aria-hidden />
+                    {playing ? "…" : "B · تغییر یافته"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-ay inline-flex items-center gap-2"
+                  onClick={() => void playAudio("challenge")}
+                  disabled={playing || freeLocked}
+                >
+                  <Play size={16} aria-hidden />
+                  {playing ? "در حال پخش…" : heard ? "پخش دوباره" : "پخش نمونه"}
+                </button>
+              )}
               {audioError && <p className="w-full text-[12px] text-rose-300">{audioError}</p>}
             </div>
 
