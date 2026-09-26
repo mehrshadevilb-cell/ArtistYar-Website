@@ -105,7 +105,24 @@ export async function GET(request: Request) {
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("plugin_image_bot_failed", detail.slice(0, 300));
-    const status = /telegram_bot_token_missing|unauthorized|401/i.test(detail) ? 503 : 404;
+    if (/telegram_bot_token_missing/i.test(detail)) {
+      return NextResponse.json(
+        { error: "image_unavailable", detail: "telegram_bot_token_missing" },
+        { status: 503 },
+      );
+    }
+    // Wrong bot token → file_id not found for this bot
+    if (/not found|404/i.test(detail)) {
+      return NextResponse.json(
+        {
+          error: "image_unavailable",
+          detail:
+            "telegram_file_not_found_for_configured_bot — set TELEGRAM_PLUGIN_BOT_TOKEN to the bot that received the channel post",
+        },
+        { status: 404 },
+      );
+    }
+    const status = /unauthorized|401/i.test(detail) ? 503 : 404;
     return NextResponse.json(
       { error: "image_unavailable", detail: detail.slice(0, 180) },
       { status },
