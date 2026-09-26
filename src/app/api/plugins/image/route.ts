@@ -7,6 +7,13 @@ export const dynamic = "force-dynamic";
 
 const MIN_PUBLIC_BYTES = 1500;
 
+type PluginPostMeta = {
+  id: string;
+  telegram_post_url: string | null;
+  photo_message_id: number | null;
+  cover_public_url: string | null;
+};
+
 async function fetchPublicTelegramCover(postUrl: string | null, photoMessageId: number | null) {
   const candidates: string[] = [];
   const channelMatch = String(postUrl || "").match(/t\.me\/([^/]+)\/(\d+)/i);
@@ -68,12 +75,7 @@ export async function GET(request: Request) {
   if (!fileId) return NextResponse.json({ error: "file_id_required" }, { status: 400 });
 
   const db = getPluginsDb();
-  let postMeta: {
-    id: string;
-    telegram_post_url: string | null;
-    photo_message_id: number | null;
-    cover_public_url: string | null;
-  } | null = null;
+  let postMeta: PluginPostMeta | undefined;
 
   if (db) {
     const known = await db
@@ -90,7 +92,7 @@ export async function GET(request: Request) {
     if (!known.data) {
       return NextResponse.json({ error: "image_not_found" }, { status: 404 });
     }
-    postMeta = known.data as unknown as NonNullable<typeof postMeta>;
+    postMeta = known.data as unknown as PluginPostMeta;
   }
 
   // Prefer already-known public cover URL when present
