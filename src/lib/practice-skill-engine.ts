@@ -4,9 +4,13 @@ import {
   measureTrainingEffectiveness,
   sampleFromEventRow,
   suggestTrainingFocus,
+  computeMasteryProfile,
+  buildSessionPlan,
   type FrequencySkillProfile,
   type TrainingEffectiveness,
   type TrainingFocus,
+  type MasteryProfile,
+  type SessionPlan,
 } from "@/lib/practice-game/frequency-mastery";
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -202,6 +206,12 @@ export async function getSkillDashboard(userId: string) {
   const frequencySkills: FrequencySkillProfile = computeFrequencySkillProfile(samples);
   const focusSuggestion = suggestTrainingFocus(frequencySkills);
   const effectiveness: TrainingEffectiveness = measureTrainingEffectiveness(samples, focusSuggestion.focus);
+  const masteryProfile: MasteryProfile = computeMasteryProfile(frequencySkills);
+  const sessionPlan: SessionPlan = buildSessionPlan({
+    profile: frequencySkills,
+    mastery: masteryProfile,
+    effectiveness,
+  });
 
   let curriculumFeedbackFa: string | null = null;
   if (effectiveness.enoughEvidence) {
@@ -233,6 +243,8 @@ export async function getSkillDashboard(userId: string) {
     trainingEffectiveness: effectiveness,
     trainingFocus: focusSuggestion.focus as TrainingFocus,
     curriculumFeedbackFa,
+    masteryProfile,
+    sessionPlan,
   };
 }
 
@@ -256,6 +268,8 @@ export async function getAdaptivePlan(userId: string) {
     curriculumFeedbackFa: dashboard.curriculumFeedbackFa || null,
     frequencySkills: dashboard.frequencySkills || null,
     trainingEffectiveness: dashboard.trainingEffectiveness || null,
+    masteryProfile: dashboard.masteryProfile || null,
+    sessionPlan: dashboard.sessionPlan || null,
     workoutMinutes: 10,
     exercises: slots.map((skill, i) => {
       const s = dashboard.skills.find(x => x.key === skill)!;
