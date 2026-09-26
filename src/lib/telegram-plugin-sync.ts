@@ -167,7 +167,7 @@ export async function telegramGetFile(fileId: string) {
   if (!id) throw new Error("file_id_required");
   const file = await tg("getFile", { file_id: id }, 15000);
   if (!file?.file_path) throw new Error("telegram_file_path_missing");
-  return { filePath: String(file.file_path), url: TG + "/file/" + botToken() + "/" + String(file.file_path) };
+  return { filePath: String(file.file_path), url: TG + "/file/bot" + botToken() + "/" + String(file.file_path) };
 }
 
 function mimeFromPath(path: string, header: string | null) {
