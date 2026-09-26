@@ -70,6 +70,9 @@ source = source.replace(
   const footer = "\\n\\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\\n📢 Channel: " + handle;
   let translated = String(p.translatedCaption || "").trim();
   translated = translated
+    ? "✨ <i>معرفی هوشمند پلاگین توسط ArtistYar</i>\n\n" + translated
+    : translated;
+  translated = translated
     .replace(/\\n\\n🎛️[\\s\\S]*$/i, "")
     .replace(/https?:\\/\\/artistyaar\\.ir/gi, "")
     .trim();
@@ -107,6 +110,12 @@ source = source.replace(
       message_id: messageId,
       caption: body,
       parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "🌐 وب‌سایت ArtistYar", url: "https://artistyaar.ir" },
+          { text: "📢 کانال پلاگین‌ها", url: "https://t.me/" + handle.replace(/^@/, "") },
+        ]],
+      },
     });
   } catch (error) {
     const message = clean(error instanceof Error ? error.message : String(error), 300);
@@ -118,6 +127,12 @@ source = source.replace(
           chat_id: chatId,
           message_id: messageId,
           caption: plain.slice(0, 1024),
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "🌐 وب‌سایت ArtistYar", url: "https://artistyaar.ir" },
+              { text: "📢 کانال پلاگین‌ها", url: "https://t.me/" + handle.replace(/^@/, "") },
+            ]],
+          },
         });
       } catch (retryError) {
         const retryMessage = clean(retryError instanceof Error ? retryError.message : String(retryError), 300);
