@@ -1,5 +1,5 @@
 /**
- * Round generators for the six Practice games.
+ * Round generators for Practice games (SoundGym catalog).
  * Level 1–50 drives tolerance, option count, and listening window.
  */
 import type { AudioProgram, DspChain } from "@/lib/practice-exercises/types";
@@ -16,6 +16,10 @@ import {
   generateFreqExerciseRound,
   type FreqExerciseType,
 } from "./frequency-exercises";
+import {
+  generateIntervalRecognition,
+  type IntervalGenerateOpts,
+} from "./interval-recognition";
 
 export type GameRoundMode = "choice" | "slider";
 
@@ -229,6 +233,8 @@ export function generateRhythmLab(level: number, seed: number): GameRound {
 export type GenerateRoundOpts = {
   exerciseType?: FreqExerciseType;
   recentTargets?: number[];
+  recentIntervalIds?: string[];
+  recentDirections?: IntervalGenerateOpts["recentDirections"];
 };
 
 export function generateRoundForGame(
@@ -247,7 +253,6 @@ export function generateRoundForGame(
           opts.recentTargets || [],
         );
       }
-      // general path still uses history-aware picker when recentTargets provided
       if (opts?.recentTargets?.length) {
         return generateFreqExerciseRound(level, seed, "general", opts.recentTargets);
       }
@@ -260,6 +265,11 @@ export function generateRoundForGame(
       return generateStereoSpace(level, seed);
     case "pitch-lab":
       return generatePitchLab(level, seed);
+    case "interval-recognition":
+      return generateIntervalRecognition(level, seed, {
+        recentIntervalIds: opts?.recentIntervalIds,
+        recentDirections: opts?.recentDirections,
+      });
     case "rhythm-lab":
       return generateRhythmLab(level, seed);
     default:
