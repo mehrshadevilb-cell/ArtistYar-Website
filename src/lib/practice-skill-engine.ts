@@ -47,6 +47,13 @@ const GAME_SKILLS: Record<string, SkillKey> = {
   "sg-mix-ab": "critical_listening",
   "user-audio": "critical_listening", "user-audio-eq": "mixing", "user-audio-comp": "dynamics",
   "daily-challenge": "critical_listening", "workout": "critical_listening",
+  // Unified SoundGym / PracticeGameSession catalog
+  "freq-memory": "ear_training",
+  "eq-detective": "mixing",
+  "comp-detective": "dynamics",
+  "stereo-space": "stereo",
+  "pitch-lab": "harmony",
+  "rhythm-lab": "ear_training",
 };
 
 export function skillForGame(gameId: string): SkillKey {
