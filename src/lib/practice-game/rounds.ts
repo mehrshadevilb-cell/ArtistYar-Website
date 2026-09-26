@@ -12,6 +12,10 @@ import {
   seeded,
 } from "./difficulty";
 import { formatHz } from "./scoring";
+import {
+  generateFreqExerciseRound,
+  type FreqExerciseType,
+} from "./frequency-exercises";
 
 export type GameRoundMode = "choice" | "slider";
 
@@ -222,9 +226,31 @@ export function generateRhythmLab(level: number, seed: number): GameRound {
   };
 }
 
-export function generateRoundForGame(gameId: string, level: number, seed: number): GameRound {
+export type GenerateRoundOpts = {
+  exerciseType?: FreqExerciseType;
+  recentTargets?: number[];
+};
+
+export function generateRoundForGame(
+  gameId: string,
+  level: number,
+  seed: number,
+  opts?: GenerateRoundOpts,
+): GameRound {
   switch (gameId) {
     case "freq-memory":
+      if (opts?.exerciseType && opts.exerciseType !== "general") {
+        return generateFreqExerciseRound(
+          level,
+          seed,
+          opts.exerciseType,
+          opts.recentTargets || [],
+        );
+      }
+      // general path still uses history-aware picker when recentTargets provided
+      if (opts?.recentTargets?.length) {
+        return generateFreqExerciseRound(level, seed, "general", opts.recentTargets);
+      }
       return generateFreqMemory(level, seed);
     case "eq-detective":
       return generateEqDetective(level, seed);
