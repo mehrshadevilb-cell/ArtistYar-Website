@@ -32,6 +32,26 @@ export function stopPracticePlayback() {
   }
 }
 
+/** Call from a user gesture (tap) so iOS/Android allow audio. */
+export async function unlockPracticeAudio(): Promise<boolean> {
+  const ctx = await getPracticeAudioContext();
+  if (!ctx) return false;
+  if (ctx.state === "suspended") {
+    try { await ctx.resume(); } catch { return false; }
+  }
+  // Silent buffer tick to fully unlock some mobile browsers
+  try {
+    const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = 0.0001;
+    src.connect(g).connect(ctx.destination);
+    src.start(0);
+  } catch { /* ignore */ }
+  return ctx.state === "running" || ctx.state === "suspended";
+}
+
 function makeNoise(ctx: AudioContext, seconds: number, color: "white" | "pink" | "brown" = "white"): AudioBuffer {
   const len = Math.max(1, Math.floor(ctx.sampleRate * seconds));
   const buf = ctx.createBuffer(1, len, ctx.sampleRate);
