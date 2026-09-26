@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 const sync = readFileSync(new URL("../src/lib/telegram-plugin-sync.ts", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/20260925_telegram_plugins_reliability.sql", import.meta.url), "utf8");
+const channelMigration = readFileSync(new URL("../supabase/migrations/20260927_telegram_plugins_canonical_channel.sql", import.meta.url), "utf8");
 const caption = readFileSync(new URL("../src/lib/telegram-plugin-caption.ts", import.meta.url), "utf8");
 const inflate = readFileSync(new URL("../scripts/inflate-telegram-sync.mjs", import.meta.url), "utf8");
 const bot = readFileSync(new URL("../src/lib/telegram-plugin-bot.ts", import.meta.url), "utf8");
@@ -63,6 +64,8 @@ assert.match(migration, /create or replace function public\.claim_telegram_plugi
 assert.match(migration, /create or replace function public\.claim_telegram_plugin_pair/);
 assert.match(inflate, /canonical production runtime/);
 assert.match(inflate, /syncPublishedPluginCover/);
+assert.match(channelMigration, /ProAudios/);
+assert.match(channelMigration, /ProAudioS/);
 
 console.log("telegram plugin sync regression checks passed");
 console.log("telegram plugin bot-identity + queue + cover + detail + archive-safety checks passed");
