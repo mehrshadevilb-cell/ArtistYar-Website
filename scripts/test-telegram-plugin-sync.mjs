@@ -23,5 +23,8 @@ assert.match(caption, /وب‌سایت ArtistYar/);
 const inflate = readFileSync(new URL("../scripts/inflate-telegram-sync.mjs", import.meta.url), "utf8");
 assert.match(inflate, /reply_markup/);
 assert.match(inflate, /کانال پلاگین‌ها/);
+assert.match(inflate, /AI is enrichment, not a hard dependency/);
+assert.match(inflate, /archives are NEVER extracted/i);
+assert.match(inflate, /plugin_caption_generation_empty/);
 
 console.log("telegram plugin sync regression checks passed");
