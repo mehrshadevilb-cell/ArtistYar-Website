@@ -11,6 +11,7 @@ import {
   pluginBotTokenWarnings,
   probePluginBotIdentity,
   probeTelegramFileId,
+  probeAlternateBotTokens,
 } from "@/lib/telegram-plugin-bot";
 
 export const runtime = "nodejs";
@@ -49,6 +50,7 @@ export async function GET(request: Request) {
   const requestedProbe = params.get("probe") === "1";
 
   const identity = await probePluginBotIdentity();
+  const alternate_tokens = await probeAlternateBotTokens();
 
   const out: Record<string, unknown> = {
     ok: true,
@@ -61,6 +63,7 @@ export async function GET(request: Request) {
       configured: identity.configured,
       error: identity.error ?? null,
     },
+    alternate_token_probes: alternate_tokens,
     channel: process.env.TELEGRAM_PLUGIN_CHANNEL_ID || process.env.TELEGRAM_PLUGIN_CHANNEL_USERNAME || "@ProAudios",
     webhook_secret_configured: Boolean(
       (process.env.TELEGRAM_PLUGIN_WEBHOOK_SECRET || "").trim()
@@ -83,10 +86,16 @@ export async function GET(request: Request) {
     site_url: (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, ""),
     guidance: {
       critical:
-        "TELEGRAM_PLUGIN_BOT_TOKEN must be the bot that is admin on the plugin channel and receives channel_post webhooks. file_id values are bot-specific.",
-      set_env: "TELEGRAM_PLUGIN_BOT_TOKEN",
-      then: "GET /api/telegram/plugins/setup?key=... to re-register webhook for that bot",
-      probe: "GET /api/telegram/plugins/diagnostics?key=...&probe=1 to test latest photo file_ids",
+        "Runtime getMe must succeed for TELEGRAM_PLUGIN_BOT_TOKEN. file_id values are bot-specific.",
+      cases: {
+        A: "getMe fails (Not Found/Unauthorized) → TELEGRAM_PLUGIN_BOT_TOKEN is invalid/revoked/malformed",
+        B: "getMe ok but OLD DB file_ids fail → historical IDs from another bot; post a NEW channel message",
+        C: "getMe ok and NEW file_id fails → webhook/media ownership bug",
+        D: "getMe ok and NEW file_id works → continue cover storage + caption E2E",
+      },
+      then: "GET /api/telegram/plugins/setup?key=... after fixing the live bot token",
+      probe: "GET /api/telegram/plugins/diagnostics?key=...&probe=1",
+      mandatory: "Do not conclude from historical file_ids alone — require getMe success first",
     },
   };
 
@@ -186,7 +195,7 @@ export async function GET(request: Request) {
           ok: probes.filter((p) => p.file_resolvable).length,
           failed: probes.filter((p) => !p.file_resolvable).length,
           hint: probes.some((p) => !p.file_resolvable)
-            ? "Failed probes usually mean TELEGRAM_PLUGIN_BOT_TOKEN is not the bot that received those channel posts"
+            ? "If getMe also fails, fix the bot token first. If getMe works, old file_ids may be from a previous bot."
             : "ok",
         };
       } catch (error) {
@@ -197,12 +206,32 @@ export async function GET(request: Request) {
   }
 
   const channelAdmin = out.channel_admin as { required_permissions_ok?: boolean } | undefined;
+  const configErrors: string[] = [];
+  if (identity.error) {
+    out.ok = false;
+    configErrors.push("telegram_plugin_bot_getMe_failed:" + String(identity.error).slice(0, 120));
+  }
   if (channelAdmin && channelAdmin.required_permissions_ok === false) {
     out.ok = false;
-    out.configuration_errors = [
-      "telegram_bot_must_be_channel_administrator",
-      "telegram_bot_requires_can_edit_messages",
-    ];
+    configErrors.push("telegram_bot_must_be_channel_administrator");
+    configErrors.push("telegram_bot_requires_can_edit_messages");
+  }
+  if (configErrors.length) {
+    out.configuration_errors = configErrors;
+  }
+  const workingAlt = alternate_tokens.find((t) => t.ok && t.source !== pluginBotTokenSource());
+  if (identity.error && workingAlt) {
+    out.recovery_hint =
+      "Active token source " +
+      pluginBotTokenSource() +
+      " fails getMe, but " +
+      workingAlt.source +
+      " resolves as @" +
+      String(workingAlt.bot_username || workingAlt.bot_id) +
+      " — either fix TELEGRAM_PLUGIN_BOT_TOKEN to that live token, or remove the broken PLUGIN token so fallback can win";
+  } else if (identity.error) {
+    out.recovery_hint =
+      "TELEGRAM_PLUGIN_BOT_TOKEN is set but getMe fails. Replace it with a live BotFather token for the @ProAudioS admin bot (shape: 123456:ABC... — no leading 'bot', no quotes). Then re-run /api/telegram/plugins/setup and post a NEW channel message.";
   }
   return NextResponse.json(out, {
     headers: { "cache-control": "no-store" },
