@@ -70,7 +70,7 @@ source = source.replace(
   const footer = "\\n\\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\\n📢 Channel: " + handle;
   let translated = String(p.translatedCaption || "").trim();
   translated = translated
-    ? "✨ معرفی هوشمند پلاگین توسط ArtistYar\n\n" + translated
+    ? "✨ معرفی هوشمند پلاگین توسط ArtistYar\\n\\n" + translated
     : translated;
   translated = translated
     .replace(/\\n\\n🎛️[\\s\\S]*$/i, "")
