@@ -172,7 +172,10 @@ if (!source.includes("syncPublishedPluginCover")) {
     );
   }
 
-  const finalCaption = makeCaption(p);`
+  const finalCaption = makeCaption(p);
+  if (!String(finalCaption || "").trim()) {
+    throw new Error("plugin_caption_generation_empty");
+  }`
   );
 }
 
@@ -239,16 +242,37 @@ function enforceCaptionFacts(data: PluginData, rawCaption: string): PluginData {
 
 source = source.replace(
   /const ai = await identify\(photoFileId, fileName, caption\);\n  const p = enforceCaptionFacts\(ai\.data, caption\);/,
-  `const ai = await identify(photoFileId, fileName, caption);
+  `let ai;
+  try {
+    ai = await identify(photoFileId, fileName, caption);
+  } catch (aiError) {
+    // AI is enrichment, not a hard dependency for publishing. Never extract
+    // archives: only the archive filename + Telegram caption are used here.
+    console.error("telegram_plugin_ai_caption_fallback", clean(aiError instanceof Error ? aiError.message : String(aiError), 300));
+    ai = {
+      data: {
+        title: titleFromFileName(fileName) || titleFromCaption(caption) || "پلاگین جدید",
+        developer: "",
+        version: "",
+        category: "Audio Plugin",
+        formats: [],
+        platforms: [],
+        description: caption ? String(caption).slice(0, 600) : "",
+        features: [],
+        translatedCaption: "",
+      },
+    };
+  }
   let p = enforceCaptionFacts(ai.data, caption);
   if (!p.title || p.title === "پلاگین بدون نام") {
     const fromFile = titleFromFileName(fileName);
     if (fromFile) p = { ...p, title: fromFile };
   }
   // Never publish the raw Telegram caption as-is. If the AI did not return a
-  // translated caption, makeCaption() will generate a fresh structured Persian
-  // caption from the extracted plugin facts below. This guarantees every
-  // published plugin post gets a translated or AI-generated caption.
+  // translated caption, makeCaption() generates a fresh structured caption.
+  // Archives are NEVER extracted or inspected internally; filenames only are
+  // used as evidence for title/format detection.
+
 `
 );
 
