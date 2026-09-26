@@ -111,13 +111,19 @@ export async function GET(request: Request) {
         { status: 503 },
       );
     }
-    // Wrong bot token → file_id not found for this bot
+    // getFile Not Found: either this file_id was issued for a different bot
+    // (historical rows), or the runtime token is not the channel webhook bot.
+    // Do not assume misconfiguration — ops must compare getMe identity vs a NEW post.
     if (/not found|404/i.test(detail)) {
+      const { pluginBotTokenSource } = await import("@/lib/telegram-plugin-bot");
       return NextResponse.json(
         {
           error: "image_unavailable",
           detail:
-            "telegram_file_not_found_for_configured_bot — set TELEGRAM_PLUGIN_BOT_TOKEN to the bot that received the channel post",
+            "telegram_file_not_found_for_configured_bot — file_id is not resolvable by the runtime bot (historical ID from another bot, or runtime token ≠ channel bot)",
+          token_source: pluginBotTokenSource(),
+          hint:
+            "Probe /api/telegram/plugins/diagnostics?key=...&probe=1 and test a NEW channel post file_id; old DB rows may never resolve",
         },
         { status: 404 },
       );
