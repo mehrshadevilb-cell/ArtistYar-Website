@@ -20,5 +20,8 @@ assert.match(card, /image\.style\.opacity = "0"/);
 const caption = readFileSync(new URL("../src/lib/telegram-plugin-caption.ts", import.meta.url), "utf8");
 assert.match(caption, /reply_markup/);
 assert.match(caption, /وب‌سایت ArtistYar/);
+const inflate = readFileSync(new URL("../scripts/inflate-telegram-sync.mjs", import.meta.url), "utf8");
+assert.match(inflate, /reply_markup/);
+assert.match(inflate, /کانال پلاگین‌ها/);
 
 console.log("telegram plugin sync regression checks passed");
