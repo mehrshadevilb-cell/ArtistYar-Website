@@ -9,6 +9,24 @@ const target = join(lib, "telegram-plugin-sync.ts");
 const single = join(lib, "telegram-plugin-sync.ts.zlib.b64");
 const prefix = "telegram-plugin-sync.ts.zlib.b64.";
 
+// The checked-in TypeScript source is now the canonical runtime. Preserve a
+// repaired source when it already contains the complete queue/processor surface;
+// the compressed artifact remains a recovery fallback for genuinely missing or
+// placeholder source files. This guarantees future inflation cannot silently
+// resurrect the old stub.
+if (existsSync(target)) {
+  const current = readFileSync(target, "utf8");
+  if (
+    current.includes("export async function enqueuePluginMessage") &&
+    current.includes("async function processQueuedPair") &&
+    current.includes("syncPublishedPluginCover") &&
+    current.includes("deterministicMetadata")
+  ) {
+    console.log("telegram-plugin-sync.ts already contains canonical production runtime; inflation skipped");
+    process.exit(0);
+  }
+}
+
 let b64 = "";
 if (existsSync(single)) {
   const candidate = readFileSync(single, "utf8").trim();
