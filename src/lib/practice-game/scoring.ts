@@ -2,12 +2,14 @@
  * Psychoacoustic + game scoring. Client preview; server still recomputes XP.
  */
 
-import { clamp } from "./difficulty";
+import { clamp, safeHz, safeNumber } from "./difficulty";
 
 /** Equal-tempered cents between two frequencies. */
 export function centsError(targetHz: number, guessHz: number) {
-  if (!(targetHz > 0) || !(guessHz > 0)) return 1200;
-  return 1200 * Math.log2(guessHz / targetHz);
+  const t = safeHz(targetHz, 0);
+  const g = safeHz(guessHz, 0);
+  if (!(t > 0) || !(g > 0)) return 1200;
+  return 1200 * Math.log2(g / t);
 }
 
 /**
@@ -15,12 +17,15 @@ export function centsError(targetHz: number, guessHz: number) {
  * (what engineers actually hear). Returns 0–100.
  */
 export function frequencyAccuracy(targetHz: number, guessHz: number, toleranceHz: number) {
-  const hzErr = Math.abs(guessHz - targetHz);
-  const cents = Math.abs(centsError(targetHz, guessHz));
-  const hzScore = clamp(100 * (1 - hzErr / Math.max(8, toleranceHz * 1.35)), 0, 100);
+  const t = safeHz(targetHz, 440);
+  const g = safeHz(guessHz, t);
+  const tol = clamp(safeNumber(toleranceHz, 40), 4, 400);
+  const hzErr = Math.abs(g - t);
+  const cents = Math.abs(centsError(t, g));
+  const hzScore = clamp(100 * (1 - hzErr / Math.max(8, tol * 1.35)), 0, 100);
   const centsScore = clamp(100 - cents / 1.8, 0, 100);
   const accuracy = Math.round(hzScore * 0.45 + centsScore * 0.55);
-  return { accuracy, hzErr, cents, perfect: hzErr <= toleranceHz * 0.35 || cents < 12 };
+  return { accuracy, hzErr, cents, perfect: hzErr <= tol * 0.35 || cents < 12 };
 }
 
 export function sliderPass(accuracy: number) {
@@ -45,12 +50,16 @@ export function roundPreviewXp(opts: {
   responseTimeMs: number;
   streak: number;
 }) {
-  if (!opts.correct) return opts.level < 12 ? -8 : -5;
-  let xp = 10 + Math.round(opts.level / 4);
-  if (opts.accuracy >= 98) xp += 8;
-  else if (opts.accuracy >= 88) xp += 4;
-  if (opts.responseTimeMs < 2800) xp += 3;
-  xp = Math.round(xp * comboMultiplier(opts.streak));
+  const level = clamp(safeNumber(opts.level, 1), 1, 50);
+  const accuracy = clamp(safeNumber(opts.accuracy, 0), 0, 100);
+  const rt = clamp(safeNumber(opts.responseTimeMs, 5000), 1, 120000);
+  const streak = clamp(safeNumber(opts.streak, 0), 0, 100);
+  if (!opts.correct) return level < 12 ? -8 : -5;
+  let xp = 10 + Math.round(level / 4);
+  if (accuracy >= 98) xp += 8;
+  else if (accuracy >= 88) xp += 4;
+  if (rt < 2800) xp += 3;
+  xp = Math.round(xp * comboMultiplier(streak));
   return clamp(xp, 1, 45);
 }
 
