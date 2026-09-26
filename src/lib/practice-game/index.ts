@@ -5,3 +5,4 @@ export * from "./persist";
 export * from "./rounds";
 export * from "./frequency-mastery";
 export * from "./frequency-exercises";
+export * from "./interval-recognition";

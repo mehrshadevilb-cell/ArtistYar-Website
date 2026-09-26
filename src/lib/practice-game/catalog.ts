@@ -12,8 +12,8 @@ export type PracticeGameDef = {
   category: PracticeGameCategory;
   title: string;
   titleFa: string;
-  tagline: string;
   skill: string;
+  tagline: string;
   rounds: number;
   warmup: number;
   accent: "cyan" | "amber" | "rose" | "violet" | "emerald" | "gold";
@@ -81,6 +81,18 @@ export const PRACTICE_GAMES: PracticeGameDef[] = [
     accent: "gold",
   },
   {
+    id: "interval-recognition",
+    apiGameId: "interval-recognition",
+    category: "pitch",
+    title: "Interval Recognition",
+    titleFa: "تشخیص فواصل",
+    tagline: "فاصلهٔ بین دو نت را با گوش تشخیص بده",
+    skill: "Ear / Intervals",
+    rounds: 8,
+    warmup: 2,
+    accent: "gold",
+  },
+  {
     id: "rhythm-lab",
     apiGameId: "rhythm-lab",
     category: "rhythm",
@@ -108,6 +120,7 @@ const LEGACY_TITLES: Record<string, string> = {
   "comp-detective": "کارآگاه کمپرسور",
   "stereo-space": "استریو و فضا",
   "pitch-lab": "آزمایشگاه زیروبمی",
+  "interval-recognition": "تشخیص فواصل",
   "rhythm-lab": "آزمایشگاه ریتم",
 };
 
