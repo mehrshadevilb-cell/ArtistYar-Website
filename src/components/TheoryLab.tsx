@@ -24,21 +24,39 @@ const CHORD_TIERS = [
 
 const freq = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
-function tone(m: number, d = 0.7) {
-  if (typeof window === "undefined") return;
-  const A = window.AudioContext || (window as any).webkitAudioContext;
-  if (!A) return;
-  const c = new A();
+let theoryCtx: AudioContext | null = null;
+
+async function getTheoryCtx(): Promise<AudioContext | null> {
+  if (typeof window === "undefined") return null;
+  const A =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!A) return null;
+  theoryCtx ||= new A();
+  if (theoryCtx.state === "suspended") {
+    try {
+      await theoryCtx.resume();
+    } catch {
+      return null;
+    }
+  }
+  return theoryCtx;
+}
+
+async function tone(m: number, d = 0.7) {
+  const c = await getTheoryCtx();
+  if (!c) return;
+  const now = c.currentTime;
   const o = c.createOscillator();
   const g = c.createGain();
+  o.type = "sine";
   o.frequency.value = freq(m);
-  g.gain.setValueAtTime(0.0001, c.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.12, c.currentTime + 0.03);
-  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + d);
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(0.14, now + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + d);
   o.connect(g).connect(c.destination);
-  o.start();
-  o.stop(c.currentTime + d + 0.04);
-  setTimeout(() => void c.close(), (d + 0.2) * 1000);
+  o.start(now);
+  o.stop(now + d + 0.04);
 }
 
 function seeded(seed: number) {
@@ -115,12 +133,20 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
   const play = () => {
     setPlayed(true);
     const base = 60 + roots.indexOf(root);
-    if (mode === "interval") {
-      tone(base);
-      setTimeout(() => tone(base + (target[1] as number)), 240);
-    } else {
-      (target[1] as readonly number[]).forEach((n, i) => setTimeout(() => tone(base + n, 0.85), i * 130));
-    }
+    void (async () => {
+      if (mode === "interval") {
+        await tone(base);
+        window.setTimeout(() => {
+          void tone(base + (target[1] as number));
+        }, 240);
+      } else {
+        (target[1] as readonly number[]).forEach((n, i) => {
+          window.setTimeout(() => {
+            void tone(base + n, 0.85);
+          }, i * 130);
+        });
+      }
+    })();
   };
 
   const correct = answer === String(target[0]);
@@ -193,7 +219,9 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
               : "."}
           </p>
           <p className="mt-4 text-sm text-gold-200">
-            {pro ? `اشتراک فعال · بدون سقف مرحله${proExpiresAt ? ` · تا ${new Date(proExpiresAt).toLocaleDateString("fa-IR")}` : ""}` : "برای ادامه، اشتراک فعال کن."}
+            {pro
+              ? `اشتراک فعال · بدون سقف مرحله${proExpiresAt ? ` · تا ${new Date(proExpiresAt).toLocaleDateString("fa-IR")}` : ""}`
+              : "برای ادامه، اشتراک فعال کن."}
           </p>
         </div>
       </section>
@@ -211,7 +239,8 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
           <p className="eyebrow mt-5">THEORY LAB · PROGRESSIVE</p>
           <h1 className="mt-3 text-2xl font-semibold text-sand-50">از فاصله‌های ساده تا expert</h1>
           <p className="mt-3 text-sm leading-8 text-ink-400">
-            تمرین از سطح مناسب شروع می‌شود و با عملکردت سخت‌تر یا آسان‌تر می‌شود. XP فقط برای پیشرفت است؛ مهارت واقعی با دقت و تکرار سنجیده می‌شود.
+            تمرین از سطح مناسب شروع می‌شود و با عملکردت سخت‌تر یا آسان‌تر می‌شود. XP فقط برای پیشرفت است؛ مهارت واقعی با
+            دقت و تکرار سنجیده می‌شود.
           </p>
           <p className="mt-2 text-xs text-violet-200">
             {tierLabel} · مرحله {round + 1} · XP {xp}
@@ -219,7 +248,9 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
 
           <div className="mt-6 flex justify-center gap-2">
             <button
-              className={`rounded-xl px-4 py-2 text-xs ${mode === "interval" ? "bg-violet-400/15 text-violet-200" : "bg-white/[.04] text-ink-500"}`}
+              className={`rounded-xl px-4 py-2 text-xs ${
+                mode === "interval" ? "bg-violet-400/15 text-violet-200" : "bg-white/[.04] text-ink-500"
+              }`}
               onClick={() => {
                 setMode("interval");
                 setAnswer(null);
@@ -229,7 +260,9 @@ export function TheoryLab({ onBack }: { onBack: () => void }) {
               Intervals
             </button>
             <button
-              className={`rounded-xl px-4 py-2 text-xs ${mode === "chord" ? "bg-violet-400/15 text-violet-200" : "bg-white/[.04] text-ink-500"}`}
+              className={`rounded-xl px-4 py-2 text-xs ${
+                mode === "chord" ? "bg-violet-400/15 text-violet-200" : "bg-white/[.04] text-ink-500"
+              }`}
               onClick={() => {
                 setMode("chord");
                 setAnswer(null);
