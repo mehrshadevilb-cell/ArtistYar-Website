@@ -497,7 +497,48 @@ export function PracticeGameSession({
                 <p className="text-[12px] leading-6 text-ink-500">
                   سختی تمرین بر اساس عملکردت تنظیم می‌شود — نه تصادفی.
                 </p>
+                {profileLoading && (
+                  <p className="text-[12px] text-ink-500" aria-live="polite">
+                    در حال آماده‌سازی تمرین شخصی…
+                  </p>
+                )}
+                {!pro && (
+                  <p className="text-[12px] text-amber-200/80">رایگان: تا {stageLimit || 5} مرحله در روز</p>
+                )}
+                <p className="text-[11px] leading-6 text-ink-600">
+                  برای فعال‌شدن صدا در موبایل، دکمهٔ «شروع تمرین» یا «پخش» را با لمس خودت بزن.
+                </p>
+                <button
+                  type="button"
+                  className="btn-ay btn-ay-primary w-full sm:w-auto"
+                  onClick={startSession}
+                >
+                  شروع تمرین
+                </button>
               </section>
+
+              {sessionPlan && (
+                <section className="card-ay space-y-3 p-5" aria-label="جلسه پیشنهادی">
+                  <p className="text-[11px] font-medium text-cyan-300/90">
+                    {sessionPlan.isPersonalized ? "تمرکز امروز · جلسه پیشنهادی" : "جلسه پیشنهادی"}
+                  </p>
+                  <p className="text-[15px] font-medium text-sand-50">{sessionPlan.focusTitleFa}</p>
+                  <p className="text-[13px] leading-7 text-ink-400">{sessionPlan.summaryFa}</p>
+                  <ul className="space-y-1 text-[12px] leading-6 text-ink-500">
+                    <li>ساختار: {sessionPlan.structureFa}</li>
+                    {sessionPlan.goalFa ? <li>هدف: {sessionPlan.goalFa}</li> : null}
+                    <li>حدود {sessionPlan.suggestedRounds || totalRounds} راند</li>
+                  </ul>
+                  <p className="text-[10px] text-ink-600">این فقط یک پیشنهاد است؛ می‌توانی آزادانه تمرین کنی.</p>
+                </section>
+              )}
+
+              <FrequencySkillOverview
+                profile={skillProfile}
+                effectiveness={effectiveness}
+                curriculumFeedbackFa={curriculumFeedbackFa}
+                sessionPlan={null}
+              />
             </>
           ) : (
             <section className="card-ay space-y-3 p-5 sm:p-6">
@@ -515,9 +556,20 @@ export function PracticeGameSession({
       {phase === "play" && round && (
         <div className="space-y-4">
           <div className="flex items-center justify-between text-[12px] text-ink-500">
-            <span>راند {roundIndex + 1} از {totalRounds}</span>
-            <span>سطح {level}</span>
+            <span>
+              راند {roundIndex + 1} از {totalRounds}
+              {isFreq ? ` · ${FREQ_EXERCISES[activeExercise]?.titleFa || "تمرین عمومی"}` : ""}
+            </span>
+            <span>استریک {streak}</span>
           </div>
+          {isFreq && activeExercise !== "general" && FREQ_EXERCISES[activeExercise] && (
+            <p className="text-[12px] leading-6 text-ink-500">
+              <span className="text-cyan-300/90">{FREQ_EXERCISES[activeExercise].titleFa}</span>
+              {" · "}
+              {FREQ_EXERCISES[activeExercise].purposeFa}
+            </p>
+          )}
+          <section className="card-ay space-y-4 p-5">
           <section className="card-ay space-y-4 p-5">
             <p className="text-[14px] font-medium text-sand-50">{round.prompt}</p>
             {round.hint && <p className="text-[12px] text-ink-500">{round.hint}</p>}
@@ -583,8 +635,23 @@ export function PracticeGameSession({
                     : "غلط"}
               {" · "}دقت {Math.round(feedback.accuracy)}٪
             </div>
-            <p className="mt-2 text-[13px] text-ink-400">{feedback.detail}</p>
-            <p className="mt-1 text-[12px] text-amber-300/80">+{feedback.xp} XP</p>
+            {isFreq && round?.mode === "slider" && round.targetHz != null && lastGuessHz != null ? (
+              <div className="space-y-1 text-[12px] text-ink-400">
+                <p>حدس تو: {formatHz(lastGuessHz)}</p>
+                <p>هدف: {formatHz(round.targetHz)}</p>
+                <p>خطا: {Math.round(Math.abs(lastGuessHz - round.targetHz))} Hz</p>
+              </div>
+            ) : (
+              <p className="mt-2 text-[13px] text-ink-400">{feedback.detail}</p>
+            )}
+            <p className="mt-1 text-[12px] text-amber-300/80">
+              +{feedback.xp} XP · استریک {streak} · سطح {level}
+            </p>
+            {isFreq && (
+              <p className="text-[11px] leading-5 text-ink-600">
+                سختی تمرین بر اساس عملکردت تنظیم می‌شود.
+              </p>
+            )}
           </section>
           <button type="button" className="btn-ay" onClick={goNext}>
             {roundIndex + 1 >= totalRounds ? "خلاصه جلسه" : "راند بعد"}
@@ -594,18 +661,47 @@ export function PracticeGameSession({
 
       {phase === "summary" && (
         <div className="space-y-4">
-          <section className="card-ay space-y-3 p-5">
-            <h2 className="text-lg font-semibold text-sand-50">خلاصه جلسه</h2>
+          <section className="card-ay space-y-4 p-5">
+            <h2 className="text-lg font-semibold text-sand-50">
+              {isFreq ? "خلاصهٔ تمرین" : "خلاصه جلسه"}
+            </h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat label="صحیح" value={`${outcomes.filter((o) => o.correct).length}/${outcomes.length}`} />
-              <Stat label="دقت" value={`${outcomes.length ? Math.round((outcomes.filter((o) => o.correct).length / outcomes.length) * 100) : 0}٪`} />
-              <Stat label="XP" value={String(sessionXp)} />
-              <Stat label="سطح" value={`${difficultyStartRef.current} → ${level}`} />
+              <Stat label="راند" value={String(outcomes.length)} />
+              <Stat label="درست" value={String(outcomes.filter((o) => o.correct).length)} />
+              <Stat label="XP جلسه" value={String(sessionXp)} />
+              <Stat label="سطح پایان" value={String(level)} />
             </div>
+            {isFreq && outcomes.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <Stat
+                  label="دقت میانگین"
+                  value={`${Math.round(outcomes.reduce((s, o) => s + o.accuracy, 0) / outcomes.length)}٪`}
+                />
+                <Stat label="سطح شروع" value={String(difficultyStartRef.current)} />
+                <Stat label="استریک پایانی" value={String(streak)} />
+              </div>
+            )}
           </section>
+          {isFreq && sessionPlan?.isPersonalized && (
+            <section className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.04] p-3 text-[12px] leading-6 text-ink-400">
+              <p className="text-[11px] text-cyan-300/90">برای جلسهٔ بعد</p>
+              <p className="mt-1 text-sand-100">{sessionPlan.focusTitleFa}</p>
+              <p className="mt-1">{sessionPlan.summaryFa}</p>
+              <p className="mt-1 text-[10px] text-ink-600">
+                پیشنهاد است — سختی واقعی همچنان بر اساس عملکردت تنظیم می‌شود.
+              </p>
+            </section>
+          )}
+          {isFreq && effectiveness?.enoughEvidence && (
+            <section className="rounded-xl border border-white/[.07] bg-white/[0.02] p-3 text-[12px] leading-6 text-ink-400">
+              <p className="text-[11px] text-sand-200">روند شخصی</p>
+              <p className="mt-1">{effectiveness.summaryFa}</p>
+              <p className="mt-1 text-[11px] text-ink-500">{effectiveness.guidanceFa}</p>
+            </section>
+          )}
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn-ay" onClick={startSession}>
-              تمرین دوباره
+              <RotateCcw size={14} className="ml-1 inline" /> {isFreq ? "شروع تمرین دوباره" : "تمرین دوباره"}
             </button>
             {!hideBack && (
               <button type="button" className="rounded-xl border border-white/10 px-4 py-2 text-[13px] text-ink-400" onClick={onBack}>
