@@ -28,3 +28,26 @@ assert.match(inflate, /archives are NEVER extracted/i);
 assert.match(inflate, /plugin_caption_generation_empty/);
 
 console.log("telegram plugin sync regression checks passed");
+
+const bot = readFileSync(new URL("../src/lib/telegram-plugin-bot.ts", import.meta.url), "utf8");
+assert.match(bot, /resolvePluginBotToken/);
+assert.match(bot, /TELEGRAM_PLUGIN_BOT_TOKEN/);
+assert.match(bot, /BOT_TOKEN/);
+assert.match(bot, /probePluginBotIdentity/);
+assert.match(bot, /probeTelegramFileId/);
+assert.doesNotMatch(bot, /console\.log\([^)]*token/i);
+
+const media = readFileSync(new URL("../src/lib/telegram-plugin-media.ts", import.meta.url), "utf8");
+assert.match(media, /resolvePluginBotToken/);
+
+const imageRoute = readFileSync(new URL("../src/app/api/plugins/image/route.ts", import.meta.url), "utf8");
+assert.match(imageRoute, /isTrustedStoredCover|telesco\.pe/);
+assert.match(imageRoute, /pluginImageResponse/);
+assert.match(imageRoute, /telegram_file_not_found_for_configured_bot|image_unavailable/);
+
+const detail = readFileSync(new URL("../src/app/plugins/[id]/page.tsx", import.meta.url), "utf8");
+assert.match(detail, /generateMetadata/);
+assert.match(detail, /canonical/);
+assert.match(detail, /notFound/);
+
+console.log("telegram plugin bot-identity + cover + detail regression checks passed");
