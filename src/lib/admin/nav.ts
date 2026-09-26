@@ -43,6 +43,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "کلاس‌ها",
     items: [
       { href: "/admin/classes", label: "کلاس‌ها" },
+      { href: "/admin/classes/calendar", label: "تقویم کلاس‌ها" },
       { href: "/admin/homework", label: "تکالیف", enabled: false },
     ],
   },
