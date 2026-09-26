@@ -182,7 +182,8 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
                       loading={index === 0 ? "eager" : "lazy"}
                       fetchPriority={index === 0 ? "high" : "auto"}
                       onError={(e) => {
-                        e.currentTarget.style.opacity = "0";
+                        const image = e.currentTarget;
+                        image.style.opacity = "0";
                       }}
                     />
                   ) : null}
@@ -197,7 +198,9 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
                   ) : null}
                 </div>
                 <div className="p-4">
-                  <h3 className="truncate text-base font-semibold text-sand-50">{p.title}</h3>
+                  <h3 className="truncate text-base font-semibold text-sand-50">
+                    <a href={"/plugins/" + encodeURIComponent(p.id)} className="hover:text-gold-200">{p.title}</a>
+                  </h3>
                   {p.developer ? (
                     <p className="mt-0.5 truncate text-xs font-medium text-gold-300">{p.developer}</p>
                   ) : null}
