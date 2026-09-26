@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, ChevronLeft } from "lucide-react";
 import { PRACTICE_GAMES, loadLocalLevel, bandForLevel, BAND_LABEL } from "@/lib/practice-game";
 import { PracticeGameSession } from "@/components/PracticeGameSession";
+import { useAuth } from "@/components/AuthProvider";
 
 type Props = { onBack?: () => void; initialExercise?: string };
 
@@ -17,6 +18,7 @@ const ACCENT: Record<string, string> = {
 };
 
 export function SoundGymLab({ onBack, initialExercise }: Props) {
+  const { user } = useAuth();
   const initial =
     PRACTICE_GAMES.find((g) => g.id === initialExercise || g.apiGameId === initialExercise)?.id ||
     null;
@@ -25,9 +27,9 @@ export function SoundGymLab({ onBack, initialExercise }: Props) {
 
   useEffect(() => {
     const map: Record<string, number> = {};
-    for (const g of PRACTICE_GAMES) map[g.id] = loadLocalLevel(g.id);
+    for (const g of PRACTICE_GAMES) map[g.id] = loadLocalLevel(g.id, user?.id);
     setLevels(map);
-  }, [active]);
+  }, [active, user?.id]);
 
   if (active) {
     return <PracticeGameSession gameId={active} onBack={() => setActive(null)} />;
