@@ -21,7 +21,7 @@ if (existsSync(target)) {
     current.includes("async function processQueuedPair") &&
     current.includes("syncPublishedPluginCover") &&
     current.includes("deterministicMetadata") &&
-    current.includes("ARTISTYAR_CAPTION_QUALITY_V2")
+    current.includes("ARTISTYAR_CAPTION_QUALITY_V3")
   ) {
     console.log("telegram-plugin-sync.ts already contains canonical production runtime + caption quality; inflation skipped");
     process.exit(0);
@@ -198,38 +198,63 @@ function enforceCaptionFacts(data: PluginData, rawCaption: string): PluginData {
 source = source.replace(
   /const ai = await identify\(photoFileId, fileName, caption\);\n  const p = enforceCaptionFacts\(ai\.data, caption\);/,
   `let ai;
+  const verified = (globalThis as any).__ARTISTYAR_VERIFIED_DATA;
   try {
-    ai = await identify(photoFileId, fileName, caption);
+    if (verified?.title) {
+      ai = {
+        data: {
+          title: verified.title,
+          developer: verified.developer || "",
+          version: verified.version || "",
+          category: verified.category || "Unknown",
+          formats: Array.isArray(verified.formats) ? verified.formats : [],
+          platforms: Array.isArray(verified.platforms) ? verified.platforms : [],
+          description: verified.description || "",
+          features: Array.isArray(verified.features) ? verified.features : [],
+          translatedCaption: verified.translatedCaption || "",
+        },
+      };
+    } else {
+      ai = await identify(photoFileId, fileName, caption);
+    }
   } catch (aiError) {
     console.error("telegram_plugin_ai_caption_fallback", clean(aiError instanceof Error ? aiError.message : String(aiError), 300));
     ai = {
       data: {
-        title: titleFromFileName(fileName) || titleFromCaption(caption) || "پلاگین جدید",
+        title: "",
         developer: "",
         version: "",
-        category: "Audio Plugin",
+        category: "Unknown",
         formats: [],
         platforms: [],
-        description: caption ? String(caption).slice(0, 600) : "",
+        description: "",
         features: [],
         translatedCaption: "",
       },
     };
   }
   let p = enforceCaptionFacts(ai.data, caption);
-  const classificationEvidence = [p.title, fileName, caption, p.developer, p.category, p.description].filter(Boolean).join(" ");
-  const deterministicDeveloper = artistYarDeveloper(classificationEvidence);
-  const deterministicCategory = artistYarCategory(classificationEvidence);
-  const deterministicDescription = artistYarDescription(classificationEvidence);
-  p = {
-    ...p,
-    developer: deterministicDeveloper || p.developer || "",
-    category: deterministicCategory || p.category || "Audio Plugin",
-    description: deterministicDescription || artistYarClean(p.description || ""),
-  };
-  if (!p.title || p.title === "پلاگین بدون نام") {
-    const fromFile = titleFromFileName(fileName);
-    if (fromFile) p = { ...p, title: fromFile };
+  if (verified?.title) {
+    p = {
+      ...p,
+      title: verified.title,
+      developer: verified.developer || "",
+      version: verified.version || "",
+      category: verified.category || "Unknown",
+      formats: Array.isArray(verified.formats) ? verified.formats : [],
+      platforms: Array.isArray(verified.platforms) ? verified.platforms : [],
+      description: verified.description || "",
+      features: Array.isArray(verified.features) ? verified.features : [],
+      translatedCaption: verified.translatedCaption || "",
+    };
+  } else {
+    p = {
+      ...p,
+      title: p.title && p.title !== "پلاگین بدون نام" ? p.title : "",
+      developer: p.developer || "",
+      category: p.category || "Unknown",
+      description: artistYarClean(p.description || ""),
+    };
   }
 `
 );
@@ -250,7 +275,7 @@ function applyArtistYarCaptionQuality(source) {
     .replace(/function buildDeterministicDescription\(/, "function buildDeterministicDescriptionLegacy(")
     .replace(/function makeCaption\(/, "function makeCaptionLegacy(");
   const helper = String.raw`
-const ARTISTYAR_CAPTION_QUALITY_V2 = true;
+const ARTISTYAR_CAPTION_QUALITY_V3 = true;
 
 function artistYarEvidence(values: any[], depth = 0): string {
   if (depth > 3) return "";
@@ -358,7 +383,7 @@ function inferDeveloper(...args: any[]) {
   return artistYarDeveloper(artistYarEvidence(args));
 }
 function inferCategory(...args: any[]) {
-  return artistYarCategory(artistYarEvidence(args)) || "Audio Plugin";
+  return artistYarCategory(artistYarEvidence(args)) || "Unknown";
 }
 function buildDeterministicDescription(...args: any[]): string {
   return artistYarDescription(artistYarEvidence(args));
