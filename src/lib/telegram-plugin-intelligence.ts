@@ -462,13 +462,13 @@ export function buildVerifiedCaption(result: VerificationResult) {
     result.category ? `🎚️ <b>Type</b>\n${esc(result.category)}` : "",
     result.formats.length ? `🔌 <b>Formats</b>\n${esc(result.formats.join(" · "))}` : "",
     result.platforms.length ? `💻 <b>Platform</b>\n${esc(result.platforms.join(" · "))}` : "",
-    result.features.length ? `🔥 <b>Highlights</b>\n${result.features.slice(0, 5).map((x) => "• " + esc(x)).join("\\n")}` : "",
+    result.features.length ? `🔥 <b>Highlights</b>\n${result.features.slice(0, 5).map((x) => "• " + esc(x)).join("\n")}` : "",
     result.description ? `📝 <b>درباره محصول</b>\n${esc(result.description)}` : "",
     result.installationNotes ? `📌 <b>نکات سازگاری</b>\n${esc(result.installationNotes)}` : "",
     "━━━━━━━━━━━━━━━━━━",
     "🎧 <b>@ProAudios</b>",
   ].filter(Boolean);
-  return lines.join("\\n\\n").slice(0, 1024);
+  return lines.join("\n\n").slice(0, 1024);
 }
 
 function esc(v: string) {
