@@ -456,33 +456,19 @@ export function buildVerifiedCaption(result: VerificationResult) {
   if (!result.ok || !result.title) return "";
   const lines = [
     `🎛️ <b>${esc(result.title)}</b>`,
-    result.developer ? `🏢 <b>سازنده:</b> ${esc(result.developer)}` : "",
-    result.version ? `📦 <b>نسخه:</b> ${esc(result.version)}` : "",
-    result.category ? `🏷️ <b>نوع:</b> ${esc(result.category)}` : "",
-    result.features.length ? "
-🧩 <b>ویژگی‌ها</b>
-" + result.features.slice(0, 5).map((x) => "• " + esc(x)).join("\n") : "",
-    result.platforms.length ? "
-💻 <b>سیستم‌عامل</b>
-" + result.platforms.map((x) => "• " + esc(x)).join("\n") : "",
-    result.formats.length ? "
-🎚️ <b>فرمت‌ها</b>
-" + result.formats.map((x) => "• " + esc(x)).join("\n") : "",
-    result.description ? "
-📝 <b>توضیحات</b>
-" + esc(result.description) : "",
-    result.installationNotes ? "
-📌 <b>نکات نصب / سازگاری</b>
-" + esc(result.installationNotes) : "",
-    result.installationNotes ? "
-📌 <b>نکات نصب / سازگاری</b>
-" + esc(result.installationNotes) : "",
-    result.verifiedSourceUrl ? "
-🔗 <b>اطلاعات بیشتر:</b> " + esc(result.verifiedSourceUrl) : "",
-    "
-🎛️ <b>ArtistYar</b>",
+    result.description ? `✨ ${esc(result.description)}` : "",
+    result.developer ? `🏷️ <b>Developer</b>\n${esc(result.developer)}` : "",
+    result.version ? `📦 <b>Version</b>\n${esc(result.version)}` : "",
+    result.category ? `🎚️ <b>Type</b>\n${esc(result.category)}` : "",
+    result.formats.length ? `🔌 <b>Formats</b>\n${esc(result.formats.join(" · "))}` : "",
+    result.platforms.length ? `💻 <b>Platform</b>\n${esc(result.platforms.join(" · "))}` : "",
+    result.features.length ? `🔥 <b>Highlights</b>\n${result.features.slice(0, 5).map((x) => "• " + esc(x)).join("\\n")}` : "",
+    result.description ? `📝 <b>درباره محصول</b>\n${esc(result.description)}` : "",
+    result.installationNotes ? `📌 <b>نکات سازگاری</b>\n${esc(result.installationNotes)}` : "",
+    "━━━━━━━━━━━━━━━━━━",
+    "🎧 <b>@ProAudios</b>",
   ].filter(Boolean);
-  return lines.join("\n").slice(0, 1024);
+  return lines.join("\\n\\n").slice(0, 1024);
 }
 
 function esc(v: string) {
