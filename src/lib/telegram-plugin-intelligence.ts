@@ -22,6 +22,9 @@ export type VerificationResult = {
   developer: string;
   version: string;
   latestOfficialVersion: string;
+  productCount?: number;
+  includedProducts?: string[];
+  fileIdentity?: { fileName: string; consistent: boolean; detail: string };
   category: string;
   formats: string[];
   platforms: string[];
