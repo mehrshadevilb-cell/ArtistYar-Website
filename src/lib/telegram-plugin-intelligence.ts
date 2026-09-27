@@ -382,7 +382,7 @@ export async function analyzeTelegramPluginPost(input: {
   }
   const result = await verifyCandidate(candidate, caption, fileName);
   if (input.photoFileId) {
-    const imageEvidence: PluginEvidence = { source: "image", status: isSpecificIdentity(clean(candidate.title, 160)) ? "confirmed" : "missing", detail: input.photoFileId ? "telegram_image_available" : "" };
+    const imageEvidence: PluginEvidence = { source: "image", status: visionUsed ? "confirmed" : "supporting", detail: visionUsed ? "vision_identified_product" : "image_available_but_not_required_for_identity" };
     result.evidence = [imageEvidence, ...result.evidence.filter((e) => e.source !== "image")];
   }
   return result;
