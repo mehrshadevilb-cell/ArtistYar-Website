@@ -752,6 +752,9 @@ export function buildVerifiedCaption(result: VerificationResult) {
     `🎛️ <b>${esc(result.title)}</b>`,
     result.developer ? `🏢 <b>سازنده:</b> ${esc(result.developer)}` : "",
     result.category && result.category !== "Unknown" ? `🏷️ <b>نوع:</b> ${esc(result.category)}` : "",
+    result.productCount && result.productCount > 1 && result.includedProducts?.length
+      ? `📦 <b>محصولات:</b>\n• ${result.includedProducts.slice(0, 12).map(esc).join("\n• ")}`
+      : "",
     intro ? `\n📌 <b>معرفی</b>\n${esc(intro)}` : "",
     result.features.length ? `\n✨ <b>ویژگی‌ها</b>\n${result.features.slice(0, 6).map((x) => "• " + esc(x)).join("\n")}` : "",
     result.platforms.length ? `\n💻 <b>سازگاری</b>\n• ${result.platforms.map(esc).join("\n• ")}` : "",
