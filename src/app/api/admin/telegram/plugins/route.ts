@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-auth";
 import { getPluginsDb } from "@/lib/plugins-db";
-import { isSpecificIdentity, regenerateStoredTranslation, verifyStoredPlugin } from "@/lib/telegram-plugin-intelligence";
+import { isSpecificIdentity, PRODUCT_CATEGORIES, regenerateStoredCaption, regenerateStoredTranslation, verifyStoredPlugin } from "@/lib/telegram-plugin-intelligence";
 import { publishPluginCaption } from "@/lib/telegram-plugin-caption";
 
 export const runtime = "nodejs";
@@ -50,12 +50,12 @@ export async function POST(request: Request) {
   if (action === "publish") {
     const caption = String(body?.caption || "").trim().slice(0, 1024);
     if (!caption) return NextResponse.json({ error: "caption_empty" }, { status: 400 });
-    const row = await db.from("telegram_plugin_posts").select("title,review_required,verification_status,product_locked").eq("id", id).maybeSingle();
+    const row = await db.from("telegram_plugin_posts").select("title,review_required,verification_status,product_locked,processing_state").eq("id", id).maybeSingle();
     if (row.error || !row.data) return NextResponse.json({ error: "post_not_found" }, { status: 404 });
     if (!isSpecificIdentity(String(row.data.title || ""))) {
       return NextResponse.json({ error: "exact_product_identity_required" }, { status: 422 });
     }
-    if (!row.data.product_locked && (row.data.review_required || row.data.verification_status !== "verified")) {
+    if (row.data.review_required || row.data.verification_status !== "verified" || row.data.processing_state === "NEEDS_REVIEW") {
       return NextResponse.json({ error: "verification_gate_required" }, { status: 422 });
     }
     const result = await publishPluginCaption(id, caption);
@@ -72,21 +72,31 @@ export async function POST(request: Request) {
   }
 
   if (action === "lock_product") {
-    const row = await db.from("telegram_plugin_posts").select("title,developer,version,category").eq("id", id).maybeSingle();
+    const row = await db.from("telegram_plugin_posts")
+      .select("title,developer,version,category,verification_status,review_required")
+      .eq("id", id)
+      .maybeSingle();
     if (row.error || !row.data) return NextResponse.json({ error: "post_not_found" }, { status: 404 });
-    const title = String(body?.title || row.data.title || "").trim().slice(0, 160);
-    if (!isSpecificIdentity(title)) return NextResponse.json({ error: "specific_product_identity_required" }, { status: 422 });
+    if (!isSpecificIdentity(String(row.data.title || "")) || row.data.verification_status !== "verified" || row.data.review_required) {
+      return NextResponse.json({ error: "verified_identity_required" }, { status: 422 });
+    }
+    const requested = {
+      title: String(body?.title || row.data.title || "").trim(),
+      developer: String(body?.developer ?? row.data.developer ?? "").trim(),
+      version: String(body?.version ?? row.data.version ?? "").trim(),
+      category: String(body?.category ?? row.data.category ?? "").trim(),
+    };
+    if (requested.title !== String(row.data.title || "").trim() ||
+        requested.developer !== String(row.data.developer || "").trim() ||
+        requested.version !== String(row.data.version || "").trim() ||
+        requested.category !== String(row.data.category || "").trim() ||
+        !PRODUCT_CATEGORIES.includes(String(row.data.category || "") as (typeof PRODUCT_CATEGORIES)[number])) {
+      return NextResponse.json({ error: "client_identity_does_not_match_verified_data" }, { status: 422 });
+    }
     const update = await db.from("telegram_plugin_posts").update({
-      title,
-      developer: String(body?.developer ?? row.data.developer ?? "").trim().slice(0, 120) || null,
-      version: String(body?.version ?? row.data.version ?? "").trim().slice(0, 80) || null,
-      category: String(body?.category ?? row.data.category ?? "").trim().slice(0, 100) || "other",
       product_locked: true,
       product_locked_at: new Date().toISOString(),
       product_locked_by: "admin",
-      review_required: false,
-      processing_state: "IDENTIFIED",
-      error_message: null,
       updated_at: new Date().toISOString(),
     }).eq("id", id);
     if (update.error) return NextResponse.json({ error: update.error.message }, { status: 500 });
@@ -131,17 +141,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, action, result });
   }
 
-  if (action === "verify" || action === "regenerate_caption" || action === "regenerate_identity") {
+  if (action === "regenerate_caption") {
+    const result = await regenerateStoredCaption(id);
+    if (!result.ok) return NextResponse.json(result, { status: 422 });
+    return NextResponse.json({ ok: true, action, result });
+  }
+
+  if (action === "verify" || action === "regenerate_identity") {
     const result = await verifyStoredPlugin(id, action === "regenerate_identity");
     if (!result.ok && result.error) return NextResponse.json(result, { status: 422 });
     return NextResponse.json({ ok: Boolean(result.ok), action, result });
   }
 
   if (action === "clear_review") {
+    const row = await db.from("telegram_plugin_posts")
+      .select("verification_status,review_required,draft_caption,final_caption")
+      .eq("id", id)
+      .maybeSingle();
+    if (row.error || !row.data) return NextResponse.json({ error: "post_not_found" }, { status: 404 });
+    if (row.data.verification_status !== "verified" || (!row.data.draft_caption && !row.data.final_caption)) {
+      return NextResponse.json({ error: "verified_caption_required" }, { status: 422 });
+    }
     const result = await db.from("telegram_plugin_posts").update({
       review_required: false,
       error_message: null,
-      status: "published",
+      processing_state: "READY",
       updated_at: new Date().toISOString(),
     }).eq("id", id);
     if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
