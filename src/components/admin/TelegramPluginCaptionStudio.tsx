@@ -114,7 +114,26 @@ export default function TelegramPluginCaptionStudio() {
             <div className="rounded-xl border border-white/10 p-3"><span className="text-ink-500">نوع</span><b className="mt-1 block text-sand-50">{selected.category || "—"}</b></div>
             <div className="rounded-xl border border-white/10 p-3"><span className="text-ink-500">جستجو</span><b className="mt-1 block text-sand-50">{selected.search_status || "—"}</b></div>
           </div>
-          <div className="mt-4"><p className="mb-2 text-xs text-ink-500">شواهد شناسایی</p><Evidence post={selected} /></div>
+          <div className="mt-4">
+            <p className="mb-2 text-xs text-ink-500">شواهد شناسایی</p>
+            <Evidence post={selected} />
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {["RECEIVED","ANALYZING","IDENTIFIED","VERIFYING","GENERATING","VALIDATING"].map((step) => {
+              const state = String(selected.processing_state || "RECEIVED");
+              const states = ["RECEIVED","ANALYZING","IDENTIFIED","VERIFYING","GENERATING","VALIDATING","READY","PUBLISHED"];
+              const active = states.indexOf(state) >= states.indexOf(step);
+              return <div key={step} className={`rounded-lg border px-3 py-2 text-[10px] ${active ? "border-emerald-400/25 bg-emerald-400/5 text-emerald-300" : "border-white/10 text-ink-500"}`}>{active ? "✓" : "○"} {step}</div>;
+            })}
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {selected.product_locked
+              ? <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs text-amber-200">🔒 هویت محصول قفل شده</span>
+              : <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-ink-400">هویت قابل بازتحلیل</span>}
+            <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action(selected.product_locked ? "unlock_product" : "lock_product", selected.product_locked ? undefined : {title:selected.title,developer:selected.developer,version:selected.version,category:selected.category})}>
+              {selected.product_locked ? "بازکردن قفل" : "🔒 قفل هویت محصول"}
+            </button>
+          </div>
         </section>
 
         <section className="card-ay p-5">
@@ -142,7 +161,8 @@ export default function TelegramPluginCaptionStudio() {
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("verify")}><Search size={14} className="inline" /> تأیید وب</button>
               <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("regenerate_identity")}><RefreshCw size={14} className="inline" /> شناسایی مجدد</button>
-              <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("regenerate_caption")}><RefreshCw size={14} className="inline" /> بازتولید کپشن</button>\n              <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("regenerate_translation")}><RefreshCw size={14} className="inline" /> فقط ترجمه</button>
+              <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("regenerate_caption")}><RefreshCw size={14} className="inline" /> بازتولید کپشن</button>
+              <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("regenerate_translation")}><RefreshCw size={14} className="inline" /> فقط ترجمه</button>
             </div>
           </div>
           <textarea dir="auto" value={caption} onChange={(e) => setCaption(e.target.value)} className="input-ay mt-4 min-h-[300px] w-full resize-y font-mono text-xs leading-6" />
@@ -152,6 +172,12 @@ export default function TelegramPluginCaptionStudio() {
               {selected.telegram_photo_file_id && <img src={"/api/admin/telegram/plugins/image?file_id=" + encodeURIComponent(selected.telegram_photo_file_id)} alt="" className="max-h-80 w-full object-cover" />}
               <div className="p-4 text-[13px] leading-6 text-white/90 whitespace-pre-wrap">{caption.replace(/<[^>]+>/g, "") || "کپشن هنوز خالی است."}</div>
             </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="self-center text-[11px] text-ink-500">بازخورد:</span>
+            {["wrong_product","wrong_version","wrong_category","bad_translation","missing_information","incorrect_specification"].map((kind) =>
+              <button key={kind} className="btn-ghost text-[11px]" disabled={Boolean(busy)} onClick={() => void action("feedback",{kind})}>{kind}</button>
+            )}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("save_draft",{caption})}><Save size={14} className="inline" /> ذخیره پیش‌نویس</button>
