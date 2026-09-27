@@ -244,6 +244,11 @@ source = source.replace(
 
 
 function applyArtistYarCaptionQuality(source) {
+  source = source
+    .replace(/function inferDeveloper\(/, "function inferDeveloperLegacy(")
+    .replace(/function inferCategory\(/, "function inferCategoryLegacy(")
+    .replace(/function buildDeterministicDescription\(/, "function buildDeterministicDescriptionLegacy(")
+    .replace(/function makeCaption\(/, "function makeCaptionLegacy(");
   const helper = String.raw`
 const ARTISTYAR_CAPTION_QUALITY_V2 = true;
 
