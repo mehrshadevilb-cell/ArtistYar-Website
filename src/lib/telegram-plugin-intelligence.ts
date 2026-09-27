@@ -4,7 +4,9 @@ import { resolvePluginBotToken } from "@/lib/telegram-plugin-bot";
 import { publishPluginCaption } from "@/lib/telegram-plugin-caption";
 
 const TG = "https://api.telegram.org";
-const SEARCH_CACHE_TTL = 1000 * 60 * 60 * 12;\nconst MAX_SEARCH_QUERIES = 3;\nconst MAX_REANALYSIS = 2;
+const SEARCH_CACHE_TTL = 1000 * 60 * 60 * 12;
+const MAX_SEARCH_QUERIES = 3;
+const MAX_REANALYSIS = 2;
 const memoryCache = new Map<string, { expiresAt: number; value: VerificationResult }>();
 
 export type PluginEvidence = {
@@ -19,6 +21,7 @@ export type VerificationResult = {
   title: string;
   developer: string;
   version: string;
+  latestOfficialVersion: string;
   category: string;
   formats: string[];
   platforms: string[];
@@ -82,7 +85,8 @@ function filenameTitle(fileName: string) {
 }
 
 function captionTitle(caption: string) {
-  const lines = String(caption || "").split(/\r?\n/).map((x) => clean(x, 180)).filter(Boolean);
+  const lines = String(caption || "").split(/\r?
+/).map((x) => clean(x, 180)).filter(Boolean);
   for (const line of lines.slice(0, 6)) {
     const candidate = line
       .replace(/^(?:🔥|🎛️|🎹|📦|new|новинка|скачать|download)\s*/i, "")
@@ -148,7 +152,8 @@ async function visionCandidate(photoFileId: string, caption: string, fileName: s
     "If the exact product cannot be read or corroborated, set title to empty string and confidence to low.",
     "Original caption:", caption.slice(0, 5000),
     "Filename:", fileName.slice(0, 300),
-  ].join("\n");
+  ].join("
+");
   const res = await fetch((process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "") + "/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer " + key },
@@ -241,7 +246,7 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
   const title = clean(candidate.title, 160);
   if (!isSpecificIdentity(title)) {
     return {
-      ok: false, reviewRequired: true, title: title || "", developer: clean(candidate.developer, 120), version: clean(candidate.version, 80),
+      ok: false, reviewRequired: true, title: title || "", developer: clean(candidate.developer, 120), version: clean(candidate.version, 80), latestOfficialVersion: "",
       category: "", formats: [], platforms: [], features: [], description: "", installationNotes: "", translatedCaption: "", detectedLanguage: languageOf(rawCaption),
       confidence: "low", evidence: [{ source: "caption", status: rawCaption ? "supporting" : "missing" }, { source: "filename", status: fileName ? "supporting" : "missing" }],
       verificationStatus: "failed", verifiedSourceUrl: "", verifiedSourceTitle: "", searchStatus: "no_match", reason: "exact_product_identity_missing",
@@ -276,6 +281,7 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
       title,
       developer,
       version,
+      latestOfficialVersion: "",
       category: clean(candidate.category, 100),
       formats: safeArray(candidate.formats, 8),
       platforms: safeArray(candidate.platforms, 6),
@@ -284,7 +290,7 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
       installationNotes: clean(candidate.installationNotes, 700),
       translatedCaption: clean(candidate.translatedCaption, 2500),
       detectedLanguage: languageOf(rawCaption),
-      confidence: sourceBacked ? "medium" : "low",
+      confidence: "medium",
       evidence: [
         { source: "caption", status: rawCaption ? "confirmed" : "missing" },
         { source: "filename", status: fileName ? "supporting" : "missing" },
@@ -294,12 +300,17 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
       verifiedSourceUrl: "",
       verifiedSourceTitle: "",
       searchStatus: "unavailable",
-      reason: sourceBacked ? undefined : "web_search_unavailable_and_identity_weak",
+      reason: "verification_unavailable",
     };
   }
 
   const ranked = hits.slice().sort((a, b) => officialRank(b.url, developer) - officialRank(a.url, developer));
-  const evidenceText = ranked.slice(0, 5).map((h, i) => `SOURCE ${i + 1}\nTITLE: ${h.title}\nURL: ${h.url}\nSNIPPET: ${h.snippet}`).join("\n\n");
+  const evidenceText = ranked.slice(0, 5).map((h, i) => `SOURCE ${i + 1}
+TITLE: ${h.title}
+URL: ${h.url}
+SNIPPET: ${h.snippet}`).join("
+
+");
   const prompt = `You are the final verification layer for a Telegram music-software catalog.
 
 Never guess. Only return facts supported by the original post and the supplied search evidence.
@@ -349,7 +360,9 @@ Return JSON only:
   const finalTitle = clean(verified?.title || title, 160);
   const finalDeveloper = clean(verified?.developer || developer, 120);
   const finalVersion = clean(verified?.version, 80);
-  const authoritativeHit = ranked.find((h) => officialRank(h.url, finalDeveloper) >= 90) || ranked[0];\n  const sourceUrl = clean(authoritativeHit?.url || verified?.source_url, 500);
+  const latestOfficialVersion = clean(verified?.latest_official_version, 80);
+  const authoritativeHit = ranked.find((h) => officialRank(h.url, finalDeveloper) >= 90) || ranked[0];
+  const sourceUrl = clean(authoritativeHit?.url || verified?.source_url, 500);
   const confidence = /^(high|medium|low)$/.test(String(verified?.confidence)) ? verified.confidence : "low";
   const sourceHost = sourceUrl ? officialRank(sourceUrl, finalDeveloper) : 0;
   const hasWebIdentity = Boolean(finalTitle && ranked.some((h) => h.title.toLowerCase().includes(finalTitle.toLowerCase()) || h.snippet.toLowerCase().includes(finalTitle.toLowerCase())));
@@ -360,6 +373,7 @@ Return JSON only:
     title: finalTitle,
     developer: finalDeveloper,
     version: finalVersion,
+    latestOfficialVersion,
     category: clean(verified?.category, 100),
     formats: safeArray(verified?.formats, 8),
     platforms: safeArray(verified?.platforms, 6),
@@ -449,15 +463,34 @@ export function buildVerifiedCaption(result: VerificationResult) {
     result.developer ? `🏢 <b>سازنده:</b> ${esc(result.developer)}` : "",
     result.version ? `📦 <b>نسخه:</b> ${esc(result.version)}` : "",
     result.category ? `🏷️ <b>نوع:</b> ${esc(result.category)}` : "",
-    result.features.length ? "\n🧩 <b>ویژگی‌ها</b>\n" + result.features.slice(0, 5).map((x) => "• " + esc(x)).join("\n") : "",
-    result.platforms.length ? "\n💻 <b>سیستم‌عامل</b>\n" + result.platforms.map((x) => "• " + esc(x)).join("\n") : "",
-    result.formats.length ? "\n🎚️ <b>فرمت‌ها</b>\n" + result.formats.map((x) => "• " + esc(x)).join("\n") : "",
-    result.description ? "\n📝 <b>توضیحات</b>\n" + esc(result.description) : "",
-    result.installationNotes ? "\n📌 <b>نکات نصب / سازگاری</b>\n" + esc(result.installationNotes) : "",\n    result.installationNotes ? "\n📌 <b>نکات نصب / سازگاری</b>\n" + esc(result.installationNotes) : "",
-    result.verifiedSourceUrl ? "\n🔗 <b>اطلاعات بیشتر:</b> " + esc(result.verifiedSourceUrl) : "",
-    "\n🎛️ <b>ArtistYar</b>",
+    result.features.length ? "
+🧩 <b>ویژگی‌ها</b>
+" + result.features.slice(0, 5).map((x) => "• " + esc(x)).join("
+") : "",
+    result.platforms.length ? "
+💻 <b>سیستم‌عامل</b>
+" + result.platforms.map((x) => "• " + esc(x)).join("
+") : "",
+    result.formats.length ? "
+🎚️ <b>فرمت‌ها</b>
+" + result.formats.map((x) => "• " + esc(x)).join("
+") : "",
+    result.description ? "
+📝 <b>توضیحات</b>
+" + esc(result.description) : "",
+    result.installationNotes ? "
+📌 <b>نکات نصب / سازگاری</b>
+" + esc(result.installationNotes) : "",
+    result.installationNotes ? "
+📌 <b>نکات نصب / سازگاری</b>
+" + esc(result.installationNotes) : "",
+    result.verifiedSourceUrl ? "
+🔗 <b>اطلاعات بیشتر:</b> " + esc(result.verifiedSourceUrl) : "",
+    "
+🎛️ <b>ArtistYar</b>",
   ].filter(Boolean);
-  return lines.join("\n").slice(0, 1024);
+  return lines.join("
+").slice(0, 1024);
 }
 
 function esc(v: string) {
@@ -477,6 +510,10 @@ export async function applyVerificationToPost(postId: string, result: Verificati
       verified_source_url: result.verifiedSourceUrl || null,
       verified_source_title: result.verifiedSourceTitle || null,
       search_status: result.searchStatus,
+      latest_official_version: result.latestOfficialVersion || null,
+      product_count: result.productCount || 1,
+      included_products: result.includedProducts || [],
+      file_identity: result.fileIdentity || {},
       ai_analysis: result,
       error_message: "review_required:" + (result.reason || "verification_failed"),
       updated_at: new Date().toISOString(),
@@ -497,6 +534,10 @@ export async function applyVerificationToPost(postId: string, result: Verificati
     title: result.title,
     developer: result.developer || null,
     version: result.version || null,
+    latest_official_version: result.latestOfficialVersion || null,
+    product_count: result.productCount || 1,
+    included_products: result.includedProducts || [],
+    file_identity: result.fileIdentity || {},
     category: result.category || "other",
     formats: result.formats,
     platforms: result.platforms,
@@ -571,6 +612,7 @@ export async function createReviewRequiredPost(input: {
     search_status: result.searchStatus,
     detected_language: result.detectedLanguage,
     review_required: true,
+    processing_state: "NEEDS_REVIEW",
     status: "failed",
     error_message: "review_required:" + (result.reason || "verification_failed"),
     updated_at: new Date().toISOString(),
@@ -607,6 +649,7 @@ ${JSON.stringify({ title: p.title, developer: p.developer, version: p.version, c
       title: clean(p.title, 160),
       developer: clean(p.developer, 120),
       version: clean(p.version, 80),
+      latestOfficialVersion: clean(p.latest_official_version, 80),
       category: clean(p.category, 100),
       formats: safeArray(p.formats, 8),
       platforms: safeArray(p.platforms, 6),
@@ -621,6 +664,9 @@ ${JSON.stringify({ title: p.title, developer: p.developer, version: p.version, c
       verifiedSourceUrl: clean(p.verified_source_url, 500),
       verifiedSourceTitle: clean(p.verified_source_title, 180),
       searchStatus: p.search_status || "unavailable",
+      productCount: Number(p.product_count || 1),
+      includedProducts: safeArray(p.included_products, 20),
+      fileIdentity: p.file_identity || { fileName: String(p.file_name || ""), consistent: true, detail: "" },
     };
     const caption = buildVerifiedCaption(result);
     await store.from("telegram_plugin_posts").update({
