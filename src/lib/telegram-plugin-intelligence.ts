@@ -812,7 +812,8 @@ export async function analyzeTelegramPluginPost(input: {
 
   const titleValues = sourceCandidates
     .map((c) => c.title)
-    .filter((value): value is string => Boolean(value) && isSpecificIdentity(value));
+    .filter((value): value is string => typeof value === "string" && value.length > 0)
+    .filter((value) => isSpecificIdentity(value));
   const candidateTitle = clean(
     supplied.title ||
     (titleValues.length === 1 ? titleValues[0] : (vision.title || captionCandidate.title || filenameCandidate.title)),
