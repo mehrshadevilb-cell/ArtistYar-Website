@@ -79,7 +79,7 @@ assert.match(caption, /🎛️ آرتیست‌یار/);
 assert.match(caption, /📢 کانال VST\/Plugin/);
 assert.doesNotMatch(caption, /📢 Channel:|<b>ArtistYar<\/b> — https:\/\/artistyaar\.ir/);
 assert.match(caption, /cleanCaptionText/);
-assert.match(caption, /deterministicDescription/);
+assert.match(caption, /deterministicDescription/);\nassert.match(caption, /verifyStoredPlugin/);
 assert.match(caption, /hasCyrillic/);
 assert.match(inflate, /artistYarHasCyrillic/);
 assert.match(inflate, /artistYarEmoji/);
