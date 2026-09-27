@@ -240,14 +240,16 @@ export async function reapplyPluginCaption(postId: string): Promise<{
   try {
     const { verifyStoredPlugin } = await import("@/lib/telegram-plugin-intelligence");
     const result = await verifyStoredPlugin(postId, false);
-    if (result.ok && result.result?.title) {
-      return { ok: true, title: result.result.title, edited: true };
+    const verified = "result" in result ? result.result : null;
+    const error = "error" in result ? result.error : undefined;
+    if (result.ok && verified?.title) {
+      return { ok: true, title: verified.title, edited: true };
     }
     return {
       ok: false,
-      title: result.result?.title,
+      title: verified?.title,
       edited: false,
-      error: result.error || result.result?.reason || "verification_required",
+      error: error || verified?.reason || "verification_required",
     };
   } catch (error) {
     return {
