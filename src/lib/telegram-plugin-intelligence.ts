@@ -676,6 +676,12 @@ Return JSON only:
     (titleSupported && developerConflictResolved && versionConflictResolved && categoryConflictResolved);
   const confidence = /^(high|medium|low)$/.test(String(verified.confidence)) ? verified.confidence as Confidence : "low";
   const authoritative = officialHit;
+  const latestCandidate = clean(verified.latest_official_version, 80);
+  const latestSupported = Boolean(
+    latestVersionRefs.length &&
+    validVersion(latestCandidate) &&
+    ranked.some((hit, index) => latestVersionRefs.some((ref) => ref === "source:" + (index + 1)) && (hit.pageText || hit.snippet).includes(latestCandidate))
+  );
   const sourceUrl = clean(verified.source_url || authoritative?.url, 500);
   const description = qualityCaptionText(verified.description_fa);
   const translatedCaption = qualityCaptionText(verified.translated_caption_fa);
@@ -710,9 +716,7 @@ Return JSON only:
     title: titleSupported ? finalTitle : "",
     developer: developerSupported ? finalDeveloper : "",
     version: versionSupported ? finalVersion : "",
-    latestOfficialVersion: latestVersionRefs.length && validVersion(clean(verified.latest_official_version, 80))
-      ? clean(verified.latest_official_version, 80)
-      : "",
+    latestOfficialVersion: latestSupported ? latestCandidate : "",
     productCount,
     includedProducts,
     fileIdentity: { fileName, consistent: !candidateConflict.includes("title"), detail: candidateConflict.join(",") || "source_agreement" },
