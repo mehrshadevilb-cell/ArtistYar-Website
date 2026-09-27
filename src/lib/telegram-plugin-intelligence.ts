@@ -751,7 +751,7 @@ export async function analyzeTelegramPluginPost(input: {
   const caption = clean(input.rawCaption, 7000);
   const fileName = clean(input.fileName, 300);
   const captionCandidate = deterministicCandidate(caption, "");
-  const filenameCandidate: Candidate = { title: filenameTitle(fileName) };
+  const filenameCandidate: Candidate = { title: filenameTitle(fileName), version: explicitVersion(fileName) };
   const sourceCandidates: IdentityCandidate[] = [
     candidateFromSource("caption", captionCandidate),
     candidateFromSource("filename", filenameCandidate),
