@@ -74,7 +74,11 @@ assert.match(inflate, /ترجمه شده توسط هوش مصنوعی/);
 assert.match(caption, /🎛️ آرتیست‌یار/);
 assert.match(caption, /📢 کانال VST\/Plugin/);
 assert.doesNotMatch(caption, /📢 Channel:|<b>ArtistYar<\/b> — https:\/\/artistyaar\.ir/);
-assert.match(caption, /cleanCaptionText/);
+assert.match(caption, /cleanCaptionText/);\nassert.match(caption, /deterministicDescription/);
+assert.match(caption, /hasCyrillic/);
+assert.match(inflate, /artistYarHasCyrillic/);
+assert.match(inflate, /artistYarEmoji/);
+assert.match(inflate, /एक|/);
 
 assert.match(bot, /resolvePluginBotToken/);
 assert.match(bot, /TELEGRAM_PLUGIN_BOT_TOKEN/);
