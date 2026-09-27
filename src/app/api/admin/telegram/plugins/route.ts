@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-auth";
 import { getPluginsDb } from "@/lib/plugins-db";
-import { regenerateStoredTranslation, verifyStoredPlugin } from "@/lib/telegram-plugin-intelligence";
+import { isSpecificIdentity, regenerateStoredTranslation, verifyStoredPlugin } from "@/lib/telegram-plugin-intelligence";
 import { publishPluginCaption } from "@/lib/telegram-plugin-caption";
 
 export const runtime = "nodejs";
@@ -50,6 +50,14 @@ export async function POST(request: Request) {
   if (action === "publish") {
     const caption = String(body?.caption || "").trim().slice(0, 1024);
     if (!caption) return NextResponse.json({ error: "caption_empty" }, { status: 400 });
+    const row = await db.from("telegram_plugin_posts").select("title,review_required,verification_status,product_locked").eq("id", id).maybeSingle();
+    if (row.error || !row.data) return NextResponse.json({ error: "post_not_found" }, { status: 404 });
+    if (!isSpecificIdentity(String(row.data.title || ""))) {
+      return NextResponse.json({ error: "exact_product_identity_required" }, { status: 422 });
+    }
+    if (!row.data.product_locked && (row.data.review_required || row.data.verification_status !== "verified")) {
+      return NextResponse.json({ error: "verification_gate_required" }, { status: 422 });
+    }
     const result = await publishPluginCaption(id, caption);
     if (!result.ok) return NextResponse.json(result, { status: 422 });
     await db.from("telegram_plugin_posts").update({
@@ -63,7 +71,67 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, action });
   }
 
-  if (action === "regenerate_translation") {\n    const result = await regenerateStoredTranslation(id);\n    if (!result.ok) return NextResponse.json(result, { status: 422 });\n    return NextResponse.json({ ok: true, action, result });\n  }\n\n  if (action === "verify" || action === "regenerate_caption" || action === "regenerate_identity") {
+  if (action === "lock_product") {
+    const row = await db.from("telegram_plugin_posts").select("title,developer,version,category").eq("id", id).maybeSingle();
+    if (row.error || !row.data) return NextResponse.json({ error: "post_not_found" }, { status: 404 });
+    const title = String(body?.title || row.data.title || "").trim().slice(0, 160);
+    if (!isSpecificIdentity(title)) return NextResponse.json({ error: "specific_product_identity_required" }, { status: 422 });
+    const update = await db.from("telegram_plugin_posts").update({
+      title,
+      developer: String(body?.developer ?? row.data.developer ?? "").trim().slice(0, 120) || null,
+      version: String(body?.version ?? row.data.version ?? "").trim().slice(0, 80) || null,
+      category: String(body?.category ?? row.data.category ?? "").trim().slice(0, 100) || "other",
+      product_locked: true,
+      product_locked_at: new Date().toISOString(),
+      product_locked_by: "admin",
+      review_required: false,
+      processing_state: "IDENTIFIED",
+      error_message: null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", id);
+    if (update.error) return NextResponse.json({ error: update.error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, action, locked: true });
+  }
+
+  if (action === "unlock_product") {
+    const update = await db.from("telegram_plugin_posts").update({
+      product_locked: false,
+      product_locked_at: null,
+      product_locked_by: null,
+      review_required: true,
+      processing_state: "NEEDS_REVIEW",
+      updated_at: new Date().toISOString(),
+    }).eq("id", id);
+    if (update.error) return NextResponse.json({ error: update.error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, action, locked: false });
+  }
+
+  if (action === "feedback") {
+    const kind = String(body?.kind || "").trim().slice(0, 80);
+    const note = String(body?.note || "").trim().slice(0, 500);
+    if (!kind) return NextResponse.json({ error: "feedback_kind_required" }, { status: 400 });
+    const row = await db.from("telegram_plugin_posts").select("admin_feedback").eq("id", id).maybeSingle();
+    if (row.error || !row.data) return NextResponse.json({ error: "post_not_found" }, { status: 404 });
+    const feedback = Array.isArray(row.data.admin_feedback) ? row.data.admin_feedback : [];
+    feedback.push({ kind, note, created_at: new Date().toISOString() });
+    const update = await db.from("telegram_plugin_posts").update({
+      admin_feedback: feedback.slice(-50),
+      review_required: true,
+      processing_state: "NEEDS_REVIEW",
+      error_message: "admin_feedback:" + kind,
+      updated_at: new Date().toISOString(),
+    }).eq("id", id);
+    if (update.error) return NextResponse.json({ error: update.error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, action, feedback: feedback.slice(-50) });
+  }
+
+  if (action === "regenerate_translation") {
+    const result = await regenerateStoredTranslation(id);
+    if (!result.ok) return NextResponse.json(result, { status: 422 });
+    return NextResponse.json({ ok: true, action, result });
+  }
+
+  if (action === "verify" || action === "regenerate_caption" || action === "regenerate_identity") {
     const result = await verifyStoredPlugin(id, action === "regenerate_identity");
     if (!result.ok && result.error) return NextResponse.json(result, { status: 422 });
     return NextResponse.json({ ok: Boolean(result.ok), action, result });
