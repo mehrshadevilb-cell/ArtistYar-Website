@@ -24,12 +24,15 @@ source = source.replace(/\bprocessPluginPair\(/g, "processPluginPairLegacy(");
 source = `import {
   analyzeTelegramPluginPost,
   applyVerificationToPost,
+  buildVerifiedCaption,
   createReviewRequiredPost,
 } from "@/lib/telegram-plugin-intelligence";
 import type { VerificationResult } from "@/lib/telegram-plugin-intelligence";
 
 ${source}
 `;
+
+source = source.replace(/const finalCaption = makeCaption\(p\);/g, 'const finalCaption = (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION || makeCaption(p);');
 
 source += `
 
@@ -110,6 +113,18 @@ export async function processPluginPair(photo: any, doc: any) {
     };
   }
 
+  (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION = buildVerifiedCaption(intelligence);
+  try {
+    const result = await processPluginPairLegacy(photo, doc);
+    return { ...result, intelligence: {
+      confidence: intelligence.confidence,
+      verification_status: intelligence.verificationStatus,
+      verified_source_url: intelligence.verifiedSourceUrl,
+    }};
+  } finally {
+    delete (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION;
+  }
+  /* legacy return handled above */
   const result = await processPluginPairLegacy(photo, doc);
   const postId = String(result?.id || "");
   if (postId) {
