@@ -78,7 +78,7 @@ assert.match(caption, /cleanCaptionText/);\nassert.match(caption, /deterministic
 assert.match(caption, /hasCyrillic/);
 assert.match(inflate, /artistYarHasCyrillic/);
 assert.match(inflate, /artistYarEmoji/);
-assert.match(inflate, /एक|/);
+assert.match(inflate, /یک پلاگین EQ|یک سینتی‌سایزر نرم‌افزاری|یک نرم‌افزار DAW/);
 
 assert.match(bot, /resolvePluginBotToken/);
 assert.match(bot, /TELEGRAM_PLUGIN_BOT_TOKEN/);
