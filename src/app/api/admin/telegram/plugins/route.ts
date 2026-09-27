@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     const caption = String(body?.caption || "").trim().slice(0, 1024);
     const result = await db.from("telegram_plugin_posts").update({
       draft_caption: caption,
+      processing_state: "READY",
       updated_at: new Date().toISOString(),
     }).eq("id", id);
     if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
       error_message: null,
       final_caption: caption,
       draft_caption: "",
+      processing_state: "PUBLISHED",
       updated_at: new Date().toISOString(),
     }).eq("id", id);
     return NextResponse.json({ ok: true, action });
