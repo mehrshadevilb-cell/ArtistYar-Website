@@ -142,7 +142,7 @@ export default function TelegramPluginCaptionStudio() {
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("verify")}><Search size={14} className="inline" /> تأیید وب</button>
               <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("regenerate_identity")}><RefreshCw size={14} className="inline" /> شناسایی مجدد</button>
-              <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("regenerate_caption")}><RefreshCw size={14} className="inline" /> بازتولید کپشن</button>
+              <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("regenerate_caption")}><RefreshCw size={14} className="inline" /> بازتولید کپشن</button>\n              <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("regenerate_translation")}><RefreshCw size={14} className="inline" /> فقط ترجمه</button>
             </div>
           </div>
           <textarea dir="auto" value={caption} onChange={(e) => setCaption(e.target.value)} className="input-ay mt-4 min-h-[300px] w-full resize-y font-mono text-xs leading-6" />
