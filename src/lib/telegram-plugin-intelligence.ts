@@ -322,16 +322,16 @@ async function fetchSourcePage(hit: SearchHit): Promise<SearchHit> {
     });
     if (!response.ok) return hit;
     const html = await response.text();
-    const titleMatch = html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i);
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     const text = html
-      .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
-      .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
-      .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, " ")
+      .replace(/<script[\s\S]*?<\\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\\/style>/gi, " ")
+      .replace(/<noscript[\s\S]*?<\\/noscript>/gi, " ")
       .replace(/<[^>]+>/g, " ")
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
       .replace(/&amp;/g, "&")
-      .replace(/\\s+/g, " ")
+      .replace(/\s+/g, " ")
       .trim()
       .slice(0, 6000);
     return {
