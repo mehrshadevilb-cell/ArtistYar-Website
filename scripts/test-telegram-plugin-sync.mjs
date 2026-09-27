@@ -206,3 +206,6 @@ assert.match(adminPage, /خطا\/نیاز به بررسی/);
 
 const taxonomy = ["Plugin","Effect Plugin","Synth","Instrument","Sampler","DAW","Sample Pack","Preset Pack","MIDI Pack","Sound Library","Educational","Hardware","Audio Tool","Other","Unknown"];
 for (const category of taxonomy) assert.ok(intelligence.includes(category), "missing taxonomy category: " + category);
+
+assert.match(intelligence, /explicitVersion/);
+assert.doesNotMatch(intelligence, /caption\.match\(\/\\\\b\(\?:v\|version/);
