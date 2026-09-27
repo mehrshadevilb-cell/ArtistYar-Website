@@ -127,7 +127,7 @@ assert.match(intelligence, /reviewRequired/);
 assert.match(intelligence, /telegram_plugin_verification_cache/);
 assert.match(intelligence, /buildVerifiedCaption/);
 assert.match(intelligence, /installationNotes/);
-assert.match(intelligence, /visionUsed/);
+assert.match(intelligence, /sourceCandidates/);
 assert.doesNotMatch(intelligence, /category: "Audio Plugin"/);
 assert.doesNotMatch(inflate, /category: "Audio Plugin"/);
 assert.doesNotMatch(intelligence, /title \|\| "Plugin"/);
