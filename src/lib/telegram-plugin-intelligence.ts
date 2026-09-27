@@ -85,8 +85,7 @@ function filenameTitle(fileName: string) {
 }
 
 function captionTitle(caption: string) {
-  const lines = String(caption || "").split(/\r?
-/).map((x) => clean(x, 180)).filter(Boolean);
+  const lines = String(caption || "").split(/\r?\n/).map((x) => clean(x, 180)).filter(Boolean);
   for (const line of lines.slice(0, 6)) {
     const candidate = line
       .replace(/^(?:🔥|🎛️|🎹|📦|new|новинка|скачать|download)\s*/i, "")
