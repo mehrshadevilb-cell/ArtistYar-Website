@@ -343,7 +343,7 @@ Return JSON only:
     searchStatus: hasWebIdentity ? "verified" : "no_match",
     reason: highEnough ? undefined : "verification_confidence_insufficient",
   };
-  if (storeAndCache(result)) return result;
+  await storeAndCache(result);
   return result;
 }
 
