@@ -379,7 +379,7 @@ function qualityCaptionText(value: unknown) {
 }
 
 function captionHasRussian(text: string) {
-  return /[А-ЯЁа-яё]/.test(text) && !cyrillicIsOnlyProperName(text);
+  return /[А-ЯЁа-яё]/.test(text);
 }
 
 function validateCaption(result: VerificationResult, caption: string) {
@@ -557,6 +557,7 @@ Return JSON only:
     "title": ["candidate:caption|candidate:filename|candidate:image|source:1"],
     "developer": ["source:1"],
     "version": ["candidate:caption|candidate:image|source:1"],
+    "latest_official_version": ["source:1"],
     "category": ["source:1"],
     "description": ["source:1"],
     "formats": ["source:1"],
@@ -590,6 +591,7 @@ Return JSON only:
   const titleRefs = Array.isArray(verified?.evidence_refs?.title) ? verified.evidence_refs.title.map(String) : [];
   const developerRefs = Array.isArray(verified?.evidence_refs?.developer) ? verified.evidence_refs.developer.map(String) : [];
   const versionRefs = Array.isArray(verified?.evidence_refs?.version) ? verified.evidence_refs.version.map(String) : [];
+  const latestVersionRefs = Array.isArray(verified?.evidence_refs?.latest_official_version) ? verified.evidence_refs.latest_official_version.map(String) : [];
   const titleSupported = isSpecificIdentity(finalTitle) && titleRefs.length > 0 && (
     sourceCandidates.some((c) => normalizeIdentity(c.title) === normalizeIdentity(finalTitle)) ||
     ranked.some((h) => searchMatchesCandidate(h, { source: "web", title: finalTitle }))
@@ -636,7 +638,9 @@ Return JSON only:
     title: titleSupported ? finalTitle : "",
     developer: developerSupported ? finalDeveloper : "",
     version: versionSupported ? finalVersion : "",
-    latestOfficialVersion: clean(verified.latest_official_version, 80),
+    latestOfficialVersion: latestVersionRefs.length && validVersion(clean(verified.latest_official_version, 80))
+      ? clean(verified.latest_official_version, 80)
+      : "",
     productCount,
     includedProducts,
     fileIdentity: { fileName, consistent: !candidateConflict.includes("title"), detail: candidateConflict.join(",") || "source_agreement" },
@@ -727,7 +731,9 @@ export async function analyzeTelegramPluginPost(input: {
     sourceCandidates.push(candidateFromSource("database", supplied));
   }
 
-  const titleValues = sourceCandidates.map((c) => c.title).filter(isSpecificIdentity);
+  const titleValues = sourceCandidates
+    .map((c) => c.title)
+    .filter((value): value is string => Boolean(value) && isSpecificIdentity(value));
   const candidateTitle = clean(
     supplied.title ||
     (titleValues.length === 1 ? titleValues[0] : (vision.title || captionCandidate.title || filenameCandidate.title)),
