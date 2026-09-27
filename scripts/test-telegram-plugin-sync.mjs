@@ -13,6 +13,10 @@ const covers = readFileSync(new URL("../src/lib/telegram-plugin-covers.ts", impo
 const detail = readFileSync(new URL("../src/app/plugins/[id]/page.tsx", import.meta.url), "utf8");
 const card = readFileSync(new URL("../src/components/plugins/LatestPluginsLive.tsx", import.meta.url), "utf8");
 const pkg = readFileSync(new URL("../package.json", import.meta.url), "utf8");
+const intelligence = readFileSync(new URL("../src/lib/telegram-plugin-intelligence.ts", import.meta.url), "utf8");
+const patcher = readFileSync(new URL("../scripts/patch-telegram-plugin-intelligence.mjs", import.meta.url), "utf8");
+const adminPage = readFileSync(new URL("../src/components/admin/TelegramPluginCaptionStudio.tsx", import.meta.url), "utf8");
+const adminRoute = readFileSync(new URL("../src/app/api/admin/telegram/plugins/route.ts", import.meta.url), "utf8");
 
 assert.match(sync, /export async function enqueuePluginMessage/);
 assert.match(sync, /async function processQueuedPair/);
@@ -111,3 +115,41 @@ assert.match(channelMigration, /ProAudioS/);
 console.log("telegram plugin sync regression checks passed");
 console.log("telegram plugin bot-identity + queue + cover + detail + archive-safety checks passed");
 console.log("telegram plugin metadata intelligence + caption button labels checks passed");
+
+assert.match(intelligence, /Never guess/);
+assert.match(intelligence, /visionCandidate/);
+assert.match(intelligence, /webSearch/);
+assert.match(intelligence, /officialRank/);
+assert.match(intelligence, /runtimeGenerateJson/);
+assert.match(intelligence, /reviewRequired/);
+assert.match(intelligence, /telegram_plugin_verification_cache/);
+assert.match(intelligence, /buildVerifiedCaption/);
+assert.doesNotMatch(intelligence, /category: "Audio Plugin"/);
+assert.doesNotMatch(intelligence, /title \|\| "Plugin"/);
+assert.match(patcher, /ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER/);
+assert.match(patcher, /createReviewRequiredPost/);
+assert.match(patcher, /applyVerificationToPost/);
+assert.match(adminPage, /Original Source/);
+assert.match(adminPage, /Verified Information/);
+assert.match(adminPage, /Final Caption/);
+assert.match(adminPage, /regenerate_identity/);
+assert.match(adminPage, /regenerate_caption/);
+assert.match(adminPage, /verify/);
+assert.match(adminPage, /save_draft/);
+assert.match(adminPage, /publish/);
+assert.match(adminRoute, /verifyStoredPlugin/);
+assert.match(adminRoute, /publishPluginCaption/);
+assert.match(pkg, /patch-telegram-plugin-intelligence/);
+
+const fixtures = [
+  ["FabFilter Pro-Q 4", "Audio Effect Plugin"],
+  ["Ableton Live 12", "DAW"],
+  ["Omnisphere 2", "VST Instrument"],
+  ["Kontakt Cinematic Library", "Sample Library"],
+  ["Serum Presets", "Preset Library"],
+];
+for (const [product, category] of fixtures) {
+  assert.ok(product.length > 2);
+  assert.notEqual(category, "Plugin");
+  assert.notEqual(category, "Software");
+}
