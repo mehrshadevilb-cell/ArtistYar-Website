@@ -1,0 +1,137 @@
+import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const root = resolve(new URL("..", import.meta.url).pathname);
+const target = resolve(root, "src/lib/telegram-plugin-sync.ts");
+
+let source = readFileSync(target, "utf8");
+
+if (source.includes("ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER")) {
+  console.log("telegram plugin intelligence wrapper already applied");
+  process.exit(0);
+}
+
+if (!source.includes("export async function processPluginPair(")) {
+  throw new Error("telegram_plugin_sync_process_pair_not_found");
+}
+
+source = source.replace(
+  /export async function processPluginPair\(/,
+  "async function processPluginPairLegacy(",
+);
+source = source.replace(/\bprocessPluginPair\(/g, "processPluginPairLegacy(");
+
+source = `import {
+  analyzeTelegramPluginPost,
+  applyVerificationToPost,
+  createReviewRequiredPost,
+} from "@/lib/telegram-plugin-intelligence";
+import type { VerificationResult } from "@/lib/telegram-plugin-intelligence";
+
+${source}
+`;
+
+source += `
+
+/**
+ * ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER
+ * Evidence-first gate around the existing production pair processor.
+ * The legacy processor remains responsible for Telegram queue/media/DB mechanics;
+ * this wrapper owns identity verification and prevents generic fallback publication.
+ */
+export async function processPluginPair(photo: any, doc: any) {
+  const channelId = String(photo?.chat?.id || doc?.chat?.id || "");
+  const photoFileId = String(photo?.photo?.[photo.photo.length - 1]?.file_id || "");
+  const documentFileId = String(doc?.document?.file_id || "");
+  const rawCaption = String(photo?.caption || doc?.caption || "");
+  const fileName = String(doc?.document?.file_name || "");
+  const mimeType = String(doc?.document?.mime_type || "");
+  const fileSize = Number(doc?.document?.file_size || 0) || undefined;
+  const photoMessageId = Number(photo?.message_id || 0) || undefined;
+  const documentMessageId = Number(doc?.message_id || 0) || undefined;
+
+  let intelligence: VerificationResult;
+  try {
+    intelligence = await analyzeTelegramPluginPost({
+      photoFileId,
+      rawCaption,
+      fileName,
+    });
+  } catch (error) {
+    console.error(
+      "telegram_plugin_intelligence_failed",
+      error instanceof Error ? error.message : String(error),
+    );
+    intelligence = {
+      ok: false,
+      reviewRequired: true,
+      title: "",
+      developer: "",
+      version: "",
+      category: "",
+      formats: [],
+      platforms: [],
+      features: [],
+      description: "",
+      translatedCaption: "",
+      detectedLanguage: "Unknown",
+      confidence: "low",
+      evidence: [
+        { source: "caption", status: rawCaption ? "supporting" : "missing" },
+        { source: "filename", status: fileName ? "supporting" : "missing" },
+      ],
+      verificationStatus: "failed",
+      verifiedSourceUrl: "",
+      verifiedSourceTitle: "",
+      searchStatus: "unavailable",
+      reason: "intelligence_pipeline_failed",
+    };
+  }
+
+  if (!intelligence.ok) {
+    const review = await createReviewRequiredPost({
+      channelId,
+      photoMessageId,
+      documentMessageId,
+      photoFileId,
+      documentFileId,
+      fileName,
+      mimeType,
+      fileSize,
+      rawCaption,
+      result: intelligence,
+    });
+    return {
+      ok: false,
+      review_required: true,
+      id: review.id,
+      title: intelligence.title || "نیازمند بررسی",
+      reason: intelligence.reason || "verification_required",
+    };
+  }
+
+  const result = await processPluginPairLegacy(photo, doc);
+  const postId = String(result?.id || "");
+  if (postId) {
+    try {
+      const applied = await applyVerificationToPost(postId, intelligence);
+      if (!applied.ok) {
+        console.error("telegram_plugin_verified_caption_apply_failed", applied);
+      }
+    } catch (error) {
+      console.error(
+        "telegram_plugin_verified_caption_apply_failed",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+  return { ...result, intelligence: {
+    confidence: intelligence.confidence,
+    verification_status: intelligence.verificationStatus,
+    verified_source_url: intelligence.verifiedSourceUrl,
+  }};
+}
+`;
+
+writeFileSync(target, source);
+console.log("patched telegram-plugin-sync.ts with evidence-first intelligence wrapper");
