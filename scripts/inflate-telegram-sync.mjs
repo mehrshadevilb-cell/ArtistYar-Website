@@ -231,6 +231,8 @@ source = source.replace(
         error_message: "source_message_not_found_hidden",`
 );
 
+source = applyArtistYarCaptionQuality(source);
+
 writeFileSync(target, source);
 console.log(
   "inflated telegram-plugin-sync.ts",
