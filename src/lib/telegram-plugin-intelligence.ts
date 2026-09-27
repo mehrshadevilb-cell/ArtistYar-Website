@@ -542,7 +542,9 @@ async function verifyCandidate(
   }
 
   const ranked = hits.slice().sort((a, b) => officialRank(b.url, developer) - officialRank(a.url, developer));
-  const authoritativeCandidates = ranked.filter((hit) => officialRank(hit.url, developer) >= 90).slice(0, 2);
+  const authoritativeCandidates = (ranked.filter((hit) => officialRank(hit.url, developer) >= 90).length
+    ? ranked.filter((hit) => officialRank(hit.url, developer) >= 90)
+    : ranked).slice(0, 2);
   const enriched = await Promise.all(authoritativeCandidates.map(fetchSourcePage));
   for (const page of enriched) {
     const index = ranked.findIndex((hit) => hit.url === page.url);
