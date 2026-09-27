@@ -592,11 +592,9 @@ Return JSON only:
   const developerRefs = Array.isArray(verified?.evidence_refs?.developer) ? verified.evidence_refs.developer.map(String) : [];
   const versionRefs = Array.isArray(verified?.evidence_refs?.version) ? verified.evidence_refs.version.map(String) : [];
   const latestVersionRefs = Array.isArray(verified?.evidence_refs?.latest_official_version) ? verified.evidence_refs.latest_official_version.map(String) : [];
-  const titleSupported = isSpecificIdentity(finalTitle) && titleRefs.length > 0 && (
-    sourceCandidates.some((c) => normalizeIdentity(c.title) === normalizeIdentity(finalTitle)) ||
-    ranked.some((h) => searchMatchesCandidate(h, { source: "web", title: finalTitle }))
-  );
+  const candidateTitleMatch = sourceCandidates.some((c) => normalizeIdentity(c.title) === normalizeIdentity(finalTitle));
   const webTitleMatch = ranked.some((h) => searchMatchesCandidate(h, { source: "web", title: finalTitle }));
+  const titleSupported = isSpecificIdentity(finalTitle) && titleRefs.length > 0 && candidateTitleMatch && webTitleMatch;
   const officialHit = ranked.find((h) => officialRank(h.url, finalDeveloper) >= 90 && searchMatchesCandidate(h, { source: "web", title: finalTitle }))
     || ranked.find((h) => searchMatchesCandidate(h, { source: "web", title: finalTitle }))
     || ranked[0];
