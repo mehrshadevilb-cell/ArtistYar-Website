@@ -76,12 +76,32 @@ export async function processPluginPair(photo: any, doc: any) {
   }
 
   (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION = buildVerifiedCaption(intelligence);
+  (globalThis as any).__ARTISTYAR_VERIFIED_DATA = intelligence;
   try {
-    const result = await processPluginPairLegacy(photo, doc);
+    let result: any;
+    try {
+      result = await processPluginPairLegacy(photo, doc);
+    } catch (error) {
+      console.error("telegram_plugin_legacy_processor_failed", error instanceof Error ? error.message : String(error));
+      const review = await createReviewRequiredPost({
+        channelId, photoMessageId, documentMessageId, photoFileId, documentFileId,
+        fileName, mimeType, fileSize, rawCaption, result: {
+          ...intelligence,
+          ok: false,
+          reviewRequired: true,
+          verificationStatus: "failed",
+          reason: "legacy_processor_failed",
+        },
+      });
+      return { ok: false, review_required: true, id: review.id, title: intelligence.title, reason: "legacy_processor_failed" };
+    }
     const postId = String(result?.id || "");
     if (postId) {
       const applied = await applyVerificationToPost(postId, intelligence);
-      if (!applied.ok) console.error("telegram_plugin_verified_caption_apply_failed", applied);
+      if (!applied.ok) {
+        console.error("telegram_plugin_verified_caption_apply_failed", applied);
+        return { ...result, ok: false, review_required: true, reason: applied.error || "verification_apply_failed" };
+      }
     }
     return {
       ...result,
@@ -93,6 +113,7 @@ export async function processPluginPair(photo: any, doc: any) {
     };
   } finally {
     delete (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION;
+    delete (globalThis as any).__ARTISTYAR_VERIFIED_DATA;
   }
 }
 `;
