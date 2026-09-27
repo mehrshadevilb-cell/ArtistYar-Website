@@ -151,8 +151,7 @@ async function visionCandidate(photoFileId: string, caption: string, fileName: s
     "If the exact product cannot be read or corroborated, set title to empty string and confidence to low.",
     "Original caption:", caption.slice(0, 5000),
     "Filename:", fileName.slice(0, 300),
-  ].join("
-");
+  ].join("\n");
   const res = await fetch((process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "") + "/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer " + key },
@@ -307,8 +306,7 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
   const evidenceText = ranked.slice(0, 5).map((h, i) => `SOURCE ${i + 1}
 TITLE: ${h.title}
 URL: ${h.url}
-SNIPPET: ${h.snippet}`).join("
-
+SNIPPET: ${h.snippet}`).join("\n
 ");
   const prompt = `You are the final verification layer for a Telegram music-software catalog.
 
@@ -464,16 +462,13 @@ export function buildVerifiedCaption(result: VerificationResult) {
     result.category ? `🏷️ <b>نوع:</b> ${esc(result.category)}` : "",
     result.features.length ? "
 🧩 <b>ویژگی‌ها</b>
-" + result.features.slice(0, 5).map((x) => "• " + esc(x)).join("
-") : "",
+" + result.features.slice(0, 5).map((x) => "• " + esc(x)).join("\n") : "",
     result.platforms.length ? "
 💻 <b>سیستم‌عامل</b>
-" + result.platforms.map((x) => "• " + esc(x)).join("
-") : "",
+" + result.platforms.map((x) => "• " + esc(x)).join("\n") : "",
     result.formats.length ? "
 🎚️ <b>فرمت‌ها</b>
-" + result.formats.map((x) => "• " + esc(x)).join("
-") : "",
+" + result.formats.map((x) => "• " + esc(x)).join("\n") : "",
     result.description ? "
 📝 <b>توضیحات</b>
 " + esc(result.description) : "",
@@ -488,8 +483,7 @@ export function buildVerifiedCaption(result: VerificationResult) {
     "
 🎛️ <b>ArtistYar</b>",
   ].filter(Boolean);
-  return lines.join("
-").slice(0, 1024);
+  return lines.join("\n").slice(0, 1024);
 }
 
 function esc(v: string) {
