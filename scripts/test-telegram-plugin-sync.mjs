@@ -159,3 +159,15 @@ for (const [product, category] of fixtures) {
   assert.notEqual(category, "Plugin");
   assert.notEqual(category, "Software");
 }
+
+
+assert.match(intelligence, /MAX_SEARCH_QUERIES/);
+assert.match(intelligence, /MAX_REANALYSIS/);
+assert.match(intelligence, /product_locked/);
+assert.match(intelligence, /latestOfficialVersion/);
+assert.match(intelligence, /untrusted/i);
+assert.match(adminRoute, /lock_product/);
+assert.match(adminRoute, /unlock_product/);
+assert.match(adminRoute, /feedback/);
+assert.match(adminRoute, /verification_gate_required/);
+assert.match(adminPage, /product_locked/);
