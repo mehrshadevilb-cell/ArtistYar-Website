@@ -57,7 +57,7 @@ export async function processPluginPair(photo: any, doc: any) {
   } catch (error) {
     console.error("telegram_plugin_intelligence_failed", error instanceof Error ? error.message : String(error));
     intelligence = {
-      ok: false, reviewRequired: true, title: "", developer: "", version: "", category: "",
+      ok: false, reviewRequired: true, title: "", developer: "", version: "", latestOfficialVersion: "", category: "",
       formats: [], platforms: [], features: [], description: "", installationNotes: "", translatedCaption: "",
       detectedLanguage: "Unknown", confidence: "low",
       evidence: [{ source: "caption", status: rawCaption ? "supporting" : "missing" }, { source: "filename", status: fileName ? "supporting" : "missing" }],
