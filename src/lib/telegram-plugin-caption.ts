@@ -322,3 +322,31 @@ export async function reapplyLatestPluginCaptions(limit = 3) {
   }
   return { ok: results.every((r) => r.ok), results };
 }
+
+
+/** Publish an explicitly reviewed caption without re-running product identification. */
+export async function publishPluginCaption(postId: string, caption: string): Promise<{ ok: boolean; error?: string }> {
+  const db = getDb();
+  if (!db) return { ok: false, error: "supabase_not_configured" };
+  const row = await db.from("telegram_plugin_posts")
+    .select("id,channel_id,photo_message_id,document_message_id")
+    .eq("id", postId)
+    .maybeSingle();
+  if (row.error || !row.data) return { ok: false, error: "post_not_found" };
+  const messageId = Number(row.data.photo_message_id || row.data.document_message_id || 0);
+  if (!row.data.channel_id || !messageId) return { ok: false, error: "telegram_message_missing" };
+  const cleanCaption = String(caption || "").trim().slice(0, 1024);
+  if (!cleanCaption) return { ok: false, error: "caption_empty" };
+  try {
+    await editCaption(String(row.data.channel_id), messageId, cleanCaption);
+    const updated = await db.from("telegram_plugin_posts").update({
+      final_caption: cleanCaption,
+      draft_caption: "",
+      updated_at: new Date().toISOString(),
+    }).eq("id", postId);
+    if (updated.error) return { ok: false, error: updated.error.message };
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: clean(error instanceof Error ? error.message : String(error), 240) };
+  }
+}
