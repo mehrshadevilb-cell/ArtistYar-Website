@@ -126,7 +126,7 @@ export default function TelegramPluginCaptionStudio() {
           <div className="mt-4">
             <p className="mb-2 text-xs text-ink-500">شواهد شناسایی</p>
             <Evidence post={selected} />
-            {Array.isArray(selected.conflicts) && selected.conflicts.length ? <div className="mt-3 rounded-lg border border-red-400/20 bg-red-400/5 p-3 text-[11px] text-red-200">تعارض‌های شناسایی: {selected.conflicts.join(" · ")}</div> : null}
+            {Array.isArray(selected.ai_analysis?.conflicts) && selected.ai_analysis.conflicts.length ? <div className="mt-3 rounded-lg border border-red-400/20 bg-red-400/5 p-3 text-[11px] text-red-200">تعارض‌های شناسایی: {selected.ai_analysis.conflicts.join(" · ")}</div> : null}
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {["RECEIVED","ANALYZING","IDENTIFIED","VERIFYING","GENERATING","VALIDATING"].map((step) => {
