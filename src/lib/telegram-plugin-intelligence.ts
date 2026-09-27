@@ -645,7 +645,6 @@ ${JSON.stringify({ title: p.title, developer: p.developer, version: p.version, c
       verifiedSourceUrl: clean(p.verified_source_url, 500),
       verifiedSourceTitle: clean(p.verified_source_title, 180),
       searchStatus: p.search_status || "unavailable",
-      productCount: Number(p.product_count || 1),
       includedProducts: safeArray(p.included_products, 20),
       fileIdentity: p.file_identity || { fileName: String(p.file_name || ""), consistent: true, detail: "" },
     };
