@@ -464,6 +464,58 @@ export async function applyVerificationToPost(postId: string, result: Verificati
   return { ok: true, caption };
 }
 
+export async function createReviewRequiredPost(input: {
+  channelId: string;
+  photoMessageId?: number;
+  documentMessageId?: number;
+  photoFileId?: string;
+  documentFileId: string;
+  fileName?: string;
+  mimeType?: string;
+  fileSize?: number;
+  rawCaption?: string;
+  result: VerificationResult;
+}) {
+  const store = db();
+  if (!store) return { ok: false, error: "supabase_not_configured" };
+  const result = input.result;
+  const title = result.title || "نیازمند بررسی";
+  const row = await store.from("telegram_plugin_posts").upsert({
+    channel_id: input.channelId,
+    photo_message_id: input.photoMessageId || null,
+    document_message_id: input.documentMessageId || null,
+    telegram_photo_file_id: input.photoFileId || null,
+    telegram_file_id: input.documentFileId,
+    file_name: input.fileName || null,
+    mime_type: input.mimeType || null,
+    file_size: input.fileSize || null,
+    title,
+    developer: result.developer || null,
+    version: result.version || null,
+    category: result.category || "other",
+    formats: result.formats || [],
+    platforms: result.platforms || [],
+    description: result.description || "",
+    features: result.features || [],
+    tags: [],
+    raw_caption: input.rawCaption || "",
+    ai_analysis: result,
+    evidence: result.evidence || [],
+    verification_status: result.verificationStatus,
+    verification_confidence: result.confidence,
+    verified_source_url: result.verifiedSourceUrl || null,
+    verified_source_title: result.verifiedSourceTitle || null,
+    search_status: result.searchStatus,
+    detected_language: result.detectedLanguage,
+    review_required: true,
+    status: "failed",
+    error_message: "review_required:" + (result.reason || "verification_failed"),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "channel_id,document_message_id" }).select("id").maybeSingle();
+  if (row.error) return { ok: false, error: row.error.message };
+  return { ok: true, id: row.data?.id || null };
+}
+
 export async function verifyStoredPlugin(postId: string, force = false) {
   const store = db();
   if (!store) return { ok: false, error: "supabase_not_configured" };
