@@ -398,9 +398,11 @@ export async function analyzeTelegramPluginPost(input: {
   const caption = clean(input.rawCaption, 7000);
   const fileName = clean(input.fileName, 300);
   let candidate = { ...deterministicCandidate(caption, fileName), ...(input.candidate || {}) };
+  let visionUsed = false;
   if (!isSpecificIdentity(clean(candidate.title, 160)) && input.photoFileId) {
     try {
       candidate = { ...candidate, ...(await visionCandidate(input.photoFileId, caption, fileName)) };
+      visionUsed = isSpecificIdentity(clean(candidate.title, 160));
     } catch {
       // A failed vision attempt is not permission to guess. The verifier below will require review.
     }
