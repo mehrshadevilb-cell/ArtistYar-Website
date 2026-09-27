@@ -80,7 +80,7 @@ export type VerificationResult = {
 
 type Candidate = Partial<Omit<VerificationResult, "ok" | "reviewRequired" | "evidence" | "confidence" | "verificationStatus" | "verifiedSourceUrl" | "verifiedSourceTitle" | "searchStatus">>;
 
-type SearchHit = { title: string; url: string; snippet: string };
+type SearchHit = { title: string; url: string; snippet: string; pageText?: string };
 
 function db() {
   const url = (process.env.SUPABASE_URL || "").trim();
@@ -312,6 +312,38 @@ function cacheKey(title: string, developer: string, version: string) {
   return [title, developer, version].map((x) => normalizeIdentity(x)).join("|");
 }
 
+async function fetchSourcePage(hit: SearchHit): Promise<SearchHit> {
+  try {
+    const response = await fetch(hit.url, {
+      headers: { "user-agent": "ArtistYar-Telegram-Plugin-Verifier/2.0" },
+      cache: "no-store",
+      redirect: "follow",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return hit;
+    const html = await response.text();
+    const titleMatch = html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i);
+    const text = html
+      .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
+      .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
+      .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, "&")
+      .replace(/\\s+/g, " ")
+      .trim()
+      .slice(0, 6000);
+    return {
+      ...hit,
+      title: clean(titleMatch?.[1] || hit.title, 180),
+      pageText: text,
+    };
+  } catch {
+    return hit;
+  }
+}
+
 async function cachedSearch(title: string, developer: string, version: string, force = false) {
   if (force) return null;
   const key = cacheKey(title, developer, version);
@@ -348,7 +380,7 @@ function fieldConflicts(candidates: IdentityCandidate[]) {
 }
 
 function searchMatchesCandidate(hit: SearchHit, candidate: IdentityCandidate) {
-  const hay = normalizeIdentity(hit.title + " " + hit.snippet);
+  const hay = normalizeIdentity(hit.title + " " + hit.snippet + " " + (hit.pageText || ""));
   const title = normalizeIdentity(candidate.title);
   return Boolean(title && (hay.includes(title) || title.split(" ").filter(Boolean).every((token) => hay.includes(token))));
 }
@@ -501,6 +533,12 @@ async function verifyCandidate(
   }
 
   const ranked = hits.slice().sort((a, b) => officialRank(b.url, developer) - officialRank(a.url, developer));
+  const authoritativeCandidates = ranked.filter((hit) => officialRank(hit.url, developer) >= 90).slice(0, 2);
+  const enriched = await Promise.all(authoritativeCandidates.map(fetchSourcePage));
+  for (const page of enriched) {
+    const index = ranked.findIndex((hit) => hit.url === page.url);
+    if (index >= 0) ranked[index] = page;
+  }
   const evidenceText = buildIdentityEvidence(sourceCandidates, ranked, title, developer)
     .map((x, i) => "CANDIDATE " + (i + 1) + "\n" + JSON.stringify(x))
     .join("\n\n") +
