@@ -419,7 +419,7 @@ export function buildVerifiedCaption(result: VerificationResult) {
     result.features.length ? "\n🧩 <b>ویژگی‌ها</b>\n" + result.features.slice(0, 5).map((x) => "• " + esc(x)).join("\n") : "",
     result.platforms.length ? "\n💻 <b>سیستم‌عامل</b>\n" + result.platforms.map((x) => "• " + esc(x)).join("\n") : "",
     result.formats.length ? "\n🎚️ <b>فرمت‌ها</b>\n" + result.formats.map((x) => "• " + esc(x)).join("\n") : "",
-    result.description ? "\n📝 <b>توضیحات</b>\n" + esc(result.description) : "",
+    result.description ? "\n📝 <b>توضیحات</b>\n" + esc(result.description) : "",\n    result.installationNotes ? "\n📌 <b>نکات نصب / سازگاری</b>\n" + esc(result.installationNotes) : "",
     result.verifiedSourceUrl ? "\n🔗 <b>اطلاعات بیشتر:</b> " + esc(result.verifiedSourceUrl) : "",
     "\n🎛️ <b>ArtistYar</b>",
   ].filter(Boolean);
