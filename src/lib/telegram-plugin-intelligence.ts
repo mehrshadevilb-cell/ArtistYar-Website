@@ -4,7 +4,7 @@ import { resolvePluginBotToken } from "@/lib/telegram-plugin-bot";
 import { publishPluginCaption } from "@/lib/telegram-plugin-caption";
 
 const TG = "https://api.telegram.org";
-const SEARCH_CACHE_TTL = 1000 * 60 * 60 * 12;
+const SEARCH_CACHE_TTL = 1000 * 60 * 60 * 12;\nconst MAX_SEARCH_QUERIES = 3;\nconst MAX_REANALYSIS = 2;
 const memoryCache = new Map<string, { expiresAt: number; value: VerificationResult }>();
 
 export type PluginEvidence = {
@@ -254,13 +254,25 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
   if (cached) return cached;
 
   let hits: SearchHit[] = [];
+  let searchAvailable = true;
   try {
-    hits = await webSearch([title, developer, version].filter(Boolean).join(" "));
+    const queries = [
+      [title, developer].filter(Boolean).join(" "),
+      [title, version].filter(Boolean).join(" "),
+      developer ? [developer, title, "official"].join(" ") : [title, "official product"].join(" "),
+    ].filter(Boolean).slice(0, MAX_SEARCH_QUERIES);
+    const groups = await Promise.all(queries.map((query) => webSearch(query)));
+    const seen = new Set<string>();
+    for (const group of groups) for (const hit of group) {
+      if (!seen.has(hit.url)) { seen.add(hit.url); hits.push(hit); }
+    }
   } catch {
-    const sourceBacked = isSpecificIdentity(title) && Boolean(rawCaption || fileName);
+    searchAvailable = false;
+  }
+  if (!searchAvailable) {
     return {
-      ok: sourceBacked,
-      reviewRequired: !sourceBacked,
+      ok: false,
+      reviewRequired: true,
       title,
       developer,
       version,
@@ -278,7 +290,7 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
         { source: "filename", status: fileName ? "supporting" : "missing" },
         { source: "web", status: "missing", detail: "search_unavailable" },
       ],
-      verificationStatus: sourceBacked ? "unavailable" : "failed",
+      verificationStatus: "unavailable",
       verifiedSourceUrl: "",
       verifiedSourceTitle: "",
       searchStatus: "unavailable",
@@ -407,7 +419,22 @@ export async function analyzeTelegramPluginPost(input: {
       // A failed vision attempt is not permission to guess. The verifier below will require review.
     }
   }
-  const result = await verifyCandidate(candidate, caption, fileName);
+  let result = await verifyCandidate(candidate, caption, fileName);
+  let attempts = 0;
+  while (result.reviewRequired && attempts < MAX_REANALYSIS && input.photoFileId) {
+    attempts++;
+    try {
+      const vision = await visionCandidate(input.photoFileId, caption, fileName);
+      if (isSpecificIdentity(clean(vision.title, 160)) && String(vision.title).toLowerCase() !== String(candidate.title || "").toLowerCase()) {
+        candidate = { ...candidate, ...vision };
+        result = await verifyCandidate(candidate, caption, fileName);
+      } else {
+        break;
+      }
+    } catch {
+      break;
+    }
+  }
   if (input.photoFileId) {
     const imageEvidence: PluginEvidence = { source: "image", status: visionUsed ? "confirmed" : "supporting", detail: visionUsed ? "vision_identified_product" : "image_available_but_not_required_for_identity" };
     result.evidence = [imageEvidence, ...result.evidence.filter((e) => e.source !== "image")];
