@@ -138,7 +138,7 @@ assert.match(adminPage, /verify/);
 assert.match(adminPage, /save_draft/);
 assert.match(adminPage, /publish/);
 assert.match(adminRoute, /verifyStoredPlugin/);
-assert.match(adminRoute, /publishPluginCaption/);
+assert.match(adminRoute, /publishPluginCaption/);\nassert.match(adminRoute, /regenerateStoredTranslation/);\nassert.match(adminPage, /regenerate_translation/);
 assert.match(pkg, /patch-telegram-plugin-intelligence/);
 
 const fixtures = [
