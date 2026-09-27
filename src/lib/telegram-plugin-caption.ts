@@ -85,7 +85,7 @@ function makeCaption(p: {
   features?: string[] | null;
 }) {
   const handle = channelHandle();
-  const footer = "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\n📢 Channel: " + handle;
+  const footer = "\n\n🎛️ <b>ArtistYar</b>";
   const lines = [
     "🎛️ <b>" + esc(p.title) + "</b>",
     p.developer ? "🏢 <b>سازنده:</b> " + esc(String(p.developer)) : "",
@@ -105,8 +105,8 @@ async function editCaption(chatId: string | number, messageId: number, caption: 
   const handle = channelHandle().replace(/^@/, "");
   const replyMarkup = {
     inline_keyboard: [[
-      { text: "آرتیست‌یار", url: "https://artistyaar.ir" },
-      { text: "کانال VST/Plugin", url: "https://t.me/" + handle },
+      { text: "🎛️ آرتیست‌یار", url: "https://artistyaar.ir" },
+      { text: "📢 کانال VST/Plugin", url: "https://t.me/" + handle },
     ]],
   };
   try {
