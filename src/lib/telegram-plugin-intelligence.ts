@@ -334,7 +334,7 @@ Return JSON only:
   const finalTitle = clean(verified?.title || title, 160);
   const finalDeveloper = clean(verified?.developer || developer, 120);
   const finalVersion = clean(verified?.version, 80);
-  const sourceUrl = clean(verified?.source_url, 500);
+  const authoritativeHit = ranked.find((h) => officialRank(h.url, finalDeveloper) >= 90) || ranked[0];\n  const sourceUrl = clean(authoritativeHit?.url || verified?.source_url, 500);
   const confidence = /^(high|medium|low)$/.test(String(verified?.confidence)) ? verified.confidence : "low";
   const sourceHost = sourceUrl ? officialRank(sourceUrl, finalDeveloper) : 0;
   const hasWebIdentity = Boolean(finalTitle && ranked.some((h) => h.title.toLowerCase().includes(finalTitle.toLowerCase()) || h.snippet.toLowerCase().includes(finalTitle.toLowerCase())));
@@ -360,7 +360,7 @@ Return JSON only:
     ],
     verificationStatus: highEnough ? "verified" : "partial",
     verifiedSourceUrl: sourceUrl || ranked[0]?.url || "",
-    verifiedSourceTitle: clean(verified?.source_title || ranked[0]?.title, 180),
+    verifiedSourceTitle: clean((authoritativeHit?.title || verified?.source_title || ranked[0]?.title), 180),
     searchStatus: hasWebIdentity ? "verified" : "no_match",
     reason: highEnough ? undefined : "verification_confidence_insufficient",
   };
