@@ -10,6 +10,10 @@ const statusLabel: Record<string, string> = {
   partial: "تأیید ناقص",
   unavailable: "جستجو در دسترس نیست",
   failed: "نیازمند بررسی",
+  READY: "آماده بررسی",
+  NEEDS_REVIEW: "نیازمند بررسی",
+  FAILED: "خطای پردازش",
+  PUBLISHED: "منتشرشده",
 };
 
 async function api(body?: any) {
@@ -88,6 +92,11 @@ export default function TelegramPluginCaptionStudio() {
     </header>
 
     {error && <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-xs text-red-200">{error}</div>}
+    {selected?.error_message && <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-xs leading-6 text-amber-100">
+      <b>وضعیت پردازش:</b> {statusLabel[selected.processing_state] || selected.processing_state || "نامشخص"}
+      <span className="mx-2 text-amber-400/40">·</span>
+      <b>خطا/نیاز به بررسی:</b> {String(selected.error_message)}
+    </div>}
 
     <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
       <aside className="card-ay overflow-hidden">
@@ -117,6 +126,7 @@ export default function TelegramPluginCaptionStudio() {
           <div className="mt-4">
             <p className="mb-2 text-xs text-ink-500">شواهد شناسایی</p>
             <Evidence post={selected} />
+            {Array.isArray(selected.conflicts) && selected.conflicts.length ? <div className="mt-3 rounded-lg border border-red-400/20 bg-red-400/5 p-3 text-[11px] text-red-200">تعارض‌های شناسایی: {selected.conflicts.join(" · ")}</div> : null}
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {["RECEIVED","ANALYZING","IDENTIFIED","VERIFYING","GENERATING","VALIDATING"].map((step) => {
