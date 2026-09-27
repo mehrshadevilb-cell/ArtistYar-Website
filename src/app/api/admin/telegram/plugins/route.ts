@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-auth";
 import { getPluginsDb } from "@/lib/plugins-db";
-import { verifyStoredPlugin } from "@/lib/telegram-plugin-intelligence";
+import { regenerateStoredTranslation, verifyStoredPlugin } from "@/lib/telegram-plugin-intelligence";
 import { publishPluginCaption } from "@/lib/telegram-plugin-caption";
 
 export const runtime = "nodejs";
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, action });
   }
 
-  if (action === "verify" || action === "regenerate_caption" || action === "regenerate_identity") {
+  if (action === "regenerate_translation") {\n    const result = await regenerateStoredTranslation(id);\n    if (!result.ok) return NextResponse.json(result, { status: 422 });\n    return NextResponse.json({ ok: true, action, result });\n  }\n\n  if (action === "verify" || action === "regenerate_caption" || action === "regenerate_identity") {
     const result = await verifyStoredPlugin(id, action === "regenerate_identity");
     if (!result.ok && result.error) return NextResponse.json(result, { status: 422 });
     return NextResponse.json({ ok: Boolean(result.ok), action, result });
