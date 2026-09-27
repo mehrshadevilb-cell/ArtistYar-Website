@@ -631,7 +631,6 @@ ${JSON.stringify({ title: p.title, developer: p.developer, version: p.version, c
       developer: clean(p.developer, 120),
       version: clean(p.version, 80),
       latestOfficialVersion: clean(p.latest_official_version, 80),
-      productCount: Number(p.product_count || 1),
       category: clean(p.category, 100),
       formats: safeArray(p.formats, 8),
       platforms: safeArray(p.platforms, 6),
