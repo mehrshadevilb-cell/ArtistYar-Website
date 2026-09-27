@@ -75,7 +75,21 @@ export async function processPluginPair(photo: any, doc: any) {
     return { ok: false, review_required: true, id: review.id, title: intelligence.title || "نیازمند بررسی", reason: intelligence.reason || "verification_required" };
   }
 
-  (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION = buildVerifiedCaption(intelligence);
+  const verifiedCaption = buildVerifiedCaption(intelligence);
+  if (!verifiedCaption) {
+    const review = await createReviewRequiredPost({
+      channelId, photoMessageId, documentMessageId, photoFileId, documentFileId,
+      fileName, mimeType, fileSize, rawCaption, result: {
+        ...intelligence,
+        ok: false,
+        reviewRequired: true,
+        verificationStatus: "failed",
+        reason: "caption_quality_failed",
+      },
+    });
+    return { ok: false, review_required: true, id: review.id, title: intelligence.title, reason: "caption_quality_failed" };
+  }
+  (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION = verifiedCaption;
   (globalThis as any).__ARTISTYAR_VERIFIED_DATA = intelligence;
   try {
     let result: any;
