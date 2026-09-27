@@ -91,15 +91,15 @@ function siteUrl() {`
 // Only normalize button labels if an older recovery payload still carries legacy text.
 source = source.replace(
   /\{ text: "🌐 وب‌سایت ArtistYar", url: "https:\/\/artistyaar\.ir" \}/g,
-  '{ text: "آرتیست‌یار", url: "https://artistyaar.ir" }'
+  '{ text: "🎛️ آرتیست‌یار", url: "https://artistyaar.ir" }'
 );
 source = source.replace(
   /\{ text: "📢 کانال پلاگین‌ها", url: "https:\/\/t\.me\/" \+ handle\.replace\(\/\^@\/, ""\) \}/g,
-  '{ text: "کانال VST/Plugin", url: "https://t.me/" + handle.replace(/^@/, "") }'
+  '{ text: "📢 کانال VST/Plugin", url: "https://t.me/" + handle.replace(/^@/, "") }'
 );
 source = source.replace(
   /\{ text: "📢 کانال پلاگین‌ها", url: "https:\/\/t\.me\/" \+ handle \}/g,
-  '{ text: "کانال VST/Plugin", url: "https://t.me/" + handle }'
+  '{ text: "📢 کانال VST/Plugin", url: "https://t.me/" + handle }'
 );
 
 source = source.replace(
