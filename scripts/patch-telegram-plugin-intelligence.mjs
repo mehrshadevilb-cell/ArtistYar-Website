@@ -39,8 +39,6 @@ source += `
 /**
  * ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER
  * Evidence-first gate around the existing production pair processor.
- * The legacy processor remains responsible for Telegram queue/media/DB mechanics;
- * this wrapper owns identity verification and prevents generic fallback publication.
  */
 export async function processPluginPair(photo: any, doc: any) {
   const channelId = String(photo?.chat?.id || doc?.chat?.id || "");
@@ -55,98 +53,49 @@ export async function processPluginPair(photo: any, doc: any) {
 
   let intelligence: VerificationResult;
   try {
-    intelligence = await analyzeTelegramPluginPost({
-      photoFileId,
-      rawCaption,
-      fileName,
-    });
+    intelligence = await analyzeTelegramPluginPost({ photoFileId, rawCaption, fileName });
   } catch (error) {
-    console.error(
-      "telegram_plugin_intelligence_failed",
-      error instanceof Error ? error.message : String(error),
-    );
+    console.error("telegram_plugin_intelligence_failed", error instanceof Error ? error.message : String(error));
     intelligence = {
-      ok: false,
-      reviewRequired: true,
-      title: "",
-      developer: "",
-      version: "",
-      category: "",
-      formats: [],
-      platforms: [],
-      features: [],
-      description: "",
-      translatedCaption: "",
-      detectedLanguage: "Unknown",
-      confidence: "low",
-      evidence: [
-        { source: "caption", status: rawCaption ? "supporting" : "missing" },
-        { source: "filename", status: fileName ? "supporting" : "missing" },
-      ],
-      verificationStatus: "failed",
-      verifiedSourceUrl: "",
-      verifiedSourceTitle: "",
-      searchStatus: "unavailable",
+      ok: false, reviewRequired: true, title: "", developer: "", version: "", category: "",
+      formats: [], platforms: [], features: [], description: "", installationNotes: "", translatedCaption: "",
+      detectedLanguage: "Unknown", confidence: "low",
+      evidence: [{ source: "caption", status: rawCaption ? "supporting" : "missing" }, { source: "filename", status: fileName ? "supporting" : "missing" }],
+      verificationStatus: "failed", verifiedSourceUrl: "", verifiedSourceTitle: "", searchStatus: "unavailable",
+      productCount: 0, includedProducts: [], fileIdentity: { fileName, consistent: false, detail: "pipeline_failed" },
       reason: "intelligence_pipeline_failed",
     };
   }
 
   if (!intelligence.ok) {
     const review = await createReviewRequiredPost({
-      channelId,
-      photoMessageId,
-      documentMessageId,
-      photoFileId,
-      documentFileId,
-      fileName,
-      mimeType,
-      fileSize,
-      rawCaption,
-      result: intelligence,
+      channelId, photoMessageId, documentMessageId, photoFileId, documentFileId,
+      fileName, mimeType, fileSize, rawCaption, result: intelligence,
     });
-    return {
-      ok: false,
-      review_required: true,
-      id: review.id,
-      title: intelligence.title || "نیازمند بررسی",
-      reason: intelligence.reason || "verification_required",
-    };
+    return { ok: false, review_required: true, id: review.id, title: intelligence.title || "نیازمند بررسی", reason: intelligence.reason || "verification_required" };
   }
 
   (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION = buildVerifiedCaption(intelligence);
   try {
     const result = await processPluginPairLegacy(photo, doc);
-    return { ...result, intelligence: {
-      confidence: intelligence.confidence,
-      verification_status: intelligence.verificationStatus,
-      verified_source_url: intelligence.verifiedSourceUrl,
-    }};
+    const postId = String(result?.id || "");
+    if (postId) {
+      const applied = await applyVerificationToPost(postId, intelligence);
+      if (!applied.ok) console.error("telegram_plugin_verified_caption_apply_failed", applied);
+    }
+    return {
+      ...result,
+      intelligence: {
+        confidence: intelligence.confidence,
+        verification_status: intelligence.verificationStatus,
+        verified_source_url: intelligence.verifiedSourceUrl,
+      },
+    };
   } finally {
     delete (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION;
   }
-  /* legacy return handled above */
-  const result = await processPluginPairLegacy(photo, doc);
-  const postId = String(result?.id || "");
-  if (postId) {
-    try {
-      const applied = await applyVerificationToPost(postId, intelligence);
-      if (!applied.ok) {
-        console.error("telegram_plugin_verified_caption_apply_failed", applied);
-      }
-    } catch (error) {
-      console.error(
-        "telegram_plugin_verified_caption_apply_failed",
-        error instanceof Error ? error.message : String(error),
-      );
-    }
-  }
-  return { ...result, intelligence: {
-    confidence: intelligence.confidence,
-    verification_status: intelligence.verificationStatus,
-    verified_source_url: intelligence.verifiedSourceUrl,
-  }};
 }
-`;
+`;`;
 
 writeFileSync(target, source);
 console.log("patched telegram-plugin-sync.ts with evidence-first intelligence wrapper");
