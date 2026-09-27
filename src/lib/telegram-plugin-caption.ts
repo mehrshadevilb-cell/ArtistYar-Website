@@ -227,7 +227,7 @@ function getDb() {
  * Rebuild Persian caption for a published post and edit the Telegram message.
  * Does not require AI — uses stored title/metadata + filename/caption fallbacks.
  */
-export async function reapplyPluginCaption(postId: string): Promise<{
+async function reapplyPluginCaptionLegacy(postId: string): Promise<{
   ok: boolean;
   title?: string;
   edited?: boolean;
@@ -298,6 +298,37 @@ export async function reapplyPluginCaption(postId: string): Promise<{
       })
       .eq("id", postId);
     return { ok: false, title, edited: false, error: message };
+  }
+}
+
+/**
+ * Re-apply a caption through the evidence-first intelligence pipeline.
+ * The legacy formatter remains available only as an emergency implementation detail.
+ */
+export async function reapplyPluginCaption(postId: string): Promise<{
+  ok: boolean;
+  title?: string;
+  edited?: boolean;
+  error?: string;
+}> {
+  try {
+    const { verifyStoredPlugin } = await import("@/lib/telegram-plugin-intelligence");
+    const result = await verifyStoredPlugin(postId, false);
+    if (result.ok && result.result?.title) {
+      return { ok: true, title: result.result.title, edited: true };
+    }
+    return {
+      ok: false,
+      title: result.result?.title,
+      edited: false,
+      error: result.error || result.result?.reason || "verification_required",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      edited: false,
+      error: clean(error instanceof Error ? error.message : String(error), 240),
+    };
   }
 }
 
