@@ -217,6 +217,16 @@ source = source.replace(
     };
   }
   let p = enforceCaptionFacts(ai.data, caption);
+  const classificationEvidence = [p.title, fileName, caption, p.developer, p.category, p.description].filter(Boolean).join(" ");
+  const deterministicDeveloper = artistYarDeveloper(classificationEvidence);
+  const deterministicCategory = artistYarCategory(classificationEvidence);
+  const deterministicDescription = artistYarDescription(classificationEvidence);
+  p = {
+    ...p,
+    developer: deterministicDeveloper || p.developer || "",
+    category: deterministicCategory || p.category || "Audio Plugin",
+    description: deterministicDescription || artistYarClean(p.description || ""),
+  };
   if (!p.title || p.title === "پلاگین بدون نام") {
     const fromFile = titleFromFileName(fileName);
     if (fromFile) p = { ...p, title: fromFile };
