@@ -624,38 +624,6 @@ export async function processPendingPluginPairs(limit = 5) {
   };
 }
 
-async function processPluginPairLegacy(photo: TgMessage | null, document: TgMessage | null) {
-  if (!photo || !document) throw new Error("photo_and_document_required");
-  return processPluginPairInternal(photo, document);
-}
-
-async function processPluginPairInternal(photo: TgMessage, document: TgMessage) {
-  if (!db) throw new Error("supabase_not_configured");
-  const p = largestPhoto(photo.photo);
-  const d = document.document;
-  if (!p?.file_id || !d?.file_id) throw new Error("telegram_media_missing");
-  const fakePhotoRow = {
-    id: "direct-photo",
-    file_id: p.file_id,
-    message_id: photo.message_id,
-    channel_id: String(photo.chat?.id),
-    channel_username: photo.chat?.username || "",
-    caption: photo.caption || "",
-  };
-  const fakeDocumentRow = {
-    id: "direct-document",
-    file_id: d.file_id,
-    message_id: document.message_id,
-    channel_id: String(document.chat?.id),
-    channel_username: document.chat?.username || "",
-    caption: document.caption || "",
-    file_name: d.file_name || null,
-    mime_type: d.mime_type || null,
-    file_size: d.file_size || null,
-  };
-  return processPluginPairLegacy(fakePhotoRow, fakeDocumentRow);
-}
-
 export function getAiRoutingDiagnostics() {
   try {
     const { getConfiguredProviders } = require("@/lib/ai-providers") as typeof import("@/lib/ai-providers");
