@@ -134,7 +134,7 @@ assert.doesNotMatch(inflate, /category: "Audio Plugin"/);
 assert.doesNotMatch(intelligence, /title \|\| "Plugin"/);
 assert.match(patcher, /ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER/);
 assert.match(patcher, /createReviewRequiredPost/);
-assert.match(patcher, /applyVerificationToPost/);
+assert.match(patcher, /applyVerificationToPost/);\nassert.match(patcher, /caption_quality_failed/);
 assert.match(adminPage, /Original Source/);
 assert.match(adminPage, /Verified Information/);
 assert.match(adminPage, /Final Caption/);
