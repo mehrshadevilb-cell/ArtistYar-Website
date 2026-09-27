@@ -18,10 +18,12 @@ if (existsSync(target)) {
   const current = readFileSync(target, "utf8");
   if (
     current.includes("export async function enqueuePluginMessage") &&
-    current.includes("async function processQueuedPair") &&
+    current.includes("async function processPluginPair") &&
+    current.includes("export async function processPendingPluginPairs") &&
     current.includes("syncPublishedPluginCover") &&
     current.includes("deterministicMetadata") &&
-    current.includes("ARTISTYAR_CAPTION_QUALITY_V3")
+    current.includes("final_caption") &&
+    current.includes("caption_edit_forbidden")
   ) {
     console.log("telegram-plugin-sync.ts already contains canonical production runtime + caption quality; inflation skipped");
     process.exit(0);
