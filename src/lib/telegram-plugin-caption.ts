@@ -29,7 +29,7 @@ function clean(v: unknown, max = 500) {
 }
 
 function esc(v: string) {
-  return v.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
+  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 async function tg(method: string, body: Record<string, unknown>) {
