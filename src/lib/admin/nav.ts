@@ -55,6 +55,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     ],
   },
   {
+    id: "telegram",
+    label: "تلگرام",
+    items: [
+      { href: "/admin/plugins", label: "هوشمندی کپشن پلاگین" },
+    ],
+  },
+  {
     id: "commerce",
     label: "تجارت",
     items: [
