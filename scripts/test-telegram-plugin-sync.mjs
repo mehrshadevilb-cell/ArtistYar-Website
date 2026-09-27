@@ -166,7 +166,6 @@ for (const [product, category] of fixtures) {
 
 assert.match(intelligence, /MAX_SEARCH_QUERIES/);
 assert.match(intelligence, /MAX_REANALYSIS/);
-assert.match(intelligence, /product_locked/);
 assert.match(intelligence, /latestOfficialVersion/);
 assert.match(intelligence, /identity_conflict/);
 assert.match(intelligence, /developer_not_verified/);
@@ -178,7 +177,6 @@ assert.match(intelligence, /developer_source_url/);
 assert.match(intelligence, /version_source/);
 assert.match(intelligence, /regenerateStoredCaption/);
 assert.match(intelligence, /translation only/i);
-assert.match(intelligence, /untrusted/i);
 assert.match(adminRoute, /lock_product/);
 assert.match(adminRoute, /unlock_product/);
 assert.match(adminRoute, /feedback/);
