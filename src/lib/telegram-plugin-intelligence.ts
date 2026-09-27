@@ -7,12 +7,43 @@ const TG = "https://api.telegram.org";
 const SEARCH_CACHE_TTL = 1000 * 60 * 60 * 12;
 const MAX_SEARCH_QUERIES = 3;
 const MAX_REANALYSIS = 2;
+
 const memoryCache = new Map<string, { expiresAt: number; value: VerificationResult }>();
 
+export const PRODUCT_CATEGORIES = [
+  "Plugin",
+  "Effect Plugin",
+  "Synth",
+  "Instrument",
+  "Sampler",
+  "DAW",
+  "Sample Pack",
+  "Preset Pack",
+  "MIDI Pack",
+  "Sound Library",
+  "Educational",
+  "Hardware",
+  "Audio Tool",
+  "Other",
+  "Unknown",
+] as const;
+
+type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+type Confidence = "high" | "medium" | "low";
+
 export type PluginEvidence = {
-  source: "image" | "caption" | "filename" | "web";
+  source: "image" | "caption" | "filename" | "ocr" | "web" | "database";
   status: "confirmed" | "supporting" | "conflict" | "missing";
   detail?: string;
+};
+
+export type IdentityCandidate = {
+  source: PluginEvidence["source"];
+  title?: string;
+  developer?: string;
+  version?: string;
+  category?: ProductCategory | "";
+  confidence?: Confidence;
 };
 
 export type VerificationResult = {
@@ -25,7 +56,7 @@ export type VerificationResult = {
   productCount?: number;
   includedProducts?: string[];
   fileIdentity?: { fileName: string; consistent: boolean; detail: string };
-  category: string;
+  category: ProductCategory | string;
   formats: string[];
   platforms: string[];
   features: string[];
@@ -33,8 +64,13 @@ export type VerificationResult = {
   installationNotes: string;
   translatedCaption: string;
   detectedLanguage: string;
-  confidence: "high" | "medium" | "low";
+  confidence: Confidence;
   evidence: PluginEvidence[];
+  identityCandidates?: IdentityCandidate[];
+  conflicts?: string[];
+  developerSourceUrl?: string;
+  developerConfidence?: Confidence;
+  versionSource?: "telegram" | "image" | "official" | "unknown";
   verificationStatus: "verified" | "partial" | "unavailable" | "failed";
   verifiedSourceUrl: string;
   verifiedSourceTitle: string;
@@ -44,6 +80,8 @@ export type VerificationResult = {
 
 type Candidate = Partial<Omit<VerificationResult, "ok" | "reviewRequired" | "evidence" | "confidence" | "verificationStatus" | "verifiedSourceUrl" | "verifiedSourceTitle" | "searchStatus">>;
 
+type SearchHit = { title: string; url: string; snippet: string };
+
 function db() {
   const url = (process.env.SUPABASE_URL || "").trim();
   const key = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
@@ -52,16 +90,35 @@ function db() {
 }
 
 function clean(v: unknown, max = 600) {
-  return String(v ?? "").replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+  return String(v ?? "")
+    .replace(/[\u0000-\u001f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
 }
 
 function parseJson(text: string): any {
-  const raw = String(text || "").trim().replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/i, "").trim();
+  const raw = String(text || "")
+    .trim()
+    .replace(/^\`\`\`(?:json)?\s*/i, "")
+    .replace(/\s*\`\`\`$/i, "")
+    .trim();
   try { return JSON.parse(raw); } catch { return null; }
 }
 
+function normalizeIdentity(value: unknown) {
+  return clean(value, 160)
+    .toLowerCase()
+    .replace(/[®™©]/g, "")
+    .replace(/[._+_-]+/g, " ")
+    .replace(/\bv?\d+(?:[.\s]\d+){1,3}\b/gi, " ")
+    .replace(/\b(?:win|windows|mac|macos|linux|x64|x86|arm|fixed|incl(?:uded)?|repack|r2r|moria|team|crack|keygen)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function isGenericTitle(title: string) {
-  return !title || /^(?:plugin|audio plugin|software|daw|audio software|vst|پلاگین(?: جدید| بدون نام)?|نرم.?افزار)$/i.test(clean(title, 180));
+  return !title || /^(?:plugin|audio plugin|software|daw|audio software|vst|instrument|synth|پلاگین(?: جدید| بدون نام)?|نرم.?افزار)$/i.test(clean(title, 180));
 }
 
 export function isSpecificIdentity(title: string) {
@@ -78,18 +135,18 @@ function languageOf(text: string) {
 }
 
 function filenameTitle(fileName: string) {
-  let name = clean(fileName, 180);
+  let name = clean(fileName, 220);
   if (!name) return "";
   name = name.replace(/\.(rar|zip|7z|tar|gz|tgz|bz2|xz|dmg|pkg|msi|exe|appimage|vst3?|component|aaxplugin|clap|dll|so|dylib)$/i, "");
   name = name.replace(/[._+]+/g, " ").replace(/\s+/g, " ").trim();
-  name = name.replace(/\b(?:incl(?:uded)?|patched|keygen|crack|repack|unlocked|r2r|moria|team|repost|win|mac|linux)\b.*$/i, "").trim();
+  name = name.replace(/\b(?:incl(?:uded)?|patched|keygen|crack|repack|unlocked|r2r|moria|team|repost|win|mac|linux|fixed|arm|x64)\b.*$/i, "").trim();
   name = name.replace(/\s+v?\d+(?:[.\s_]\d+){1,3}\s*$/i, "").trim();
   return name.slice(0, 120);
 }
 
 function captionTitle(caption: string) {
-  const lines = String(caption || "").split(/\r?\n/).map((x) => clean(x, 180)).filter(Boolean);
-  for (const line of lines.slice(0, 6)) {
+  const lines = String(caption || "").split(/\r?\n/).map((x) => clean(x, 220)).filter(Boolean);
+  for (const line of lines.slice(0, 8)) {
     const candidate = line
       .replace(/^(?:🔥|🎛️|🎹|📦|new|новинка|скачать|download)\s*/i, "")
       .replace(/\s+v?\d+(?:[.\s]\d+){1,3}\s*$/i, "")
@@ -100,44 +157,75 @@ function captionTitle(caption: string) {
   return "";
 }
 
+function normalizeCategory(value: unknown): ProductCategory | "" {
+  const t = clean(value, 100).toLowerCase();
+  if (!t) return "";
+  if (PRODUCT_CATEGORIES.some((x) => x.toLowerCase() === t)) return PRODUCT_CATEGORIES.find((x) => x.toLowerCase() === t) || "";
+  if (/daw|digital audio workstation/.test(t)) return "DAW";
+  if (/effect|eq|equalizer|compressor|reverb|delay|limiter|saturation|distortion|de.?esser|chorus|gate|amp simulator/.test(t)) return "Effect Plugin";
+  if (/synth|synthesizer/.test(t)) return "Synth";
+  if (/sampler/.test(t)) return "Sampler";
+  if (/virtual instrument|software instrument|instrument/.test(t)) return "Instrument";
+  if (/sample library/.test(t)) return "Sound Library";
+  if (/sample pack|sample collection/.test(t)) return "Sample Pack";
+  if (/preset|patch bank|soundbank|patch library/.test(t)) return "Preset Pack";
+  if (/midi/.test(t)) return "MIDI Pack";
+  if (/education|course|tutorial|training/.test(t)) return "Educational";
+  if (/hardware|synthesizer hardware/.test(t)) return "Hardware";
+  if (/utility|analyzer|meter|audio tool|audio utility/.test(t)) return "Audio Tool";
+  if (/bundle|collection|suite|plugin/.test(t)) return "Plugin";
+  if (/unknown|other/.test(t)) return t.includes("unknown") ? "Unknown" : "Other";
+  return "";
+}
+
 function deterministicCandidate(caption: string, fileName: string): Candidate {
   const title = captionTitle(caption) || filenameTitle(fileName);
-  const version = (caption.match(/\bv?(\d+(?:\.\d+){1,3})\b/i)?.[1] || "");
-  const developer =
-    /fabfilter/i.test(title) ? "FabFilter" :
-    /spectrasonics|omnisphere|keyscape|trilian/i.test(title) ? "Spectrasonics" :
-    /izotope|ozone|neutron/i.test(title) ? "iZotope" :
-    /native instruments|kontakt|massive/i.test(title) ? "Native Instruments" :
-    /arturia|pigments/i.test(title) ? "Arturia" :
-    /waves|cla-76|h-delay/i.test(title) ? "Waves" :
-    /ableton live/i.test(title) ? "Ableton" :
-    /fl studio/i.test(title) ? "Image-Line" :
-    /cubase/i.test(title) ? "Steinberg" : "";
-  const category =
-    /ableton live|fl studio|cubase|logic pro|studio one|bitwig|reaper|pro tools|reason/i.test(title) ? "DAW" :
-    /omnisphere|keyscape|trilian|serum|massive|diva|pigments|sylenth|vital/i.test(title) ? "VST Instrument" :
-    /sample|kontakt library|library|soundbank/i.test(caption + " " + fileName) ? "Sample Library" :
-    /preset|patch bank|soundbank/i.test(caption + " " + fileName) ? "Preset Library" :
-    /eq|equalizer|compressor|reverb|delay|limiter|saturation|distortion|de-esser/i.test(caption + " " + title) ? "Audio Effect Plugin" : "";
-  return { title, developer, version, category, detectedLanguage: languageOf(caption) };
+  const version = caption.match(/\b(?:v|version\s*)?(\d+(?:\.\d+){1,3})\b/i)?.[1] || "";
+  return {
+    title,
+    version,
+    category: normalizeCategory(
+      /ableton live|fl studio|cubase|logic pro|studio one|bitwig|reaper|pro tools|reason/i.test(title) ? "DAW" :
+      /serum|massive|diva|pigments|sylenth|vital|synth/i.test(title) ? "Synth" :
+      /sample pack/i.test(caption + " " + fileName) ? "Sample Pack" :
+      /preset|patch bank|soundbank/i.test(caption + " " + fileName) ? "Preset Pack" :
+      /midi pack/i.test(caption + " " + fileName) ? "MIDI Pack" :
+      /sample library|kontakt library|sound library/i.test(caption + " " + fileName) ? "Sound Library" :
+      /eq|equalizer|compressor|reverb|delay|limiter|saturation|distortion|de-esser|chorus|gate/i.test(caption + " " + title) ? "Effect Plugin" : ""
+    ),
+    detectedLanguage: languageOf(caption),
+  };
+}
+
+function candidateFromSource(source: IdentityCandidate["source"], value: Candidate): IdentityCandidate {
+  return {
+    source,
+    title: clean(value.title, 160) || undefined,
+    developer: clean(value.developer, 120) || undefined,
+    version: clean(value.version, 80) || undefined,
+    category: normalizeCategory(value.category),
+  };
 }
 
 async function telegramBytes(fileId: string) {
   const token = resolvePluginBotToken();
   if (!token || !fileId) throw new Error("telegram_image_unavailable");
   const infoRes = await fetch(TG + "/bot" + token + "/getFile", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ file_id: fileId }), cache: "no-store", signal: AbortSignal.timeout(10000),
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ file_id: fileId }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(10000),
   });
   const info = await infoRes.json().catch(() => null);
   const path = info?.result?.file_path;
   if (!infoRes.ok || !info?.ok || !path) throw new Error("telegram_image_path_unavailable");
   const imageRes = await fetch("https://api.telegram.org/file/bot" + token + "/" + path, {
-    cache: "no-store", signal: AbortSignal.timeout(15000),
+    cache: "no-store",
+    signal: AbortSignal.timeout(15000),
   });
   if (!imageRes.ok) throw new Error("telegram_image_download_failed");
-  const bytes = new Uint8Array(await imageRes.arrayBuffer());
-  return { bytes, contentType: imageRes.headers.get("content-type") || "image/jpeg" };
+  return { bytes: new Uint8Array(await imageRes.arrayBuffer()), contentType: imageRes.headers.get("content-type") || "image/jpeg" };
 }
 
 async function visionCandidate(photoFileId: string, caption: string, fileName: string): Promise<Candidate> {
@@ -147,13 +235,14 @@ async function visionCandidate(photoFileId: string, caption: string, fileName: s
   const base64 = Buffer.from(image.bytes).toString("base64");
   const model = (process.env.OPENAI_VISION_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini").trim();
   const prompt = [
-    "Identify the exact audio product visible in this Telegram artwork.",
-    "Use the image as evidence, not as inspiration. Never guess.",
-    "Also consider the original caption and filename as supporting evidence.",
-    "Return JSON only with: title, developer, version, category, formats, platforms, features, confidence.",
-    "If the exact product cannot be read or corroborated, set title to empty string and confidence to low.",
-    "Original caption:", caption.slice(0, 5000),
-    "Filename:", fileName.slice(0, 300),
+    "Identify the exact audio product represented by this Telegram artwork.",
+    "Image, filename and caption are evidence. Never guess or complete a familiar product name from memory.",
+    "Extract visible product/developer/version text and distinctive product clues.",
+    "If identity is uncertain, leave title/developer/version empty rather than inventing them.",
+    "Return JSON only: title, developer, version, category, formats, platforms, features, confidence.",
+    "Category must be one of: " + PRODUCT_CATEGORIES.join(", "),
+    "Original Telegram caption:", caption.slice(0, 5000),
+    "Original filename:", fileName.slice(0, 300),
   ].join("\n");
   const res = await fetch((process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "") + "/chat/completions", {
     method: "POST",
@@ -161,7 +250,7 @@ async function visionCandidate(photoFileId: string, caption: string, fileName: s
     body: JSON.stringify({
       model,
       temperature: 0,
-      max_tokens: 1200,
+      max_tokens: 1400,
       messages: [{
         role: "user",
         content: [
@@ -171,40 +260,40 @@ async function visionCandidate(photoFileId: string, caption: string, fileName: s
       }],
     }),
     cache: "no-store",
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(25000),
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(clean(data?.error?.message || "vision_failed", 240));
   const parsed = parseJson(data?.choices?.[0]?.message?.content || "");
-  return parsed && typeof parsed === "object" ? {
+  if (!parsed || typeof parsed !== "object") return {};
+  return {
     title: clean(parsed.title, 160),
     developer: clean(parsed.developer, 120),
     version: clean(parsed.version, 80),
-    category: clean(parsed.category, 100),
+    category: normalizeCategory(parsed.category),
     formats: Array.isArray(parsed.formats) ? parsed.formats.map((x: unknown) => clean(x, 40)).filter(Boolean).slice(0, 8) : [],
     platforms: Array.isArray(parsed.platforms) ? parsed.platforms.map((x: unknown) => clean(x, 40)).filter(Boolean).slice(0, 6) : [],
     features: Array.isArray(parsed.features) ? parsed.features.map((x: unknown) => clean(x, 180)).filter(Boolean).slice(0, 8) : [],
-  } : {};
+  };
 }
 
-type SearchHit = { title: string; url: string; snippet: string };
-
 async function webSearch(query: string): Promise<SearchHit[]> {
-  const q = encodeURIComponent(query.slice(0, 180));
+  const q = encodeURIComponent(query.slice(0, 220));
   const res = await fetch("https://www.bing.com/search?q=" + q + "&setlang=en-US", {
-    headers: { "user-agent": "ArtistYar-Telegram-Plugin-Verifier/1.0" },
-    cache: "no-store", signal: AbortSignal.timeout(10000),
+    headers: { "user-agent": "ArtistYar-Telegram-Plugin-Verifier/2.0" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error("web_search_http_" + res.status);
   const html = await res.text();
   const hits: SearchHit[] = [];
+  const strip = (v: string) => v.replace(/<[^>]+>/g, " ").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
   const re = /<li class="b_algo"[\s\S]*?<h2><a href="([^"]+)"[^>]*>([\s\S]*?)<\/a><\/h2>[\s\S]*?<p>([\s\S]*?)<\/p>/gi;
   for (const match of html.matchAll(re)) {
-    const strip = (v: string) => v.replace(/<[^>]+>/g, " ").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
     const url = match[1];
     if (!/^https?:\/\//i.test(url)) continue;
-    hits.push({ title: strip(match[2]).slice(0, 180), url, snippet: strip(match[3]).slice(0, 400) });
-    if (hits.length >= 6) break;
+    hits.push({ title: strip(match[2]).slice(0, 180), url, snippet: strip(match[3]).slice(0, 500) });
+    if (hits.length >= 8) break;
   }
   return hits;
 }
@@ -214,27 +303,27 @@ function officialRank(url: string, developer: string) {
   const d = developer.toLowerCase().replace(/[^a-z0-9]/g, "");
   if (!host) return 0;
   if (d && host.replace(/[^a-z0-9]/g, "").includes(d)) return 100;
-  if (/fabfilter|spectrasonics|izotope|native-instruments|arturia|waves|ableton|image-line|steinberg|avid|bitwig|presonus|xferrecords|u-he|valhalladsp/.test(host)) return 95;
+  if (/fabfilter|spectrasonics|izotope|native-instruments|arturia|waves|ableton|image-line|steinberg|avid|bitwig|presonus|xferrecords|u-he|valhalladsp|dawesome|reveal-sound|airmusictech|pulsarmodular|temecula-dsp|exciteaudio|sonible|masteringthemix|overloud/.test(host)) return 95;
   if (/plugin-alliance|musicradar|gearspace|sweetwater|pluginboutique/.test(host)) return 45;
   return 20;
 }
 
 function cacheKey(title: string, developer: string, version: string) {
-  return [title, developer, version].map((x) => clean(x, 120).toLowerCase()).join("|");
+  return [title, developer, version].map((x) => normalizeIdentity(x)).join("|");
 }
 
-async function cachedSearch(title: string, developer: string, version: string) {
+async function cachedSearch(title: string, developer: string, version: string, force = false) {
+  if (force) return null;
   const key = cacheKey(title, developer, version);
   const memory = memoryCache.get(key);
   if (memory && memory.expiresAt > Date.now()) return memory.value;
   const store = db();
-  if (store) {
-    const hit = await store.from("telegram_plugin_verification_cache").select("verification,verified_at").eq("cache_key", key).maybeSingle();
-    if (!hit.error && hit.data?.verification && Date.parse(String(hit.data.verified_at || "")) > Date.now() - SEARCH_CACHE_TTL) {
-      const value = hit.data.verification as VerificationResult;
-      memoryCache.set(key, { expiresAt: Date.now() + SEARCH_CACHE_TTL, value });
-      return value;
-    }
+  if (!store) return null;
+  const hit = await store.from("telegram_plugin_verification_cache").select("verification,verified_at").eq("cache_key", key).maybeSingle();
+  if (!hit.error && hit.data?.verification && Date.parse(String(hit.data.verified_at || "")) > Date.now() - SEARCH_CACHE_TTL) {
+    const value = hit.data.verification as VerificationResult;
+    memoryCache.set(key, { expiresAt: Date.now() + SEARCH_CACHE_TTL, value });
+    return value;
   }
   return null;
 }
@@ -243,29 +332,129 @@ function safeArray(v: unknown, max = 8) {
   return Array.isArray(v) ? v.map((x) => clean(x, 180)).filter(Boolean).slice(0, max) : [];
 }
 
-async function verifyCandidate(candidate: Candidate, rawCaption: string, fileName: string): Promise<VerificationResult> {
+function fieldConflicts(candidates: IdentityCandidate[]) {
+  const conflicts: string[] = [];
+  const fields = [
+    ["title", "identity_conflict"],
+    ["developer", "developer_conflict"],
+    ["version", "version_conflict"],
+    ["category", "category_conflict"],
+  ] as const;
+  for (const [field, code] of fields) {
+    const values = candidates.map((c) => normalizeIdentity((c as any)[field])).filter(Boolean);
+    if (new Set(values).size > 1) conflicts.push(code);
+  }
+  return conflicts;
+}
+
+function searchMatchesCandidate(hit: SearchHit, candidate: IdentityCandidate) {
+  const hay = normalizeIdentity(hit.title + " " + hit.snippet);
+  const title = normalizeIdentity(candidate.title);
+  return Boolean(title && (hay.includes(title) || title.split(" ").filter(Boolean).every((token) => hay.includes(token))));
+}
+
+function validVersion(version: string) {
+  return !version || /^v?\d+(?:\.\d+){0,4}(?:[-+._][0-9A-Za-z]+)?$/i.test(version);
+}
+
+function cyrillicIsOnlyProperName(text: string) {
+  if (!/[А-ЯЁа-яё]/.test(text)) return true;
+  return /^(?:[A-ZА-ЯЁ][A-Za-zА-ЯЁа-яё0-9 .&'’+_-]{1,80})$/.test(text.trim());
+}
+
+function qualityCaptionText(value: unknown) {
+  return String(value ?? "")
+    .replace(/Generated by AI|AI generated|Translated by AI|translation status|generation status|fallback status|scraping status|internal confidence|prompt-related|processing debug|According to source|provider:?|model:?|confidence:?|fallback:?|منبع(?: اصلی)?[:：]?|بر اساس منبع|طبق سایت رسمی|ترجمه شده توسط هوش مصنوعی|تولید شده توسط هوش مصنوعی|اطلاعات از منبع اصلی در دسترس نیست/gi, "")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/می ?شود/g, "می‌شود")
+    .replace(/می ?کند/g, "می‌کند")
+    .replace(/می ?دهد/g, "می‌دهد")
+    .replace(/به صورت/g, "به‌صورت")
+    .replace(/به کارگیری/g, "به‌کارگیری")
+    .replace(/هم زمان/g, "هم‌زمان")
+    .replace(/پیش فرض/g, "پیش‌فرض")
+    .trim();
+}
+
+function captionHasRussian(text: string) {
+  return /[А-ЯЁа-яё]/.test(text) && !cyrillicIsOnlyProperName(text);
+}
+
+function validateCaption(result: VerificationResult, caption: string) {
+  const reasons: string[] = [];
+  const value = String(caption || "").trim();
+  if (!value) reasons.push("caption_empty");
+  if (!isSpecificIdentity(result.title)) reasons.push("caption_identity_missing");
+  if (!result.description && !result.translatedCaption) reasons.push("description_missing");
+  if (captionHasRussian(value)) reasons.push("russian_text_remaining");
+  if (/(?:Developer|Version|Type|Formats|Platform|Highlights)\s*$/im.test(value)) reasons.push("empty_section");
+  if (result.category && !PRODUCT_CATEGORIES.includes(result.category as ProductCategory)) reasons.push("invalid_category");
+  if (result.version && !validVersion(result.version)) reasons.push("invalid_version");
+  if (result.conflicts?.length) reasons.push("unresolved_conflict");
+  return { ok: reasons.length === 0, reasons };
+}
+
+function buildIdentityEvidence(candidates: IdentityCandidate[], hits: SearchHit[], title: string, developer: string) {
+  return candidates.map((candidate) => {
+    const matches = hits.filter((hit) => searchMatchesCandidate(hit, candidate)).slice(0, 3);
+    return {
+      source: candidate.source,
+      title: candidate.title || "",
+      developer: candidate.developer || "",
+      version: candidate.version || "",
+      category: candidate.category || "",
+      web_matches: matches.map((m) => ({ title: m.title, url: m.url })),
+    };
+  });
+}
+
+async function verifyCandidate(
+  candidate: Candidate,
+  rawCaption: string,
+  fileName: string,
+  sourceCandidates: IdentityCandidate[],
+  force = false,
+): Promise<VerificationResult> {
   const title = clean(candidate.title, 160);
   if (!isSpecificIdentity(title)) {
     return {
-      ok: false, reviewRequired: true, title: title || "", developer: clean(candidate.developer, 120), version: clean(candidate.version, 80), latestOfficialVersion: "",
-      category: "", formats: [], platforms: [], features: [], description: "", installationNotes: "", translatedCaption: "", detectedLanguage: languageOf(rawCaption),
-      confidence: "low", evidence: [{ source: "caption", status: rawCaption ? "supporting" : "missing" }, { source: "filename", status: fileName ? "supporting" : "missing" }],
-      verificationStatus: "failed", verifiedSourceUrl: "", verifiedSourceTitle: "", searchStatus: "no_match", reason: "exact_product_identity_missing",
+      ok: false, reviewRequired: true, title: "", developer: "", version: "", latestOfficialVersion: "",
+      category: "Unknown", formats: [], platforms: [], features: [], description: "", installationNotes: "",
+      translatedCaption: "", detectedLanguage: languageOf(rawCaption), confidence: "low",
+      evidence: [
+        { source: "caption", status: rawCaption ? "supporting" : "missing" },
+        { source: "filename", status: fileName ? "supporting" : "missing" },
+      ],
+      identityCandidates: sourceCandidates, conflicts: ["identity_missing"],
+      verificationStatus: "failed", verifiedSourceUrl: "", verifiedSourceTitle: "", searchStatus: "no_match",
+      reason: "exact_product_identity_missing",
     };
   }
 
   const developer = clean(candidate.developer, 120);
   const version = clean(candidate.version, 80);
-  const cached = await cachedSearch(title, developer, version);
-  if (cached) return cached;
+  const conflicts = fieldConflicts(sourceCandidates);
+  const cached = await cachedSearch(title, developer, version, force);
+  if (cached && !conflicts.includes("identity_conflict")) {
+    return {
+      ...cached,
+      identityCandidates: sourceCandidates,
+      conflicts,
+      reviewRequired: Boolean(cached.reviewRequired || conflicts.length),
+      ok: Boolean(cached.ok && !conflicts.length),
+    };
+  }
 
   let hits: SearchHit[] = [];
   let searchAvailable = true;
   try {
+    const titles = [...new Set(sourceCandidates.map((c) => clean(c.title, 120)).filter(isSpecificIdentity))];
     const queries = [
-      [title, developer].filter(Boolean).join(" "),
+      ...titles.map((x) => x + " official product"),
+      [title, developer, "official"].filter(Boolean).join(" "),
       [title, version].filter(Boolean).join(" "),
-      developer ? [developer, title, "official"].join(" ") : [title, "official product"].join(" "),
     ].filter(Boolean).slice(0, MAX_SEARCH_QUERIES);
     const groups = await Promise.all(queries.map((query) => webSearch(query)));
     const seen = new Set<string>();
@@ -275,123 +464,216 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
   } catch {
     searchAvailable = false;
   }
+
+  const base: VerificationResult = {
+    ok: false,
+    reviewRequired: true,
+    title,
+    developer,
+    version,
+    latestOfficialVersion: "",
+    category: normalizeCategory(candidate.category) || "Unknown",
+    formats: safeArray(candidate.formats, 8),
+    platforms: safeArray(candidate.platforms, 6),
+    features: safeArray(candidate.features, 8),
+    description: qualityCaptionText(candidate.description),
+    installationNotes: qualityCaptionText(candidate.installationNotes),
+    translatedCaption: qualityCaptionText(candidate.translatedCaption),
+    detectedLanguage: languageOf(rawCaption),
+    confidence: "low",
+    evidence: [
+      { source: "caption", status: rawCaption ? "supporting" : "missing" },
+      { source: "filename", status: fileName ? "supporting" : "missing" },
+      { source: "image", status: sourceCandidates.some((x) => x.source === "image" && x.title) ? "confirmed" : "missing" },
+      { source: "web", status: searchAvailable ? "supporting" : "missing", detail: searchAvailable ? "" : "search_unavailable" },
+    ],
+    identityCandidates: sourceCandidates,
+    conflicts,
+    verificationStatus: searchAvailable ? "partial" : "unavailable",
+    verifiedSourceUrl: "",
+    verifiedSourceTitle: "",
+    searchStatus: searchAvailable ? "no_match" : "unavailable",
+  };
+
   if (!searchAvailable) {
-    return {
-      ok: false,
-      reviewRequired: true,
-      title,
-      developer,
-      version,
-      latestOfficialVersion: "",
-      category: clean(candidate.category, 100),
-      formats: safeArray(candidate.formats, 8),
-      platforms: safeArray(candidate.platforms, 6),
-      features: safeArray(candidate.features, 8),
-      description: clean(candidate.description, 700),
-      installationNotes: clean(candidate.installationNotes, 700),
-      translatedCaption: clean(candidate.translatedCaption, 2500),
-      detectedLanguage: languageOf(rawCaption),
-      confidence: "medium",
-      evidence: [
-        { source: "caption", status: rawCaption ? "confirmed" : "missing" },
-        { source: "filename", status: fileName ? "supporting" : "missing" },
-        { source: "web", status: "missing", detail: "search_unavailable" },
-      ],
-      verificationStatus: "unavailable",
-      verifiedSourceUrl: "",
-      verifiedSourceTitle: "",
-      searchStatus: "unavailable",
-      reason: "verification_unavailable",
-    };
+    base.reason = "verification_unavailable";
+    return base;
   }
 
   const ranked = hits.slice().sort((a, b) => officialRank(b.url, developer) - officialRank(a.url, developer));
-  const evidenceText = ranked.slice(0, 5).map((h, i) => `SOURCE ${i + 1}
-TITLE: ${h.title}
-URL: ${h.url}
-SNIPPET: ${h.snippet}`).join("\\n\\n");
-  const prompt = `You are the final verification layer for a Telegram music-software catalog.
+  const evidenceText = buildIdentityEvidence(sourceCandidates, ranked, title, developer)
+    .map((x, i) => "CANDIDATE " + (i + 1) + "\n" + JSON.stringify(x))
+    .join("\n\n") +
+    "\n\nWEB RESULTS\n" +
+    ranked.slice(0, 8).map((h, i) => "SOURCE " + (i + 1) + "\nTITLE: " + h.title + "\nURL: " + h.url + "\nSNIPPET: " + h.snippet).join("\n\n");
 
-Never guess. Only return facts supported by the original post and the supplied search evidence.
-If sources conflict, omit the conflicting field. A generic category is not an acceptable product identity.
-Prefer official developer/product sources. Keep product/developer names in English.
-Translate explanatory content into natural Persian for Iranian music producers.
+  const prompt = `You are the final evidence reconciliation layer for an Iranian music-software catalog.
 
-Original Telegram caption:
+Rules:
+- Do not guess. The candidate is not a fact.
+- The product identity must be supported by at least one source candidate AND a web result that clearly matches it, unless an official database source is explicitly supplied.
+- If image, filename and caption disagree, do not choose by familiarity. Use web evidence to resolve the conflict or return an empty title.
+- Developer is valid only when supported by an official product/developer source or explicit source text; never infer it from model memory.
+- Version is the version represented by the Telegram post/image. Never substitute the latest online version. Latest official version is a separate field.
+- Category must be exactly one of: ${PRODUCT_CATEGORIES.join(", ")}.
+- Multiple products must be represented separately. If more than one distinct product is present and cannot be safely separated, return product_count > 1 and included_products and keep confidence low/review required.
+- Features, formats, platforms and description must be directly supported by the supplied evidence. Do not add marketing claims.
+- For Russian source text, translate into natural Persian while preserving product/developer names and technical terms such as VST3, AU, AAX, Windows and macOS.
+- Return evidence references as source numbers so every important field can be audited.
+
+ORIGINAL TELEGRAM CAPTION:
 ${rawCaption.slice(0, 7000)}
 
-Original filename:
+ORIGINAL FILENAME:
 ${fileName.slice(0, 300)}
 
-Candidate extracted from source/image:
-${JSON.stringify(candidate)}
+SOURCE CANDIDATES:
+${JSON.stringify(sourceCandidates)}
 
-Web evidence:
-${evidenceText || "No search result."}
+SEARCH EVIDENCE:
+${evidenceText || "No evidence."}
 
 Return JSON only:
 {
-  "title": "exact product name or empty",
-  "developer": "developer or empty",
-  "version": "verified version or empty",
-  "category": "specific category or empty",
+  "title": "exact verified product name or empty",
+  "developer": "verified developer or empty",
+  "version": "version represented by this post or empty",
+  "latest_official_version": "latest official version only if explicitly supported, otherwise empty",
+  "category": "one exact taxonomy value or Unknown",
   "formats": [],
   "platforms": [],
   "features": [],
-  "description_fa": "short natural Persian description or empty",
-  "installation_notes_fa": "only important installation or compatibility notes explicitly supported by the source/search evidence, otherwise empty",
-  "translated_caption_fa": "clean Persian translation of relevant source information or empty",
+  "description_fa": "concise factual Persian description or empty",
+  "installation_notes_fa": "only explicitly supported compatibility/installation notes or empty",
+  "translated_caption_fa": "natural Persian rendering of relevant source text or empty",
+  "product_count": 1,
+  "included_products": [],
   "confidence": "high|medium|low",
-  "source_url": "best authoritative URL or empty",
-  "source_title": "source page title or empty"
+  "source_url": "authoritative source URL or empty",
+  "source_title": "source page title or empty",
+  "developer_source_url": "source supporting developer or empty",
+  "version_source": "telegram|image|official|unknown",
+  "evidence_refs": {
+    "title": ["candidate:caption|candidate:filename|candidate:image|source:1"],
+    "developer": ["source:1"],
+    "version": ["candidate:caption|candidate:image|source:1"],
+    "category": ["source:1"],
+    "description": ["source:1"],
+    "formats": ["source:1"],
+    "platforms": ["source:1"],
+    "features": ["source:1"]
+  }
 }`;
 
-  let verified: any;
+  let verified: any = null;
   try {
-    verified = parseJson((await runtimeGenerateJson(
+    const response = await runtimeGenerateJson(
       prompt,
-      "Strict evidence extraction. Return JSON only. Do not invent product facts. If a claim is not supported, omit it.",
-    )).reply);
+      "Evidence-only reconciliation. Return JSON only. Unsupported fields must be empty. Never invent identity, developer, version, category, formats, platforms or features.",
+    );
+    verified = parseJson(response.reply);
   } catch {
     verified = null;
   }
 
-  const finalTitle = clean(verified?.title || title, 160);
-  const finalDeveloper = clean(verified?.developer || developer, 120);
-  const finalVersion = clean(verified?.version, 80);
-  const latestOfficialVersion = clean(verified?.latest_official_version, 80);
-  const authoritativeHit = ranked.find((h) => officialRank(h.url, finalDeveloper) >= 90) || ranked[0];
-  const sourceUrl = clean(authoritativeHit?.url || verified?.source_url, 500);
-  const confidence = /^(high|medium|low)$/.test(String(verified?.confidence)) ? verified.confidence : "low";
-  const sourceHost = sourceUrl ? officialRank(sourceUrl, finalDeveloper) : 0;
-  const hasWebIdentity = Boolean(finalTitle && ranked.some((h) => h.title.toLowerCase().includes(finalTitle.toLowerCase()) || h.snippet.toLowerCase().includes(finalTitle.toLowerCase())));
-  const highEnough = isSpecificIdentity(finalTitle) && confidence !== "low" && (hasWebIdentity || sourceHost >= 45);
+  if (!verified) {
+    base.reason = "verification_ai_failed";
+    return base;
+  }
+
+  const finalTitle = clean(verified.title, 160);
+  const finalDeveloper = clean(verified.developer, 120);
+  const finalVersion = clean(verified.version, 80);
+  const finalCategory = normalizeCategory(verified.category) || "Unknown";
+  const productCount = Math.max(1, Number(verified.product_count || 1) || 1);
+  const includedProducts = safeArray(verified.included_products, 20);
+  const titleRefs = Array.isArray(verified?.evidence_refs?.title) ? verified.evidence_refs.title.map(String) : [];
+  const developerRefs = Array.isArray(verified?.evidence_refs?.developer) ? verified.evidence_refs.developer.map(String) : [];
+  const versionRefs = Array.isArray(verified?.evidence_refs?.version) ? verified.evidence_refs.version.map(String) : [];
+  const titleSupported = isSpecificIdentity(finalTitle) && titleRefs.length > 0 && (
+    sourceCandidates.some((c) => normalizeIdentity(c.title) === normalizeIdentity(finalTitle)) ||
+    ranked.some((h) => searchMatchesCandidate(h, { source: "web", title: finalTitle }))
+  );
+  const webTitleMatch = ranked.some((h) => searchMatchesCandidate(h, { source: "web", title: finalTitle }));
+  const officialHit = ranked.find((h) => officialRank(h.url, finalDeveloper) >= 90 && searchMatchesCandidate(h, { source: "web", title: finalTitle }))
+    || ranked.find((h) => searchMatchesCandidate(h, { source: "web", title: finalTitle }))
+    || ranked[0];
+  const developerSupported = !finalDeveloper || (
+    developerRefs.length > 0 &&
+    (officialRank(officialHit?.url || "", finalDeveloper) >= 90 ||
+      sourceCandidates.some((c) => normalizeIdentity(c.developer) === normalizeIdentity(finalDeveloper)))
+  );
+  const versionSupported = !finalVersion || (versionRefs.length > 0 && validVersion(finalVersion) && (
+    sourceCandidates.some((c) => normalizeIdentity(c.version) === normalizeIdentity(finalVersion)) ||
+    /\b(?:v|version\s*)?\d+(?:\.\d+){1,4}\b/i.test(rawCaption + " " + fileName)
+  ));
+  const conflictsResolved = conflicts.length === 0 || (webTitleMatch && titleSupported);
+  const confidence = /^(high|medium|low)$/.test(String(verified.confidence)) ? verified.confidence as Confidence : "low";
+  const authoritative = officialHit;
+  const sourceUrl = clean(verified.source_url || authoritative?.url, 500);
+  const description = qualityCaptionText(verified.description_fa);
+  const translatedCaption = qualityCaptionText(verified.translated_caption_fa);
+  const features = safeArray(verified.features, 8);
+  const formats = safeArray(verified.formats, 8);
+  const platforms = safeArray(verified.platforms, 6);
+  const candidateConflict = fieldConflicts(sourceCandidates);
+  const multipleProductsUnclear = productCount > 1 && includedProducts.length < 2;
+  const ok = Boolean(
+    titleSupported &&
+    webTitleMatch &&
+    developerSupported &&
+    versionSupported &&
+    conflictsResolved &&
+    finalCategory !== "Unknown" &&
+    confidence !== "low" &&
+    description &&
+    !multipleProductsUnclear
+  );
+
   const result: VerificationResult = {
-    ok: highEnough,
-    reviewRequired: !highEnough,
-    title: finalTitle,
-    developer: finalDeveloper,
-    version: finalVersion,
-    latestOfficialVersion,
-    category: clean(verified?.category, 100),
-    formats: safeArray(verified?.formats, 8),
-    platforms: safeArray(verified?.platforms, 6),
-    features: safeArray(verified?.features, 8),
-    description: clean(verified?.description_fa, 700),
-    installationNotes: clean(verified?.installation_notes_fa, 700),
-    translatedCaption: clean(verified?.translated_caption_fa, 2500),
+    ok,
+    reviewRequired: !ok,
+    title: titleSupported ? finalTitle : "",
+    developer: developerSupported ? finalDeveloper : "",
+    version: versionSupported ? finalVersion : "",
+    latestOfficialVersion: clean(verified.latest_official_version, 80),
+    productCount,
+    includedProducts,
+    fileIdentity: { fileName, consistent: !candidateConflict.includes("title"), detail: candidateConflict.join(",") || "source_agreement" },
+    category: finalCategory,
+    formats,
+    platforms,
+    features,
+    description,
+    installationNotes: qualityCaptionText(verified.installation_notes_fa),
+    translatedCaption,
     detectedLanguage: languageOf(rawCaption),
-    confidence: confidence as "high" | "medium" | "low",
+    confidence: ok ? confidence : "low",
     evidence: [
       { source: "caption", status: rawCaption ? "supporting" : "missing" },
       { source: "filename", status: fileName ? "supporting" : "missing" },
-      { source: "web", status: hasWebIdentity ? "confirmed" : "supporting", detail: ranked[0]?.url || "" },
+      { source: "image", status: sourceCandidates.some((x) => x.source === "image" && x.title) ? "confirmed" : "missing" },
+      { source: "web", status: webTitleMatch ? "confirmed" : "supporting", detail: sourceUrl },
     ],
-    verificationStatus: highEnough ? "verified" : "partial",
-    verifiedSourceUrl: sourceUrl || ranked[0]?.url || "",
-    verifiedSourceTitle: clean((authoritativeHit?.title || verified?.source_title || ranked[0]?.title), 180),
-    searchStatus: hasWebIdentity ? "verified" : "no_match",
-    reason: highEnough ? undefined : "verification_confidence_insufficient",
+    identityCandidates: sourceCandidates,
+    conflicts: candidateConflict,
+    developerSourceUrl: clean(verified.developer_source_url || sourceUrl, 500),
+    developerConfidence: developerSupported && finalDeveloper ? confidence : "low",
+    versionSource: /image/.test(String(verified.version_source)) ? "image" : /official/.test(String(verified.version_source)) ? "official" : finalVersion ? "telegram" : "unknown",
+    verificationStatus: ok ? "verified" : "partial",
+    verifiedSourceUrl: sourceUrl,
+    verifiedSourceTitle: clean(verified.source_title || authoritative?.title, 180),
+    searchStatus: webTitleMatch ? "verified" : "no_match",
+    reason: ok ? undefined : [
+      !titleSupported ? "identity_not_supported" : "",
+      !developerSupported ? "developer_not_verified" : "",
+      !versionSupported ? "version_not_supported" : "",
+      candidateConflict.length ? "source_conflict" : "",
+      finalCategory === "Unknown" ? "category_unknown" : "",
+      !description ? "description_missing" : "",
+      multipleProductsUnclear ? "multiple_products_unresolved" : "",
+      confidence === "low" ? "confidence_low" : "",
+    ].filter(Boolean).join(",") || "verification_failed",
   };
   await storeAndCache(result);
   return result;
@@ -399,18 +681,18 @@ Return JSON only:
 
 async function storeAndCache(result: VerificationResult) {
   const store = db();
-  if (!store || !result.title) {
-    const key = cacheKey(result.title, result.developer, result.version);
-    memoryCache.set(key, { expiresAt: Date.now() + SEARCH_CACHE_TTL, value: result });
-    return true;
-  }
   const key = cacheKey(result.title, result.developer, result.version);
+  memoryCache.set(key, { expiresAt: Date.now() + SEARCH_CACHE_TTL, value: result });
+  if (!store || !result.title) return true;
   await store.from("telegram_plugin_verification_cache").upsert({
-    cache_key: key, product_name: result.title, developer: result.developer || null,
-    version: result.version || null, verification: result, verified_at: new Date().toISOString(),
+    cache_key: key,
+    product_name: result.title,
+    developer: result.developer || null,
+    version: result.version || null,
+    verification: result,
+    verified_at: new Date().toISOString(),
     source_url: result.verifiedSourceUrl || null,
   }, { onConflict: "cache_key" });
-  memoryCache.set(key, { expiresAt: Date.now() + SEARCH_CACHE_TTL, value: result });
   return true;
 }
 
@@ -419,59 +701,69 @@ export async function analyzeTelegramPluginPost(input: {
   rawCaption?: string;
   fileName?: string;
   candidate?: Candidate;
+  force?: boolean;
 }): Promise<VerificationResult> {
   const caption = clean(input.rawCaption, 7000);
   const fileName = clean(input.fileName, 300);
-  let candidate = { ...deterministicCandidate(caption, fileName), ...(input.candidate || {}) };
-  let visionUsed = false;
-  if (!isSpecificIdentity(clean(candidate.title, 160)) && input.photoFileId) {
-    try {
-      candidate = { ...candidate, ...(await visionCandidate(input.photoFileId, caption, fileName)) };
-      visionUsed = isSpecificIdentity(clean(candidate.title, 160));
-    } catch {
-      // A failed vision attempt is not permission to guess. The verifier below will require review.
-    }
-  }
-  let result = await verifyCandidate(candidate, caption, fileName);
-  let attempts = 0;
-  while (result.reviewRequired && attempts < MAX_REANALYSIS && input.photoFileId) {
-    attempts++;
-    try {
-      const vision = await visionCandidate(input.photoFileId, caption, fileName);
-      if (isSpecificIdentity(clean(vision.title, 160)) && String(vision.title).toLowerCase() !== String(candidate.title || "").toLowerCase()) {
-        candidate = { ...candidate, ...vision };
-        result = await verifyCandidate(candidate, caption, fileName);
-      } else {
-        break;
-      }
-    } catch {
-      break;
-    }
-  }
+  const captionCandidate = deterministicCandidate(caption, "");
+  const filenameCandidate: Candidate = { title: filenameTitle(fileName) };
+  const sourceCandidates: IdentityCandidate[] = [
+    candidateFromSource("caption", captionCandidate),
+    candidateFromSource("filename", filenameCandidate),
+  ].filter((x) => x.title || x.developer || x.version || x.category);
+
+  let vision: Candidate = {};
   if (input.photoFileId) {
-    const imageEvidence: PluginEvidence = { source: "image", status: visionUsed ? "confirmed" : "supporting", detail: visionUsed ? "vision_identified_product" : "image_available_but_not_required_for_identity" };
-    result.evidence = [imageEvidence, ...result.evidence.filter((e) => e.source !== "image")];
+    try {
+      vision = await visionCandidate(input.photoFileId, caption, fileName);
+      sourceCandidates.push(candidateFromSource("image", vision));
+    } catch (error) {
+      sourceCandidates.push({ source: "image", confidence: "low" });
+    }
   }
-  return result;
+
+  const supplied = input.candidate || {};
+  if (supplied.title || supplied.developer || supplied.version || supplied.category) {
+    sourceCandidates.push(candidateFromSource("database", supplied));
+  }
+
+  const titleValues = sourceCandidates.map((c) => c.title).filter(isSpecificIdentity);
+  const candidateTitle = clean(
+    supplied.title ||
+    (titleValues.length === 1 ? titleValues[0] : (vision.title || captionCandidate.title || filenameCandidate.title)),
+    160,
+  );
+  const merged: Candidate = {
+    ...captionCandidate,
+    ...filenameCandidate,
+    ...vision,
+    ...supplied,
+    title: candidateTitle,
+    category: normalizeCategory(supplied.category || vision.category || captionCandidate.category || ""),
+  };
+
+  return verifyCandidate(merged, caption, fileName, sourceCandidates, Boolean(input.force));
 }
 
 export function buildVerifiedCaption(result: VerificationResult) {
   if (!result.ok || !result.title) return "";
-  const lines = [
+  const intro = qualityCaptionText(result.translatedCaption || result.description);
+  const sections = [
     `🎛️ <b>${esc(result.title)}</b>`,
-    result.description ? `✨ ${esc(result.description)}` : "",
-    result.developer ? `🏷️ <b>Developer</b>\n${esc(result.developer)}` : "",
-    result.version ? `📦 <b>Version</b>\n${esc(result.version)}` : "",
-    result.category ? `🎚️ <b>Type</b>\n${esc(result.category)}` : "",
-    result.formats.length ? `🔌 <b>Formats</b>\n${esc(result.formats.join(" · "))}` : "",
-    result.platforms.length ? `💻 <b>Platform</b>\n${esc(result.platforms.join(" · "))}` : "",
-    result.features.length ? `🔥 <b>Highlights</b>\n${result.features.slice(0, 5).map((x) => "• " + esc(x)).join("\n")}` : "",
-    result.description ? `📝 <b>درباره محصول</b>\n${esc(result.description)}` : "",
-    result.installationNotes ? `📌 <b>نکات سازگاری</b>\n${esc(result.installationNotes)}` : "",
+    result.developer ? `🏢 <b>سازنده:</b> ${esc(result.developer)}` : "",
+    result.category && result.category !== "Unknown" ? `🏷️ <b>نوع:</b> ${esc(result.category)}` : "",
+    intro ? `\n📌 <b>معرفی</b>\n${esc(intro)}` : "",
+    result.features.length ? `\n✨ <b>ویژگی‌ها</b>\n${result.features.slice(0, 6).map((x) => "• " + esc(x)).join("\n")}` : "",
+    result.platforms.length ? `\n💻 <b>سازگاری</b>\n• ${result.platforms.map(esc).join("\n• ")}` : "",
+    result.formats.length ? `\n🔧 <b>فرمت‌ها</b>\n• ${result.formats.map(esc).join("\n• ")}` : "",
+    result.version ? `\n📦 <b>نسخه:</b> ${esc(result.version)}` : "",
+    result.verifiedSourceUrl ? `\n🔗 <b>منبع رسمی:</b> ${esc(result.verifiedSourceUrl)}` : "",
     "━━━━━━━━━━━━━━━━━━",
     "🎧 <b>@ProAudios</b>",
   ].filter(Boolean);
-  return lines.join("\n\n").slice(0, 1024);
+  const caption = sections.join("\n\n").slice(0, 1024);
+  const quality = validateCaption(result, caption);
+  return quality.ok ? caption : "";
 }
 
 function esc(v: string) {
@@ -481,51 +773,9 @@ function esc(v: string) {
 export async function applyVerificationToPost(postId: string, result: VerificationResult) {
   const store = db();
   if (!store) return { ok: false, error: "supabase_not_configured" };
-  if (!result.ok) {
-    await store.from("telegram_plugin_posts").update({
-      review_required: true,
-      verification_status: result.verificationStatus,
-      verification_confidence: result.confidence,
-      evidence: result.evidence,
-      detected_language: result.detectedLanguage,
-      verified_source_url: result.verifiedSourceUrl || null,
-      verified_source_title: result.verifiedSourceTitle || null,
-      search_status: result.searchStatus,
-      latest_official_version: result.latestOfficialVersion || null,
-      product_count: result.productCount || 1,
-      included_products: result.includedProducts || [],
-      file_identity: result.fileIdentity || {},
-      ai_analysis: result,
-      error_message: "review_required:" + (result.reason || "verification_failed"),
-      updated_at: new Date().toISOString(),
-    }).eq("id", postId);
-    return { ok: false, reviewRequired: true };
-  }
-  const caption = buildVerifiedCaption(result);
-  const row = await store.from("telegram_plugin_posts").select("channel_id,photo_message_id,document_message_id,raw_caption").eq("id", postId).maybeSingle();
-  if (row.error || !row.data) return { ok: false, error: "post_not_found" };
-  try {
-    if (caption && row.data.channel_id && (row.data.photo_message_id || row.data.document_message_id)) {
-      await publishPluginCaption(postId, caption);
-    }
-  } catch (error) {
-    return { ok: false, error: clean(error instanceof Error ? error.message : String(error), 240) };
-  }
-  const update = await store.from("telegram_plugin_posts").update({
-    title: result.title,
-    developer: result.developer || null,
-    version: result.version || null,
-    latest_official_version: result.latestOfficialVersion || null,
-    product_count: result.productCount || 1,
-    included_products: result.includedProducts || [],
-    file_identity: result.fileIdentity || {},
-    category: result.category || "other",
-    formats: result.formats,
-    platforms: result.platforms,
-    features: result.features,
-    description: result.description,
-    final_caption: caption,
-    review_required: false,
+
+  const baseUpdate = {
+    review_required: true,
     verification_status: result.verificationStatus,
     verification_confidence: result.confidence,
     evidence: result.evidence,
@@ -533,11 +783,79 @@ export async function applyVerificationToPost(postId: string, result: Verificati
     verified_source_url: result.verifiedSourceUrl || null,
     verified_source_title: result.verifiedSourceTitle || null,
     search_status: result.searchStatus,
+    latest_official_version: result.latestOfficialVersion || null,
+    product_count: result.productCount || 1,
+    included_products: result.includedProducts || [],
+    file_identity: result.fileIdentity || {},
     ai_analysis: result,
-    error_message: null,
+    processing_state: result.ok ? "GENERATING" : "NEEDS_REVIEW",
+    error_message: result.ok ? null : "review_required:" + (result.reason || "verification_failed"),
     updated_at: new Date().toISOString(),
+  };
+
+  if (!result.ok) {
+    await store.from("telegram_plugin_posts").update(baseUpdate).eq("id", postId);
+    return { ok: false, reviewRequired: true };
+  }
+
+  const caption = buildVerifiedCaption(result);
+  const quality = validateCaption(result, caption);
+  if (!caption || !quality.ok) {
+    await store.from("telegram_plugin_posts").update({
+      ...baseUpdate,
+      processing_state: "NEEDS_REVIEW",
+      error_message: "caption_quality_failed:" + quality.reasons.join(","),
+    }).eq("id", postId);
+    return { ok: false, reviewRequired: true, error: "caption_quality_failed" };
+  }
+
+  const update = await store.from("telegram_plugin_posts").update({
+    ...baseUpdate,
+    title: result.title,
+    developer: result.developer || null,
+    version: result.version || null,
+    category: result.category,
+    formats: result.formats,
+    platforms: result.platforms,
+    features: result.features,
+    description: result.description,
+    draft_caption: caption,
+    final_caption: "",
+    review_required: false,
+    processing_state: "READY",
+    error_message: null,
   }).eq("id", postId);
   if (update.error) return { ok: false, error: update.error.message };
+
+  const row = await store.from("telegram_plugin_posts")
+    .select("channel_id,photo_message_id,document_message_id")
+    .eq("id", postId)
+    .maybeSingle();
+  if (row.error || !row.data) return { ok: false, error: "post_not_found" };
+
+  try {
+    if (row.data.channel_id && (row.data.photo_message_id || row.data.document_message_id)) {
+      await publishPluginCaption(postId, caption);
+    }
+  } catch (error) {
+    await store.from("telegram_plugin_posts").update({
+      review_required: true,
+      processing_state: "READY",
+      error_message: "caption_publish_failed:" + clean(error instanceof Error ? error.message : String(error), 220),
+      updated_at: new Date().toISOString(),
+    }).eq("id", postId);
+    return { ok: false, error: "caption_publish_failed" };
+  }
+
+  const published = await store.from("telegram_plugin_posts").update({
+    final_caption: caption,
+    draft_caption: "",
+    review_required: false,
+    processing_state: "PUBLISHED",
+    status: "published",
+    updated_at: new Date().toISOString(),
+  }).eq("id", postId);
+  if (published.error) return { ok: false, error: published.error.message };
   return { ok: true, caption };
 }
 
@@ -562,9 +880,8 @@ export async function createReviewRequiredPost(input: {
     .eq("channel_id", input.channelId)
     .eq("document_message_id", input.documentMessageId || 0)
     .maybeSingle();
-  if (!existing.error && existing.data?.status === "published") {
-    return { ok: true, id: existing.data.id, existing: true };
-  }
+  if (!existing.error && existing.data?.status === "published") return { ok: true, id: existing.data.id, existing: true };
+
   const row = await store.from("telegram_plugin_posts").upsert({
     channel_id: input.channelId,
     photo_message_id: input.photoMessageId || null,
@@ -577,7 +894,7 @@ export async function createReviewRequiredPost(input: {
     title,
     developer: result.developer || null,
     version: result.version || null,
-    category: result.category || "other",
+    category: result.category || "Unknown",
     formats: result.formats || [],
     platforms: result.platforms || [],
     description: result.description || "",
@@ -610,53 +927,126 @@ export async function regenerateStoredTranslation(postId: string) {
   const p = row.data;
   try {
     const reply = await runtimeGenerateJson(
-      `Translate the relevant technical information from this Telegram caption into natural Persian for Iranian music producers.
-Do not add any facts, product names, versions, formats, OS requirements or features that are not present in the source.
-Keep product and developer names in English. Return JSON only: {"description_fa":"short accurate Persian description","translated_caption_fa":"clean Persian technical copy"}.
+      `Translate only the source text into natural Persian for Iranian music producers.
+Do not identify the product, change identity, change developer, change category, change version, search the web, or invent any fact.
+Preserve verified product/developer names and technical terms. Return JSON only:
+{"description_fa":"accurate Persian description","translated_caption_fa":"natural Persian technical copy"}
 
-Original caption:
+Original Telegram caption:
 ${String(p.raw_caption || "").slice(0, 7000)}
 
-Already verified identity:
+Verified facts (read-only; do not alter):
 ${JSON.stringify({ title: p.title, developer: p.developer, version: p.version, category: p.category, formats: p.formats, platforms: p.platforms, features: p.features })}`,
-      "Translate only. Do not identify, classify, search, or invent.",
+      "Translation only. Identity is immutable in this operation. Do not search or classify.",
     );
     const parsed = parseJson(reply.reply);
-    const description = clean(parsed?.description_fa, 700);
-    const translated = clean(parsed?.translated_caption_fa, 2500);
+    const description = qualityCaptionText(parsed?.description_fa) || clean(p.description, 700);
+    const translated = qualityCaptionText(parsed?.translated_caption_fa);
     const result: VerificationResult = {
-      ok: true,
+      ok: Boolean(p.verification_status === "verified" && isSpecificIdentity(p.title)),
       reviewRequired: Boolean(p.review_required),
       title: clean(p.title, 160),
       developer: clean(p.developer, 120),
       version: clean(p.version, 80),
       latestOfficialVersion: clean(p.latest_official_version, 80),
-      category: clean(p.category, 100),
+      category: normalizeCategory(p.category) || "Unknown",
       formats: safeArray(p.formats, 8),
       platforms: safeArray(p.platforms, 6),
       features: safeArray(p.features, 8),
-      description: description || clean(p.description, 700),
+      description,
       installationNotes: "",
       translatedCaption: translated,
       detectedLanguage: clean(p.detected_language || languageOf(p.raw_caption), 40),
-      confidence: (p.verification_confidence === "high" || p.verification_confidence === "medium" ? p.verification_confidence : "low") as "high" | "medium" | "low",
+      confidence: (p.verification_confidence === "high" || p.verification_confidence === "medium" ? p.verification_confidence : "low") as Confidence,
       evidence: Array.isArray(p.evidence) ? p.evidence : [],
+      identityCandidates: Array.isArray(p.ai_analysis?.identityCandidates) ? p.ai_analysis.identityCandidates : [],
+      conflicts: Array.isArray(p.ai_analysis?.conflicts) ? p.ai_analysis.conflicts : [],
       verificationStatus: p.verification_status || "partial",
       verifiedSourceUrl: clean(p.verified_source_url, 500),
       verifiedSourceTitle: clean(p.verified_source_title, 180),
       searchStatus: p.search_status || "unavailable",
+      developerSourceUrl: clean(p.ai_analysis?.developerSourceUrl, 500),
+      developerConfidence: p.ai_analysis?.developerConfidence || "low",
+      versionSource: p.ai_analysis?.versionSource || "unknown",
+      productCount: Number(p.product_count || 1),
       includedProducts: safeArray(p.included_products, 20),
       fileIdentity: p.file_identity || { fileName: String(p.file_name || ""), consistent: true, detail: "" },
     };
     const caption = buildVerifiedCaption(result);
-    await store.from("telegram_plugin_posts").update({
+    if (!caption) return { ok: false, error: "translation_caption_quality_failed" };
+    const update = await store.from("telegram_plugin_posts").update({
+      description,
       draft_caption: caption,
       updated_at: new Date().toISOString(),
     }).eq("id", postId);
+    if (update.error) return { ok: false, error: update.error.message };
     return { ok: true, caption, result };
   } catch (error) {
+    await store.from("telegram_plugin_posts").update({
+      review_required: true,
+      processing_state: "NEEDS_REVIEW",
+      error_message: "translation_failed:" + clean(error instanceof Error ? error.message : String(error), 220),
+      updated_at: new Date().toISOString(),
+    }).eq("id", postId);
     return { ok: false, error: clean(error instanceof Error ? error.message : String(error), 240) };
   }
+}
+
+export async function regenerateStoredCaption(postId: string) {
+  const store = db();
+  if (!store) return { ok: false, error: "supabase_not_configured" };
+  const row = await store.from("telegram_plugin_posts").select("*").eq("id", postId).maybeSingle();
+  if (row.error || !row.data) return { ok: false, error: "post_not_found" };
+  const p = row.data;
+  const result: VerificationResult = {
+    ok: p.verification_status === "verified" && isSpecificIdentity(String(p.title || "")),
+    reviewRequired: Boolean(p.review_required),
+    title: clean(p.title, 160),
+    developer: clean(p.developer, 120),
+    version: clean(p.version, 80),
+    latestOfficialVersion: clean(p.latest_official_version, 80),
+    category: normalizeCategory(p.category) || "Unknown",
+    formats: safeArray(p.formats, 8),
+    platforms: safeArray(p.platforms, 6),
+    features: safeArray(p.features, 8),
+    description: qualityCaptionText(p.description),
+    installationNotes: qualityCaptionText(p.ai_analysis?.installationNotes),
+    translatedCaption: qualityCaptionText(p.ai_analysis?.translatedCaption),
+    detectedLanguage: clean(p.detected_language || languageOf(p.raw_caption), 40),
+    confidence: (p.verification_confidence === "high" || p.verification_confidence === "medium" ? p.verification_confidence : "low") as Confidence,
+    evidence: Array.isArray(p.evidence) ? p.evidence : [],
+    identityCandidates: Array.isArray(p.ai_analysis?.identityCandidates) ? p.ai_analysis.identityCandidates : [],
+    conflicts: Array.isArray(p.ai_analysis?.conflicts) ? p.ai_analysis.conflicts : [],
+    verificationStatus: p.verification_status || "partial",
+    verifiedSourceUrl: clean(p.verified_source_url, 500),
+    verifiedSourceTitle: clean(p.verified_source_title, 180),
+    searchStatus: p.search_status || "unavailable",
+    developerSourceUrl: clean(p.ai_analysis?.developerSourceUrl, 500),
+    developerConfidence: p.ai_analysis?.developerConfidence || "low",
+    versionSource: p.ai_analysis?.versionSource || "unknown",
+    productCount: Number(p.product_count || 1),
+    includedProducts: safeArray(p.included_products, 20),
+    fileIdentity: p.file_identity || { fileName: String(p.file_name || ""), consistent: true, detail: "" },
+  };
+  const caption = buildVerifiedCaption(result);
+  const quality = validateCaption(result, caption);
+  if (!result.ok || !caption || !quality.ok) {
+    await store.from("telegram_plugin_posts").update({
+      review_required: true,
+      processing_state: "NEEDS_REVIEW",
+      error_message: "caption_generation_failed:" + (quality.reasons.join(",") || "verification_missing"),
+      updated_at: new Date().toISOString(),
+    }).eq("id", postId);
+    return { ok: false, error: "caption_generation_failed", result };
+  }
+  const update = await store.from("telegram_plugin_posts").update({
+    draft_caption: caption,
+    processing_state: "READY",
+    error_message: null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", postId);
+  if (update.error) return { ok: false, error: update.error.message };
+  return { ok: true, caption, result };
 }
 
 export async function verifyStoredPlugin(postId: string, force = false) {
@@ -669,15 +1059,16 @@ export async function verifyStoredPlugin(postId: string, force = false) {
     photoFileId: String(p.telegram_photo_file_id || ""),
     rawCaption: String(p.raw_caption || ""),
     fileName: String(p.file_name || ""),
-    candidate: {
-      title: force ? "" : String(p.title || ""),
-      developer: force ? "" : String(p.developer || ""),
-      version: force ? "" : String(p.version || ""),
-      category: force ? "" : String(p.category || ""),
-      formats: force ? [] : p.formats,
-      platforms: force ? [] : p.platforms,
-      features: force ? [] : p.features,
+    candidate: force ? undefined : {
+      title: String(p.title || ""),
+      developer: String(p.developer || ""),
+      version: String(p.version || ""),
+      category: String(p.category || ""),
+      formats: p.formats,
+      platforms: p.platforms,
+      features: p.features,
     },
+    force,
   });
   return { ...(await applyVerificationToPost(postId, result)), result };
 }
