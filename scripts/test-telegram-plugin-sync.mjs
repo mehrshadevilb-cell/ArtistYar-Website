@@ -123,7 +123,7 @@ assert.match(intelligence, /officialRank/);
 assert.match(intelligence, /runtimeGenerateJson/);
 assert.match(intelligence, /reviewRequired/);
 assert.match(intelligence, /telegram_plugin_verification_cache/);
-assert.match(intelligence, /buildVerifiedCaption/);
+assert.match(intelligence, /buildVerifiedCaption/);\nassert.match(intelligence, /installationNotes/);\nassert.match(intelligence, /visionUsed/);
 assert.doesNotMatch(intelligence, /category: "Audio Plugin"/);
 assert.doesNotMatch(intelligence, /title \|\| "Plugin"/);
 assert.match(patcher, /ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER/);
