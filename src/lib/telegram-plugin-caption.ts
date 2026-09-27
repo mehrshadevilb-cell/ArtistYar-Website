@@ -29,7 +29,7 @@ function clean(v: unknown, max = 500) {
 }
 
 function esc(v: string) {
-  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return v.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
 }
 
 async function tg(method: string, body: Record<string, unknown>) {
@@ -82,17 +82,19 @@ function makeCaption(p: {
   formats?: string[] | null;
   platforms?: string[] | null;
   description?: string | null;
+  features?: string[] | null;
 }) {
   const handle = channelHandle();
   const footer = "\n\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\n📢 Channel: " + handle;
   const lines = [
     "🎛️ <b>" + esc(p.title) + "</b>",
-    p.developer ? "🏷 <b>سازنده:</b> " + esc(String(p.developer)) : "",
-    p.version ? "🔢 <b>نسخه:</b> " + esc(String(p.version)) : "",
+    p.developer ? "🏢 <b>سازنده:</b> " + esc(String(p.developer)) : "",
+    p.version ? "📦 <b>نسخه:</b> " + esc(String(p.version)) : "",
     p.category ? "🎚 <b>دسته:</b> " + esc(String(p.category)) : "",
-    p.formats?.length ? "🔌 <b>فرمت:</b> " + esc(p.formats.join(" / ")) : "",
-    p.platforms?.length ? "💻 <b>سیستم‌عامل:</b> " + esc(p.platforms.join(" / ")) : "",
+    p.formats?.length ? "🎹 <b>فرمت:</b> " + esc(p.formats.join(" / ")) : "",
+    p.platforms?.length ? "💻 <b>پلتفرم:</b> " + esc(p.platforms.join(" / ")) : "",
     p.description ? "\n📝 <b>توضیحات:</b>\n" + esc(String(p.description).slice(0, 700)) : "",
+    p.features?.length ? "\n✨ <b>ویژگی‌ها:</b>\n• " + p.features.map((x) => esc(String(x))).join("\n• ") : "",
   ].filter(Boolean);
   const bodyBudget = 1024 - footer.length;
   return lines.join("\n").slice(0, bodyBudget).trimEnd() + footer;
@@ -103,8 +105,8 @@ async function editCaption(chatId: string | number, messageId: number, caption: 
   const handle = channelHandle().replace(/^@/, "");
   const replyMarkup = {
     inline_keyboard: [[
-      { text: "🌐 وب‌سایت ArtistYar", url: "https://artistyaar.ir" },
-      { text: "📢 کانال پلاگین‌ها", url: "https://t.me/" + handle },
+      { text: "آرتیست‌یار", url: "https://artistyaar.ir" },
+      { text: "کانال VST/Plugin", url: "https://t.me/" + handle },
     ]],
   };
   try {
@@ -182,6 +184,7 @@ export async function reapplyPluginCaption(postId: string): Promise<{
     formats: post.formats,
     platforms: post.platforms,
     description: post.description,
+    features: post.features,
   });
   if (!String(caption || "").trim()) {
     return { ok: false, error: "plugin_caption_generation_empty", title };
