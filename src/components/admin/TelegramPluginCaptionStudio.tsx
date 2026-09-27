@@ -146,6 +146,13 @@ export default function TelegramPluginCaptionStudio() {
             </div>
           </div>
           <textarea dir="auto" value={caption} onChange={(e) => setCaption(e.target.value)} className="input-ay mt-4 min-h-[300px] w-full resize-y font-mono text-xs leading-6" />
+          <div className="mt-5 rounded-[24px] border border-white/10 bg-[#17212b] p-4 shadow-2xl">
+            <div className="mb-3 flex items-center gap-2 text-xs text-white/60"><span className="h-2 w-2 rounded-full bg-emerald-400" /> Telegram Preview</div>
+            <div className="max-w-[560px] overflow-hidden rounded-2xl bg-[#0e1620]">
+              {selected.telegram_photo_file_id && <img src={"/api/admin/telegram/plugins/image?file_id=" + encodeURIComponent(selected.telegram_photo_file_id)} alt="" className="max-h-80 w-full object-cover" />}
+              <div className="p-4 text-[13px] leading-6 text-white/90 whitespace-pre-wrap">{caption.replace(/<[^>]+>/g, "") || "کپشن هنوز خالی است."}</div>
+            </div>
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void action("save_draft",{caption})}><Save size={14} className="inline" /> ذخیره پیش‌نویس</button>
             <button className="btn-ghost text-xs" disabled={Boolean(busy)} onClick={() => void copyCaption()}><Copy size={14} className="inline" /> {busy === "copied" ? "کپی شد" : "کپی"}</button>
