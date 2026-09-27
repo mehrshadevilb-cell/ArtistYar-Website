@@ -61,7 +61,7 @@ function isGenericTitle(title: string) {
   return !title || /^(?:plugin|audio plugin|software|daw|audio software|vst|پلاگین(?: جدید| بدون نام)?|نرم.?افزار)$/i.test(clean(title, 180));
 }
 
-function isSpecificIdentity(title: string) {
+export function isSpecificIdentity(title: string) {
   const t = clean(title, 180);
   if (isGenericTitle(t)) return false;
   return /[A-Za-z0-9]/.test(t) && t.length >= 3 && t.length <= 120;
