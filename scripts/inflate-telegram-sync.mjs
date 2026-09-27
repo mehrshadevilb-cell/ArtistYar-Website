@@ -86,87 +86,19 @@ function siteUrl() {`
   );
 }
 
+// Preserve captionFor / editCaption from the compressed payload when present.
+// Only normalize button labels if an older recovery payload still carries legacy text.
 source = source.replace(
-  /function makeCaption\(p: PluginData\) \{[\s\S]*?\nasync function editCaption/,
-  `function makeCaption(p: PluginData) {
-  const handle = channelHandle();
-  const footer = "\\n\\n🎛️ <b>ArtistYar</b> — https://artistyaar.ir\\n📢 Channel: " + handle;
-  let translated = String(p.translatedCaption || "").trim();
-  translated = translated
-    ? "✨ معرفی هوشمند پلاگین توسط ArtistYar\\n\\n" + translated
-    : translated;
-  translated = translated
-    .replace(/\\n\\n🎛️[\\s\\S]*$/i, "")
-    .replace(/https?:\\/\\/artistyaar\\.ir/gi, "")
-    .trim();
-  translated = translated.replace(/<[^>]+>/g, " ").replace(/[ \\t]{2,}/g, " ").replace(/\\n{3,}/g, "\\n\\n").trim();
-
-  if (translated) {
-    const budget = 1024 - footer.length;
-    return esc(translated).slice(0, budget).trimEnd() + footer;
-  }
-
-  const lines = [
-    "🎛️ <b>" + esc(p.title) + "</b>",
-    p.developer ? "🏷 <b>Developer:</b> " + esc(p.developer) : "",
-    p.version ? "🔢 <b>Version:</b> " + esc(p.version) : "",
-    p.category ? "🎚 <b>Category:</b> " + esc(p.category) : "",
-    p.formats.length ? "🔌 <b>Format:</b> " + esc(p.formats.join(" / ")) : "",
-    p.platforms.length ? "💻 <b>Platform:</b> " + esc(p.platforms.join(" / ")) : "",
-    p.description ? "\\n" + esc(p.description) : "",
-    p.features.length ? "\\n✨ <b>ویژگی‌ها</b>\\n" + p.features.slice(0, 4).map(x => "• " + esc(x)).join("\\n") : "",
-  ].filter(Boolean);
-
-  const bodyBudget = 1024 - footer.length;
-  return lines.join("\\n").slice(0, bodyBudget).trimEnd() + footer;
-}
-async function editCaption`
+  /\{ text: "🌐 وب‌سایت ArtistYar", url: "https:\/\/artistyaar\.ir" \}/g,
+  '{ text: "آرتیست‌یار", url: "https://artistyaar.ir" }'
 );
-
 source = source.replace(
-  /async function editCaption\(chatId: string \| number, messageId: number, caption: string\) \{[\s\S]*?\n\}/,
-  `async function editCaption(chatId: string | number, messageId: number, caption: string) {
-  const body = caption.slice(0, 1024);
-  const handle = channelHandle();
-  try {
-    return await tg("editMessageCaption", {
-      chat_id: chatId,
-      message_id: messageId,
-      caption: body,
-      parse_mode: "HTML",
-      reply_markup: {
-        inline_keyboard: [[
-          { text: "🌐 وب‌سایت ArtistYar", url: "https://artistyaar.ir" },
-          { text: "📢 کانال پلاگین‌ها", url: "https://t.me/" + handle.replace(/^@/, "") },
-        ]],
-      },
-    });
-  } catch (error) {
-    const message = clean(error instanceof Error ? error.message : String(error), 300);
-    if (/message is not modified/i.test(message)) return true;
-    if (/can't parse entities|parse entities|unsupported start tag|unexpected end tag/i.test(message)) {
-      const plain = body.replace(/<[^>]+>/g, "");
-      try {
-        return await tg("editMessageCaption", {
-          chat_id: chatId,
-          message_id: messageId,
-          caption: plain.slice(0, 1024),
-          reply_markup: {
-            inline_keyboard: [[
-              { text: "🌐 وب‌سایت ArtistYar", url: "https://artistyaar.ir" },
-              { text: "📢 کانال پلاگین‌ها", url: "https://t.me/" + handle.replace(/^@/, "") },
-            ]],
-          },
-        });
-      } catch (retryError) {
-        const retryMessage = clean(retryError instanceof Error ? retryError.message : String(retryError), 300);
-        if (/message is not modified/i.test(retryMessage)) return true;
-        throw retryError;
-      }
-    }
-    throw error;
-  }
-}`
+  /\{ text: "📢 کانال پلاگین‌ها", url: "https:\/\/t\.me\/" \+ handle\.replace\(\/\^@\/, ""\) \}/g,
+  '{ text: "کانال VST/Plugin", url: "https://t.me/" + handle.replace(/^@/, "") }'
+);
+source = source.replace(
+  /\{ text: "📢 کانال پلاگین‌ها", url: "https:\/\/t\.me\/" \+ handle \}/g,
+  '{ text: "کانال VST/Plugin", url: "https://t.me/" + handle }'
 );
 
 source = source.replace(
@@ -268,8 +200,6 @@ source = source.replace(
   try {
     ai = await identify(photoFileId, fileName, caption);
   } catch (aiError) {
-    // AI is enrichment, not a hard dependency for publishing. Never extract
-    // archives: only the archive filename + Telegram caption are used here.
     console.error("telegram_plugin_ai_caption_fallback", clean(aiError instanceof Error ? aiError.message : String(aiError), 300));
     ai = {
       data: {
@@ -290,11 +220,6 @@ source = source.replace(
     const fromFile = titleFromFileName(fileName);
     if (fromFile) p = { ...p, title: fromFile };
   }
-  // Never publish the raw Telegram caption as-is. If the AI did not return a
-  // translated caption, makeCaption() generates a fresh structured caption.
-  // Archives are NEVER extracted or inspected internally; filenames only are
-  // used as evidence for title/format detection.
-
 `
 );
 
