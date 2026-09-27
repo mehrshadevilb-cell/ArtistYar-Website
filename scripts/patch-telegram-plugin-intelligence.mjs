@@ -95,7 +95,7 @@ export async function processPluginPair(photo: any, doc: any) {
     delete (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION;
   }
 }
-`;`;
+`;
 
 writeFileSync(target, source);
 console.log("patched telegram-plugin-sync.ts with evidence-first intelligence wrapper");
