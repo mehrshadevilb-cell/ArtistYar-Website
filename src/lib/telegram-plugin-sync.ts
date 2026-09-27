@@ -278,7 +278,32 @@ export async function enqueuePluginMessage(message: TgMessage) {
     .select("id,channel_id,message_id,kind,media_group_id")
     .maybeSingle();
 
-  if (inserted.error) throw new Error("plugin_queue_insert_failed:" + inserted.error.message);
+  if (inserted.error) {
+    // Telegram can redeliver the same media under a new update/message id.
+    // The queue intentionally has a unique (channel, kind, file_id) guard,
+    // so treat that collision as an idempotent duplicate instead of failing
+    // the webhook and causing repeated queue errors.
+    const code = String((inserted.error as any)?.code || "");
+    if (code === "23505") {
+      const existing = await db
+        .from("telegram_plugin_ingest_queue")
+        .select("id,channel_id,message_id,kind,media_group_id")
+        .eq("channel_id", channelId)
+        .eq("kind", kind)
+        .eq("file_id", fileId)
+        .maybeSingle();
+      if (!existing.error && existing.data) {
+        return {
+          queued: true,
+          duplicate: true,
+          id: existing.data.id,
+          kind,
+          message_id: existing.data.message_id,
+        };
+      }
+    }
+    throw new Error("plugin_queue_insert_failed:" + inserted.error.message);
+  }
   return { queued: true, duplicate: !inserted.data, id: inserted.data?.id || null, kind, message_id: message.message_id };
 }
 
