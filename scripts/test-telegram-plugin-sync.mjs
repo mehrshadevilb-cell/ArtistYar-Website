@@ -35,9 +35,29 @@ assert.match(sync, /\.rar|\.zip|\.7z/);
 assert.match(sync, /plugin_caption_generation_empty/);
 assert.match(caption, /plugin_caption_generation_empty/);
 assert.match(caption, /reply_markup/);
-assert.match(caption, /وب‌سایت ArtistYar/);
-assert.match(caption, /کانال پلاگین‌ها/);
+assert.match(caption, /آرتیست‌یار/);
+assert.match(caption, /کانال VST\/Plugin/);
 assert.match(caption, /resolvePluginBotToken/);
+assert.match(sync, /آرتیست‌یار/);
+assert.match(sync, /کانال VST\/Plugin/);
+
+// Metadata intelligence surface
+assert.match(sync, /function inferDeveloper/);
+assert.match(sync, /function inferCategory/);
+assert.match(sync, /function buildDeterministicDescription/);
+assert.match(sync, /Spectrasonics/);
+assert.match(sync, /Native Instruments/);
+assert.match(sync, /FabFilter/);
+assert.match(sync, /omnisphere/i);
+assert.match(sync, /Preset Library/);
+assert.match(sync, /Virtual Instrument/);
+assert.match(sync, /Audio Effect Plugin/);
+assert.match(sync, /Sample Library/);
+assert.match(sync, /DETERMINISTIC_HINTS/);
+assert.match(sync, /isWeakDescription/);
+assert.match(sync, /isWeakDescription/);
+assert.match(sync, /buildDeterministicDescription/);
+assert.doesNotMatch(sync, /description = evidence\s*\?\s*"مشخصات استخراج/);
 
 assert.match(bot, /resolvePluginBotToken/);
 assert.match(bot, /TELEGRAM_PLUGIN_BOT_TOKEN/);
@@ -69,3 +89,4 @@ assert.match(channelMigration, /ProAudioS/);
 
 console.log("telegram plugin sync regression checks passed");
 console.log("telegram plugin bot-identity + queue + cover + detail + archive-safety checks passed");
+console.log("telegram plugin metadata intelligence + caption button labels checks passed");
