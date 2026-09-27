@@ -886,6 +886,7 @@ export async function applyVerificationToPost(postId: string, result: Verificati
     await store.from("telegram_plugin_posts").update({
       review_required: true,
       processing_state: "READY",
+      status: "failed",
       error_message: "caption_publish_failed:" + clean(error instanceof Error ? error.message : String(error), 220),
       updated_at: new Date().toISOString(),
     }).eq("id", postId);
