@@ -176,7 +176,6 @@ function makeCaption(p: {
   const bodyBudget = 1024 - footer.length;
   return lines.join("\n").slice(0, bodyBudget).trimEnd() + footer;
 }
-}
 
 async function editCaption(chatId: string | number, messageId: number, caption: string) {
   const body = caption.slice(0, 1024);
