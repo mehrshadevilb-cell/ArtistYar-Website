@@ -202,3 +202,7 @@ assert.match(intelligence, /caption_publish_failed/);
 assert.match(intelligence, /translation_failed/);
 assert.match(intelligence, /caption_generation_failed/);
 assert.match(adminPage, /خطا\/نیاز به بررسی/);
+
+
+const taxonomy = ["Plugin","Effect Plugin","Synth","Instrument","Sampler","DAW","Sample Pack","Preset Pack","MIDI Pack","Sound Library","Educational","Hardware","Audio Tool","Other","Unknown"];
+for (const category of taxonomy) assert.ok(intelligence.includes(category), "missing taxonomy category: " + category);
