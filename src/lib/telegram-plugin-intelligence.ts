@@ -682,7 +682,7 @@ Return JSON only:
   const latestSupported = Boolean(
     latestVersionRefs.length &&
     validVersion(latestCandidate) &&
-    ranked.some((hit, index) => latestVersionRefs.some((ref) => ref === "source:" + (index + 1)) && (hit.pageText || hit.snippet).includes(latestCandidate))
+    ranked.some((hit, index) => latestVersionRefs.some((ref: string) => ref === "source:" + (index + 1)) && (hit.pageText || hit.snippet).includes(latestCandidate))
   );
   const sourceUrl = clean(verified.source_url || authoritative?.url, 500);
   const description = qualityCaptionText(verified.description_fa);
