@@ -180,7 +180,7 @@ function normalizeCategory(value: unknown): ProductCategory | "" {
 
 function deterministicCandidate(caption: string, fileName: string): Candidate {
   const title = captionTitle(caption) || filenameTitle(fileName);
-  const version = caption.match(/\b(?:v|version\s*)?(\d+(?:\.\d+){1,3})\b/i)?.[1] || "";
+  const version = caption.match(/\b(?:v|ver(?:sion)?|release)\s*([0-9]+(?:\.[0-9]+){1,4}(?:[-+._][0-9A-Za-z]+)?)\b/i)?.[1] || "";
   return {
     title,
     version,
