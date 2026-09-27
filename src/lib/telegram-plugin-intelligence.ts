@@ -524,6 +524,59 @@ export async function createReviewRequiredPost(input: {
   return { ok: true, id: row.data?.id || null };
 }
 
+export async function regenerateStoredTranslation(postId: string) {
+  const store = db();
+  if (!store) return { ok: false, error: "supabase_not_configured" };
+  const row = await store.from("telegram_plugin_posts").select("*").eq("id", postId).maybeSingle();
+  if (row.error || !row.data) return { ok: false, error: "post_not_found" };
+  const p = row.data;
+  try {
+    const reply = await runtimeGenerateJson(
+      `Translate the relevant technical information from this Telegram caption into natural Persian for Iranian music producers.
+Do not add any facts, product names, versions, formats, OS requirements or features that are not present in the source.
+Keep product and developer names in English. Return JSON only: {"description_fa":"short accurate Persian description","translated_caption_fa":"clean Persian technical copy"}.
+
+Original caption:
+${String(p.raw_caption || "").slice(0, 7000)}
+
+Already verified identity:
+${JSON.stringify({ title: p.title, developer: p.developer, version: p.version, category: p.category, formats: p.formats, platforms: p.platforms, features: p.features })}`,
+      "Translate only. Do not identify, classify, search, or invent.",
+    );
+    const parsed = parseJson(reply.reply);
+    const description = clean(parsed?.description_fa, 700);
+    const translated = clean(parsed?.translated_caption_fa, 2500);
+    const result: VerificationResult = {
+      ok: true,
+      reviewRequired: Boolean(p.review_required),
+      title: clean(p.title, 160),
+      developer: clean(p.developer, 120),
+      version: clean(p.version, 80),
+      category: clean(p.category, 100),
+      formats: safeArray(p.formats, 8),
+      platforms: safeArray(p.platforms, 6),
+      features: safeArray(p.features, 8),
+      description: description || clean(p.description, 700),
+      translatedCaption: translated,
+      detectedLanguage: clean(p.detected_language || languageOf(p.raw_caption), 40),
+      confidence: (p.verification_confidence === "high" || p.verification_confidence === "medium" ? p.verification_confidence : "low") as "high" | "medium" | "low",
+      evidence: Array.isArray(p.evidence) ? p.evidence : [],
+      verificationStatus: p.verification_status || "partial",
+      verifiedSourceUrl: clean(p.verified_source_url, 500),
+      verifiedSourceTitle: clean(p.verified_source_title, 180),
+      searchStatus: p.search_status || "unavailable",
+    };
+    const caption = buildVerifiedCaption(result);
+    await store.from("telegram_plugin_posts").update({
+      draft_caption: caption,
+      updated_at: new Date().toISOString(),
+    }).eq("id", postId);
+    return { ok: true, caption, result };
+  } catch (error) {
+    return { ok: false, error: clean(error instanceof Error ? error.message : String(error), 240) };
+  }
+}
+
 export async function verifyStoredPlugin(postId: string, force = false) {
   const store = db();
   if (!store) return { ok: false, error: "supabase_not_configured" };
