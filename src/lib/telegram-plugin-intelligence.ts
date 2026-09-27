@@ -480,6 +480,14 @@ export async function createReviewRequiredPost(input: {
   if (!store) return { ok: false, error: "supabase_not_configured" };
   const result = input.result;
   const title = result.title || "نیازمند بررسی";
+  const existing = await store.from("telegram_plugin_posts")
+    .select("id,status")
+    .eq("channel_id", input.channelId)
+    .eq("document_message_id", input.documentMessageId || 0)
+    .maybeSingle();
+  if (!existing.error && existing.data?.status === "published") {
+    return { ok: true, id: existing.data.id, existing: true };
+  }
   const row = await store.from("telegram_plugin_posts").upsert({
     channel_id: input.channelId,
     photo_message_id: input.photoMessageId || null,
