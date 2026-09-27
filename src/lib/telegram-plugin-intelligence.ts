@@ -639,6 +639,11 @@ Return JSON only:
   const developerRefs = Array.isArray(verified?.evidence_refs?.developer) ? verified.evidence_refs.developer.map(String) : [];
   const versionRefs = Array.isArray(verified?.evidence_refs?.version) ? verified.evidence_refs.version.map(String) : [];
   const latestVersionRefs = Array.isArray(verified?.evidence_refs?.latest_official_version) ? verified.evidence_refs.latest_official_version.map(String) : [];
+  const categoryRefs = Array.isArray(verified?.evidence_refs?.category) ? verified.evidence_refs.category.map(String) : [];
+  const descriptionRefs = Array.isArray(verified?.evidence_refs?.description) ? verified.evidence_refs.description.map(String) : [];
+  const formatRefs = Array.isArray(verified?.evidence_refs?.formats) ? verified.evidence_refs.formats.map(String) : [];
+  const platformRefs = Array.isArray(verified?.evidence_refs?.platforms) ? verified.evidence_refs.platforms.map(String) : [];
+  const featureRefs = Array.isArray(verified?.evidence_refs?.features) ? verified.evidence_refs.features.map(String) : [];
   const candidateTitleMatch = sourceCandidates.some((c) => normalizeIdentity(c.title) === normalizeIdentity(finalTitle));
   const webTitleMatch = ranked.some((h) => searchMatchesCandidate(h, { source: "web", title: finalTitle }));
   const titleSupported = isSpecificIdentity(finalTitle) && titleRefs.length > 0 && candidateTitleMatch && webTitleMatch;
@@ -654,7 +659,21 @@ Return JSON only:
     sourceCandidates.some((c) => normalizeIdentity(c.version) === normalizeIdentity(finalVersion)) ||
     /\b(?:v|version\s*)?\d+(?:\.\d+){1,4}\b/i.test(rawCaption + " " + fileName)
   ));
-  const conflictsResolved = conflicts.length === 0 || (webTitleMatch && titleSupported);
+  const developerConflictResolved =
+    !conflicts.includes("developer_conflict") ||
+    (!finalDeveloper) ||
+    sourceCandidates.some((c) => normalizeIdentity(c.developer) === normalizeIdentity(finalDeveloper)) ||
+    officialRank(officialHit?.url || "", finalDeveloper) >= 90;
+  const versionConflictResolved =
+    !conflicts.includes("version_conflict") ||
+    (!finalVersion) ||
+    sourceCandidates.some((c) => normalizeIdentity(c.version) === normalizeIdentity(finalVersion)) ||
+    Boolean(officialHit?.pageText && officialHit.pageText.includes(finalVersion));
+  const categoryConflictResolved =
+    !conflicts.includes("category_conflict") ||
+    (finalCategory !== "Unknown" && categoryRefs.length > 0);
+  const conflictsResolved = conflicts.length === 0 ||
+    (titleSupported && developerConflictResolved && versionConflictResolved && categoryConflictResolved);
   const confidence = /^(high|medium|low)$/.test(String(verified.confidence)) ? verified.confidence as Confidence : "low";
   const authoritative = officialHit;
   const sourceUrl = clean(verified.source_url || authoritative?.url, 500);
@@ -665,6 +684,13 @@ Return JSON only:
   const platforms = safeArray(verified.platforms, 6);
   const candidateConflict = fieldConflicts(sourceCandidates);
   const multipleProductsUnclear = productCount > 1 && includedProducts.length < 2;
+  const groundedFields = Boolean(
+    (finalCategory === "Unknown" || categoryRefs.length > 0) &&
+    (!description || descriptionRefs.length > 0) &&
+    (!formats.length || formatRefs.length > 0) &&
+    (!platforms.length || platformRefs.length > 0) &&
+    (!features.length || featureRefs.length > 0)
+  );
   const ok = Boolean(
     titleSupported &&
     webTitleMatch &&
@@ -674,6 +700,7 @@ Return JSON only:
     finalCategory !== "Unknown" &&
     confidence !== "low" &&
     description &&
+    groundedFields &&
     !multipleProductsUnclear
   );
 
@@ -717,7 +744,8 @@ Return JSON only:
       !titleSupported ? "identity_not_supported" : "",
       !developerSupported ? "developer_not_verified" : "",
       !versionSupported ? "version_not_supported" : "",
-      candidateConflict.length ? "source_conflict" : "",
+      candidateConflict.length && !conflictsResolved ? "source_conflict" : "",
+      !groundedFields ? "ungrounded_fields" : "",
       finalCategory === "Unknown" ? "category_unknown" : "",
       !description ? "description_missing" : "",
       multipleProductsUnclear ? "multiple_products_unresolved" : "",
