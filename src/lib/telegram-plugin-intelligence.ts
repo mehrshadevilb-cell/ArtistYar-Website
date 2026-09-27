@@ -306,8 +306,7 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
   const evidenceText = ranked.slice(0, 5).map((h, i) => `SOURCE ${i + 1}
 TITLE: ${h.title}
 URL: ${h.url}
-SNIPPET: ${h.snippet}`).join("\n
-");
+SNIPPET: ${h.snippet}`).join("\\n\\n");
   const prompt = `You are the final verification layer for a Telegram music-software catalog.
 
 Never guess. Only return facts supported by the original post and the supplied search evidence.
