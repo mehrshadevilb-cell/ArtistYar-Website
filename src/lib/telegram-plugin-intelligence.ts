@@ -233,7 +233,12 @@ async function visionCandidate(photoFileId: string, caption: string, fileName: s
   if (!key || !photoFileId) return {};
   const image = await telegramBytes(photoFileId);
   const base64 = Buffer.from(image.bytes).toString("base64");
-  const model = (process.env.OPENAI_VISION_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini").trim();
+  const model = (
+    process.env.PLUGIN_AI_VISION_MODEL ||
+    process.env.OPENAI_VISION_MODEL ||
+    process.env.OPENAI_MODEL ||
+    "gpt-4o-mini"
+  ).trim();
   const prompt = [
     "Identify the exact audio product represented by this Telegram artwork.",
     "Image, filename and caption are evidence. Never guess or complete a familiar product name from memory.",
