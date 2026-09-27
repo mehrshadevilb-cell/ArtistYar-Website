@@ -253,13 +253,34 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
   if (cached) return cached;
 
   let hits: SearchHit[] = [];
-  try { hits = await webSearch([title, developer, version].filter(Boolean).join(" ")); } catch {
+  try {
+    hits = await webSearch([title, developer, version].filter(Boolean).join(" "));
+  } catch {
+    const sourceBacked = isSpecificIdentity(title) && Boolean(rawCaption || fileName);
     return {
-      ok: false, reviewRequired: true, title, developer, version, category: clean(candidate.category, 100), formats: safeArray(candidate.formats, 8),
-      platforms: safeArray(candidate.platforms, 6), features: safeArray(candidate.features, 8), description: "", translatedCaption: "",
-      detectedLanguage: languageOf(rawCaption), confidence: "medium",
-      evidence: [{ source: "caption", status: rawCaption ? "supporting" : "missing" }, { source: "filename", status: fileName ? "supporting" : "missing" }, { source: "web", status: "missing", detail: "search_unavailable" }],
-      verificationStatus: "unavailable", verifiedSourceUrl: "", verifiedSourceTitle: "", searchStatus: "unavailable", reason: "web_search_unavailable",
+      ok: sourceBacked,
+      reviewRequired: !sourceBacked,
+      title,
+      developer,
+      version,
+      category: clean(candidate.category, 100),
+      formats: safeArray(candidate.formats, 8),
+      platforms: safeArray(candidate.platforms, 6),
+      features: safeArray(candidate.features, 8),
+      description: clean(candidate.description, 700),
+      translatedCaption: clean(candidate.translatedCaption, 2500),
+      detectedLanguage: languageOf(rawCaption),
+      confidence: sourceBacked ? "medium" : "low",
+      evidence: [
+        { source: "caption", status: rawCaption ? "confirmed" : "missing" },
+        { source: "filename", status: fileName ? "supporting" : "missing" },
+        { source: "web", status: "missing", detail: "search_unavailable" },
+      ],
+      verificationStatus: sourceBacked ? "unavailable" : "failed",
+      verifiedSourceUrl: "",
+      verifiedSourceTitle: "",
+      searchStatus: "unavailable",
+      reason: sourceBacked ? undefined : "web_search_unavailable_and_identity_weak",
     };
   }
 
