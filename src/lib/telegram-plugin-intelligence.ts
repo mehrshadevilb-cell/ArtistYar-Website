@@ -178,9 +178,13 @@ function normalizeCategory(value: unknown): ProductCategory | "" {
   return "";
 }
 
+function explicitVersion(text: string) {
+  return clean(text, 300).match(/\b(?:v|ver(?:sion)?|release)\s*([0-9]+(?:\.[0-9]+){1,4}(?:[-+._][0-9A-Za-z]+)?)\b/i)?.[1] || "";
+}
+
 function deterministicCandidate(caption: string, fileName: string): Candidate {
   const title = captionTitle(caption) || filenameTitle(fileName);
-  const version = caption.match(/\b(?:v|ver(?:sion)?|release)\s*([0-9]+(?:\.[0-9]+){1,4}(?:[-+._][0-9A-Za-z]+)?)\b/i)?.[1] || "";
+  const version = explicitVersion(caption) || explicitVersion(fileName);
   return {
     title,
     version,
