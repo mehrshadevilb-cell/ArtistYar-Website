@@ -12,7 +12,8 @@
     "start:standalone": "node .next/standalone/server.js",
     "seo:verify": "node scripts/verify-seo.mjs",
     "prebuild": "node scripts/ensure-hero.cjs",
-    "postinstall": "node scripts/inflate-telegram-sync.mjs"
+    "postinstall": "node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs",
+    "pretest:telegram-plugins": "node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs"
   },
   "dependencies": {
     "@supabase/server": "^1.6.1",
