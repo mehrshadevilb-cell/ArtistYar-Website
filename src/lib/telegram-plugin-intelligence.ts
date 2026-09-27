@@ -24,6 +24,7 @@ export type VerificationResult = {
   platforms: string[];
   features: string[];
   description: string;
+  installationNotes: string;
   translatedCaption: string;
   detectedLanguage: string;
   confidence: "high" | "medium" | "low";
@@ -241,7 +242,7 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
   if (!isSpecificIdentity(title)) {
     return {
       ok: false, reviewRequired: true, title: title || "", developer: clean(candidate.developer, 120), version: clean(candidate.version, 80),
-      category: "", formats: [], platforms: [], features: [], description: "", translatedCaption: "", detectedLanguage: languageOf(rawCaption),
+      category: "", formats: [], platforms: [], features: [], description: "", installationNotes: "", translatedCaption: "", detectedLanguage: languageOf(rawCaption),
       confidence: "low", evidence: [{ source: "caption", status: rawCaption ? "supporting" : "missing" }, { source: "filename", status: fileName ? "supporting" : "missing" }],
       verificationStatus: "failed", verifiedSourceUrl: "", verifiedSourceTitle: "", searchStatus: "no_match", reason: "exact_product_identity_missing",
     };
@@ -268,6 +269,7 @@ async function verifyCandidate(candidate: Candidate, rawCaption: string, fileNam
       platforms: safeArray(candidate.platforms, 6),
       features: safeArray(candidate.features, 8),
       description: clean(candidate.description, 700),
+      installationNotes: clean(candidate.installationNotes, 700),
       translatedCaption: clean(candidate.translatedCaption, 2500),
       detectedLanguage: languageOf(rawCaption),
       confidence: sourceBacked ? "medium" : "low",
@@ -315,6 +317,7 @@ Return JSON only:
   "platforms": [],
   "features": [],
   "description_fa": "short natural Persian description or empty",
+  "installation_notes_fa": "only important installation or compatibility notes explicitly supported by the source/search evidence, otherwise empty",
   "translated_caption_fa": "clean Persian translation of relevant source information or empty",
   "confidence": "high|medium|low",
   "source_url": "best authoritative URL or empty",
@@ -350,6 +353,7 @@ Return JSON only:
     platforms: safeArray(verified?.platforms, 6),
     features: safeArray(verified?.features, 8),
     description: clean(verified?.description_fa, 700),
+    installationNotes: clean(verified?.installation_notes_fa, 700),
     translatedCaption: clean(verified?.translated_caption_fa, 2500),
     detectedLanguage: languageOf(rawCaption),
     confidence: confidence as "high" | "medium" | "low",
@@ -419,7 +423,8 @@ export function buildVerifiedCaption(result: VerificationResult) {
     result.features.length ? "\n🧩 <b>ویژگی‌ها</b>\n" + result.features.slice(0, 5).map((x) => "• " + esc(x)).join("\n") : "",
     result.platforms.length ? "\n💻 <b>سیستم‌عامل</b>\n" + result.platforms.map((x) => "• " + esc(x)).join("\n") : "",
     result.formats.length ? "\n🎚️ <b>فرمت‌ها</b>\n" + result.formats.map((x) => "• " + esc(x)).join("\n") : "",
-    result.description ? "\n📝 <b>توضیحات</b>\n" + esc(result.description) : "",\n    result.installationNotes ? "\n📌 <b>نکات نصب / سازگاری</b>\n" + esc(result.installationNotes) : "",
+    result.description ? "\n📝 <b>توضیحات</b>\n" + esc(result.description) : "",
+    result.installationNotes ? "\n📌 <b>نکات نصب / سازگاری</b>\n" + esc(result.installationNotes) : "",\n    result.installationNotes ? "\n📌 <b>نکات نصب / سازگاری</b>\n" + esc(result.installationNotes) : "",
     result.verifiedSourceUrl ? "\n🔗 <b>اطلاعات بیشتر:</b> " + esc(result.verifiedSourceUrl) : "",
     "\n🎛️ <b>ArtistYar</b>",
   ].filter(Boolean);
@@ -578,6 +583,7 @@ ${JSON.stringify({ title: p.title, developer: p.developer, version: p.version, c
       platforms: safeArray(p.platforms, 6),
       features: safeArray(p.features, 8),
       description: description || clean(p.description, 700),
+      installationNotes: "",
       translatedCaption: translated,
       detectedLanguage: clean(p.detected_language || languageOf(p.raw_caption), 40),
       confidence: (p.verification_confidence === "high" || p.verification_confidence === "medium" ? p.verification_confidence : "low") as "high" | "medium" | "low",
