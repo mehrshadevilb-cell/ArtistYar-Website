@@ -31,7 +31,7 @@ function CoverArt() {
   return (
     <div
       aria-hidden="true"
-      className="relative min-h-[280px] overflow-hidden rounded-[28px] border border-white/[.08] bg-[#090909] shadow-2xl sm:min-h-[340px]"
+      className="relative min-h-[280px] overflow-hidden rounded-[28px] border border-white/[.08] plugins-hero bg-ink-950 shadow-2xl sm:min-h-[340px]"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_35%,rgba(214,174,92,.28),transparent_28%),radial-gradient(circle_at_20%_75%,rgba(71,108,255,.16),transparent_30%)]" />
       <div className="absolute bottom-7 left-7 right-7">
