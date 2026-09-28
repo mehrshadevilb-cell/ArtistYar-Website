@@ -261,7 +261,7 @@ export default function MusicAnalyzerLab() {
           <button type="button" onClick={() => setMode("mix")} className={`flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${mode === "mix" ? "bg-cyan-400/90 text-black" : "text-ink-300 hover:bg-white/[.04]"}`}>
             <Waves size={16} /> میکس و مسترینگ
           </button>
-          <button type="button" onClick={() => setMode("arrangement")} className={`flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${mode === "arrangement" ? "bg-violet-400/90 text-black" : "text-ink-300 hover:bg-white/[.04]"`}>
+          <button type="button" onClick={() => setMode("arrangement")} className={`flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${mode === "arrangement" ? "bg-violet-400/90 text-black" : "text-ink-300 hover:bg-white/[.04]"}`}>
             <Layers size={16} /> تنظیم · Arrangement
           </button>
         </div>
