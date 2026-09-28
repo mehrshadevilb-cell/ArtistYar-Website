@@ -699,8 +699,7 @@ Return JSON only:
   const ok = Boolean(
     isSpecificIdentity(finalTitle) &&
     (finalCategory !== "Unknown" || isSpecificIdentity(finalTitle)) &&
-    (description || translatedCaption || finalTitle) &&
-    !multipleProductsUnclear
+    (description || translatedCaption || finalTitle)
   );
 
   const result: VerificationResult = {
