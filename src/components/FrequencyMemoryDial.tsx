@@ -13,6 +13,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { ArrowRight } from "lucide-react";
 import { startLiveTone, setLiveToneHz, stopLiveTone } from "@/lib/practice-audio-engine";
 import "@/styles/practice-shell.css";
 
@@ -278,7 +279,6 @@ export function FrequencyMemoryDial({
   };
   const up = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragRef.current.active) return;
-    const moved = dragRef.current.moved;
     dragRef.current.active = false;
     setDragging(false);
     setCursorY(null);
@@ -289,12 +289,6 @@ export function FrequencyMemoryDial({
     }
     if (interactive) {
       stopLiveTone();
-      if (moved) {
-        void onLock?.();
-      } else {
-        void startLiveTone(valueHz);
-        setLiveToneHz(valueHz);
-      }
     }
   };
   const key = (e: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -412,6 +406,12 @@ export function FrequencyMemoryDial({
             setLiveToneHz(hz);
           }}
         />
+
+        {interactive && (
+          <button type="button" className="fm-dialed-submit" aria-label="ثبت پاسخ" title="ثبت پاسخ" onPointerDown={(e) => e.stopPropagation()} onClick={() => { stopLiveTone(); void onLock?.(); }}>
+            <ArrowRight size={17} strokeWidth={2.2} aria-hidden />
+          </button>
+        )}
 
         {audioError && (
           <div className="fm-dialed-error" role="status">
