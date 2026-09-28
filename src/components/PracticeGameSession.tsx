@@ -109,7 +109,7 @@ export function PracticeGameSession({
   const userId = user?.id || null;
   const isFreq = gameId === "freq-memory";
   const isInterval = gameId === "interval-recognition";
-  const totalRounds = Math.max(1, maxRounds ?? game?.rounds ?? 8);
+  const totalRounds = Math.max(1, maxRounds ?? (isFreq ? 5 : game?.rounds ?? 8));
   const freeLocked = !accessLoading && !pro && roundIndex + 1 > (stageLimit || 5);
 
   const clearTimers = () => {
