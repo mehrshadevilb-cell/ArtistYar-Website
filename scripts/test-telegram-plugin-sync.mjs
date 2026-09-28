@@ -207,3 +207,9 @@ for (const category of taxonomy) assert.ok(intelligence.includes(category), "mis
 
 assert.match(intelligence, /explicitVersion/);
 assert.doesNotMatch(intelligence, /caption\.match\(\/\\\\b\(\?:v\|version/);
+
+assert.match(sync, /processPendingPluginPairs/);
+assert.match(sync, /const result = await processPluginPair\(pair\.photo, pair\.document\)/);
+assert.match(processRoute, /TELEGRAM_PLUGIN_PROCESS_SECRET/);
+assert.match(processScript, /TELEGRAM_PLUGIN_PROCESS_SECRET/);
+assert.match(renderYaml, /artistyar-telegram-plugin-processor/);
