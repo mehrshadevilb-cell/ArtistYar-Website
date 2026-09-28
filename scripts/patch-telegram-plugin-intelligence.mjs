@@ -40,10 +40,8 @@ const verifyOkNew = `  const ok = Boolean(
   );`;
 if (intelligence.includes(verifyOkOld)) intelligence = intelligence.replace(verifyOkOld, verifyOkNew);
 
-intelligence = intelligence.replace(
-  /    \`\\n🔗 <b>منبع رسمی:<\\/b> \${esc\(result\.verifiedSourceUrl\)}\`,\n/,
-  "",
-);
+// Keep the verified source in the canonical caption. Older patch versions
+// attempted to remove it with a fragile regex literal; no removal is needed.
 
 const applyStart = intelligence.indexOf("export async function applyVerificationToPost(");
 const applyEnd = intelligence.indexOf("export async function createReviewRequiredPost(", applyStart);
