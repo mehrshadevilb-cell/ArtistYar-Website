@@ -22,10 +22,15 @@ export function frequencyAccuracy(targetHz: number, guessHz: number, toleranceHz
   const tol = clamp(safeNumber(toleranceHz, 40), 4, 400);
   const hzErr = Math.abs(g - t);
   const cents = Math.abs(centsError(t, g));
-  const hzScore = clamp(100 * (1 - hzErr / Math.max(8, tol * 1.35)), 0, 100);
-  const centsScore = clamp(100 - cents / 1.8, 0, 100);
-  const accuracy = Math.round(hzScore * 0.45 + centsScore * 0.55);
-  return { accuracy, hzErr, cents, perfect: hzErr <= tol * 0.35 || cents < 12 };
+
+  // Frequency Memory is a pitch-reproduction exercise. Score perceptual
+  // distance in cents rather than mixing absolute-Hz tolerance into the
+  // displayed score; the same Hz error is not equally audible across octaves.
+  // 200 cents maps to zero, 0 cents maps to 100.
+  const accuracy = Math.round(clamp(100 * (1 - cents / 200), 0, 100));
+  const perfect = cents <= 12 || hzErr <= Math.max(1, tol * 0.05);
+
+  return { accuracy, hzErr, cents, perfect };
 }
 
 export function sliderPass(accuracy: number) {
