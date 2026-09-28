@@ -233,7 +233,7 @@ function largestPhoto(photo: TgPhoto[] | undefined) {
   return [...photo].sort((a, b) => (Number(b.width || 0) * Number(b.height || 0)) - (Number(a.width || 0) * Number(a.height || 0)))[0] || null;
 }
 
-export async function enqueuePluginMessage(message: TgMessage) {
+export async function enqueuePluginMessage(message: TgMessage, options: { refreshExisting?: boolean } = {}) {
   if (!db) throw new Error("supabase_not_configured");
   if (!message?.message_id || !message?.chat?.id) throw new Error("telegram_message_invalid");
   if (!messageBelongsToConfiguredChannel(message)) {
@@ -274,7 +274,10 @@ export async function enqueuePluginMessage(message: TgMessage) {
 
   const inserted = await db
     .from("telegram_plugin_ingest_queue")
-    .upsert(row, { onConflict: "channel_id,message_id", ignoreDuplicates: true })
+    .upsert(row, {
+      onConflict: "channel_id,message_id",
+      ignoreDuplicates: !options.refreshExisting,
+    })
     .select("id,channel_id,message_id,kind,media_group_id")
     .maybeSingle();
 
@@ -284,7 +287,7 @@ export async function enqueuePluginMessage(message: TgMessage) {
     // so treat that collision as an idempotent duplicate instead of failing
     // the webhook and causing repeated queue errors.
     const code = String((inserted.error as any)?.code || "");
-    if (code === "23505") {
+    if (code === "23505" && !options.refreshExisting) {
       const existing = await db
         .from("telegram_plugin_ingest_queue")
         .select("id,channel_id,message_id,kind,media_group_id")
@@ -304,7 +307,14 @@ export async function enqueuePluginMessage(message: TgMessage) {
     }
     throw new Error("plugin_queue_insert_failed:" + inserted.error.message);
   }
-  return { queued: true, duplicate: !inserted.data, id: inserted.data?.id || null, kind, message_id: message.message_id };
+  return {
+    queued: true,
+    duplicate: !inserted.data && !options.refreshExisting,
+    refreshed: Boolean(options.refreshExisting),
+    id: inserted.data?.id || null,
+    kind,
+    message_id: message.message_id,
+  };
 }
 
 function titleFromFileName(fileName: string) {
