@@ -64,7 +64,7 @@ export function AdaptiveWorkoutLab({ onBack, mode = "workout" }: Props) {
       <PracticeGameSession
         key={gameId + "-" + index + "-" + mode}
         gameId={gameId}
-        maxRounds={mode === "workout" ? 2 : 4}
+        maxRounds={gameId === "freq-memory" ? 5 : mode === "workout" ? 2 : 4}
         autoStart={gameId !== "freq-memory"}
         hideBack
         onBack={onBack || (() => undefined)}
