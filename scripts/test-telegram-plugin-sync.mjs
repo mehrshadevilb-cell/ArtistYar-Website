@@ -15,6 +15,13 @@ const adminPage = read("../src/components/admin/TelegramPluginCaptionStudio.tsx"
 const adminRoute = read("../src/app/api/admin/telegram/plugins/route.ts");
 const pluginsDb = read("../src/lib/plugins-db.ts");
 const patcher = read("../scripts/patch-telegram-plugin-intelligence.mjs");
+assert.match(patcher, /review_required: false/);
+assert.match(patcher, /telegram_file_ids/);
+assert.match(patcher, /attachment_count/);
+assert.match(patcher, /edited_channel_post/);
+assert.match(sync, /allowed_updates: \["channel_post", "edited_channel_post"\]/);
+assert.match(webhook, /edited_channel_post/);
+
 
 assert.match(sync, /export async function enqueuePluginMessage/);
 assert.match(sync, /export async function processPendingPluginPairs/);
