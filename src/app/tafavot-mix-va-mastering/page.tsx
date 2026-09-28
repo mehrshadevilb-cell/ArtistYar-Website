@@ -21,10 +21,10 @@ export const metadata: Metadata = {
     "فرق میکس با مسترینگ",
     "مسترینگ بعد از میکس",
   ],
-  alternates: { canonical: pagePath },
+  alternates: { canonical: pageUrl },
   openGraph: {
     type: "article",
-    url: pagePath,
+    url: pageUrl,
     title: "تفاوت میکس و مسترینگ چیست؟ | آرتیست‌یار",
     description:
       "میکس و مسترینگ دو مرحلهٔ جدا هستند. این راهنما فرق، ترتیب کار و اشتباهات رایج را روشن می‌کند.",
