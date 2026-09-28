@@ -1,0 +1,68 @@
+/* Dialed-style Frequency Memory card. Layout is LTR by design (numbers and Hz stay LTR). */
+.fmc-stage{display:flex;justify-content:center;padding:.25rem 0}
+.fmc{--fmc-font:"Inter Tight","Inter","Helvetica Neue",Arial,sans-serif;position:relative;width:min(100%,630px);aspect-ratio:4/5;max-height:min(786px,82vh);background:#000;color:#fff;border-radius:16px;overflow:hidden;box-shadow:0 40px 100px -30px rgba(0,0,0,.45),0 12px 30px -12px rgba(0,0,0,.35);font-family:var(--fmc-font);touch-action:none;user-select:none;-webkit-user-select:none;outline:none;isolation:isolate}
+.fmc.is-tuning{cursor:none}
+.fmc:focus-visible{box-shadow:0 0 0 2px rgba(255,255,255,.5),0 40px 100px -30px rgba(0,0,0,.45)}
+.fmc-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;transition:opacity .5s ease}
+.fmc.is-dim .fmc-canvas{opacity:.28}
+.fmc.is-blank .fmc-canvas{opacity:0}
+
+.fmc-counter{position:absolute;top:22px;left:24px;font-size:11px;font-weight:700;letter-spacing:.08em;font-variant-numeric:tabular-nums;direction:ltr;z-index:3}
+.fmc-brand{position:absolute;top:21px;right:24px;font-size:12px;font-weight:500;color:#888;letter-spacing:.01em;z-index:3;transition:opacity .3s ease}
+.fmc.is-result .fmc-brand{opacity:0}
+
+.fmc-score-wrap{position:absolute;top:14px;right:24px;text-align:right;z-index:3;max-width:70%}
+.fmc-score{font-size:56px;line-height:1;font-weight:500;letter-spacing:-.035em;font-variant-numeric:tabular-nums;direction:ltr}
+.fmc-feedback{margin-top:10px;font-size:13px;line-height:1.5;color:#8a8a8a;direction:rtl;text-align:right;opacity:0;animation:fmc-fade .5s ease .75s forwards}
+
+.fmc-readout{position:absolute;left:24px;bottom:22px;z-index:3;direction:ltr;text-align:left}
+.fmc-hz{display:flex;align-items:baseline;gap:6px}
+.fmc-hz-num{font-size:56px;line-height:1;font-weight:500;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.fmc-hz-unit{font-size:14px;color:rgba(255,255,255,.55);font-weight:500}
+.fmc-target{margin-bottom:14px;animation:fmc-blur-in .7s cubic-bezier(.2,.8,.2,1) .35s both}
+.fmc-target-label{font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#777;margin-bottom:6px}
+.fmc-target .fmc-hz-num{color:#777}
+.fmc-target .fmc-hz-unit{color:#555}
+
+.fmc-submit{position:absolute;right:24px;bottom:26px;width:32px;height:32px;border-radius:50%;background:#fff;border:0;padding:0;display:grid;place-items:center;cursor:pointer;z-index:4;transition:transform .15s ease,background .15s ease,opacity .2s ease}
+.fmc-submit:hover{background:#e8e8e8;transform:scale(1.06)}
+.fmc-submit:active{transform:scale(.94)}
+.fmc-submit:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.fmc-submit:disabled{opacity:.35;cursor:default}
+.fmc-submit svg{width:16px;height:16px}
+
+.fmc-play{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:#fff;border:0;display:grid;place-items:center;cursor:pointer;z-index:4;transition:transform .15s ease,opacity .3s ease}
+.fmc-play:hover{transform:scale(1.05)}
+.fmc-play:active{transform:scale(.95)}
+.fmc-play svg{width:22px;height:22px;margin-left:3px}
+.fmc-replay{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);background:none;border:0;color:rgba(255,255,255,.55);font:inherit;font-size:12px;cursor:pointer;z-index:4;padding:6px 10px}
+.fmc-replay:hover{color:#fff}
+.fmc-replay:disabled{opacity:.4;cursor:default}
+.fmc-note{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:13px;color:rgba(255,255,255,.55);z-index:3;text-align:center;direction:rtl;pointer-events:none}
+.fmc-error{position:absolute;left:24px;right:24px;top:52px;font-size:12px;color:#fda4af;text-align:center;direction:rtl;z-index:5}
+
+.fmc-cursor{position:absolute;left:0;top:0;width:22px;height:30px;margin:-15px 0 0 -11px;pointer-events:none;opacity:0;transition:opacity .15s ease;z-index:6;will-change:transform}
+.fmc-cursor.is-on{opacity:1}
+.fmc-cursor svg{width:100%;height:100%;display:block;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
+
+.fmc-word{position:absolute;top:14px;right:24px;font-size:56px;line-height:1;font-weight:500;letter-spacing:-.035em;z-index:3;animation:fmc-word .55s cubic-bezier(.2,.8,.2,1) both}
+.fmc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+
+@keyframes fmc-fade{from{opacity:0}to{opacity:1}}
+@keyframes fmc-blur-in{from{opacity:0;filter:blur(10px)}to{opacity:1;filter:blur(0)}}
+@keyframes fmc-word{from{opacity:1;color:#3a3a3a}to{opacity:1;color:#fff}}
+
+@media (max-width:640px){
+  .fmc{border-radius:14px;max-height:78vh}
+  .fmc-hz-num,.fmc-score,.fmc-word{font-size:44px}
+  .fmc-counter{left:18px;top:18px}
+  .fmc-brand,.fmc-score-wrap,.fmc-word{right:18px}
+  .fmc-readout{left:18px;bottom:18px}
+  .fmc-submit{right:18px;bottom:22px}
+}
+@media (pointer:coarse){.fmc.is-tuning{cursor:auto}.fmc-cursor{display:none}}
+@media (prefers-reduced-motion:reduce){
+  .fmc-canvas,.fmc-submit,.fmc-play{transition:none}
+  .fmc-feedback,.fmc-target,.fmc-word{animation:none;opacity:1;filter:none}
+  .fmc-word{color:#fff}
+}
