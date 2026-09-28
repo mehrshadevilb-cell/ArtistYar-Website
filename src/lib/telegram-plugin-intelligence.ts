@@ -900,6 +900,27 @@ export async function applyVerificationToPost(postId: string, result: Verificati
   }).eq("id", postId);
 
   if (update.error) return { ok: false, error: update.error.message };
+
+  // Persisted intelligence must also reach Telegram. Publication failures are
+  // reported, but never converted into an admin-review gate.
+  try {
+    const published = await publishPluginCaption(postId, caption);
+    if (!published.ok) {
+      return { ok: false, caption, error: published.error || "caption_publish_failed" };
+    }
+  } catch (error) {
+    return { ok: false, caption, error: clean(error instanceof Error ? error.message : String(error), 240) };
+  }
+
+  await store.from("telegram_plugin_posts").update({
+    final_caption: caption,
+    draft_caption: "",
+    review_required: false,
+    processing_state: "PUBLISHED",
+    status: "published",
+    updated_at: new Date().toISOString(),
+  }).eq("id", postId);
+
   return { ok: true, caption };
 }
 
