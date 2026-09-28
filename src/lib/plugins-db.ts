@@ -193,3 +193,42 @@ export async function probePluginsCatalog(): Promise<{
     errorDetail: result.errorDetail,
   };
 }
+
+/**
+ * Load IDs and timestamps for all published plugin detail pages so the sitemap
+ * reflects the complete public catalog instead of only the latest three cards.
+ */
+export async function queryPublishedPluginIdsForSitemap(limit = 50000): Promise<Array<{ id: string; updated_at: string | null; created_at: string }>> {
+  const db = getPluginsDb();
+  if (!db) return [];
+
+  const safeLimit = Math.min(Math.max(Number(limit) || 50000, 1), 50000);
+  const pageSize = 1000;
+  const rows: Array<{ id: string; updated_at: string | null; created_at: string }> = [];
+
+  for (let from = 0; from < safeLimit; from += pageSize) {
+    const to = Math.min(from + pageSize - 1, safeLimit - 1);
+    const result = await db
+      .from("telegram_plugin_posts")
+      .select("id,updated_at,created_at")
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (result.error) {
+      console.warn("plugins_sitemap_query_failed", result.error.message.slice(0, 240));
+      break;
+    }
+
+    const page = (result.data || []) as Array<{ id: string; updated_at?: string | null; created_at: string }>;
+    rows.push(...page.map((row) => ({
+      id: String(row.id),
+      updated_at: row.updated_at ?? null,
+      created_at: row.created_at,
+    })));
+
+    if (page.length < pageSize || rows.length >= safeLimit) break;
+  }
+
+  return rows.slice(0, safeLimit);
+}
