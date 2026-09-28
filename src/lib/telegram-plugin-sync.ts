@@ -131,7 +131,7 @@ export function pluginTokenConfigured() {
 export async function setPluginWebhook(urlValue: string, secretToken?: string) {
   const result = await tg("setWebhook", {
     url: urlValue,
-    allowed_updates: ["channel_post"],
+    allowed_updates: ["channel_post", "edited_channel_post"],
     ...(secretToken ? { secret_token: secretToken } : {}),
   });
   return result;
@@ -529,7 +529,8 @@ async function processPluginPairLegacy(photo: any, document: any) {
   const metadata = await aiMetadata(String(document.file_name || ""), String(document.caption || photo.caption || ""));
   const p = metadata.data;
   const title = p.title || titleFromFileName(String(document.file_name || "")) || titleFromCaption(String(document.caption || photo.caption || "")) || "پلاگین جدید";
-  const caption = captionFor({ ...p, title });
+  const intelligenceCaption = String((globalThis as any).__ARTISTYAR_VERIFIED_CAPTION || "").trim();
+  const caption = intelligenceCaption || captionFor({ ...p, title });
   if (!caption.trim()) throw new Error("plugin_caption_generation_empty");
 
   const channelId = String(document.channel_id || photo.channel_id);
@@ -597,13 +598,15 @@ async function processPluginPairLegacy(photo: any, document: any) {
   if (upserted.error) throw new Error("plugin_db_upsert_failed:" + upserted.error.message);
   const postId = String(upserted.data.id);
 
-  // The real Telegram photo is the only cover source. Storage failures are
-  // retried by the queue and never replaced with a channel logo or fake URL.
+  // Cover synchronization is independent from caption publication. A stale
+  // Telegram file_id must never prevent the Persian caption from reaching the channel.
+  let coverError = "";
   try {
     const { syncPublishedPluginCover } = await import("@/lib/telegram-plugin-covers");
     await syncPublishedPluginCover({ postId, photoFileId });
   } catch (error) {
-    throw new Error("plugin_cover_sync_failed:" + clean(error instanceof Error ? error.message : String(error), 300));
+    coverError = clean(error instanceof Error ? error.message : String(error), 300);
+    console.warn("telegram_plugin_cover_sync_deferred", { postId, reason: coverError });
   }
 
   try {
@@ -612,7 +615,7 @@ async function processPluginPairLegacy(photo: any, document: any) {
       final_caption: caption,
       draft_caption: caption,
       processing_state: "PUBLISHED",
-      error_message: null,
+      error_message: coverError ? "cover_sync_deferred:" + coverError : null,
       updated_at: new Date().toISOString(),
     }).eq("id", postId);
     console.info("telegram_plugin_caption_published", { postId, messageId: Number(photo.message_id), captionLength: caption.length });
@@ -648,7 +651,7 @@ async function processPluginPairLegacy(photo: any, document: any) {
     throw error;
   }
   await markQueueDone([String(photo.id), String(document.id)]);
-  return { id: postId, title, postUrl, cover_public_url: true, ai_provider: metadata.provider, ai_model: metadata.model };
+  return { id: postId, title, postUrl, cover_public_url: !coverError, cover_error: coverError || null, ai_provider: metadata.provider, ai_model: metadata.model };
 }
 
 export async function processPendingPluginPairs(limit = 5) {
