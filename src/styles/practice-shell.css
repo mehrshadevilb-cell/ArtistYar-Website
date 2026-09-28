@@ -10,8 +10,8 @@
 }
 
 .fm-intro-card {
-  width: min(100%, 39.375rem);
-  min-height: clamp(30rem, 70vh, 39.375rem);
+  width: min(100%, 32rem);
+  min-height: clamp(30rem, 70vh, 32rem);
   margin-inline: auto;
   display: flex;
   flex-direction: column;
@@ -91,7 +91,7 @@
 .fm-glass-card {
   position: relative;
   overflow: hidden;
-  max-width: 42rem;
+  max-width: 32rem;
   margin-inline: auto;
   border-radius: 1.75rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -102,7 +102,7 @@
 
 .fm-dialed-card {
   position: relative;
-  width: min(100%, 39.375rem);
+  width: min(100%, 32rem);
   margin-inline: auto;
   aspect-ratio: 4 / 5;
   border-radius: 1.15rem;
@@ -294,7 +294,7 @@
 
 .fm-rsgo {
   position: relative;
-  width: min(100%, 39.375rem);
+  width: min(100%, 32rem);
   margin-inline: auto;
   aspect-ratio: 4 / 5;
   border-radius: 1.15rem;
