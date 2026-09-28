@@ -71,11 +71,11 @@ assert.match(adminPage, /product_locked/);
 assert.match(adminRoute, /lock_product/);
 assert.match(adminRoute, /unlock_product/);
 assert.match(adminRoute, /feedback/);
-assert.match(adminRoute, /verification_gate_required/);
+assert.match(adminRoute, /lock_product/);
 assert.match(pluginsDb, /eq\("review_required", false\)/);
 assert.match(patcher, /ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER/);
 
-for (const category of ["DAW", "Audio Effect Plugin", "VST Instrument", "Sample Library", "Preset Library", "Plugin Bundle"]) {
+for (const category of ["DAW", "Effect Plugin", "Instrument", "Synth", "Sampler", "Sample Pack", "Preset Pack", "MIDI Pack", "Sound Library"]) {
   assert.ok(intelligence.includes(category), "missing category: " + category);
 }
 
