@@ -9,6 +9,55 @@ const bucket = (process.env.SUPABASE_BUCKET || "artistyar-media").trim();
 
 const db = getPluginsDb();
 
+function escapeXml(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+async function buildDeterministicPluginCover(
+  postId: string,
+): Promise<{ bytes: Buffer; contentType: string }> {
+  if (!db) throw new Error("supabase_not_configured");
+
+  const row = await db
+    .from("telegram_plugin_posts")
+    .select("title,developer,category")
+    .eq("id", postId)
+    .maybeSingle();
+
+  const title = String(row.data?.title || "Audio Plugin").trim().slice(0, 80);
+  const developer = String(row.data?.developer || "ArtistYar").trim().slice(0, 60);
+  const category = String(row.data?.category || "Audio Plugin").trim().slice(0, 50);
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#312e81"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="36" fill="url(#bg)"/>
+  <circle cx="1040" cy="100" r="210" fill="#7c3aed" opacity=".18"/>
+  <circle cx="120" cy="560" r="260" fill="#06b6d4" opacity=".12"/>
+  <rect x="72" y="72" width="1056" height="8" rx="4" fill="url(#accent)"/>
+  <text x="72" y="150" fill="#c4b5fd" font-family="Arial,sans-serif" font-size="28" font-weight="700">ARTISTYAR • PLUGIN</text>
+  <text x="72" y="290" fill="#ffffff" font-family="Arial,sans-serif" font-size="58" font-weight="800">${escapeXml(title)}</text>
+  <text x="72" y="350" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="30">${escapeXml(category)}</text>
+  <text x="72" y="515" fill="#94a3b8" font-family="Arial,sans-serif" font-size="24">${escapeXml(developer)}</text>
+  <text x="1128" y="515" text-anchor="end" fill="#e2e8f0" font-family="Arial,sans-serif" font-size="24" font-weight="700">ArtistYar</text>
+</svg>`;
+
+  return { bytes: Buffer.from(svg, "utf8"), contentType: "image/svg+xml" };
+}
+
 async function recoverPublicTelegramCover(postId: string): Promise<{ bytes: Buffer; contentType: string } | null> {
   if (!db) return null;
 
@@ -99,6 +148,7 @@ function extFromContentType(contentType: string) {
   if (mime === "image/png") return "png";
   if (mime === "image/webp") return "webp";
   if (mime === "image/gif") return "gif";
+  if (mime === "image/svg+xml") return "svg";
   return "jpg";
 }
 
@@ -125,8 +175,11 @@ export async function syncPublishedPluginCover(options: {
     // still expose their media through Telegram's web preview, so recover the
     // cover from that public post before giving up.
     const recovered = await recoverPublicTelegramCover(postId);
-    if (!recovered) throw error;
-    downloaded = recovered;
+    if (recovered) {
+      downloaded = recovered;
+    } else {
+      downloaded = await buildDeterministicPluginCover(postId);
+    }
   }
   const ext = extFromContentType(downloaded.contentType);
   const path = "plugins/" + postId + "." + ext;
