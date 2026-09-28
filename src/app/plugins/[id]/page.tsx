@@ -104,7 +104,7 @@ export default async function PluginDetailPage({ params }: Props) {
       </nav>
 
       <article className="overflow-hidden rounded-[24px] border border-white/[.08] bg-white/[.02]">
-        <div className="relative aspect-[16/9] overflow-hidden bg-[#0a0a0a]">
+        <div className="relative aspect-[16/9] overflow-hidden bg-ink-950">
           <div
             className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(214,174,92,.28),transparent_42%)]"
             aria-hidden
