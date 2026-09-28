@@ -217,7 +217,8 @@ export async function playExerciseRound(opts: {
       const processed = applyDsp(ctx, mix, dsp);
       const outG = ctx.createGain();
       const totalDur = intervalHz > 40 ? duration * 2 + 0.2 : duration;
-      linEnv(outG, now, totalDur, 0.55);
+      const pureSine = partials.length === 1 && Math.abs(Number(partials[0]) - 1) < 1e-6;
+      linEnv(outG, now, totalDur, pureSine ? 0.40 : 0.55);
       processed.connect(outG).connect(master);
       partials.forEach((amp, i) => {
         const o = ctx.createOscillator();
@@ -363,16 +364,17 @@ let liveGain: GainNode | null = null;
 let liveCtx: AudioContext | null = null;
 
 export async function startLiveTone(hz: number, peak = 0.28): Promise<boolean> {
-  await unlockPracticeAudio();
   const ctx = await getPracticeAudioContext();
   if (!ctx) return false;
   try {
     if (ctx.state !== "running") await ctx.resume();
   } catch {
-    /* */
+    return false;
   }
   stopPracticePlayback();
-  const safe = Math.max(40, Math.min(16000, Number(hz) || 440));
+  const safeNumber = Number(hz);
+  if (!Number.isFinite(safeNumber) || safeNumber <= 0) return false;
+  const safe = Math.max(40, Math.min(16000, safeNumber));
   try {
     if (liveOsc && liveCtx === ctx) {
       liveOsc.frequency.setTargetAtTime(safe, ctx.currentTime, 0.01);
@@ -403,7 +405,9 @@ export async function startLiveTone(hz: number, peak = 0.28): Promise<boolean> {
 
 export function setLiveToneHz(hz: number) {
   if (!liveOsc || !liveCtx) return;
-  const safe = Math.max(40, Math.min(16000, Number(hz) || 440));
+  const safeNumber = Number(hz);
+  if (!Number.isFinite(safeNumber) || safeNumber <= 0) return;
+  const safe = Math.max(40, Math.min(16000, safeNumber));
   try {
     liveOsc.frequency.setTargetAtTime(safe, liveCtx.currentTime, 0.012);
   } catch {
