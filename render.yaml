@@ -24,6 +24,8 @@ services:
         value: "--max-old-space-size=1536"
       - key: PORT
         value: "10000"
+      - key: TELEGRAM_PLUGIN_PROCESS_SECRET
+        sync: false
 
   - type: cron
     name: artistyar-hitnevis-daily-trainer
@@ -62,3 +64,5 @@ services:
           name: artistyar-website
           type: web
           envVarKey: WEB_ADMIN_API_KEY
+      - key: TELEGRAM_PLUGIN_PROCESS_SECRET
+        sync: false
