@@ -68,6 +68,14 @@ const TEAL = "rgba(46, 230, 184,";
 const PURPLE = "rgba(122, 60, 255,";
 const CYAN = "rgba(94, 234, 212,";
 
+const WAVE_LAYERS = [
+  { color: PURPLE, alpha: 0.12, width: 1.1, phaseOff: 0.55, ampMul: 1.18, lag: 0.35 },
+  { color: TEAL, alpha: 0.14, width: 1.15, phaseOff: -0.4, ampMul: 1.12, lag: 0.22 },
+  { color: PURPLE, alpha: 0.22, width: 1.35, phaseOff: 0.18, ampMul: 1.05, lag: 0.1 },
+  { color: CYAN, alpha: 0.38, width: 1.55, phaseOff: 0, ampMul: 1, lag: 0 },
+  { color: TEAL, alpha: 0.55, width: 1.85, phaseOff: -0.08, ampMul: 0.92, lag: -0.05 },
+] as const;
+
 export function FrequencyMemoryDial({
   minHz,
   maxHz,
@@ -100,6 +108,9 @@ export function FrequencyMemoryDial({
   const draggingRef = useRef(false);
   const cursorYRef = useRef<number | null>(null);
   const reducedMotionRef = useRef(false);
+  const sizeRef = useRef({ w: 1, h: 1 });
+  const glowRef = useRef<CanvasGradient | null>(null);
+  const fadeRef = useRef<CanvasGradient | null>(null);
   const interactive = mode === "recreate" && !disabled;
 
   useEffect(() => {
@@ -161,6 +172,16 @@ export function FrequencyMemoryDial({
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      sizeRef.current = { w, h };
+      const glow = ctx.createRadialGradient(w * 0.5, h * 0.45, 4, w * 0.5, h * 0.45, h * 0.55);
+      glow.addColorStop(0, "rgba(94,234,212,0.07)");
+      glow.addColorStop(0.45, "rgba(122,60,255,0.05)");
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      glowRef.current = glow;
+      const fade = ctx.createLinearGradient(0, h * 0.72, 0, h);
+      fade.addColorStop(0, "rgba(0,0,0,0)");
+      fade.addColorStop(1, "rgba(0,0,0,0.85)");
+      fadeRef.current = fade;
     };
     resize();
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
@@ -172,9 +193,7 @@ export function FrequencyMemoryDial({
       last = now;
       const motionReduced = reducedMotionRef.current;
       if (!motionReduced) phaseRef.current += dt * (playingRef.current || draggingRef.current ? 2.8 : 1.15);
-      const r = surface.getBoundingClientRect();
-      const w = r.width;
-      const h = r.height;
+      const { w, h } = sizeRef.current;
       ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
       ctx.fillRect(0, 0, w, h);
       const hz = Math.max(40, waveHzRef.current || valueHzRef.current || 440);
@@ -183,20 +202,11 @@ export function FrequencyMemoryDial({
       const cx = w * 0.5;
       const ampBase = Math.min(w * 0.22, 78);
       const phase = phaseRef.current;
-      const g = ctx.createRadialGradient(cx, h * 0.45, 4, cx, h * 0.45, h * 0.55);
-      g.addColorStop(0, "rgba(94,234,212,0.07)");
-      g.addColorStop(0.45, "rgba(122,60,255,0.05)");
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
-      const layers = [
-        { color: PURPLE, alpha: 0.12, width: 1.1, phaseOff: 0.55, ampMul: 1.18, lag: 0.35 },
-        { color: TEAL, alpha: 0.14, width: 1.15, phaseOff: -0.4, ampMul: 1.12, lag: 0.22 },
-        { color: PURPLE, alpha: 0.22, width: 1.35, phaseOff: 0.18, ampMul: 1.05, lag: 0.1 },
-        { color: CYAN, alpha: 0.38, width: 1.55, phaseOff: 0, ampMul: 1, lag: 0 },
-        { color: TEAL, alpha: 0.55, width: 1.85, phaseOff: -0.08, ampMul: 0.92, lag: -0.05 },
-      ];
-      for (const layer of layers) {
+      if (glowRef.current) {
+        ctx.fillStyle = glowRef.current;
+        ctx.fillRect(0, 0, w, h);
+      }
+      for (const layer of WAVE_LAYERS) {
         ctx.beginPath();
         const steps = Math.max(80, Math.floor(h / 2));
         for (let i = 0; i <= steps; i++) {
@@ -229,11 +239,10 @@ export function FrequencyMemoryDial({
         ctx.stroke();
       }
       ctx.shadowBlur = 0;
-      const fade = ctx.createLinearGradient(0, h * 0.72, 0, h);
-      fade.addColorStop(0, "rgba(0,0,0,0)");
-      fade.addColorStop(1, "rgba(0,0,0,0.85)");
-      ctx.fillStyle = fade;
-      ctx.fillRect(0, h * 0.72, w, h * 0.28);
+      if (fadeRef.current) {
+        ctx.fillStyle = fadeRef.current;
+        ctx.fillRect(0, h * 0.72, w, h * 0.28);
+      }
       rafRef.current = requestAnimationFrame(draw);
     };
     rafRef.current = requestAnimationFrame(draw);
