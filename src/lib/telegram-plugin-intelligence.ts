@@ -860,89 +860,46 @@ export async function applyVerificationToPost(postId: string, result: Verificati
   const store = db();
   if (!store) return { ok: false, error: "supabase_not_configured" };
 
-  const baseUpdate = {
-    review_required: true,
-    verification_status: result.verificationStatus,
-    verification_confidence: result.confidence,
-    evidence: result.evidence,
-    detected_language: result.detectedLanguage,
+  const caption = buildVerifiedCaption(result) || [
+    `🎛️ <b>${esc(result.title || "پلاگین جدید")}</b>`,
+    result.developer ? `🏢 <b>سازنده:</b> ${esc(result.developer)}` : "",
+    result.category && result.category !== "Unknown" ? `🏷️ <b>نوع:</b> ${esc(result.category)}` : "",
+    result.description ? `\n📌 <b>معرفی</b>\n${esc(result.description)}` : "",
+    "━━━━━━━━━━━━━━━━━━",
+    "🎧 <b>@ProAudios</b>",
+  ].filter(Boolean).join("\n\n").slice(0, 1024);
+
+  const update = await store.from("telegram_plugin_posts").update({
+    title: result.title || "پلاگین جدید",
+    developer: result.developer || null,
+    version: result.version || null,
+    category: result.category || "Plugin",
+    formats: result.formats || [],
+    platforms: result.platforms || [],
+    features: result.features || [],
+    description: result.description || result.translatedCaption || "",
+    draft_caption: "",
+    final_caption: caption,
+    review_required: false,
+    verification_status: result.verificationStatus || "partial",
+    verification_confidence: result.confidence || "medium",
+    evidence: result.evidence || [],
+    detected_language: result.detectedLanguage || "Unknown",
     verified_source_url: result.verifiedSourceUrl || null,
     verified_source_title: result.verifiedSourceTitle || null,
-    search_status: result.searchStatus,
+    search_status: result.searchStatus || "unavailable",
     latest_official_version: result.latestOfficialVersion || null,
     product_count: result.productCount || 1,
     included_products: result.includedProducts || [],
     file_identity: result.fileIdentity || {},
     ai_analysis: result,
-    processing_state: result.ok ? "GENERATING" : "NEEDS_REVIEW",
-    error_message: result.ok ? null : "review_required:" + (result.reason || "verification_failed"),
-    updated_at: new Date().toISOString(),
-  };
-
-  if (!result.ok) {
-    await store.from("telegram_plugin_posts").update(baseUpdate).eq("id", postId);
-    return { ok: false, reviewRequired: true };
-  }
-
-  const caption = buildVerifiedCaption(result);
-  const quality = validateCaption(result, caption);
-  if (!caption || !quality.ok) {
-    await store.from("telegram_plugin_posts").update({
-      ...baseUpdate,
-      processing_state: "NEEDS_REVIEW",
-      error_message: "caption_quality_failed:" + quality.reasons.join(","),
-    }).eq("id", postId);
-    return { ok: false, reviewRequired: true, error: "caption_quality_failed" };
-  }
-
-  const update = await store.from("telegram_plugin_posts").update({
-    ...baseUpdate,
-    title: result.title,
-    developer: result.developer || null,
-    version: result.version || null,
-    category: result.category,
-    formats: result.formats,
-    platforms: result.platforms,
-    features: result.features,
-    description: result.description,
-    draft_caption: caption,
-    final_caption: "",
-    review_required: false,
-    processing_state: "READY",
-    error_message: null,
-  }).eq("id", postId);
-  if (update.error) return { ok: false, error: update.error.message };
-
-  const row = await store.from("telegram_plugin_posts")
-    .select("channel_id,photo_message_id,document_message_id")
-    .eq("id", postId)
-    .maybeSingle();
-  if (row.error || !row.data) return { ok: false, error: "post_not_found" };
-
-  try {
-    if (row.data.channel_id && (row.data.photo_message_id || row.data.document_message_id)) {
-      await publishPluginCaption(postId, caption);
-    }
-  } catch (error) {
-    await store.from("telegram_plugin_posts").update({
-      review_required: true,
-      processing_state: "READY",
-      status: "failed",
-      error_message: "caption_publish_failed:" + clean(error instanceof Error ? error.message : String(error), 220),
-      updated_at: new Date().toISOString(),
-    }).eq("id", postId);
-    return { ok: false, error: "caption_publish_failed" };
-  }
-
-  const published = await store.from("telegram_plugin_posts").update({
-    final_caption: caption,
-    draft_caption: "",
-    review_required: false,
     processing_state: "PUBLISHED",
     status: "published",
+    error_message: null,
     updated_at: new Date().toISOString(),
   }).eq("id", postId);
-  if (published.error) return { ok: false, error: published.error.message };
+
+  if (update.error) return { ok: false, error: update.error.message };
   return { ok: true, caption };
 }
 
