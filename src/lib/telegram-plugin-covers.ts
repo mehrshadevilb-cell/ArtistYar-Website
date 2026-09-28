@@ -9,6 +9,91 @@ const bucket = (process.env.SUPABASE_BUCKET || "artistyar-media").trim();
 
 const db = getPluginsDb();
 
+async function recoverPublicTelegramCover(postId: string): Promise<{ bytes: Buffer; contentType: string } | null> {
+  if (!db) return null;
+
+  const row = await db
+    .from("telegram_plugin_posts")
+    .select("channel_username,photo_message_id")
+    .eq("id", postId)
+    .maybeSingle();
+
+  if (row.error || !row.data?.photo_message_id) return null;
+
+  const username = String(
+    row.data.channel_username ||
+      process.env.TELEGRAM_PLUGIN_CHANNEL_USERNAME ||
+      "ProAudios",
+  )
+    .trim()
+    .replace(/^@/, "");
+
+  if (!username) return null;
+
+  const messageId = Number(row.data.photo_message_id);
+  if (!Number.isFinite(messageId) || messageId <= 0) return null;
+
+  try {
+    const pageUrl =
+      "https://t.me/" +
+      encodeURIComponent(username) +
+      "/" +
+      encodeURIComponent(String(messageId)) +
+      "?embed=1";
+
+    const page = await fetch(pageUrl, {
+      cache: "no-store",
+      redirect: "follow",
+      headers: {
+        accept: "text/html,application/xhtml+xml",
+        "user-agent": "ArtistYar-Telegram-Plugin-Cover-Recovery/1.0",
+      },
+      signal: AbortSignal.timeout(20000),
+    });
+
+    if (!page.ok) return null;
+    const html = await page.text();
+    const match =
+      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+
+    const imageUrl = match?.[1] ? match[1].replace(/&amp;/g, "&") : "";
+    if (!imageUrl) return null;
+
+    const parsed = new URL(imageUrl);
+    const host = parsed.hostname.toLowerCase();
+    const trusted =
+      host === "t.me" ||
+      host.endsWith(".telegram.org") ||
+      host.endsWith(".cdn-telegram.org");
+    if (!trusted) return null;
+
+    const image = await fetch(parsed.toString(), {
+      cache: "no-store",
+      redirect: "follow",
+      headers: { accept: "image/*,*/*;q=0.8" },
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!image.ok) return null;
+
+    const contentType = String(image.headers.get("content-type") || "image/jpeg")
+      .split(";")[0]
+      .trim()
+      .toLowerCase();
+    if (!contentType.startsWith("image/")) return null;
+
+    const bytes = Buffer.from(await image.arrayBuffer());
+    if (!bytes.length) return null;
+    return { bytes, contentType };
+  } catch (error) {
+    console.warn(
+      "plugin_public_cover_recovery_failed",
+      error instanceof Error ? error.message : String(error),
+    );
+    return null;
+  }
+}
+
 function extFromContentType(contentType: string) {
   const mime = (contentType || "").split(";")[0].trim().toLowerCase();
   if (mime === "image/png") return "png";
@@ -31,7 +116,18 @@ export async function syncPublishedPluginCover(options: {
   if (!postId || !photoFileId) return null;
 
   const { telegramBytes } = await import("@/lib/telegram-plugin-sync");
-  const downloaded = await telegramBytes(photoFileId);
+  let downloaded: { bytes: Buffer; contentType: string };
+  try {
+    downloaded = await telegramBytes(photoFileId);
+  } catch (error) {
+    // Historical Telegram file_ids can become unusable when the channel was
+    // originally ingested by a different bot identity. Public channel posts
+    // still expose their media through Telegram's web preview, so recover the
+    // cover from that public post before giving up.
+    const recovered = await recoverPublicTelegramCover(postId);
+    if (!recovered) throw error;
+    downloaded = recovered;
+  }
   const ext = extFromContentType(downloaded.contentType);
   const path = "plugins/" + postId + "." + ext;
   const contentType = downloaded.contentType || "image/jpeg";
