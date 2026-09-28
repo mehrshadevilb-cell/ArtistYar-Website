@@ -95,7 +95,7 @@ export function FrequencyMemoryDial({
 }: FrequencyMemoryDialProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const dragRef = useRef({ active: false, moved: false, lastY: 0, pointerY: 0 });
+  const dragRef = useRef({ active: false, moved: false, lastY: 0, startY: 0, startT: 0 });
   const phaseRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -258,12 +258,14 @@ export function FrequencyMemoryDial({
     };
   }, []);
 
-  const setFromY = useCallback(
+  const setFromDrag = useCallback(
     (clientY: number, withTone = true) => {
       const el = surfaceRef.current;
-      if (!el) return;
+      if (!el || !dragRef.current.active) return;
       const r = el.getBoundingClientRect();
-      const t = clamp(1 - (clientY - r.top) / Math.max(1, r.height));
+      const height = Math.max(1, r.height);
+      const deltaT = -(clientY - dragRef.current.startY) / height;
+      const t = clamp(dragRef.current.startT + deltaT * 0.72);
       const hz = fromLog(t, minHz, maxHz);
       const rounded = Math.round(hz * 100) / 100;
       onChangeHz(rounded);
@@ -280,15 +282,19 @@ export function FrequencyMemoryDial({
     if (!interactive) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
-    dragRef.current = { active: true, moved: false, lastY: e.clientY, pointerY: 0 };
+    const r = e.currentTarget.getBoundingClientRect();
+    const startT = toLog(valueHz, minHz, maxHz);
+    dragRef.current = { active: true, moved: false, lastY: e.clientY, startY: e.clientY, startT };
     setDragging(true);
-    setFromY(e.clientY);
+    setCursorY(e.clientY - r.top);
+    void startLiveTone(valueHz);
+    setLiveToneHz(valueHz);
   };
   const move = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragRef.current.active) return;
     if (Math.abs(e.clientY - dragRef.current.lastY) > 3) dragRef.current.moved = true;
     dragRef.current.lastY = e.clientY;
-    setFromY(e.clientY);
+    setFromDrag(e.clientY);
   };
   const up = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragRef.current.active) return;
@@ -306,10 +312,10 @@ export function FrequencyMemoryDial({
   };
   const key = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!interactive) return;
-    const step = e.shiftKey ? 0.04 : 0.012;
-    let t = toLog(valueHz, minHz, maxHz);
-    if (e.key === "ArrowDown" || e.key === "ArrowLeft") t -= step;
-    else if (e.key === "ArrowUp" || e.key === "ArrowRight") t += step;
+    const hzStep = e.shiftKey ? 0.01 : 0.1;
+    let hz = valueHz;
+    if (e.key === "ArrowDown" || e.key === "ArrowLeft") hz -= hzStep;
+    else if (e.key === "ArrowUp" || e.key === "ArrowRight") hz += hzStep;
     else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       stopLiveTone();
@@ -317,7 +323,8 @@ export function FrequencyMemoryDial({
       return;
     } else return;
     e.preventDefault();
-    const hz = Math.round(fromLog(t, minHz, maxHz) * 100) / 100;
+    hz = Math.max(minHz, Math.min(maxHz, hz));
+    hz = Math.round(hz * 100) / 100;
     onChangeHz(hz);
     void startLiveTone(hz);
     setLiveToneHz(hz);
@@ -407,13 +414,13 @@ export function FrequencyMemoryDial({
           type="range"
           className="fm-range-sr"
           min={0}
-          max={1000}
+          max={100000}
           step={1}
-          value={Math.round(toLog(valueHz, minHz, maxHz) * 1000)}
+          value={Math.round(toLog(valueHz, minHz, maxHz) * 100000)}
           disabled={!interactive}
           aria-label="تنظیم فرکانس"
           onChange={(e) => {
-            const hz = Math.round(fromLog(+e.target.value / 1000, minHz, maxHz) * 100) / 100;
+            const hz = Math.round(fromLog(+e.target.value / 100000, minHz, maxHz) * 100) / 100;
             onChangeHz(hz);
             void startLiveTone(hz);
             setLiveToneHz(hz);
