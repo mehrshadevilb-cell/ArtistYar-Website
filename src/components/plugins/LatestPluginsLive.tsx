@@ -16,6 +16,8 @@ export type LatestPlugin = {
   cover_storage_path?: string | null;
   cover_public_url?: string | null;
   file_name?: string | null;
+  file_names?: string[];
+  attachment_count?: number;
   created_at: string;
 };
 
@@ -206,6 +208,11 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
                   ) : null}
                   {p.description ? (
                     <p className="mt-2 line-clamp-2 text-xs leading-6 text-ink-400">{p.description}</p>
+                  ) : null}
+                  {Number(p.attachment_count || 1) > 1 ? (
+                    <p className="mt-2 text-[11px] text-ink-500">
+                      📦 {Number(p.attachment_count)} فایل مرتبط با همین انتشار
+                    </p>
                   ) : null}
                   <div className="mt-3 flex gap-2">
                     <a
