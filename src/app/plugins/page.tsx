@@ -4,12 +4,26 @@ import LatestPluginsLive, { type LatestPlugin } from "@/components/plugins/Lates
 import { queryLatestPlugins } from "@/lib/plugins-db";
 
 export const dynamic = "force-dynamic";
+
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
+
 export const metadata: Metadata = {
   title: "کتابخانه پلاگین | ArtistYar",
   description:
     "سه پلاگین تازه منتشرشده ArtistYar با کاور، مشخصات فارسی و دانلود مستقیم از تلگرام.",
   alternates: { canonical: "/plugins" },
   openGraph: { type: "website", url: "/plugins", title: "کتابخانه پلاگین ArtistYar" },
+};
+
+const pluginsJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: "کتابخانه پلاگین آرتیست‌یار",
+  url: `${siteUrl}/plugins`,
+  inLanguage: "fa-IR",
+  description: "معرفی آخرین پلاگین‌های منتشرشده با کاور فارسی و لینک دانلود تلگرام.",
+  isPartOf: { "@type": "WebSite", name: "ArtistYar", url: siteUrl },
+  provider: { "@type": "EducationalOrganization", name: "ArtistYar", url: siteUrl },
 };
 
 type Plugin = LatestPlugin & {
@@ -58,6 +72,10 @@ export default async function PluginsPage() {
 
   return (
     <main className="container-ay py-8 sm:py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(pluginsJsonLd) }}
+      />
       <div className="mb-8 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
         <div className="flex flex-col justify-center rounded-[28px] border border-white/[.07] bg-white/[.018] p-7 sm:p-10">
           <p className="eyebrow">/ Plugin Lab</p>
