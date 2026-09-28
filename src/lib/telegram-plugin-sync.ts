@@ -877,3 +877,4 @@ export async function processPluginPair(photo: any, doc: any) {
     delete (globalThis as any).__ARTISTYAR_VERIFIED_DATA;
   }
 }
+}
