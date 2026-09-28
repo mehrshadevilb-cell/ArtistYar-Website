@@ -500,6 +500,16 @@ export function PracticeGameSession({
   };
   const band = bandForLevel(level);
 
+  // Dialed-style result dwell: let the score count-up and result overlay
+  // remain visible briefly, then advance automatically into ready/set/go.
+  useEffect(() => {
+    if (!isFreq || phase !== "result" || !feedback) return;
+    const id = window.setTimeout(() => {
+      advanceToNextRound();
+    }, 2000);
+    return () => window.clearTimeout(id);
+  }, [advanceToNextRound, feedback, isFreq, phase]);
+
   if (!game) {
     return (
       <section className="container-ay py-10" dir="rtl">
@@ -511,9 +521,12 @@ export function PracticeGameSession({
     );
   }
 
-  // The target is audio-only during listen/remember. Never use it to drive a
-  // visual waveform or any other UI signal before submission.
-  const waveHz = guessHz;
+  // Reference parity: the listen/remember wave follows the heard target's
+  // frequency visually, while the recreate wave follows the user's guess.
+  // The numeric target remains hidden until the result state.
+  const waveHz = isFreq && round && (freqSub === "listen" || freqSub === "remember")
+    ? round.targetHz
+    : guessHz;
 
   return (
     <main className={`practice-shell container-ay relative pb-16 pt-6 sm:pt-10 ${isFreq && phase === "play" ? "practice-focus" : ""}`} dir="rtl">
@@ -556,11 +569,6 @@ export function PracticeGameSession({
 
       {phase === "play" && round && isFreq && (
         <div className="fm-dialed-wrap">
-          {freqSub === "listen" && !heard && (
-            <p className="mb-3 text-center text-[13px] leading-7 text-ink-400">
-              به هدف گوش بده و زیر و بمی آن را به خاطر بسپار.
-            </p>
-          )}
           {freqSub === "remember" && (
             <p className="fm-remember-count" aria-live="polite">
               سکوت… به‌خاطر بسپار{rememberLeft > 0 ? ` · ${rememberLeft}` : ""}
@@ -584,18 +592,6 @@ export function PracticeGameSession({
             roundLabel={`${roundIndex + 1} / ${totalRounds}`}
             brandLabel="ArtistYar"
           />
-          {freqSub === "listen" && (
-            <div className="mt-4 flex justify-center">
-              <button
-                type="button"
-                className="btn-ay inline-flex items-center gap-2"
-                onClick={() => void playAudio()}
-                disabled={playing || freeLocked}
-              >
-                <Play size={16} /> {playing ? "در حال پخش…" : heard ? "پخش دوباره هدف" : "پخش هدف"}
-              </button>
-            </div>
-          )}
           {freeLocked && <p className="mt-3 text-center text-[12px] text-amber-200/80">محدودیت رایگان امروز تمام شد.</p>}
         </div>
       )}
@@ -642,11 +638,6 @@ export function PracticeGameSession({
             roundLabel={`${roundIndex + 1} / ${totalRounds}`}
             brandLabel="ArtistYar"
           />
-          <div className="mt-5 flex justify-center">
-            <button type="button" className="btn-ay btn-ay-primary min-w-[10rem]" onClick={advanceToNextRound}>
-              ادامه
-            </button>
-          </div>
         </div>
       )}
 
