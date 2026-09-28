@@ -97,7 +97,7 @@ function HeroDisk() {
         <div className="hero-photo-stage">
           <Image
             src="/artistyar-studio-hero.webp"
-            alt=""
+            alt="محیط استودیوی تولید موسیقی آرتیست‌یار؛ فضای تمرین تنظیم، میکس و مسترینگ"
             fill
             priority
             sizes="(max-width: 767px) 100vw, (max-width: 1024px) 60vw, 42vw"

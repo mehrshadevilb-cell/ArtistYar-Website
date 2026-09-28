@@ -22,6 +22,7 @@ export default function ContactPage() {
   return (
     <section className="container-ay py-14 sm:py-16">
       <SectionHeading
+        as="h1"
         eyebrow="ارتباط با ما"
         title="اگر سؤالی داری، پیام بده"
         subtitle="برای مشاوره دوره، کلاس آنلاین یا ادامه مسیر یادگیری تنظیم و میکس، اطلاعاتت را بفرست تا باهات هماهنگ کنیم."
