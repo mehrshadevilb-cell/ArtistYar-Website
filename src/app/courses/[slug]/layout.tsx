@@ -40,7 +40,22 @@ export default async function CourseDetailLayout({ children, params }: Props) {
     name: product.title,
     description: product.description || "دوره پروژه‌محور ArtistYar برای یادگیری تولید موسیقی.",
     url: siteUrl + "/courses/" + slug,
-    provider: { "@type": "Organization", name: "ArtistYar", sameAs: siteUrl },
+    inLanguage: "fa-IR",
+    isAccessibleForFree: false,
+    provider: {
+      "@type": "EducationalOrganization",
+      name: "ArtistYar",
+      alternateName: "آکادمی راه‌یار",
+      url: siteUrl,
+      sameAs: ["https://www.instagram.com/prodbymehrshad/"],
+    },
+    instructor: {
+      "@type": "Person",
+      name: "مهرشاد بنائی",
+      alternateName: "Mehrshad Banaei",
+      url: siteUrl + "/about",
+      sameAs: ["https://www.instagram.com/prodbymehrshad/"],
+    },
     ...(product.thumbnail ? { image: product.thumbnail } : {}),
   } : null;
 
