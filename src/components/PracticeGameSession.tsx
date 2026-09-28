@@ -649,11 +649,13 @@ export function PracticeGameSession({
       )}
 
       {phase === "ready" && isFreq && (
-        <div className="fm-rsgo" dir="ltr" key={readyWord}>
+        <div className="fm-rsgo" dir="rtl" key={readyWord}>
           <span className="fm-rsgo-top">
             {roundIndex + 2} / {totalRounds}
           </span>
-          <span className="fm-rsgo-word">{readyWord}</span>
+          <span className="fm-rsgo-word">
+            {readyWord === "ready" ? "آماده" : readyWord === "set" ? "تنظیم" : "برو"}
+          </span>
         </div>
       )}
 
