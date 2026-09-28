@@ -32,17 +32,22 @@ export async function POST(request: Request) {
   }
 
   const update = await request.json().catch(() => null);
-  // Only ingest newly published channel posts. Our own editMessageCaption call
-  // produces edited_channel_post; re-ingesting it would create orphan queue rows
-  // and can retrigger the pipeline.
-  const message = update?.channel_post;
+  // Telegram sends edits as edited_channel_post. Treat our own caption edits as
+  // idempotent noise, but re-queue genuine external edits so the existing catalog
+  // record can be refreshed instead of creating a second plugin.
+  const isEdit = Boolean(update?.edited_channel_post);
+  const message = update?.channel_post || update?.edited_channel_post;
   if (!message) return NextResponse.json({ ok: true, ignored: true });
+
+  if (isEdit && /ArtistYar.*@ProAudios/i.test(String(message.caption || ""))) {
+    return NextResponse.json({ ok: true, ignored: true, reason: "own_caption_edit" });
+  }
 
   // A successfully queued update can be acknowledged immediately; expensive
   // processing is handled by the background hook/cron. Queue failures must
   // return non-2xx below so Telegram retries the delivery.
   try {
-    const result = await enqueuePluginMessage(message);
+    const result = await enqueuePluginMessage(message, { refreshExisting: isEdit });
 
     // Do the expensive Telegram download + AI vision + DB publish after the
     // webhook response has been prepared. Any processing failure is logged and
