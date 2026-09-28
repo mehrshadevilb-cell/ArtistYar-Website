@@ -90,6 +90,25 @@ if (applyStart >= 0 && applyEnd > applyStart) {
   }).eq("id", postId);
 
   if (update.error) return { ok: false, error: update.error.message };
+
+  try {
+    const published = await publishPluginCaption(postId, caption);
+    if (!published.ok) {
+      return { ok: false, caption, error: published.error || "caption_publish_failed" };
+    }
+  } catch (error) {
+    return { ok: false, caption, error: clean(error instanceof Error ? error.message : String(error), 240) };
+  }
+
+  await store.from("telegram_plugin_posts").update({
+    final_caption: caption,
+    draft_caption: "",
+    review_required: false,
+    processing_state: "PUBLISHED",
+    status: "published",
+    updated_at: new Date().toISOString(),
+  }).eq("id", postId);
+
   return { ok: true, caption };
 }
 
