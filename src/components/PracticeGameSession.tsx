@@ -527,7 +527,7 @@ export function PracticeGameSession({
   const waveHz = isFreq && round && (freqSub === "listen" || freqSub === "remember")
     ? round.targetHz
     : guessHz;
-  const safeWaveHz = Number.isFinite(waveHz) && waveHz > 0 ? waveHz : guessHz;
+  const safeWaveHz = typeof waveHz === "number" && Number.isFinite(waveHz) && waveHz > 0 ? waveHz : guessHz;
 
   return (
     <main className={`practice-shell container-ay relative pb-16 pt-6 sm:pt-10 ${isFreq && phase === "play" ? "practice-focus" : ""}`} dir="rtl">
