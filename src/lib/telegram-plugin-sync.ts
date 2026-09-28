@@ -678,6 +678,66 @@ export function getAiRoutingDiagnostics() {
 export { reapplyPluginCaption, reapplyLatestPluginCaptions };
 
 
+
+/**
+ * Refresh an already-published plugin when Telegram sends an edited_channel_post.
+ * This path does not depend on the ingest queue because processed queue rows are
+ * intentionally deleted after publication.
+ */
+export async function refreshPublishedPluginPostFromEdit(message: TgMessage) {
+  if (!db || !message?.message_id || !message?.chat?.id) {
+    return { ok: false, ignored: true, reason: "invalid_message_or_db" };
+  }
+
+  const channelId = String(message.chat.id);
+  const messageId = Number(message.message_id);
+  const photo = largestPhoto(message.photo);
+  const photoFileId = String(photo?.file_id || "");
+  const caption = String(message.caption || "");
+
+  const lookup = await db
+    .from("telegram_plugin_posts")
+    .select("id,photo_message_id,document_message_id,telegram_photo_file_id,raw_caption")
+    .eq("channel_id", channelId)
+    .or(`photo_message_id.eq.${messageId},document_message_id.eq.${messageId}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (lookup.error) throw new Error("plugin_edit_lookup_failed:" + lookup.error.message);
+  if (!lookup.data) return { ok: true, ignored: true, reason: "published_post_not_found" };
+
+  await db.from("telegram_plugin_posts").update({
+    raw_caption: caption,
+    updated_at: new Date().toISOString(),
+  }).eq("id", lookup.data.id);
+
+  const intelligence = await analyzeTelegramPluginPost({
+    photoFileId: photoFileId || String(lookup.data.telegram_photo_file_id || ""),
+    rawCaption: caption,
+    fileName: "",
+  });
+
+  const publishable: VerificationResult = {
+    ...intelligence,
+    ok: true,
+    reviewRequired: false,
+    category: intelligence.category && intelligence.category !== "Unknown" ? intelligence.category : "Plugin",
+    title: intelligence.title || "پلاگین جدید",
+    description: intelligence.description || intelligence.translatedCaption || caption.slice(0, 700) || "معرفی محصول صوتی",
+    confidence: intelligence.confidence === "low" ? "medium" : intelligence.confidence,
+  };
+
+  const applied = await applyVerificationToPost(String(lookup.data.id), publishable);
+  if (!applied.ok) throw new Error("plugin_edit_apply_failed:" + String(applied.error || "unknown"));
+
+  return {
+    ok: true,
+    refreshed: true,
+    id: String(lookup.data.id),
+    caption: applied.caption || null,
+  };
+}
+
 /**
  * ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER
  * Evidence-first gate around the existing production pair processor.
