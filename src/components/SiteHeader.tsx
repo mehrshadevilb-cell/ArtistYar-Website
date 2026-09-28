@@ -44,10 +44,12 @@ const afterToolsNav = [
 
 const moreItems = [
   { href: "/about", label: "درباره آکادمی" },
+  { href: "/amoozesh-tanzim-mix-mastering", label: "راهنمای تنظیم و میکس" },
   { href: "/online", label: "کلاس آنلاین" },
   { href: "/free-player", label: "آموزش رایگان" },
   { href: "/gallery", label: "گالری خروجی‌ها" },
   { href: "/plugins", label: "VST و پلاگین‌ها" },
+  { href: "/contact", label: "تماس و مشاوره" },
   { href: "/#feedback", label: "بازخورد هنرجوها" },
   { href: "/#quick-consultation", label: "مشاوره رایگان" },
   { href: "/track", label: "پیگیری سفارش" },
