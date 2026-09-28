@@ -23,7 +23,7 @@ export function frequencyAccuracy(targetHz: number, guessHz: number, _toleranceH
 
   // Frequency Memory scoring is intentionally perceptual and octave-independent.
   // 0 cents = 100%, 100 cents = 50%, 200+ cents = 0%.
-  const accuracy = Math.round(clamp(100 * (1 - cents / 200), 0, 100));
+  const accuracy = Math.round(clamp(100 * (1 - cents / 200), 0, 100) * 100) / 100;
   const perfect = cents <= 12;
 
   return { accuracy, hzErr, cents, perfect };
