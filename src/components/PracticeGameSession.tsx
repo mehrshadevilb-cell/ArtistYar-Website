@@ -359,7 +359,7 @@ export function PracticeGameSession({
         <section className="card-ay mx-auto max-w-md space-y-4 p-5 sm:p-6">
           <p className="text-[11px] font-medium tracking-wide text-cyan-300/90">{isFreq ? "Frequency Memory · تطبیقی" : game.title}</p>
           <h2 className="text-lg font-semibold text-sand-50">{game.titleFa}</h2>
-          <p className="text-[13px] leading-7 text-ink-400">{isFreq ? "بشنو، به‌خاطر بسپار و با اسلایدر همان pitch را بازسازی کن." : game.tagline}</p>
+          <p className="text-[13px] leading-7 text-ink-400">{isFreq ? "بشنو، به‌خاطر بسپار و با موج همان pitch را بازسازی کن." : game.tagline}</p>
           <button type="button" className="btn-ay btn-ay-primary w-full" onClick={startSession}>شروع تمرین</button>
         </section>
       )}
@@ -384,7 +384,7 @@ export function PracticeGameSession({
               </svg>
             </div>
             <p className="mt-2 text-center text-[11px] tracking-[0.14em] text-gold-500">{!heard ? "گوش بده" : "بازسازی کن"}</p>
-            <p className="mt-2 text-center text-[14px] leading-7 text-sand-50">{!heard ? "هدف را پخش کن و pitch را به خاطر بسپار." : "اسلایدر را بکش — صدای حدست زنده است."}</p>
+            <p className="mt-2 text-center text-[14px] leading-7 text-sand-50">{!heard ? "هدف را پخش کن و pitch را به خاطر بسپار." : "موج را بکش — صدای حدست زنده است."}</p>
             <div className="mt-5 flex justify-center">
               <button type="button" className="btn-ay inline-flex items-center gap-2" onClick={() => void playAudio()} disabled={playing}>
                 <Play size={16} /> {playing ? "پخش…" : heard ? "پخش دوباره" : "پخش هدف"}
