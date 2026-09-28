@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getPluginsDb } from "@/lib/plugins-db";
 import { submitIndexNow } from "@/lib/indexnow";
 
@@ -95,10 +95,10 @@ async function run(request: Request) {
 
   const rows = updated.data || [];
   if (rows.length) {
-    void submitIndexNow([
+    after(() => submitIndexNow([
       ...rows.map((row) => `/plugins/${row.id}`),
       "/plugins",
-    ]);
+    ]));
   }
   return NextResponse.json({
     ok: true,
