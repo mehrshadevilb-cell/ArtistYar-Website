@@ -3,6 +3,8 @@ import { SectionHeading } from "@/components/SectionHeading";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { communityLinks } from "@/data/community";
 
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
+
 export const metadata: Metadata = {
   title: "درباره آکادمی راه‌یار و مهرشاد بنائی",
   description:
@@ -16,9 +18,49 @@ export const metadata: Metadata = {
   },
 };
 
+const personJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  name: "مهرشاد بنائی",
+  alternateName: "Mehrshad Banaei",
+  url: `${siteUrl}/about`,
+  jobTitle: "Music Producer & Educator",
+  worksFor: {
+    "@type": "EducationalOrganization",
+    name: "ArtistYar",
+    alternateName: "آکادمی راه‌یار",
+    url: siteUrl,
+  },
+  sameAs: ["https://www.instagram.com/prodbymehrshad/"],
+  knowsAbout: [
+    "تنظیم موسیقی",
+    "میکس و مسترینگ",
+    "تولید موسیقی",
+    "تئوری موسیقی",
+    "آهنگ‌سازی",
+  ],
+  description:
+    "مدرس آکادمی راه‌یار؛ آموزش پروژه‌محور تنظیم، میکس و مسترینگ برای هنرجویان فارسی‌زبان.",
+};
+
+const profilePageJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ProfilePage",
+  name: "درباره آکادمی راه‌یار و مهرشاد بنائی",
+  url: `${siteUrl}/about`,
+  inLanguage: "fa-IR",
+  mainEntity: {
+    "@type": "Person",
+    name: "مهرشاد بنائی",
+    url: `${siteUrl}/about`,
+  },
+};
+
 export default function AboutPage() {
   return (
     <section className="about-stage container-ay py-14 sm:py-16">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(profilePageJsonLd) }} />
       <div className="about-sound-lines" aria-hidden="true">
         <i />
         <i />
