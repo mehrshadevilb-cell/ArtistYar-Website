@@ -1,13 +1,16 @@
 const rawBase = String(process.env.TELEGRAM_PLUGIN_PROCESS_URL || process.env.RENDER_EXTERNAL_URL || "").replace(/\/$/, "");
 const base = rawBase ? (/^https?:\/\//i.test(rawBase) ? rawBase : "http://" + rawBase) : "";
 const key = String(process.env.WEB_ADMIN_API_KEY || "").trim();
+const processSecret = String(process.env.TELEGRAM_PLUGIN_PROCESS_SECRET || "").trim();
 
-if (!base || !key) {
+if (!base || (!key && !processSecret)) {
   console.error("telegram-plugin-cron-misconfigured");
   process.exit(1);
 }
 
-const endpoint = base + "/api/telegram/plugins/process?key=" + encodeURIComponent(key);
+const endpoint = key
+  ? base + "/api/telegram/plugins/process?key=" + encodeURIComponent(key)
+  : base + "/api/telegram/plugins/process?process_secret=" + encodeURIComponent(processSecret);
 const response = await fetch(endpoint, {
   method: "GET",
   cache: "no-store",
