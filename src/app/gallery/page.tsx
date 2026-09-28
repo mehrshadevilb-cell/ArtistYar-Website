@@ -6,6 +6,8 @@ import { StatusChip } from "@/components/StatusChip";
 
 export const dynamic = "force-dynamic";
 
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
+
 export const metadata: Metadata = {
   title: "نمونه‌کار هنرجوها | ArtistYar",
   description: "نمونه‌کارها و خروجی‌های صوتی هنرجوهای ArtistYar با پخش مستقیم.",
@@ -33,8 +35,27 @@ export default async function GalleryPage() {
 
   const primary = studentAudio.length > 0 ? studentAudio : audioItems;
 
+  const galleryJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "گالری نمونه‌کار هنرجوهای آرتیست‌یار",
+    url: `${siteUrl}/gallery`,
+    inLanguage: "fa-IR",
+    description: "نمونه‌کارها و خروجی‌های صوتی هنرجوهای آکادمی راه‌یار با پخش مستقیم.",
+    isPartOf: { "@type": "WebSite", name: "ArtistYar", url: siteUrl },
+    provider: {
+      "@type": "EducationalOrganization",
+      name: "ArtistYar",
+      url: siteUrl,
+    },
+  };
+
   return (
     <section className="container-ay py-10 sm:py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(galleryJsonLd) }}
+      />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="eyebrow">/ گالری</p>
