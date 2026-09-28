@@ -517,7 +517,7 @@ async function markQueueDone(ids: string[]) {
   await db.from("telegram_plugin_ingest_queue").delete().in("id", ids);
 }
 
-async function processPluginPairLegacy(photo: any, document: any) {
+async function processPluginPairLegacy(photo: any, document: any, intelligence?: VerificationResult) {
   if (!db) throw new Error("supabase_not_configured");
   const photoFileId = String(photo.file_id || "");
   const documentFileId = String(document.file_id || "");
@@ -526,10 +526,27 @@ async function processPluginPairLegacy(photo: any, document: any) {
   // Verify the NEW photo file belongs to the active bot before any publish work.
   await telegramGetFile(photoFileId);
 
-  const metadata = await aiMetadata(String(document.file_name || ""), String(document.caption || photo.caption || ""));
+  const metadata = intelligence
+    ? {
+        data: {
+          title: intelligence.title,
+          developer: intelligence.developer,
+          version: intelligence.version,
+          category: intelligence.category,
+          formats: intelligence.formats,
+          platforms: intelligence.platforms,
+          description: intelligence.description || intelligence.translatedCaption,
+          features: intelligence.features,
+          tags: [],
+          translatedCaption: intelligence.translatedCaption,
+        } as PluginData,
+        provider: "intelligence",
+        model: "evidence-reconciliation",
+      }
+    : await aiMetadata(String(document.file_name || ""), String(document.caption || photo.caption || ""));
   const p = metadata.data;
   const title = p.title || titleFromFileName(String(document.file_name || "")) || titleFromCaption(String(document.caption || photo.caption || "")) || "پلاگین جدید";
-  const intelligenceCaption = String((globalThis as any).__ARTISTYAR_VERIFIED_CAPTION || "").trim();
+  const intelligenceCaption = String(intelligence ? buildVerifiedCaption(intelligence) : "").trim();
   const caption = intelligenceCaption || captionFor({ ...p, title });
   if (!caption.trim()) throw new Error("plugin_caption_generation_empty");
 
@@ -544,6 +561,9 @@ async function processPluginPairLegacy(photo: any, document: any) {
     document_message_id: Number(document.message_id),
     telegram_photo_file_id: photoFileId,
     telegram_file_id: documentFileId,
+    telegram_file_ids: (Array.isArray(document.relatedDocuments) ? document.relatedDocuments : [document]).map((item: any) => String(item.file_id || "")).filter(Boolean),
+    file_names: (Array.isArray(document.relatedDocuments) ? document.relatedDocuments : [document]).map((item: any) => String(item.file_name || "")).filter(Boolean),
+    attachment_count: Array.isArray(document.relatedDocuments) ? document.relatedDocuments.length : 1,
     file_name: document.file_name || null,
     mime_type: document.mime_type || null,
     file_size: document.file_size || null,
