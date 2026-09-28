@@ -536,11 +536,8 @@ async function verifyCandidate(
     searchStatus: searchAvailable ? "no_match" : "unavailable",
   };
 
-  if (!searchAvailable) {
-    base.reason = "verification_unavailable";
-    return base;
-  }
-
+  // Web search is optional enrichment. Never abort intelligence/caption
+  // generation just because external search is unavailable.
   const ranked = hits.slice().sort((a, b) => officialRank(b.url, developer) - officialRank(a.url, developer));
   const authoritativeCandidates = (ranked.filter((hit) => officialRank(hit.url, developer) >= 90).length
     ? ranked.filter((hit) => officialRank(hit.url, developer) >= 90)
