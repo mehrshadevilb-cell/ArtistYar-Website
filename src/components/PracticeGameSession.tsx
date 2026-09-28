@@ -525,7 +525,7 @@ export function PracticeGameSession({
       </header>
 
       {phase === "intro" && (
-        <section className="card-ay mx-auto max-w-md space-y-4 p-5 sm:p-6">
+        <section className={isFreq ? "fm-intro-card" : "card-ay mx-auto max-w-md space-y-4 p-5 sm:p-6"}>
           <p className="text-[11px] font-medium tracking-wide text-cyan-300/90">
             {isFreq ? "حافظهٔ فرکانس · تطبیقی" : game.title}
           </p>
