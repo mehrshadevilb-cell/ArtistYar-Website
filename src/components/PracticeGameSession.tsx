@@ -4,13 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Check, Play, RotateCcw, X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { usePracticeAccess } from "@/components/usePracticeAccess";
-import { FrequencyMemoryDial } from "@/components/FrequencyMemoryDial";
+import { FrequencyMemoryCard } from "@/components/FrequencyMemoryCard";
 import {
   playExerciseRound,
   stopPracticePlayback,
   unlockPracticeAudio,
-  startLiveTone,
-  setLiveToneHz,
   stopLiveTone,
 } from "@/lib/practice-audio-engine";
 import {
@@ -37,8 +35,8 @@ import {
   type SessionPlan,
   type FrequencySkillProfile,
   buildSessionPlan,
-  FREQ_EXERCISES,
 } from "@/lib/practice-game";
+import { dialedScore, floorScore2 } from "@/lib/practice-game/dialed-score";
 import "@/styles/practice-shell.css";
 
 type Phase = "intro" | "play" | "result" | "summary" | "ready";
@@ -369,8 +367,10 @@ export function PracticeGameSession({
     if (!isFreq && !heard) return;
     setPicked("slider");
     setLastGuessHz(guessHz);
-    const { accuracy, hzErr, cents, perfect } = frequencyAccuracy(round.targetHz, guessHz, round.toleranceHz || 40);
-    const correct = sliderPass(accuracy) || perfect;
+    const { accuracy: legacyAccuracy, hzErr, cents, perfect } = frequencyAccuracy(round.targetHz, guessHz, round.toleranceHz || 40);
+    // Frequency Memory uses the dialed-style cents score (0-10) stored as accuracy 0-100.
+    const accuracy = isFreq ? dialedScore(round.targetHz, guessHz) * 10 : legacyAccuracy;
+    const correct = isFreq ? sliderPass(accuracy) : sliderPass(accuracy) || perfect;
     await finishRound(
       correct,
       accuracy,
@@ -413,14 +413,15 @@ export function PracticeGameSession({
     buildRound(idx < (game?.warmup ?? 2) ? Math.max(1, level - 6) : level, idx);
   };
 
-  const beginNextFromReady = () => {
+  const beginNextFromReady = useCallback(() => {
     const idx = roundIndex + 1;
     setRoundIndex(idx);
     setPhase("play");
     buildRound(idx < (game?.warmup ?? 2) ? Math.max(1, level - 6) : level, idx);
-  };
+  }, [roundIndex, level, game?.warmup, buildRound]);
 
-  const freqRoundScore = (acc: number) => Math.round((Math.max(0, Math.min(100, acc)) / 10) * 100) / 100;
+  // Score shown to the player: accuracy/10, floored to 2 decimals (matches the reference display).
+  const freqRoundScore = (acc: number) => floorScore2(Math.max(0, Math.min(100, acc)) / 10);
   const freqSessionScore = outcomes.reduce((s, o) => s + freqRoundScore(o.accuracy), 0);
   const freqSessionMax = Math.max(1, outcomes.length) * 10;
   const freqResultLine = (acc: number) =>
@@ -499,48 +500,26 @@ export function PracticeGameSession({
       )}
 
       {phase === "play" && round && isFreq && (
-        <div className="fm-glass-card">
-          <div className="fm-meta mb-3">
-            <span>
-              {roundIndex + 1} / {totalRounds}
-            </span>
-            <span>استریک {streak}</span>
-          </div>
-
-          {freqSub === "listen" && !heard && (
-            <p className="mb-3 text-center text-[14px] leading-7 text-sand-50">
-              هدف را پخش کن و pitch را به خاطر بسپار.
-            </p>
-          )}
-
-          {freqSub === "remember" && (
-            <p className="fm-remember-count mb-2" aria-live="polite">
-              سکوت… به‌خاطر بسپار
-              {rememberLeft > 0 ? ` · ${rememberLeft}` : ""}
-            </p>
-          )}
-
-          <FrequencyMemoryDial
+        <>
+          <FrequencyMemoryCard
+            mode={freqSub}
+            counter={`${roundIndex + 1} / ${totalRounds}`}
             minHz={round.sliderMin || 100}
             maxHz={round.sliderMax || 2000}
             valueHz={guessHz}
             waveHz={waveHz}
-            mode={freqSub}
+            onChangeHz={setGuessHz}
             playing={playing}
             disabled={freeLocked || quotaBlocked}
             targetHz={round.targetHz}
-            revealTarget={false}
+            rememberLeft={rememberLeft}
             audioError={audioError}
-            onChangeHz={setGuessHz}
-            onLock={() => void submitSlider()}
-            onReplay={() => void playAudio()}
-            showReplay={freqSub === "listen" || (freqSub === "recreate" && heard)}
-            replayLabel={freqSub === "listen" ? (heard ? "پخش دوباره هدف" : "پخش هدف") : "پخش دوباره هدف"}
+            showReplay={freqSub === "recreate" && heard}
+            onPlay={() => void playAudio()}
+            onSubmit={() => void submitSlider()}
           />
-
-          {audioError && <p className="mt-3 text-center text-[12px] text-rose-400">{audioError}</p>}
           {freeLocked && <p className="mt-3 text-center text-[12px] text-amber-200/80">محدودیت رایگان امروز تمام شد.</p>}
-        </div>
+        </>
       )}
 
       {phase === "play" && round && !isFreq && (
@@ -574,53 +553,18 @@ export function PracticeGameSession({
       )}
 
       {phase === "result" && feedback && isFreq && (
-        <div className="fm-glass-card">
-          <div className="fm-meta">
-            <span>
-              {roundIndex + 1} / {totalRounds}
-            </span>
-            <span className={feedback.correct ? "text-emerald-400" : ""}>{feedback.correct ? "قبول" : "رد"}</span>
-          </div>
-          <p className="mt-6 text-center font-mono text-5xl font-semibold tabular-nums text-sand-50 sm:text-6xl">
-            {freqRoundScore(feedback.accuracy).toFixed(2)}
-          </p>
-          <p className="mt-1 text-center text-[12px] text-ink-500">از ۱۰</p>
-          <p className="mt-4 text-center text-[14px] leading-7 text-ink-300">{freqResultLine(feedback.accuracy)}</p>
-          {lastGuessHz != null && round?.targetHz != null && (
-            <>
-              <div className="mt-6 border-t border-white/[0.06] pt-6">
-              <p className="mb-3 text-center text-[10px] tracking-[0.16em] text-ink-500">COMPARISON</p>
-              <FrequencyMemoryDial
-                minHz={round.sliderMin || 100}
-                maxHz={round.sliderMax || 2000}
-                valueHz={lastGuessHz}
-                waveHz={lastGuessHz}
-                targetHz={round.targetHz}
-                revealTarget
-                mode="recreate"
-                disabled
-                onChangeHz={() => {}}
-                onReplay={() => {}}
-                showReplay={false}
-              />
-            </div>
-            <div className="mt-6 space-y-2 border-t border-white/[0.06] pt-6">
-              <div className="flex items-baseline justify-between">
-                <span className="text-[10px] tracking-[0.14em] text-ink-500">TARGET</span>
-                <span className="font-mono text-2xl text-ink-400">{formatHz(round.targetHz)}</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-[10px] tracking-[0.14em] text-ink-500">GUESS</span>
-                <span className="font-mono text-3xl font-semibold text-sand-50">{formatHz(lastGuessHz)}</span>
-              </div>
-                <p className="pt-1 text-center text-[11px] text-ink-500">{feedback.detail}</p>
-              </div>
-            </>
-          )}
-          <button type="button" className="btn-ay btn-ay-primary mt-8 w-full" onClick={advanceToNextRound}>
-            {roundIndex + 1 >= totalRounds ? "نتیجه جلسه" : "ادامه"}
-          </button>
-        </div>
+        <FrequencyMemoryCard
+          mode="result"
+          counter={`${roundIndex + 1} / ${totalRounds}`}
+          minHz={round?.sliderMin || 100}
+          maxHz={round?.sliderMax || 2000}
+          valueHz={lastGuessHz ?? guessHz}
+          waveHz={lastGuessHz ?? guessHz}
+          targetHz={round?.targetHz ?? null}
+          score={freqRoundScore(feedback.accuracy)}
+          feedback={freqResultLine(feedback.accuracy)}
+          onNext={advanceToNextRound}
+        />
       )}
 
       {phase === "result" && feedback && !isFreq && (
@@ -637,17 +581,11 @@ export function PracticeGameSession({
       )}
 
       {phase === "ready" && isFreq && (
-        <div className="fm-glass-card">
-          <div className="fm-ready">
-            <h3>آماده</h3>
-            <p>
-              راند {roundIndex + 2} از {totalRounds}
-            </p>
-            <button type="button" className="btn-ay btn-ay-primary mt-6 w-full sm:w-auto" onClick={beginNextFromReady}>
-              برو
-            </button>
-          </div>
-        </div>
+        <FrequencyMemoryCard
+          mode="ready"
+          counter={`${roundIndex + 2} / ${totalRounds}`}
+          onReadyDone={beginNextFromReady}
+        />
       )}
 
       {phase === "summary" && isFreq && (
