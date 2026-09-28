@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPluginsDb } from "@/lib/plugins-db";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
@@ -33,7 +34,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     String(plugin.description || "").trim().slice(0, 160) ||
     `دانلود ${plugin.title} از کانال پلاگین‌های ArtistYar`;
-  const canonical = `https://artistyaar.ir/plugins/${plugin.id}`;
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
+  const canonical = `${siteUrl}/plugins/${plugin.id}`;
   const images =
     plugin.cover_public_url && !String(plugin.cover_public_url).includes("telesco.pe")
       ? [String(plugin.cover_public_url)]
@@ -94,14 +96,9 @@ export default async function PluginDetailPage({ params }: Props) {
     "https://t.me/ProAudios";
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12" dir="rtl">
-      <nav className="mb-6 text-xs text-ink-500">
-        <Link href="/plugins" className="hover:text-gold-300">
-          کتابخانه پلاگین
-        </Link>
-        <span className="mx-2 opacity-50">/</span>
-        <span className="text-ink-400">{plugin.title}</span>
-      </nav>
+    <>
+      <Breadcrumbs items={[{ name: "کتابخانه پلاگین", href: "/plugins" }, { name: plugin.title }]} />
+      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12" dir="rtl">
 
       <article className="overflow-hidden rounded-[24px] border border-white/[.08] bg-white/[.02]">
         <div className="relative aspect-[16/9] overflow-hidden bg-ink-950">
@@ -219,6 +216,7 @@ export default async function PluginDetailPage({ params }: Props) {
           </p>
         </div>
       </article>
-    </main>
+      </main>
+    </>
   );
 }
