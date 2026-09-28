@@ -15,9 +15,10 @@ export function centsError(targetHz: number, guessHz: number) {
 /**
  * Frequency memory: perceptual pitch-distance scoring in cents. Returns 0–100.
  */
-export function frequencyAccuracy(targetHz: number, guessHz: number, _toleranceHz?: number) {
+export function frequencyAccuracy(targetHz: number, guessHz: number, toleranceHz = 40) {
   const rawTarget = Number(targetHz);
   const rawGuess = Number(guessHz);
+  const rawTolerance = Number(toleranceHz);
   if (
     !Number.isFinite(rawTarget) ||
     !Number.isFinite(rawGuess) ||
@@ -33,11 +34,15 @@ export function frequencyAccuracy(targetHz: number, guessHz: number, _toleranceH
   const g = safeHz(rawGuess, 0);
   const hzErr = Math.abs(g - t);
   const cents = Math.abs(centsError(t, g));
+  const tolerance = clamp(Number.isFinite(rawTolerance) ? rawTolerance : 40, 4, 400);
 
-  // Frequency Memory scoring is intentionally perceptual and octave-independent.
-  // 0 cents = 100%, 100 cents = 50%, 200+ cents = 0%.
-  const accuracy = Math.round(clamp(100 * (1 - cents / 200), 0, 100) * 100) / 100;
-  const perfect = cents <= 12;
+  // The generated round tolerance is now part of scoring. The tolerance boundary
+  // is the intended "pass" zone (70%), while increasingly larger errors decay
+  // smoothly instead of making the stored tolerance meaningless.
+  const toleranceCents = Math.max(8, Math.abs(centsError(t, t + tolerance)));
+  const ratio = cents / toleranceCents;
+  const accuracy = Math.round(clamp(100 - ratio * 30, 0, 100) * 100) / 100;
+  const perfect = cents <= Math.max(12, toleranceCents * 0.12);
 
   return { accuracy, hzErr, cents, perfect };
 }
