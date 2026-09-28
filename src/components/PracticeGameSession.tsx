@@ -105,7 +105,7 @@ export function PracticeGameSession({
   const [activeExercise, setActiveExercise] = useState<FreqExerciseType>("general");
   const [lastGuessHz, setLastGuessHz] = useState<number | null>(null);
   const submitLockRef = useRef(false);
-  const [readyWord, setReadyWord = useState<ReadyWord>("ready");
+  const [readyWord, setReadyWord] = useState<ReadyWord>("ready");
   const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userId = user?.id || null;
   const isFreq = gameId === "freq-memory";
