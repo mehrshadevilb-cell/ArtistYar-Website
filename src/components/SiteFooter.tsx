@@ -5,7 +5,7 @@ import { communityLinks } from "@/data/community";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-24 border-t border-white/[0.06] bg-black/20">
+    <footer className="site-footer mt-24 border-t border-white/[0.06] bg-black/20">
       <div className="container-ay grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div className="lg:col-span-2">
           <BrandMark />
