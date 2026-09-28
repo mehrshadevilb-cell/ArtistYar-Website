@@ -163,7 +163,7 @@ export function PracticeEngine() {
         {tab === "ear" && (
           <>
             <Card accent="emerald" eyebrow="Arcade · Ear Training" title="باشگاه گوش"
-              subtitle="یک بازی واحد با ۶ مهارت: فرکانس، EQ، کمپرسور، استریو، pitch و ریتم · سطح ۱–۵۰"
+              subtitle="حافظهٔ فرکانس تطبیقی + تشخیص فواصل + EQ/کمپرسور/استریو/ریتم · سطح ۱–۵۰"
               onClick={() => open("soundgym", "ear")} />
             <Card accent="cyan" eyebrow="تئوری" title="آزمایشگاه تئوری"
               subtitle="فواصل و آکورد — تمرین شنیداری" onClick={() => open("theory", "music")} />
