@@ -93,7 +93,22 @@ export function FrequencyMemoryDial({
   const [dragging, setDragging] = useState(false);
   const [cursorY, setCursorY] = useState<number | null>(null);
   const [displayScore, setDisplayScore] = useState(0);
+  const waveHzRef = useRef(waveHz);
+  const valueHzRef = useRef(valueHz);
+  const playingRef = useRef(playing);
+  const draggingRef = useRef(false);
+  const cursorYRef = useRef<number | null>(null);
+  const reducedMotionRef = useRef(false);
   const interactive = mode === "recreate" && !disabled;
+
+  useEffect(() => {
+    waveHzRef.current = waveHz;
+    valueHzRef.current = valueHz;
+    playingRef.current = playing;
+    draggingRef.current = dragging;
+    cursorYRef.current = cursorY;
+    reducedMotionRef.current = reducedMotion;
+  }, [waveHz, valueHz, playing, dragging, cursorY, reducedMotion]);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -154,12 +169,14 @@ export function FrequencyMemoryDial({
       if (!running) return;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      if (!reducedMotion) phaseRef.current += dt * (playing || dragging ? 2.8 : 1.15);
+      const motionReduced = reducedMotionRef.current;
+      if (!motionReduced) phaseRef.current += dt * (playingRef.current || draggingRef.current ? 2.8 : 1.15);
       const r = surface.getBoundingClientRect();
       const w = r.width;
       const h = r.height;
-      ctx.clearRect(0, 0, w, h);
-      const hz = Math.max(40, waveHz || valueHz || 440);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
+      ctx.fillRect(0, 0, w, h);
+      const hz = Math.max(40, waveHzRef.current || valueHzRef.current || 440);
       const lobes = clamp(4 + Math.log2(hz / 80) * 2.2, 4, 18);
       const wavelength = h / lobes;
       const cx = w * 0.5;
@@ -189,8 +206,9 @@ export function FrequencyMemoryDial({
           const secondary = Math.sin((y / (wavelength * 1.37)) * Math.PI * 2 - phase * 0.7 + layer.lag);
           const beat = primary * 0.72 + secondary * 0.28;
           let deform = 0;
-          if (dragging && cursorY != null) {
-            const dy = (y - cursorY) / (h * 0.12);
+          const currentCursorY = cursorYRef.current;
+          if (draggingRef.current && currentCursorY != null) {
+            const dy = (y - currentCursorY) / (h * 0.12);
             deform = Math.exp(-dy * dy) * 0.18 * ampBase;
           }
           const x = cx + beat * ampBase * layer.ampMul * env + deform * (layer.ampMul > 1 ? 0.6 : 1);
@@ -201,7 +219,7 @@ export function FrequencyMemoryDial({
         ctx.lineWidth = layer.width;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-        if (!reducedMotion) {
+        if (!motionReduced) {
           ctx.shadowColor = `${layer.color}0.45)`;
           ctx.shadowBlur = layer.width * 4;
         } else {
@@ -224,7 +242,7 @@ export function FrequencyMemoryDial({
       ro?.disconnect();
       window.removeEventListener("resize", resize);
     };
-  }, [waveHz, valueHz, playing, dragging, cursorY, reducedMotion]);
+  }, []);
 
   const setFromY = useCallback(
     (clientY: number, withTone = true) => {
