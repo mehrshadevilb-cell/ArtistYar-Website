@@ -58,6 +58,16 @@ try {
       throw new Error(`sitemap contains non-production URL: ${loc}`);
     }
     if (url.search || url.hash) throw new Error(`sitemap contains query/hash URL: ${loc}`);
+    if (/onrender\.com|localhost|127\.0\.0\.1/i.test(loc)) throw new Error(`sitemap contains non-production host: ${loc}`);
+  }
+
+  const pluginLoc = locs.find((loc) => new URL(loc).pathname.startsWith("/plugins/") && new URL(loc).pathname !== "/plugins/");
+  if (pluginLoc) {
+    const pluginPage = await fetchText(new URL(pluginLoc).pathname);
+    if (pluginPage.response.status !== 200) throw new Error(`sitemap plugin URL returned HTTP ${pluginPage.response.status}: ${pluginLoc}`);
+    if (!pluginPage.body.includes('rel="canonical"') && !pluginPage.body.includes("rel='canonical'")) {
+      throw new Error(`plugin URL is missing a canonical link: ${pluginLoc}`);
+    }
   }
 
   const publicPaths = ["/", "/courses", "/ai", "/ai-music", "/music-analyzer", "/hitnevis"];
@@ -76,13 +86,20 @@ try {
     }
   }
 
+  if (process.env.INDEXNOW_KEY?.trim()) {
+    const key = await fetchText("/indexnow-key.txt");
+    if (key.response.status !== 200 || key.body.trim() !== process.env.INDEXNOW_KEY.trim()) {
+      throw new Error("IndexNow key endpoint does not match INDEXNOW_KEY");
+    }
+  }
+
   const home = await fetchText("/");
   if (!home.body.includes(`<meta name="robots"`) && !home.body.includes(`<meta name="googlebot"`)) {
     throw new Error("homepage does not expose crawl/index metadata");
   }
 
   console.log(`SEO verification passed: ${expectedSiteUrl}`);
-  console.log(`Checked robots.txt, sitemap.xml (${locs.length} URLs), and canonical/indexability on ${publicPaths.length} public routes.`);
+  console.log(`Checked robots.txt, sitemap.xml (${locs.length} URLs), canonical/indexability on ${publicPaths.length} public routes, and IndexNow when configured.`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   if (logs) console.error(logs.slice(-4000));
