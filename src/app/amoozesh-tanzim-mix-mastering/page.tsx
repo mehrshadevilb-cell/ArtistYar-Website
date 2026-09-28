@@ -60,7 +60,7 @@ const faqs = [
   {
     question: "تفاوت میکس و مسترینگ چیست؟",
     answer:
-      "در میکس، اجزای یک پروژه مثل درام، بیس، ملودی و وکال نسبت به هم تنظیم می‌شوند؛ در مسترینگ، نسخهٔ نهایی برای پخش و ترجمهٔ بهتر روی سیستم‌های مختلف آماده می‌شود. مسترینگ جای میکس ضعیف را نمی‌گیرد، بنابراین باید از بالانس و انتخاب صدای درست شروع کرد.",
+      "در میکس، اجزای یک پروژه مثل درام، بیس، ملودی و وکال نسبت به هم تنظیم می‌شوند؛ در مسترینگ، نسخهٔ نهایی برای پخش و ترجمهٔ بهتر روی سیستم‌های مختلف آماده می‌شود. مسترینگ جای میکس ضعیف را نمی‌گیرد، بنابراین باید از بالانس و انتخاب صدای درست شروع کرد. توضیح کامل‌تر در صفحهٔ تفاوت میکس و مسترینگ آمده است.",
   },
   {
     question: "آهنگ‌سازی و تنظیم چه فرقی با هم دارند؟",
@@ -216,6 +216,7 @@ export default function MixingMasteringGuidePage() {
             </div>
             <div className="mt-10 flex flex-wrap gap-3">
               <Link href="/courses" className="btn-primary">دیدن دوره‌های آموزشی</Link>
+              <Link href="/tafavot-mix-va-mastering" className="btn-ghost">تفاوت میکس و مسترینگ</Link>
               <Link href="/online" className="btn-ghost">کلاس آنلاین و بازخورد پروژه</Link>
               <Link href="/arrangement" className="btn-ghost">سفارش تنظیم</Link>
               <Link href="/studio#mix-mastering" className="btn-ghost">سفارش میکس و مسترینگ</Link>
