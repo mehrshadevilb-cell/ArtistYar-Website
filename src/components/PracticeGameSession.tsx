@@ -312,7 +312,7 @@ export function PracticeGameSession({
       }
       setHeard(true);
       const src = round.source as { duration?: number; seconds?: number };
-      const ms = Math.round((src.duration || src.seconds || 1.2) * 1000) + 280;
+      const ms = Math.round((src.duration || src.seconds || 1.2) * 1000) + 80;
       if (playTimerRef.current) clearTimeout(playTimerRef.current);
       playTimerRef.current = setTimeout(() => {
         setPlaying(false);
@@ -336,7 +336,7 @@ export function PracticeGameSession({
     // second "play" action from the user.
     const id = window.setTimeout(() => {
       void playAudio();
-    }, 120);
+    }, 0);
     return () => window.clearTimeout(id);
   }, [freeLocked, freqSub, heard, isFreq, phase, playAudio, quotaBlocked, round]);
 
