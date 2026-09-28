@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 /**
  * Minimal live FAB for RahYar AI — Apple-style press + soft glass tip.
  * Hidden on /assistant, /admin, /panel.
+ * Visual weight is intentionally secondary so Hero primary CTA owns the accent.
  */
 export function FloatingAssistant() {
   const pathname = usePathname();
@@ -45,7 +46,7 @@ export function FloatingAssistant() {
         visible ? "fa-enter" : "fa-exit"
       } bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-[max(1rem,env(safe-area-inset-left))] sm:bottom-7 sm:left-7`}
     >
-      {/* Soft ambient glow — bixa-like presence */}
+      {/* Soft ambient glow — secondary presence only */}
       <div className="fa-ambient" aria-hidden="true" />
 
       <div
@@ -84,13 +85,13 @@ export function FloatingAssistant() {
       <div className="flex items-end gap-2">
         <Link
           href="/assistant"
-          className="fa-cta ay-pressable group relative flex items-center gap-2.5 rounded-full border border-gold-500/40 bg-ink-950/90 px-4 py-3 text-sm font-medium text-gold-300 backdrop-blur-md sm:px-5 hover:bg-ink-900 hover:border-gold-400/55 hover:text-gold-200"
+          className="fa-cta ay-pressable group relative flex items-center gap-2.5 rounded-full border border-white/15 bg-ink-950/88 px-3.5 py-2.5 text-sm font-medium text-sand-100 backdrop-blur-md sm:px-4 hover:bg-ink-900 hover:border-white/25 hover:text-sand-50"
           onMouseEnter={() => setExpanded(true)}
           onFocus={() => setExpanded(true)}
           onMouseLeave={() => setExpanded(false)}
           aria-label="سؤال از راه‌یار AI — دستیار آموزشی آرتیست‌یار"
         >
-          <span className="fa-cta-icon relative grid h-8 w-8 place-items-center rounded-full bg-gold-500/15">
+          <span className="fa-cta-icon relative grid h-7 w-7 place-items-center rounded-full bg-white/[0.08]">
             <Bot size={18} aria-hidden />
             <span className="fa-live-dot absolute -left-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-ink-950" />
           </span>
