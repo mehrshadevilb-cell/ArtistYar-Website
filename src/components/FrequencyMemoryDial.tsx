@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { Play, RotateCcw } from "lucide-react";
 import { startLiveTone, setLiveToneHz, stopLiveTone } from "@/lib/practice-audio-engine";
 import { formatHz } from "@/lib/practice-game";
@@ -30,7 +30,7 @@ export function FrequencyMemoryDial({
  const [phase,setPhase]=useState(0);
  const [reducedMotion,setReducedMotion]=useState(false);
  const rafRef=useRef<number|null>(null);
- const gradientId=useMemo(()=>`fm-${Math.random().toString(36).slice(2,8)}`,[]);
+ const gradientId=`fm-${useId().replace(/:/g,"")}`;
  const interactive=mode==="recreate"&&!disabled;
 
  useEffect(()=>{const mq=window.matchMedia("(prefers-reduced-motion: reduce)");const apply=()=>setReducedMotion(mq.matches);apply();mq.addEventListener?.("change",apply);return()=>mq.removeEventListener?.("change",apply);},[]);
