@@ -53,7 +53,7 @@ export function FloatingAssistant() {
           expanded ? "fa-tip-open" : "fa-tip-closed"
         }`}
       >
-        <div className="fa-tip-card relative rounded-2xl border border-white/[0.1] bg-[#121210]/82 p-4 shadow-[0_24px_60px_-28px_rgba(0,0,0,.9)] backdrop-blur-2xl">
+        <div className="fa-tip-card relative rounded-2xl border border-white/[0.1] bg-ink-900/90 p-4 shadow-[0_24px_60px_-28px_rgba(0,0,0,.9)] backdrop-blur-2xl">
           <button
             type="button"
             onClick={dismiss}
