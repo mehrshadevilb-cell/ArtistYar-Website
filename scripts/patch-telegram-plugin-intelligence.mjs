@@ -35,8 +35,7 @@ const verifyOkOld = `  const ok = Boolean(
 const verifyOkNew = `  const ok = Boolean(
     isSpecificIdentity(finalTitle) &&
     (finalCategory !== "Unknown" || isSpecificIdentity(finalTitle)) &&
-    (description || translatedCaption || finalTitle) &&
-    !multipleProductsUnclear
+    (description || translatedCaption || finalTitle)
   );`;
 if (intelligence.includes(verifyOkOld)) intelligence = intelligence.replace(verifyOkOld, verifyOkNew);
 
