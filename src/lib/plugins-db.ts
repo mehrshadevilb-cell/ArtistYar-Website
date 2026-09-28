@@ -130,6 +130,7 @@ export async function queryLatestPlugins(limit = 3): Promise<PluginQueryResult> 
       .from("telegram_plugin_posts")
       .select(select)
       .eq("status", "published")
+      .eq("review_required", false)
       .order("created_at", { ascending: false })
       .limit(safeLimit);
 
@@ -152,6 +153,7 @@ export async function queryLatestPlugins(limit = 3): Promise<PluginQueryResult> 
     .from("telegram_plugin_posts")
     .select("id,title,category,telegram_post_url,created_at")
     .eq("status", "published")
+    .eq("review_required", false)
     .order("created_at", { ascending: false })
     .limit(safeLimit);
 
