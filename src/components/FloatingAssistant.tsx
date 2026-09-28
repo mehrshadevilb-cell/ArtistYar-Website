@@ -84,15 +84,15 @@ export function FloatingAssistant() {
       <div className="flex items-end gap-2">
         <Link
           href="/assistant"
-          className="fa-cta ay-pressable group relative flex items-center gap-2.5 rounded-full border border-gold-500/35 bg-gold-500 px-4 py-3 text-sm font-medium text-ink-950 sm:px-5"
+          className="fa-cta ay-pressable group relative flex items-center gap-2.5 rounded-full border border-gold-500/40 bg-ink-950/90 px-4 py-3 text-sm font-medium text-gold-300 backdrop-blur-md sm:px-5 hover:bg-ink-900 hover:border-gold-400/55 hover:text-gold-200"
           onMouseEnter={() => setExpanded(true)}
           onFocus={() => setExpanded(true)}
           onMouseLeave={() => setExpanded(false)}
           aria-label="سؤال از راه‌یار AI — دستیار آموزشی آرتیست‌یار"
         >
-          <span className="fa-cta-icon relative grid h-8 w-8 place-items-center rounded-full bg-ink-950/15">
+          <span className="fa-cta-icon relative grid h-8 w-8 place-items-center rounded-full bg-gold-500/15">
             <Bot size={18} aria-hidden />
-            <span className="fa-live-dot absolute -left-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-gold-500" />
+            <span className="fa-live-dot absolute -left-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-ink-950" />
           </span>
           <span className="hidden sm:inline">سؤال از راه‌یار</span>
           <span className="sm:hidden">راه‌یار AI</span>
