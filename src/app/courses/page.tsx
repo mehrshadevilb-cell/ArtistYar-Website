@@ -68,6 +68,7 @@ export default async function CoursesPage() {
       <section className="container-ay py-14 sm:py-16">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <SectionHeading
+          as="h1"
           eyebrow="محصولات آکادمی راه‌یار"
           title="برای هر مسیر، یک صفحه اختصاصی"
           subtitle="هر پکیج را جداگانه ببین؛ توضیحات کامل، سرفصل‌ها، نتیجه مسیر و روش دریافت دسترسی در صفحه اختصاصی همان محصول قرار گرفته است."

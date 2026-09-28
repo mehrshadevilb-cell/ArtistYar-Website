@@ -67,6 +67,7 @@ export default function OnlinePage() {
   return (
     <section className="container-ay py-14 sm:py-16">
       <SectionHeading
+        as="h1"
         eyebrow="کلاس‌های آنلاین"
         title="با پروژه خودت یاد بگیر"
         subtitle="اگر می‌خواهی تنظیم، میکس یا مسترینگ را روی کار خودت جلو ببری، اینجا می‌توانیم دقیق‌تر روی همان پروژه کار کنیم."
