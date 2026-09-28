@@ -15,7 +15,7 @@ async function loadPlugin(id: string) {
   const result = await db
     .from("telegram_plugin_posts")
     .select(
-      "id,title,developer,version,category,formats,platforms,description,features,tags,telegram_photo_file_id,telegram_post_url,cover_public_url,cover_storage_path,file_name,created_at,status",
+      "id,title,developer,version,category,formats,platforms,description,features,tags,telegram_photo_file_id,telegram_post_url,cover_public_url,cover_storage_path,file_name,file_names,attachment_count,created_at,status",
     )
     .eq("id", id)
     .eq("status", "published")
@@ -163,6 +163,20 @@ export default async function PluginDetailPage({ params }: Props) {
 
           {plugin.description ? (
             <p className="text-sm leading-7 text-ink-300 whitespace-pre-wrap">{plugin.description}</p>
+          ) : null}
+
+          {Number(plugin.attachment_count || 1) > 1 ? (
+            <div>
+              <h2 className="text-sm font-semibold text-sand-50">فایل‌های این انتشار</h2>
+              <p className="mt-1 text-xs leading-6 text-ink-500">
+                {Number(plugin.attachment_count)} فایل مرتبط با همین پست تلگرام شناسایی شده است.
+              </p>
+              {Array.isArray(plugin.file_names) && plugin.file_names.length ? (
+                <ul className="mt-2 space-y-1 text-xs text-ink-300">
+                  {plugin.file_names.slice(0, 20).map((name: string) => <li key={name}>📦 {name}</li>)}
+                </ul>
+              ) : null}
+            </div>
           ) : null}
 
           {features.length ? (
