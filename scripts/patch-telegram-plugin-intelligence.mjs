@@ -120,6 +120,15 @@ writeFileSync(intelligenceTarget, intelligence);
 let source = readFileSync(syncTarget, "utf8");
 source = source.replace('allowed_updates: ["channel_post"]', 'allowed_updates: ["channel_post", "edited_channel_post"]');
 
+// The checked-in sync module is the canonical runtime. Never strip a repaired
+// publication wrapper during install/build; older builds relied on this script
+// to synthesize it at postinstall time.
+if (source.includes("ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER_V3")) {
+  writeFileSync(syncTarget, source);
+  console.log("telegram plugin intelligence wrapper already canonical; patch skipped");
+  process.exit(0);
+}
+
 // The checked-in source may already contain the previous wrapper. Rebuild only
 // the wrapper and keep the historical legacy processor intact.
 const marker = "/**\n * ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER";
