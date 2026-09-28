@@ -231,9 +231,8 @@ export async function processPluginPair(photo: any, doc: any) {
   };
 
   const verifiedCaption = buildVerifiedCaption(publishable);
-  (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION = verifiedCaption;
   try {
-    const result = await processPluginPairLegacy(photo, doc);
+    const result = await processPluginPairLegacy(photo, doc, publishable);
     const postId = String(result?.id || "");
     if (postId) {
       const applied = await applyVerificationToPost(postId, publishable);
@@ -247,9 +246,6 @@ export async function processPluginPair(photo: any, doc: any) {
   } catch (error) {
     console.error("telegram_plugin_pair_failed", error instanceof Error ? error.message : String(error));
     throw error;
-  } finally {
-    delete (globalThis as any).__ARTISTYAR_VERIFIED_CAPTION;
-  }
 }
 `;
 
