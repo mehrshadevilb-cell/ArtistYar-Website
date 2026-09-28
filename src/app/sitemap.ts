@@ -43,6 +43,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.92,
   }));
 
+  const pluginRoutes = pluginRows.map((plugin) => ({
+    url: `${baseUrl}/plugins/${encodeURIComponent(plugin.id)}`,
+    lastModified: plugin.updated_at ? new Date(plugin.updated_at) : new Date(plugin.created_at),
+    changeFrequency: "weekly" as const,
+    priority: 0.76,
+  }));
+
   return [
     ...publicRoutes.map((route) => ({
       url: `${baseUrl}${route.path}`,
@@ -51,5 +58,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: route.priority,
     })),
     ...packageRoutes,
+    ...pluginRoutes,
   ];
 }
