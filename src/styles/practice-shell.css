@@ -6,3 +6,25 @@
   outline: 2px solid rgba(251, 191, 36, 0.7);
   outline-offset: 2px;
 }
+
+/* freq-memory only — glass card surface */
+.practice-shell .freq-memory-glass {
+  background: rgba(12, 14, 20, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35) inset,
+    0 18px 48px -20px rgba(0, 0, 0, 0.55),
+    0 0 40px -18px rgba(94, 234, 212, 0.08);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .practice-shell .freq-memory-glass {
+    background: rgba(12, 14, 20, 0.92);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .practice-shell .freq-memory-ready {
+    transition: none !important;
+  }
+}
