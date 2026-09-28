@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { queryLatestPlugins } from "@/lib/plugins-db";
+import { processPendingPluginPairs } from "@/lib/telegram-plugin-sync";
+
+let lastProcessorKick = 0;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +11,17 @@ export async function GET(request: Request) {
   const q = new URL(request.url).searchParams;
   const limit = Math.min(Math.max(Number(q.get("limit") || 3), 1), 3);
   const debug = q.get("debug") === "1";
+
+  const now = Date.now();
+  if (now - lastProcessorKick > 45_000) {
+    lastProcessorKick = now;
+    void processPendingPluginPairs(5).catch((error) => {
+      console.warn(
+        "telegram_plugin_api_processor_kick_failed",
+        error instanceof Error ? error.message : String(error),
+      );
+    });
+  }
 
   const result = await queryLatestPlugins(limit);
 
