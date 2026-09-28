@@ -105,6 +105,7 @@ export function PracticeGameSession({
   const [activeExercise, setActiveExercise] = useState<FreqExerciseType>("general");
   const [lastGuessHz, setLastGuessHz] = useState<number | null>(null);
   const submitLockRef = useRef(false);
+  const sessionStartedRef = useRef(false);
   const [readyWord, setReadyWord] = useState<ReadyWord>("ready");
   const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userId = user?.id || null;
@@ -133,6 +134,7 @@ export function PracticeGameSession({
   };
 
   useEffect(() => {
+    sessionStartedRef.current = false;
     setLevel(loadLocalLevel(gameId, userId));
     setStreak(loadLocalStats(userId).streak);
     if (gameId === "freq-memory" && !sessionPlanRef.current) {
@@ -258,6 +260,7 @@ export function PracticeGameSession({
   );
 
   const startSession = () => {
+    sessionStartedRef.current = true;
     void unlockPracticeAudio();
     setPhase("play");
     setRoundIndex(0);
@@ -287,7 +290,7 @@ export function PracticeGameSession({
   };
 
   useEffect(() => {
-    if (!autoStart || !game) return;
+    if (!autoStart || !game || isFreq) return;
     const id = window.setTimeout(() => startSession(), 0);
     return () => window.clearTimeout(id);
   }, [autoStart, gameId]);
@@ -331,14 +334,25 @@ export function PracticeGameSession({
     if (!isFreq || phase !== "play" || freqSub !== "listen" || !round || heard || freeLocked || quotaBlocked) {
       return;
     }
-    // The target should be heard immediately when a round starts. The session
-    // start gesture already unlocks Web Audio, so this does not require a
-    // second "play" action from the user.
-    const id = window.setTimeout(() => {
-      void playAudio();
-    }, 0);
+    // Frequency Memory must never start or make sound merely because its
+    // component mounted. The only automatic listen is the first round after
+    // the user explicitly pressed "شروع تمرین" (or the explicit next-round
+    // ready/set/go sequence).
     return () => window.clearTimeout(id);
-  }, [freeLocked, freqSub, heard, isFreq, phase, playAudio, quotaBlocked, round]);
+    if (!sessionStartedRef.current) return;
+    if (roundIndex > 0 && phase === "play" && freqSub === "listen") {
+      const id = window.setTimeout(() => {
+        void playAudio();
+      }, 0);
+      return () => window.clearTimeout(id);
+    }
+    if (roundIndex === 0 && phase === "play" && freqSub === "listen") {
+      const id = window.setTimeout(() => {
+        void playAudio();
+      }, 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [freeLocked, freqSub, heard, isFreq, phase, playAudio, quotaBlocked, round, roundIndex]);
 
   const finishRound = async (correct: boolean, accuracy: number, detail: string) => {
     if (!round) return;
