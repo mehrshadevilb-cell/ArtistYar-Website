@@ -36,6 +36,11 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
+              <Link href="/amoozesh-tanzim-mix-mastering" className="rounded-sm font-medium text-gold-400 transition-colors hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+                راهنمای تنظیم، میکس و مسترینگ
+              </Link>
+            </li>
+            <li>
               <Link href="/free-player" className="rounded-sm text-gold-400 transition-colors hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 آموزش‌های رایگان
               </Link>
@@ -48,6 +53,11 @@ export function SiteFooter() {
             <li>
               <Link href="/assistant" className="rounded-sm font-medium text-gold-400 transition-colors hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 راه‌یار AI
+              </Link>
+            </li>
+            <li>
+              <Link href="/faq" className="rounded-sm transition-colors hover:text-sand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+                پرسش‌های متداول
               </Link>
             </li>
             <li>
