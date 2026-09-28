@@ -73,10 +73,7 @@ function makeNoise(ctx: AudioContext, seconds: number, color: "white" | "pink" |
   const len = Math.max(1, Math.floor(ctx.sampleRate * seconds));
   const buf = ctx.createBuffer(1, len, ctx.sampleRate);
   const data = buf.getChannelData(0);
-  let b0 = 0,
-    b1 = 0,
-    b2 = 0,
-    last = 0;
+  let b0 = 0, b1 = 0, b2 = 0, last = 0;
   for (let i = 0; i < len; i++) {
     const white = Math.random() * 2 - 1;
     if (color === "pink") {
@@ -95,36 +92,57 @@ function makeNoise(ctx: AudioContext, seconds: number, color: "white" | "pink" |
 }
 
 function applyDsp(ctx: AudioContext, input: AudioNode, dsp: DspChain | undefined): AudioNode {
-  if (!dsp || !dsp.type || dsp.type === "none") return input;
-  try {
-    if (dsp.type === "filter" || dsp.type === "eq") {
-      const f = ctx.createBiquadFilter();
-      f.type = (dsp.filterType as BiquadFilterType) || "peaking";
-      f.frequency.value = Number(dsp.frequency) || 1000;
-      f.Q.value = Number(dsp.Q) || 1;
-      f.gain.value = Number(dsp.gain) || 0;
-      input.connect(f);
-      return f;
+  if (!dsp || dsp.type === "none") return input;
+  if (dsp.type === "peaking") {
+    const f = ctx.createBiquadFilter();
+    f.type = "peaking";
+    f.frequency.value = Number(dsp.frequency) || 1000;
+    f.gain.value = Number(dsp.gainDb) || 0;
+    f.Q.value = Number(dsp.q) || 1.2;
+    input.connect(f);
+    return f;
+  }
+  if (dsp.type === "gain") {
+    const g = ctx.createGain();
+    g.gain.value = Math.pow(10, (Number(dsp.gainDb) || 0) / 20);
+    input.connect(g);
+    return g;
+  }
+  if (dsp.type === "pan") {
+    try {
+      const p = ctx.createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, Number(dsp.value) || 0));
+      input.connect(p);
+      return p;
+    } catch {
+      return input;
     }
-    if (dsp.type === "gain") {
-      const g = ctx.createGain();
-      g.gain.value = Number(dsp.gain) ?? 1;
-      input.connect(g);
-      return g;
-    }
-  } catch {
-    /* */
+  }
+  if (dsp.type === "compressor") {
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = Number((dsp as { threshold?: number }).threshold) || -28;
+    comp.knee.value = Number((dsp as { knee?: number }).knee) || 6;
+    comp.ratio.value = Number((dsp as { ratio?: number }).ratio) || 6;
+    comp.attack.value = Number((dsp as { attack?: number }).attack) || 0.01;
+    comp.release.value = Number((dsp as { release?: number }).release) || 0.2;
+    input.connect(comp);
+    return comp;
+  }
+  if (dsp.type === "stack" && Array.isArray(dsp.nodes)) {
+    let node: AudioNode = input;
+    for (const child of dsp.nodes) node = applyDsp(ctx, node, child as DspChain);
+    return node;
   }
   return input;
 }
 
 function linEnv(g: GainNode, now: number, duration: number, peak = 0.45) {
-  const d = Math.max(0.05, duration);
+  const p = Math.max(0.05, Math.min(0.9, peak));
   g.gain.cancelScheduledValues(now);
-  g.gain.setValueAtTime(0.0001, now);
-  g.gain.linearRampToValueAtTime(peak, now + Math.min(0.02, d * 0.1));
-  g.gain.linearRampToValueAtTime(peak * 0.85, now + d * 0.7);
-  g.gain.linearRampToValueAtTime(0.0001, now + d);
+  g.gain.setValueAtTime(0, now);
+  g.gain.linearRampToValueAtTime(p, now + 0.025);
+  g.gain.setValueAtTime(p, now + Math.max(0.06, duration - 0.08));
+  g.gain.linearRampToValueAtTime(0, now + duration);
 }
 
 export async function playExerciseRound(opts: {
@@ -144,90 +162,164 @@ export async function playExerciseRound(opts: {
     if (!unlocked) return null;
   }
 
+  const now = Math.max(0, ctx.currentTime) + 0.02;
+  const scheduled: Array<OscillatorNode | AudioBufferSourceNode> = [];
+  const master = ctx.createGain();
+  master.gain.value = 0.7;
+  master.connect(ctx.destination);
+
   const source = opts.source;
-  const dsp = opts.dsp;
-  const now = ctx.currentTime + 0.03;
-  const scheduled: AudioNode[] = [];
+  const dsp = opts.dsp || { type: "none" };
 
   const stop = () => {
-    for (const n of scheduled) {
+    for (const s of scheduled) {
       try {
-        if ("stop" in n && typeof (n as OscillatorNode).stop === "function") {
-          (n as OscillatorNode).stop();
-        }
-        n.disconnect();
+        s.stop();
+      } catch {
+        /* */
+      }
+      try {
+        s.disconnect();
       } catch {
         /* */
       }
     }
     scheduled.length = 0;
-    if (activeStop === stop) activeStop = null;
+    try {
+      master.disconnect();
+    } catch {
+      /* */
+    }
+    activeStop = null;
   };
   activeStop = stop;
 
   try {
-    const kind = (source as { kind?: string }).kind || (source as { type?: string }).type || "tone";
-    const seconds = Math.max(0.25, Number((source as { duration?: number; seconds?: number }).duration || (source as { seconds?: number }).seconds || 1.2));
-
-    if (kind === "noise" || kind === "noise-burst") {
-      const buf = makeNoise(ctx, seconds + 0.1, ((source as { color?: string }).color as "white" | "pink" | "brown") || "pink");
+    if (source.kind === "noise") {
+      const seconds = Math.min(4, Math.max(0.5, source.seconds || 1.2));
+      const buf = makeNoise(ctx, seconds, source.color || "pink");
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const g = ctx.createGain();
-      linEnv(g, now, seconds, 0.35);
-      let node: AudioNode = src;
-      node = applyDsp(ctx, node, dsp);
-      node.connect(g).connect(ctx.destination);
+      linEnv(g, now, seconds, 0.5);
+      const processed = applyDsp(ctx, src, dsp);
+      processed.connect(g).connect(master);
       src.start(now);
       src.stop(now + seconds + 0.05);
-      scheduled.push(src, g);
-    } else if (kind === "tone" || kind === "sine" || !kind) {
-      const toneHz = Math.max(40, Math.min(12000, Number((source as { toneHz?: number; hz?: number }).toneHz || (source as { hz?: number }).hz || 440)));
-      const partials = Math.max(1, Math.min(6, Number((source as { partials?: number }).partials) || 1));
-      const fund = toneHz;
-      for (let i = 0; i < partials; i++) {
+      scheduled.push(src);
+    } else if (source.kind === "harmonic") {
+      const duration = Math.min(3, Math.max(0.45, source.duration || 1.0));
+      const fund = Math.max(40, Math.min(16000, source.fundamental || 440));
+      const partials = source.partials?.length ? source.partials : [1, 0.35, 0.15];
+      const intervalHz = Number((source as { intervalHz?: number }).intervalHz) || 0;
+      const mix = ctx.createGain();
+      mix.gain.value = 1;
+      const processed = applyDsp(ctx, mix, dsp);
+      const outG = ctx.createGain();
+      const totalDur = intervalHz > 40 ? duration * 2 + 0.2 : duration;
+      linEnv(outG, now, totalDur, 0.55);
+      processed.connect(outG).connect(master);
+      partials.forEach((amp, i) => {
         const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type = i === 0 ? "sine" : "sine";
+        const pg = ctx.createGain();
+        o.type = "sine";
         o.frequency.value = fund * (i + 1);
-        const peak = (0.42 / partials) * (i === 0 ? 1 : 0.45 / (i + 1));
-        linEnv(g, now, seconds, peak);
-        let node: AudioNode = o;
-        if (i === 0) node = applyDsp(ctx, node, dsp);
-        else o.connect(g);
-        if (i === 0) node.connect(g).connect(ctx.destination);
-        else g.connect(ctx.destination);
+        pg.gain.value = Math.max(0, Math.min(1, Number(amp) || 0));
+        o.connect(pg).connect(mix);
         o.start(now);
-        o.stop(now + seconds + 0.05);
-        scheduled.push(o, g);
+        o.stop(now + duration + 0.05);
+        scheduled.push(o);
+      });
+      if (intervalHz > 40) {
+        const t2 = now + duration + 0.18;
+        partials.forEach((amp, i) => {
+          const o = ctx.createOscillator();
+          const pg = ctx.createGain();
+          o.type = "sine";
+          o.frequency.value = intervalHz * (i + 1);
+          pg.gain.value = Math.max(0, Math.min(1, Number(amp) || 0));
+          o.connect(pg).connect(mix);
+          o.start(t2);
+          o.stop(t2 + duration + 0.05);
+          scheduled.push(o);
+        });
       }
-    } else if (kind === "interval") {
-      const intervalHz = Math.max(40, Number((source as { intervalHz?: number }).intervalHz || 440));
-      const root = Math.max(40, Number((source as { rootHz?: number }).rootHz || intervalHz / 1.5));
-      const gap = 0.35;
-      for (const [hz, t0] of [
-        [root, now],
-        [intervalHz, now + gap + 0.15],
-      ] as const) {
+    } else if (source.kind === "percussion") {
+      const hits = Math.min(8, Math.max(1, source.hits || 3));
+      const spacing = Math.max(0.12, source.spacing || 0.35);
+      const toneHz = Math.max(60, Math.min(8000, source.toneHz || 200));
+      for (let h = 0; h < hits; h++) {
+        const t = now + h * spacing;
         const o = ctx.createOscillator();
         const g = ctx.createGain();
-        o.frequency.value = hz;
-        linEnv(g, t0, 0.55, 0.4);
-        o.connect(g).connect(ctx.destination);
-        o.start(t0);
-        o.stop(t0 + 0.6);
-        scheduled.push(o, g);
+        o.type = "triangle";
+        o.frequency.setValueAtTime(toneHz, t);
+        o.frequency.linearRampToValueAtTime(toneHz * 0.45, t + 0.1);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.55, t + 0.008);
+        g.gain.linearRampToValueAtTime(0, t + 0.16);
+        const processed = applyDsp(ctx, o, dsp);
+        processed.connect(g).connect(master);
+        o.start(t);
+        o.stop(t + 0.2);
+        scheduled.push(o);
       }
+    } else if (source.kind === "loop") {
+      const duration = Math.min(3, Math.max(0.8, source.duration || 1.5));
+      const patterns: Record<string, number[]> = {
+        pad: [220, 277, 330, 440],
+        pluck: [330, 392, 494],
+        bass: [55, 82, 110],
+        kit: [80, 160, 240],
+      };
+      const freqs = patterns[source.pattern] || patterns.pad;
+      const mix = ctx.createGain();
+      const processed = applyDsp(ctx, mix, dsp);
+      const outG = ctx.createGain();
+      linEnv(outG, now, duration, 0.45);
+      processed.connect(outG).connect(master);
+      freqs.forEach((hz, i) => {
+        const o = ctx.createOscillator();
+        const pg = ctx.createGain();
+        o.type = source.pattern === "bass" ? "sawtooth" : source.pattern === "pluck" ? "triangle" : "sine";
+        o.frequency.value = hz;
+        pg.gain.value = 0.22 / freqs.length + (i === 0 ? 0.1 : 0);
+        o.connect(pg).connect(mix);
+        o.start(now);
+        o.stop(now + duration + 0.05);
+        scheduled.push(o);
+      });
+    } else if (source.kind === "stems") {
+      const duration = Math.min(3, Math.max(0.8, source.duration || 1.5));
+      (source.stems || []).forEach((stem) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.value = Math.max(40, Math.min(12000, stem.toneHz || 220));
+        const gainLin = Math.pow(10, (Number(stem.gainDb) || 0) / 20) * 0.25;
+        linEnv(g, now, duration, Math.min(0.5, gainLin));
+        try {
+          const panner = ctx.createStereoPanner();
+          panner.pan.value = Math.max(-1, Math.min(1, Number(stem.pan) || 0));
+          o.connect(g).connect(panner);
+          const processed = applyDsp(ctx, panner, dsp);
+          processed.connect(master);
+        } catch {
+          o.connect(g).connect(master);
+        }
+        o.start(now);
+        o.stop(now + duration + 0.05);
+        scheduled.push(o);
+      });
     } else {
-      // fallback audible tone
       const o = ctx.createOscillator();
       const g = ctx.createGain();
       o.frequency.value = 440;
       linEnv(g, now, 0.6, 0.4);
-      o.connect(g).connect(ctx.destination);
+      o.connect(g).connect(master);
       o.start(now);
       o.stop(now + 0.65);
-      scheduled.push(o, g);
+      scheduled.push(o);
     }
   } catch {
     stop();
@@ -237,7 +329,6 @@ export async function playExerciseRound(opts: {
   return { stop, startTime: now };
 }
 
-/** Simple test tone — useful for debugging playback path. */
 export async function playTestTone(hz = 440, seconds = 0.5): Promise<boolean> {
   await unlockPracticeAudio();
   const ctx = await getPracticeAudioContext();
