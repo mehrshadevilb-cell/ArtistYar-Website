@@ -131,6 +131,10 @@ export function FrequencyMemoryDial({
   }, []);
 
   useEffect(() => {
+    phaseRef.current = 0;
+  }, [mode, roundLabel]);
+
+  useEffect(() => {
     if (mode !== "result" || resultScore == null) {
       setDisplayScore(0);
       return;
