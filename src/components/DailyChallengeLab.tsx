@@ -57,7 +57,7 @@ export function DailyChallengeLab({ onBack }: Props) {
         key={gameId + "-" + index}
         gameId={gameId}
         maxRounds={1}
-        autoStart
+        autoStart={gameId !== "freq-memory"}
         hideBack
         onBack={onBack || (() => undefined)}
         onSessionEnd={(summary) => {
