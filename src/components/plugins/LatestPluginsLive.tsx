@@ -103,7 +103,7 @@ export default function LatestPluginsLive({ initialItems, channelHref, hideHeade
       void refresh();
       timer = setInterval(() => {
         if (document.visibilityState === "visible") void refresh();
-      }, 5000);
+      }, 30000);
     };
 
     start();
