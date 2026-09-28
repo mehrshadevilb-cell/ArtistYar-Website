@@ -1,9 +1,19 @@
 import AssistantClient from "./AssistantClient";
 
 /**
- * Server page shell so the Assistant H1 is present in the initial HTML for crawlers.
- * Interactive chat stays in the client component (SSR-enabled, not ssr:false).
+ * Server shell provides a real H1 in the initial HTML for crawlers.
+ * The interactive chat remains in AssistantClient (SSR-enabled).
+ * AssistantClient still has its own compact header title for the app chrome;
+ * that internal heading is an h1 in the client tree after hydrate — acceptable
+ * for this tool UI; the document-level H1 for SEO is this server heading.
  */
 export default function AssistantPage() {
-  return <AssistantClient />;
+  return (
+    <div>
+      <header className="container-ay sr-only">
+        <h1>راه‌یار AI؛ دستیار هوشمند آموزش موسیقی</h1>
+      </header>
+      <AssistantClient />
+    </div>
+  );
 }
