@@ -17,7 +17,7 @@ const patcher = read("../scripts/patch-telegram-plugin-intelligence.mjs");
 
 assert.match(sync, /export async function enqueuePluginMessage/);
 assert.match(sync, /export async function processPendingPluginPairs/);
-assert.match(sync, /const result = await processPluginPair\\(pair\\.photo, pair\\.document\\)/);
+assert.match(sync, /const result = await processPluginPair\(pair\.photo, pair\.document\)/);
 assert.match(sync, /claim_telegram_plugin_pair/);
 assert.match(sync, /next_attempt_at/);
 assert.match(sync, /syncPublishedPluginCover/);
@@ -50,7 +50,7 @@ assert.match(webhook, /edited_channel_post/);
 assert.match(processRoute, /TELEGRAM_PLUGIN_PROCESS_SECRET/);
 assert.match(processScript, /TELEGRAM_PLUGIN_PROCESS_SECRET/);
 assert.match(renderYaml, /artistyar-telegram-plugin-processor/);
-assert.match(renderYaml, /schedule: "\\*\\/2 \\* \\* \\* \\*"/);
+assert.match(renderYaml, /schedule: "\*\/2 \* \* \* \*"/);
 
 assert.match(bot, /resolvePluginBotToken/);
 assert.match(bot, /TELEGRAM_PLUGIN_BOT_TOKEN/);
