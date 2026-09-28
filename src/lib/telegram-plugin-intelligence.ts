@@ -560,12 +560,12 @@ async function verifyCandidate(
 
 Rules:
 - Do not guess. The candidate is not a fact.
-- The product identity must be supported by at least one source candidate AND a web result that clearly matches it, unless an official database source is explicitly supplied.
+- Use the strongest available evidence from caption, filename, image/OCR, database and optional web evidence. Web/official-source evidence is enrichment only, never a publication requirement.
 - If image, filename and caption disagree, do not choose by familiarity. Use web evidence to resolve the conflict or return an empty title.
 - Developer is valid only when supported by an official product/developer source or explicit source text; never infer it from model memory.
 - Version is the version represented by the Telegram post/image. Never substitute the latest online version. Latest official version is a separate field.
-- Category must be exactly one of: ${PRODUCT_CATEGORIES.join(", ")}.
-- Multiple products must be represented separately. If more than one distinct product is present and cannot be safely separated, return product_count > 1 and included_products and keep confidence low/review required.
+- Category must be exactly one of: ${PRODUCT_CATEGORIES.join(", ")}. VST/VST3/AU/AAX/CLAP are plugin formats, not product categories. A DAW is a product category; instruments, synths, samplers and effects are product categories.
+- Multiple products must be represented separately when the evidence clearly identifies them. If several archives belong to one release, keep them under the same product identity. If distinct products cannot be safely separated, preserve that uncertainty in product_count/included_products and continue publishing with the best-supported metadata.
 - Features, formats, platforms and description must be directly supported by the supplied evidence. Do not add marketing claims.
 - For Russian source text, translate into natural Persian while preserving product/developer names and technical terms such as VST3, AU, AAX, Windows and macOS.
 - Return evidence references as source numbers so every important field can be audited.
