@@ -526,17 +526,18 @@ export function PracticeGameSession({
 
       {phase === "intro" && (
         <section className={isFreq ? "fm-intro-card" : "card-ay mx-auto max-w-md space-y-4 p-5 sm:p-6"}>
-          <p className="text-[11px] font-medium tracking-wide text-cyan-300/90">
+          <p className={isFreq ? "fm-intro-eyebrow" : "text-[11px] font-medium tracking-wide text-cyan-300/90"}>
             {isFreq ? "حافظهٔ فرکانس · تطبیقی" : game.title}
           </p>
-          <h2 className="text-lg font-semibold text-sand-50">{game.titleFa}</h2>
-          <p className="text-[13px] leading-7 text-ink-400">
+          <h2 className={isFreq ? "fm-intro-title" : "text-lg font-semibold text-sand-50"}>{game.titleFa}</h2>
+          <p className={isFreq ? "fm-intro-copy" : "text-[13px] leading-7 text-ink-400"}>
             {isFreq
               ? "بشنو، به‌خاطر بسپار، بعد با کشیدن روی صفحه همان زیر و بمی را بازسازی کن."
               : game.tagline}
           </p>
-          {!pro && <p className="text-[12px] text-amber-200/80">رایگان: تا {stageLimit || 5} مرحله در روز</p>}
-          <button type="button" className="btn-ay btn-ay-primary w-full" onClick={startSession}>
+          {!pro && <p className={isFreq ? "fm-intro-copy" : "text-[12px] text-amber-200/80"}>رایگان: تا {stageLimit || 5} مرحله در روز</p>}
+          {isFreq && <div className="fm-intro-meta" aria-label="وضعیت تمرین"><span>سطح {level}/50</span><span>{BAND_LABEL[band]}</span></div>}
+          <button type="button" className={isFreq ? "fm-intro-cta" : "btn-ay btn-ay-primary w-full"} onClick={startSession}>
             شروع تمرین
           </button>
         </section>
