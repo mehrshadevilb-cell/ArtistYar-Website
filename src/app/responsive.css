@@ -98,7 +98,7 @@
     font-size: 0.95rem;
   }
   .record-disc {
-    max-width: calc(100vw - 5rem);
+    max-width: min(100%, calc(100% - 5rem));
   }
   .hero-art {
     min-height: min(18rem, 45dvh) !important;
