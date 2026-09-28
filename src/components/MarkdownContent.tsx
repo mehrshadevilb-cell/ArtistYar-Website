@@ -31,7 +31,7 @@ export function MarkdownContent({ text }: { text: string }) {
       blocks.push(
         <pre
           key={key++}
-          className="my-3 overflow-x-auto rounded-xl border border-white/[0.08] bg-[#0c0c0b] px-4 py-3 text-[12.5px] leading-6 text-sand-100"
+          className="my-3 overflow-x-auto rounded-xl border border-white/[0.08] bg-ink-950 px-4 py-3 text-[12.5px] leading-6 text-sand-100"
           dir="ltr"
         >
           <code className={lang ? `language-${lang}` : undefined}>
