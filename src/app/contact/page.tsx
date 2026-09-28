@@ -5,6 +5,8 @@ import { SectionHeading } from "@/components/SectionHeading";
 import { CommunityLinks } from "@/components/CommunityLinks";
 import { communityLinks } from "@/data/community";
 
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
+
 export const metadata: Metadata = {
   title: "تماس و مشاوره آموزش موسیقی",
   description:
@@ -18,9 +20,35 @@ export const metadata: Metadata = {
   },
 };
 
+const contactPageJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ContactPage",
+  name: "تماس و مشاوره آموزش موسیقی",
+  url: `${siteUrl}/contact`,
+  inLanguage: "fa-IR",
+  description:
+    "صفحه تماس و مشاوره آکادمی راه‌یار برای انتخاب دوره، کلاس آنلاین و پشتیبانی هنرجو.",
+  mainEntity: {
+    "@type": "EducationalOrganization",
+    name: "ArtistYar",
+    alternateName: "آکادمی راه‌یار",
+    url: siteUrl,
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer support",
+      url: `${siteUrl}/contact`,
+      availableLanguage: ["fa", "Persian"],
+    },
+  },
+};
+
 export default function ContactPage() {
   return (
     <section className="container-ay py-14 sm:py-16">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(contactPageJsonLd) }}
+      />
       <SectionHeading
         as="h1"
         eyebrow="ارتباط با ما"
