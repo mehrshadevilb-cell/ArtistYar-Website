@@ -8,7 +8,6 @@ export const dynamic = "force-dynamic";
 function authorized(request: Request) {
   const key = (process.env.WEB_ADMIN_API_KEY || "").trim();
   const processSecret = (process.env.TELEGRAM_PLUGIN_PROCESS_SECRET || "").trim();
-  if (!key) return false;
   const url = new URL(request.url);
   const provided =
     request.headers.get("x-web-admin-key") ||
