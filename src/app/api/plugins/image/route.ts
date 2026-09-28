@@ -9,6 +9,34 @@ export const dynamic = "force-dynamic";
  * Trusted stored covers only (Supabase / ArtistYar).
  * Telegram public CDN (telesco.pe) is the channel logo — never use it.
  */
+function escapeXml(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function fallbackCover(title: string) {
+  const safeTitle = escapeXml(title || "Audio Plugin");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#111827"/><stop offset="100%" stop-color="#312e81"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#22d3ee"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="36" fill="url(#bg)"/>
+  <circle cx="1040" cy="100" r="210" fill="#7c3aed" opacity=".18"/>
+  <circle cx="120" cy="560" r="260" fill="#06b6d4" opacity=".12"/>
+  <rect x="72" y="72" width="1056" height="8" rx="4" fill="url(#a)"/>
+  <text x="72" y="150" fill="#c4b5fd" font-family="Arial,sans-serif" font-size="28" font-weight="700">ARTISTYAR • PLUGIN</text>
+  <text x="72" y="290" fill="#fff" font-family="Arial,sans-serif" font-size="58" font-weight="800">${safeTitle}</text>
+  <text x="72" y="350" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="30">Audio Plugin</text>
+  <text x="72" y="515" fill="#94a3b8" font-family="Arial,sans-serif" font-size="24">ArtistYar</text>
+</svg>`;
+  return Buffer.from(svg, "utf8");
+}
+
 function isTrustedStoredCover(url: string | null | undefined) {
   const value = String(url || "").trim().toLowerCase();
   if (!value) return false;
@@ -115,6 +143,28 @@ export async function GET(request: Request) {
     // (historical rows), or the runtime token is not the channel webhook bot.
     // Do not assume misconfiguration — ops must compare getMe identity vs a NEW post.
     if (/not found|404/i.test(detail)) {
+      // Historical Telegram file_ids can be permanently unresolvable. Never
+      // leave the catalog visually broken: return a deterministic branded cover
+      // immediately while the background storage recovery retries.
+      try {
+        const body = fallbackCover(String(known.data.title || "Audio Plugin"));
+        if (known.data.id) {
+          const { syncPublishedPluginCover } = await import("@/lib/telegram-plugin-covers");
+          void syncPublishedPluginCover({
+            postId: String(known.data.id),
+            photoFileId: fileId,
+          }).catch(() => undefined);
+        }
+        return new NextResponse(body, {
+          status: 200,
+          headers: {
+            "content-type": "image/svg+xml",
+            "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
+          },
+        });
+      } catch {
+        // Fall through to the operator diagnostic below.
+      }
       const { pluginBotTokenSource } = await import("@/lib/telegram-plugin-bot");
       return NextResponse.json(
         {
