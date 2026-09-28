@@ -200,7 +200,7 @@ export default async function HomePage() {
             </h1>
             <div className="hero-cta-stack hero-cta-under-title">
               <HeroActions />
-              <SafeLink href="/amoozesh-mix-mastering" hard className="hero-secondary-link">
+              <SafeLink href="/amoozesh-tanzim-mix-mastering" hard className="hero-secondary-link">
                 راهنمای رایگان از پایه تا پروژه ←
               </SafeLink>
             </div>
