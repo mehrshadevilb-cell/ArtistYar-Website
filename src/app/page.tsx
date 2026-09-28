@@ -178,6 +178,19 @@ export default async function HomePage() {
               <br />
               <span className="gold-shimmer">با مسیر روشن.</span>
             </h1>
+            <div className="hero-cta-stack hero-cta-under-title">
+              <HeroActions />
+              <SafeLink href="/amoozesh-mix-mastering" hard className="hero-secondary-link">
+                راهنمای رایگان از پایه تا پروژه ←
+              </SafeLink>
+            </div>
+            <div className="hero-trust">
+              <span className="trust-line" />
+              <span>
+                فقط ویدیو نیست — <strong className="font-medium text-gold-400">راه‌یار</strong> تا
+                نتیجه کنارت می‌ماند
+              </span>
+            </div>
           </div>
 
           <div className="hero-order-disk">
@@ -186,21 +199,6 @@ export default async function HomePage() {
 
           <div className="hero-order-cards hero-features-under-disk">
             <HeroDifferentiator />
-            <div className="hero-cta-under-cards">
-              <div className="hero-cta-stack">
-                <HeroActions />
-                <SafeLink href="/amoozesh-mix-mastering" hard className="hero-secondary-link">
-                  راهنمای رایگان از پایه تا پروژه ←
-                </SafeLink>
-              </div>
-              <div className="hero-trust">
-                <span className="trust-line" />
-                <span>
-                  فقط ویدیو نیست — <strong className="font-medium text-gold-400">راه‌یار</strong> تا
-                  نتیجه کنارت می‌ماند
-                </span>
-              </div>
-            </div>
           </div>
         </ScrollStage>
       ) : null}
