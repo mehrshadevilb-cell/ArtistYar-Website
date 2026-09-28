@@ -45,6 +45,7 @@ const afterToolsNav = [
 const moreItems = [
   { href: "/about", label: "درباره آکادمی" },
   { href: "/amoozesh-tanzim-mix-mastering", label: "راهنمای تنظیم و میکس" },
+  { href: "/tafavot-mix-va-mastering", label: "تفاوت میکس و مسترینگ" },
   { href: "/online", label: "کلاس آنلاین" },
   { href: "/free-player", label: "آموزش رایگان" },
   { href: "/gallery", label: "گالری خروجی‌ها" },
