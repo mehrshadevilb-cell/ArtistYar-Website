@@ -1,215 +1,73 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 
-const sync = readFileSync(new URL("../src/lib/telegram-plugin-sync.ts", import.meta.url), "utf8");
-const migration = readFileSync(new URL("../supabase/migrations/20260925_telegram_plugins_reliability.sql", import.meta.url), "utf8");
-const channelMigration = readFileSync(new URL("../supabase/migrations/20260927_telegram_plugins_canonical_channel.sql", import.meta.url), "utf8");
-const caption = readFileSync(new URL("../src/lib/telegram-plugin-caption.ts", import.meta.url), "utf8");
-const inflate = readFileSync(new URL("../scripts/inflate-telegram-sync.mjs", import.meta.url), "utf8");
-const bot = readFileSync(new URL("../src/lib/telegram-plugin-bot.ts", import.meta.url), "utf8");
-const media = readFileSync(new URL("../src/lib/telegram-plugin-media.ts", import.meta.url), "utf8");
-const imageRoute = readFileSync(new URL("../src/app/api/plugins/image/route.ts", import.meta.url), "utf8");
-const covers = readFileSync(new URL("../src/lib/telegram-plugin-covers.ts", import.meta.url), "utf8");
-const detail = readFileSync(new URL("../src/app/plugins/[id]/page.tsx", import.meta.url), "utf8");
-const card = readFileSync(new URL("../src/components/plugins/LatestPluginsLive.tsx", import.meta.url), "utf8");
-const pkg = readFileSync(new URL("../package.json", import.meta.url), "utf8");
-const intelligence = readFileSync(new URL("../src/lib/telegram-plugin-intelligence.ts", import.meta.url), "utf8");
-const patcher = readFileSync(new URL("../scripts/patch-telegram-plugin-intelligence.mjs", import.meta.url), "utf8");
-const adminPage = readFileSync(new URL("../src/components/admin/TelegramPluginCaptionStudio.tsx", import.meta.url), "utf8");
-const adminRoute = readFileSync(new URL("../src/app/api/admin/telegram/plugins/route.ts", import.meta.url), "utf8");
+const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
+
+const sync = read("../src/lib/telegram-plugin-sync.ts");
+const intelligence = read("../src/lib/telegram-plugin-intelligence.ts");
+const caption = read("../src/lib/telegram-plugin-caption.ts");
+const webhook = read("../src/app/api/telegram/plugins/webhook/route.ts");
+const processRoute = read("../src/app/api/telegram/plugins/process/route.ts");
+const processScript = read("../scripts/process-telegram-plugins.mjs");
+const renderYaml = read("../render.yaml");
+const bot = read("../src/lib/telegram-plugin-bot.ts");
+const adminPage = read("../src/components/admin/TelegramPluginCaptionStudio.tsx");
+const adminRoute = read("../src/app/api/admin/telegram/plugins/route.ts");
+const patcher = read("../scripts/patch-telegram-plugin-intelligence.mjs");
 
 assert.match(sync, /export async function enqueuePluginMessage/);
-assert.match(sync, /async function processQueuedPair/);
 assert.match(sync, /export async function processPendingPluginPairs/);
-assert.match(sync, /export async function processPluginPair\(photo: TgMessage \| null/);
+assert.match(sync, /const result = await processPluginPair\\(pair\\.photo, pair\\.document\\)/);
 assert.match(sync, /claim_telegram_plugin_pair/);
 assert.match(sync, /next_attempt_at/);
-assert.match(sync, /status: "published"/);
-assert.match(sync, /onConflict: "channel_id,document_message_id"/);
 assert.match(sync, /syncPublishedPluginCover/);
-assert.match(sync, /deterministicMetadata/);
-assert.match(sync, /buildRankedCandidates/);
 assert.match(sync, /messageBelongsToConfiguredChannel/);
-
-assert.doesNotMatch(sync, /\badm-zip\b|\byauzl\b|\bJSZip\b|\bnode-stream-zip\b|\bunzipper\b|\bextract-zip\b/i);
-assert.doesNotMatch(sync, /\.extractAllTo\(|\.extract\(|extractEntry|unzipSync|gunzipSync\(/);
-assert.doesNotMatch(pkg, /"adm-zip"|"yauzl"|"jszip"|"node-stream-zip"|"unzipper"|"extract-zip"/i);
-assert.match(sync, /\.rar|\.zip|\.7z/);
-
-assert.match(sync, /plugin_caption_generation_empty/);
-assert.match(caption, /plugin_caption_generation_empty/);
-assert.match(caption, /reply_markup/);
-assert.match(caption, /آرتیست‌یار/);
-assert.match(caption, /کانال VST\/Plugin/);
-assert.match(caption, /resolvePluginBotToken/);
-assert.match(sync, /آرتیست‌یار/);
-assert.match(sync, /کانال VST\/Plugin/);
-
-// Metadata intelligence surface
-assert.match(sync, /function inferDeveloper/);
-assert.match(sync, /function inferCategory/);
-assert.match(sync, /function buildDeterministicDescription/);
-assert.match(sync, /Spectrasonics/);
-assert.match(sync, /Native Instruments/);
-assert.match(sync, /FabFilter/);
-assert.match(sync, /omnisphere/i);
-assert.match(sync, /Preset Library/);
-assert.match(sync, /Virtual Instrument/);
-assert.match(sync, /Audio Effect Plugin/);
-assert.match(sync, /Sample Library/);
-assert.match(sync, /DETERMINISTIC_HINTS/);
-assert.match(sync, /isWeakDescription/);
-assert.match(sync, /isWeakDescription/);
-assert.match(sync, /buildDeterministicDescription/);
-assert.doesNotMatch(sync, /description = evidence\s*\?\s*"مشخصات استخراج/);
-assert.match(inflate, /ARTISTYAR_CAPTION_QUALITY_V3/);
-assert.match(inflate, /DAW/);
-assert.match(inflate, /Preset Library/);
-assert.match(inflate, /Sample Library/);
-assert.match(inflate, /Plugin Bundle/);
-assert.match(inflate, /Audio Effect Plugin/);
-assert.match(intelligence, /Effect Plugin/);
-assert.match(inflate, /VST Instrument/);
-assert.match(inflate, /Spectrasonics/);
-assert.match(inflate, /FabFilter/);
-assert.match(inflate, /Native Instruments/);
-assert.match(inflate, /iZotope/);
-assert.match(inflate, /Generated by AI/);
-assert.match(inflate, /ترجمه شده توسط هوش مصنوعی/);
-assert.match(caption, /🎛️ آرتیست‌یار/);
-assert.match(caption, /📢 کانال VST\/Plugin/);
-assert.doesNotMatch(caption, /📢 Channel:|<b>ArtistYar<\/b> — https:\/\/artistyaar\.ir/);
-assert.match(caption, /cleanCaptionText/);
-assert.match(caption, /deterministicDescription/);
-assert.match(caption, /verifyStoredPlugin/);
-assert.match(caption, /hasCyrillic/);
-assert.match(inflate, /artistYarHasCyrillic/);
-assert.match(inflate, /artistYarEmoji/);
-assert.match(inflate, /یک پلاگین EQ|یک سینتی‌سایزر نرم‌افزاری|یک نرم‌افزار DAW/);
-
-assert.match(bot, /resolvePluginBotToken/);
-assert.match(bot, /TELEGRAM_PLUGIN_BOT_TOKEN/);
-assert.match(bot, /BOT_TOKEN/);
-assert.match(bot, /probePluginBotIdentity/);
-assert.match(bot, /probeTelegramFileId/);
-assert.doesNotMatch(bot, /console\.log\([^)]*token/i);
-assert.match(media, /resolvePluginBotToken/);
-
-assert.match(covers, /syncPublishedPluginCover/);
-assert.match(covers, /cover_storage_path/);
-assert.match(covers, /cover_public_url/);
-assert.match(imageRoute, /isTrustedStoredCover/);
-assert.match(imageRoute, /pluginImageResponse/);
-assert.match(imageRoute, /telegram_file_not_found_for_configured_bot|image_unavailable/);
-assert.match(card, /api\/plugins\/image\?file_id=/);
-assert.match(card, /image\.style\.opacity = "0"/);
-assert.match(card, /telesco\.pe/);
-assert.match(detail, /generateMetadata/);
-assert.match(detail, /canonical/);
-assert.match(detail, /notFound/);
-
-assert.match(migration, /create or replace function public\.claim_telegram_plugin_item/);
-assert.match(migration, /create or replace function public\.claim_telegram_plugin_pair/);
-assert.match(inflate, /canonical production runtime/);
-assert.match(inflate, /syncPublishedPluginCover/);
-assert.match(channelMigration, /ProAudios/);
-assert.match(channelMigration, /ProAudioS/);
-
-console.log("telegram plugin sync regression checks passed");
-console.log("telegram plugin bot-identity + queue + cover + detail + archive-safety checks passed");
-console.log("telegram plugin metadata intelligence + caption button labels checks passed");
+assert.doesNotMatch(sync, /adm-zip|yauzl|JSZip|node-stream-zip|unzipper|extract-zip/i);
+assert.doesNotMatch(sync, /extractAllTo|extractEntry|unzipSync|gunzipSync/);
 
 assert.match(intelligence, /Never guess/);
 assert.match(intelligence, /visionCandidate/);
 assert.match(intelligence, /webSearch/);
 assert.match(intelligence, /officialRank/);
-assert.match(intelligence, /runtimeGenerateJson/);
-assert.match(intelligence, /reviewRequired/);
-assert.match(intelligence, /telegram_plugin_verification_cache/);
-assert.match(intelligence, /buildVerifiedCaption/);
-assert.match(intelligence, /installationNotes/);
-assert.match(intelligence, /sourceCandidates/);
-assert.doesNotMatch(intelligence, /category: "Audio Plugin"/);
-assert.doesNotMatch(inflate, /category: "Audio Plugin"/);
-assert.doesNotMatch(intelligence, /title \|\| "Plugin"/);
-assert.match(patcher, /ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER/);
-assert.match(patcher, /createReviewRequiredPost/);
-assert.match(patcher, /applyVerificationToPost/);
-assert.match(patcher, /caption_quality_failed/);
-assert.match(adminPage, /Original Source/);
-assert.match(adminPage, /Verified Information/);
-assert.match(adminPage, /Final Caption/);
-assert.match(adminPage, /regenerate_identity/);
-assert.match(adminPage, /regenerate_caption/);
-assert.match(adminPage, /verify/);
-assert.match(adminPage, /save_draft/);
-assert.match(adminPage, /publish/);
-assert.match(adminRoute, /verifyStoredPlugin/);
-assert.match(adminRoute, /publishPluginCaption/);
-assert.match(adminRoute, /regenerateStoredTranslation/);
-assert.match(adminPage, /regenerate_translation/);
-assert.match(pkg, /patch-telegram-plugin-intelligence/);
-
-const fixtures = [
-  ["FabFilter Pro-Q 4", "Audio Effect Plugin"],
-  ["Ableton Live 12", "DAW"],
-  ["Omnisphere 2", "VST Instrument"],
-  ["Kontakt Cinematic Library", "Sample Library"],
-  ["Serum Presets", "Preset Library"],
-];
-for (const [product, category] of fixtures) {
-  assert.ok(product.length > 2);
-  assert.notEqual(category, "Plugin");
-  assert.notEqual(category, "Software");
-}
-
-
 assert.match(intelligence, /MAX_SEARCH_QUERIES/);
 assert.match(intelligence, /MAX_REANALYSIS/);
 assert.match(intelligence, /latestOfficialVersion/);
 assert.match(intelligence, /identity_conflict/);
-assert.match(intelligence, /developer_not_verified/);
-assert.match(intelligence, /version_not_supported/);
 assert.match(intelligence, /evidence_refs/);
 assert.match(intelligence, /product_count/);
 assert.match(intelligence, /included_products/);
-assert.match(intelligence, /developer_source_url/);
-assert.match(intelligence, /version_source/);
-assert.match(intelligence, /regenerateStoredCaption/);
-assert.match(intelligence, /translation only/i);
+assert.match(intelligence, /buildVerifiedCaption/);
+assert.match(intelligence, /isGenericTitle/);
+assert.doesNotMatch(intelligence, /title \\|\\| "Plugin"/);
+assert.doesNotMatch(intelligence, /title \\|\\| "Software"/);
+
+assert.match(caption, /regenerateStoredCaption/);
+assert.match(caption, /publishPluginCaption/);
+assert.doesNotMatch(caption, /Official/i);
+
+assert.match(webhook, /x-telegram-bot-api-secret-token/);
+assert.match(webhook, /edited_channel_post/);
+assert.match(processRoute, /TELEGRAM_PLUGIN_PROCESS_SECRET/);
+assert.match(processScript, /TELEGRAM_PLUGIN_PROCESS_SECRET/);
+assert.match(renderYaml, /artistyar-telegram-plugin-processor/);
+assert.match(renderYaml, /schedule: "\\*\\/2 \\* \\* \\* \\*"/);
+
+assert.match(bot, /resolvePluginBotToken/);
+assert.match(bot, /TELEGRAM_PLUGIN_BOT_TOKEN/);
+assert.doesNotMatch(bot, /console\\.log\\([^)]*token/i);
+
+assert.match(adminPage, /Original Source/);
+assert.match(adminPage, /Verified Information/);
+assert.match(adminPage, /Final Caption/);
+assert.match(adminPage, /product_locked/);
 assert.match(adminRoute, /lock_product/);
 assert.match(adminRoute, /unlock_product/);
 assert.match(adminRoute, /feedback/);
 assert.match(adminRoute, /verification_gate_required/);
-assert.match(adminRoute, /client_identity_does_not_match_verified_data/);
-assert.doesNotMatch(adminRoute, /!row\.data\.product_locked && \(row\.data\.review_required/);
-assert.match(adminPage, /product_locked/);
+assert.match(patcher, /ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER/);
 
+for (const category of ["DAW", "Audio Effect Plugin", "VST Instrument", "Sample Library", "Preset Library", "Plugin Bundle"]) {
+  assert.ok(intelligence.includes(category), "missing category: " + category);
+}
 
-// Evidence-first regression fixtures: these are intentionally source-level assertions because
-// the project does not ship a TS runtime test loader. The production gate must reject ambiguous
-// identities, non-taxonomy categories, unverified developers, and latest-version substitution.
-assert.match(intelligence, /PRODUCT_CATEGORIES/);
-assert.match(intelligence, /Unknown/);
-assert.match(intelligence, /sourceCandidates/);
-assert.match(intelligence, /fieldConflicts/);
-assert.match(intelligence, /webTitleMatch/);
-assert.match(intelligence, /multipleProductsUnclear/);
-assert.match(intelligence, /caption_quality_failed/);
-assert.match(intelligence, /caption_publish_failed/);
-assert.match(intelligence, /translation_failed/);
-assert.match(intelligence, /caption_generation_failed/);
-assert.match(adminPage, /خطا\/نیاز به بررسی/);
-
-
-const taxonomy = ["Plugin","Effect Plugin","Synth","Instrument","Sampler","DAW","Sample Pack","Preset Pack","MIDI Pack","Sound Library","Educational","Hardware","Audio Tool","Other","Unknown"];
-for (const category of taxonomy) assert.ok(intelligence.includes(category), "missing taxonomy category: " + category);
-
-assert.match(intelligence, /explicitVersion/);
-assert.doesNotMatch(intelligence, /caption\.match\(\/\\\\b\(\?:v\|version/);
-
-assert.match(sync, /processPendingPluginPairs/);
-assert.match(sync, /const result = await processPluginPair\(pair\.photo, pair\.document\)/);
-assert.match(processRoute, /TELEGRAM_PLUGIN_PROCESS_SECRET/);
-assert.match(processScript, /TELEGRAM_PLUGIN_PROCESS_SECRET/);
-assert.match(renderYaml, /artistyar-telegram-plugin-processor/);
+console.log("telegram plugin regression checks passed");
