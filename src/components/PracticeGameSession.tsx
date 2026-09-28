@@ -536,7 +536,7 @@ export function PracticeGameSession({
               : game.tagline}
           </p>
           {!pro && <p className={isFreq ? "fm-intro-copy" : "text-[12px] text-amber-200/80"}>رایگان: تا {stageLimit || 5} مرحله در روز</p>}
-          {isFreq && <div className="fm-intro-meta" aria-label="وضعیت تمرین"><span>سطح {level}/50</span><span>{BAND_LABEL[band]}</span></div>}
+          {isFreq && <div className="fm-intro-meta" aria-label="وضعیت تمرین"><span>۵ راند</span><span>سطح {level}/50</span><span>{BAND_LABEL[band]}</span></div>}
           <button type="button" className={isFreq ? "fm-intro-cta" : "btn-ay btn-ay-primary w-full"} onClick={startSession}>
             شروع تمرین
           </button>
