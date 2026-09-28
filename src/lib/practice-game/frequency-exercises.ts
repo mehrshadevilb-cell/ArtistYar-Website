@@ -245,13 +245,10 @@ export function generateFreqExerciseRound(
     (seeded(seed + 71) - 0.5) * 6;
   let finalTarget = safeHz(anchorHz * Math.pow(2, jitterSemitones / 12), anchorHz);
   if (exercise === "stability" && recentTargets.length) {
-    const last = recentTargets[recentTargets.length - 1];
-    const near = FULL_POOL.filter(
-      (hz) => hz !== last && Number.isFinite(hz) && hz > 0 && Math.abs(Math.log2(hz / last)) < 1.2,
-    );
-    if (near.length && seeded(seed + 29) > 0.35) {
-      finalTarget = pickTargetHz(near, seed + 3, recentTargets);
-    }
+    const last = safeHz(recentTargets[recentTargets.length - 1], finalTarget);
+    const stabilityJitter = (seeded(seed + 29) - 0.5) * 3.5;
+    const near = last * Math.pow(2, stabilityJitter / 12);
+    if (near >= 60 && near <= 10000) finalTarget = safeHz(near, finalTarget);
   }
   if (exercise === "relative") {
     // Relative to previous target when available; otherwise invent a controlled interval from a mid anchor.
