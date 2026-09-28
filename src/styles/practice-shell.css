@@ -35,3 +35,9 @@
 .fm-inline-error{position:absolute;z-index:5;left:1rem;right:1rem;bottom:1rem;border:1px solid rgba(251,113,133,.2);border-radius:.8rem;background:rgba(40,10,20,.7);padding:.55rem .7rem;text-align:center;font-size:11px;color:#fda4af}
 @media (max-width:640px){.fm-glass-card{padding:1rem;border-radius:1.4rem}.fm-dial-surface{min-height:17rem}.fm-wave{height:15rem;width:100%}.fm-dial-actions>*{min-height:44px}}
 @media (prefers-reduced-motion:reduce){.fm-glass-card,.fm-wave,.fm-target-wave{transition:none;animation:none}.fm-wave-ambient{display:none}}
+
+.practice-focus > header{opacity:.55;transition:opacity .45s ease}
+.practice-focus .fm-glass-card{transform:scale(1.01);box-shadow:0 30px 100px -35px rgba(0,0,0,.92),inset 0 1px 0 rgba(255,255,255,.06)}
+.fm-dial:not(.is-playing) .fm-wave{animation:fm-breathe 4.8s ease-in-out infinite}
+@keyframes fm-breathe{0%,100%{transform:scaleY(.985);opacity:.92}50%{transform:scaleY(1.015);opacity:1}}
+@media (prefers-reduced-motion:reduce){.practice-focus > header{transition:none}.fm-dial:not(.is-playing) .fm-wave{animation:none}}
