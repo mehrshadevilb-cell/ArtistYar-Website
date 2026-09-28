@@ -523,9 +523,9 @@ async function processPluginPairLegacy(photo: any, document: any, intelligence?:
   const documentFileId = String(document.file_id || "");
   if (!photoFileId || !documentFileId) throw new Error("telegram_media_missing");
 
-  // Verify the NEW photo file belongs to the active bot before any publish work.
-  await telegramGetFile(photoFileId);
-
+  // Do not hard-fail publication on an old Telegram file_id. Vision and cover
+  // sync treat media resolution as optional enrichment; metadata/caption remain
+  // publishable from filename + caption evidence.
   const metadata = intelligence
     ? {
         data: {
