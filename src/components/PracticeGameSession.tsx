@@ -467,11 +467,11 @@ export function PracticeGameSession({
   const freqSessionMax = Math.max(1, outcomes.length) * 10;
   const freqResultLine = (acc: number) =>
     acc >= 97
-      ? "دقیق؛ تقریباً پرفکت‌پیچ."
+      ? "دقیق؛ تقریباً بی‌نقص."
       : acc >= 90
         ? "همان حوالی است؛ کمی دیگر دقت کن."
         : acc >= 78
-          ? "نزدیک بود؛ اما هنوز همان pitch نیست."
+          ? "نزدیک بود؛ اما هنوز همان زیر و بمی نیست."
           : acc >= 55
             ? "خیابان اشتباه؛ دوباره گوش بده."
             : acc >= 30
@@ -527,12 +527,12 @@ export function PracticeGameSession({
       {phase === "intro" && (
         <section className="card-ay mx-auto max-w-md space-y-4 p-5 sm:p-6">
           <p className="text-[11px] font-medium tracking-wide text-cyan-300/90">
-            {isFreq ? "Frequency Memory · تطبیقی" : game.title}
+            {isFreq ? "حافظهٔ فرکانس · تطبیقی" : game.title}
           </p>
           <h2 className="text-lg font-semibold text-sand-50">{game.titleFa}</h2>
           <p className="text-[13px] leading-7 text-ink-400">
             {isFreq
-              ? "بشنو، به‌خاطر بسپار، بعد با کشیدن روی صفحه همان pitch را بازسازی کن."
+              ? "بشنو، به‌خاطر بسپار، بعد با کشیدن روی صفحه همان زیر و بمی را بازسازی کن."
               : game.tagline}
           </p>
           {!pro && <p className="text-[12px] text-amber-200/80">رایگان: تا {stageLimit || 5} مرحله در روز</p>}
@@ -546,7 +546,7 @@ export function PracticeGameSession({
         <div className="fm-dialed-wrap">
           {freqSub === "listen" && !heard && (
             <p className="mb-3 text-center text-[13px] leading-7 text-ink-400">
-              هدف را پخش کن و pitch را به خاطر بسپار.
+              به هدف گوش بده و زیر و بمی آن را به خاطر بسپار.
             </p>
           )}
           {freqSub === "remember" && (
