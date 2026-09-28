@@ -343,7 +343,7 @@ export function FrequencyMemoryDial({
         aria-valuemax={Math.round(maxHz)}
         aria-valuenow={Math.round(valueHz)}
         aria-valuetext={`${formatHzPrecise(valueHz)} ${formatHzUnit(valueHz)}`}
-        aria-label="Frequency control — drag vertically to change pitch"
+        aria-label="کنترل فرکانس — برای تغییر زیر و بمی به‌صورت عمودی بکشید"
         aria-disabled={!interactive}
         onPointerDown={down}
         onPointerMove={move}
@@ -407,7 +407,7 @@ export function FrequencyMemoryDial({
           step={1}
           value={Math.round(toLog(valueHz, minHz, maxHz) * 1000)}
           disabled={!interactive}
-          aria-label="Frequency slider"
+          aria-label="تنظیم فرکانس"
           onChange={(e) => {
             const hz = Math.round(fromLog(+e.target.value / 1000, minHz, maxHz) * 100) / 100;
             onChangeHz(hz);
