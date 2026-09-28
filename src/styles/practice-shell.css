@@ -223,10 +223,9 @@
 
 .fm-rsgo {
   position: relative;
-  width: min(100%, 26.5rem);
+  width: min(100%, 39.375rem);
   margin-inline: auto;
   aspect-ratio: 4 / 5;
-  max-height: min(78vh, 52rem);
   border-radius: 1.15rem;
   background: #000;
   box-shadow: 0 28px 80px -24px rgba(0, 0, 0, 0.75);
