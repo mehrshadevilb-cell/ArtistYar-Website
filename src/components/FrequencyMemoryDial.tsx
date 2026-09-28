@@ -3,6 +3,7 @@
 /**
  * Frequency Memory dial — Dialed.gg /sound parity presentation.
  * Canvas dual-wave, vertical log drag, circular submit, result overlay.
+ * UX polish: phase status, replay, visibility-aware RAF, mobile-safe glow.
  */
 
 import {
@@ -13,7 +14,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, RotateCcw } from "lucide-react";
 import { startLiveTone, setLiveToneHz, stopLiveTone } from "@/lib/practice-audio-engine";
 import "@/styles/practice-shell.css";
 
@@ -76,6 +77,13 @@ const WAVE_LAYERS = [
   { color: TEAL, alpha: 0.55, width: 1.85, phaseOff: -0.08, ampMul: 0.92, lag: -0.05 },
 ] as const;
 
+const PHASE_STATUS: Record<FreqDialMode, string | null> = {
+  listen: "گوش بده",
+  remember: "به‌خاطر بسپار",
+  recreate: "بکش و تنظیم کن",
+  result: null,
+};
+
 export function FrequencyMemoryDial({
   minHz,
   maxHz,
@@ -88,6 +96,9 @@ export function FrequencyMemoryDial({
   audioError = null,
   onChangeHz,
   onLock,
+  onReplay,
+  showReplay = false,
+  replayLabel = "پخش دوباره",
   resultScore = null,
   resultFeedback = null,
   roundLabel,
@@ -102,16 +113,20 @@ export function FrequencyMemoryDial({
   const [dragging, setDragging] = useState(false);
   const [cursorY, setCursorY] = useState<number | null>(null);
   const [displayScore, setDisplayScore] = useState(0);
+  const [lowPower, setLowPower] = useState(false);
   const waveHzRef = useRef(waveHz);
   const valueHzRef = useRef(valueHz);
   const playingRef = useRef(playing);
   const draggingRef = useRef(false);
   const cursorYRef = useRef<number | null>(null);
   const reducedMotionRef = useRef(false);
+  const lowPowerRef = useRef(false);
+  const visibleRef = useRef(true);
   const sizeRef = useRef({ w: 1, h: 1 });
   const glowRef = useRef<CanvasGradient | null>(null);
   const fadeRef = useRef<CanvasGradient | null>(null);
   const interactive = mode === "recreate" && !disabled;
+  const phaseStatus = PHASE_STATUS[mode];
 
   useEffect(() => {
     waveHzRef.current = waveHz;
@@ -120,7 +135,8 @@ export function FrequencyMemoryDial({
     draggingRef.current = dragging;
     cursorYRef.current = cursorY;
     reducedMotionRef.current = reducedMotion;
-  }, [waveHz, valueHz, playing, dragging, cursorY, reducedMotion]);
+    lowPowerRef.current = lowPower;
+  }, [waveHz, valueHz, playing, dragging, cursorY, reducedMotion, lowPower]);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -128,6 +144,12 @@ export function FrequencyMemoryDial({
     apply();
     mq.addEventListener?.("change", apply);
     return () => mq.removeEventListener?.("change", apply);
+  }, []);
+
+  useEffect(() => {
+    const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
+    const narrow = typeof window !== "undefined" && window.innerWidth < 640;
+    setLowPower(Boolean(coarse || narrow));
   }, []);
 
   useEffect(() => {
@@ -166,9 +188,16 @@ export function FrequencyMemoryDial({
     if (!ctx) return;
     let running = true;
     let last = performance.now();
+    const onVis = () => {
+      visibleRef.current = document.visibilityState !== "hidden";
+    };
+    onVis();
+    document.addEventListener("visibilitychange", onVis);
+
     const resize = () => {
       const r = surface.getBoundingClientRect();
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const dprCap = lowPowerRef.current ? 1.25 : 2;
+      const dpr = Math.min(dprCap, window.devicePixelRatio || 1);
       const w = Math.max(1, Math.floor(r.width));
       const h = Math.max(1, Math.floor(r.height));
       canvas.width = Math.floor(w * dpr);
@@ -191,12 +220,21 @@ export function FrequencyMemoryDial({
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
     ro?.observe(surface);
     window.addEventListener("resize", resize);
+
     const draw = (now: number) => {
       if (!running) return;
+      if (!visibleRef.current) {
+        rafRef.current = requestAnimationFrame(draw);
+        last = now;
+        return;
+      }
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const motionReduced = reducedMotionRef.current;
-      if (!motionReduced) phaseRef.current += dt * (playingRef.current || draggingRef.current ? 2.8 : 1.15);
+      const lp = lowPowerRef.current;
+      if (!motionReduced) {
+        phaseRef.current += dt * (playingRef.current || draggingRef.current ? 2.8 : 1.15);
+      }
       const { w, h } = sizeRef.current;
       ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
       ctx.fillRect(0, 0, w, h);
@@ -210,9 +248,11 @@ export function FrequencyMemoryDial({
         ctx.fillStyle = glowRef.current;
         ctx.fillRect(0, 0, w, h);
       }
-      for (const layer of WAVE_LAYERS) {
+      const layers = lp ? WAVE_LAYERS.slice(2) : WAVE_LAYERS;
+      const stepDiv = lp ? 3 : 2;
+      for (const layer of layers) {
         ctx.beginPath();
-        const steps = Math.max(80, Math.floor(h / 2));
+        const steps = Math.max(64, Math.floor(h / stepDiv));
         for (let i = 0; i <= steps; i++) {
           const y = (i / steps) * h;
           const yn = y / h;
@@ -234,9 +274,9 @@ export function FrequencyMemoryDial({
         ctx.lineWidth = layer.width;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-        if (!motionReduced) {
-          ctx.shadowColor = `${layer.color}0.45)`;
-          ctx.shadowBlur = layer.width * 4;
+        if (!motionReduced && !lp && layer.alpha >= 0.38) {
+          ctx.shadowColor = `${layer.color}0.4)`;
+          ctx.shadowBlur = layer.width * 3.2;
         } else {
           ctx.shadowBlur = 0;
         }
@@ -255,6 +295,7 @@ export function FrequencyMemoryDial({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       ro?.disconnect();
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, []);
 
@@ -332,16 +373,25 @@ export function FrequencyMemoryDial({
 
   const showHz = mode === "recreate" ? valueHz : null;
   const isResult = mode === "result";
+  const canReplay = Boolean(showReplay && onReplay && !disabled && mode !== "result");
 
   return (
     <div
-      className={`fm-dialed-card ${interactive ? "is-interactive" : ""} ${dragging ? "is-dragging" : ""} ${playing ? "is-playing" : ""} ${isResult ? "is-result" : ""}`}
+      className={`fm-dialed-card ${interactive ? "is-interactive" : ""} ${dragging ? "is-dragging" : ""} ${playing ? "is-playing" : ""} ${mode === "remember" ? "is-remember" : ""} ${isResult ? "is-result" : ""}`}
       dir="ltr"
     >
       <div className="fm-dialed-top">
         <span className="fm-dialed-round">{roundLabel || ""}</span>
         <span className="fm-dialed-brand">{brandLabel}</span>
       </div>
+
+      {phaseStatus && (
+        <div className="fm-dialed-status" aria-live="polite">
+          <span className={`fm-dialed-status-pill ${playing ? "is-live" : ""} ${mode === "remember" ? "is-hold" : ""}`}>
+            {phaseStatus}
+          </span>
+        </div>
+      )}
 
       <div
         ref={surfaceRef}
@@ -425,8 +475,34 @@ export function FrequencyMemoryDial({
           }}
         />
 
+        {canReplay && (
+          <button
+            type="button"
+            className="fm-dialed-replay"
+            aria-label={replayLabel}
+            title={replayLabel}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              stopLiveTone();
+              void onReplay?.();
+            }}
+          >
+            <RotateCcw size={15} strokeWidth={2.2} aria-hidden />
+          </button>
+        )}
+
         {interactive && (
-          <button type="button" className="fm-dialed-submit" aria-label="ثبت پاسخ" title="ثبت پاسخ" onPointerDown={(e) => e.stopPropagation()} onClick={() => { stopLiveTone(); void onLock?.(); }}>
+          <button
+            type="button"
+            className="fm-dialed-submit"
+            aria-label="ثبت پاسخ"
+            title="ثبت پاسخ"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              stopLiveTone();
+              void onLock?.();
+            }}
+          >
             <ArrowRight size={17} strokeWidth={2.2} aria-hidden />
           </button>
         )}
