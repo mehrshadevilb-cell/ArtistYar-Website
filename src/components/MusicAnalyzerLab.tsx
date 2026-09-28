@@ -258,10 +258,10 @@ export default function MusicAnalyzerLab() {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/20 p-1.5">
-          <button type="button" onClick={() => setMode("mix")} className={`flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${mode === "mix" ? "bg-cyan-400/90 text-black" : "text-ink-300 hover:bg-white/[.04]"}`}>
+          <button type="button" onClick={() => setMode("mix")} className={`flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${mode === "mix" ? "bg-cyan-400/90 text-black" : "text-ink-300 hover:bg-white/[.04]"`}>
             <Waves size={16} /> میکس و مسترینگ
           </button>
-          <button type="button" onClick={() => setMode("arrangement")} className={`flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${mode === "arrangement" ? "bg-violet-400/90 text-black" : "text-ink-300 hover:bg-white/[.04]"}`}>
+          <button type="button" onClick={() => setMode("arrangement")} className={`flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${mode === "arrangement" ? "bg-violet-400/90 text-black" : "text-ink-300 hover:bg-white/[.04]"`}>
             <Layers size={16} /> تنظیم · Arrangement
           </button>
         </div>
@@ -332,7 +332,7 @@ export default function MusicAnalyzerLab() {
                   <div>مدت: {metrics.durationSec.toFixed(1)}s</div>
                   <div>Peak: {metrics.peakDbfs.toFixed(1)} dBFS</div>
                   <div>RMS: {metrics.rmsDbfs.toFixed(1)} dBFS</div>
-                  <div>Crest: {metrics.crestDb.toFixed(1)} dB</div>
+                  <div>Crest: {metrics.crestFactorDb.toFixed(1)} dB</div>
                 </div>
               ) : (
                 <p className="mt-3 text-xs text-ink-500">پس از آپلود فایل، متریک‌ها اینجا نمایش داده می‌شوند.</p>
