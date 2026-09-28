@@ -68,10 +68,23 @@ html .hero-layout-root.hero-section {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: 0.65rem;
   margin-top: 0;
   position: relative;
   z-index: 6;
+}
+
+/* Primary CTA sits under headline for clear conversion hierarchy */
+.hero-cta-under-title {
+  margin-top: 1.35rem;
+  gap: 0.7rem;
+}
+
+.hero-cta-under-title .hero-actions .btn-primary {
+  min-height: 2.85rem;
+  padding-inline: 1.5rem;
+  font-weight: 600;
+  box-shadow: 0 0 28px -6px rgba(201, 162, 39, 0.55);
 }
 
 .hero-cta-under-cards {
@@ -83,19 +96,39 @@ html .hero-layout-root.hero-section {
   padding-top: 0.35rem;
 }
 
+/* Secondary: text link only — never competes with primary gold button */
 .hero-secondary-link {
   display: inline-flex;
-  font-size: 0.82rem;
+  align-items: center;
+  font-size: 0.84rem;
+  font-weight: 500;
   color: var(--ay-ink-muted, #8f8a80);
-  text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.14);
-  text-underline-offset: 7px;
-  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 1px;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
-.hero-secondary-link:hover {
-  color: #e8c547;
-  text-decoration-color: rgba(232, 197, 71, 0.45);
+.hero-secondary-link:hover,
+.hero-secondary-link:focus-visible {
+  color: #d4b43a;
+  border-bottom-color: rgba(212, 180, 58, 0.45);
+  outline: none;
+}
+
+html.light .hero-secondary-link {
+  color: #6b6560;
+}
+
+html.light .hero-secondary-link:hover,
+html.light .hero-secondary-link:focus-visible {
+  color: #9a7b1a;
+  border-bottom-color: rgba(154, 123, 26, 0.4);
+}
+
+/* Trust line under CTA */
+.hero-copy .hero-trust {
+  margin-top: 1.25rem;
 }
 
 .hero-features-under-disk {
@@ -688,12 +721,12 @@ html.light .hero-feature-soon-badge {
 
 html.light .hero-secondary-link {
   color: #5a544c;
-  text-decoration-color: rgba(28, 27, 25, 0.2);
 }
 
-html.light .hero-secondary-link:hover {
+html.light .hero-secondary-link:hover,
+html.light .hero-secondary-link:focus-visible {
   color: #806514;
-  text-decoration-color: rgba(154, 122, 24, 0.45);
+  border-bottom-color: rgba(154, 122, 24, 0.45);
 }
 
 html.light .comment-card {
