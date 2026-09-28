@@ -587,7 +587,8 @@ export function PracticeGameSession({
           <p className="mt-1 text-center text-[12px] text-ink-500">از ۱۰</p>
           <p className="mt-4 text-center text-[14px] leading-7 text-ink-300">{freqResultLine(feedback.accuracy)}</p>
           {lastGuessHz != null && round?.targetHz != null && (
-            <div className="mt-6 border-t border-white/[0.06] pt-6">
+            <>
+              <div className="mt-6 border-t border-white/[0.06] pt-6">
               <p className="mb-3 text-center text-[10px] tracking-[0.16em] text-ink-500">COMPARISON</p>
               <FrequencyMemoryDial
                 minHz={round.sliderMin || 100}
@@ -612,8 +613,9 @@ export function PracticeGameSession({
                 <span className="text-[10px] tracking-[0.14em] text-ink-500">GUESS</span>
                 <span className="font-mono text-3xl font-semibold text-sand-50">{formatHz(lastGuessHz)}</span>
               </div>
-              <p className="pt-1 text-center text-[11px] text-ink-500">{feedback.detail}</p>
-            </div>
+                <p className="pt-1 text-center text-[11px] text-ink-500">{feedback.detail}</p>
+              </div>
+            </>
           )}
           <button type="button" className="btn-ay btn-ay-primary mt-8 w-full" onClick={advanceToNextRound}>
             {roundIndex + 1 >= totalRounds ? "نتیجه جلسه" : "ادامه"}
