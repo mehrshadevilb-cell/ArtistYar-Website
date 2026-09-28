@@ -1,123 +1,416 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { Play, RotateCcw } from "lucide-react";
+/**
+ * Frequency Memory dial — Dialed.gg /sound parity presentation.
+ * Canvas dual-wave, vertical log drag, circular submit, result overlay.
+ */
+
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { startLiveTone, setLiveToneHz, stopLiveTone } from "@/lib/practice-audio-engine";
-import { formatHz } from "@/lib/practice-game";
 import "@/styles/practice-shell.css";
 
-function clamp(v:number,a=0,b=1){return Math.max(a,Math.min(b,v));}
-function toLog(hz:number,min:number,max:number){const lo=Math.max(20,min),hi=Math.max(lo+1,max);return clamp((Math.log(clamp(hz,lo,hi))-Math.log(lo))/(Math.log(hi)-Math.log(lo)));}
-function fromLog(t:number,min:number,max:number){const lo=Math.max(20,min),hi=Math.max(lo+1,max);return Math.round(Math.exp(Math.log(lo)+clamp(t)*(Math.log(hi)-Math.log(lo))));}
+function clamp(v: number, a = 0, b = 1) {
+  return Math.max(a, Math.min(b, v));
+}
+function toLog(hz: number, min: number, max: number) {
+  const lo = Math.max(20, min);
+  const hi = Math.max(lo + 1, max);
+  return clamp((Math.log(clamp(hz, lo, hi)) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)));
+}
+function fromLog(t: number, min: number, max: number) {
+  const lo = Math.max(20, min);
+  const hi = Math.max(lo + 1, max);
+  return Math.exp(Math.log(lo) + clamp(t) * (Math.log(hi) - Math.log(lo)));
+}
+function formatHzPrecise(hz: number) {
+  if (!Number.isFinite(hz) || hz <= 0) return "—";
+  if (hz >= 1000) return (hz / 1000).toFixed(hz >= 10000 ? 1 : 2);
+  return hz.toFixed(2);
+}
+function formatHzUnit(hz: number) {
+  if (!Number.isFinite(hz) || hz <= 0) return "Hz";
+  return hz >= 1000 ? "kHz" : "Hz";
+}
 
-export type FreqDialMode="listen"|"remember"|"recreate";
-type Props={
- minHz:number; maxHz:number; valueHz:number; waveHz:number; mode:FreqDialMode;
- playing?:boolean; disabled?:boolean; targetHz?:number|null; revealTarget?:boolean;
- audioError?:string|null; onChangeHz:(hz:number)=>void; onLock?:()=>void; onReplay?:()=>void;
- showReplay?:boolean; replayLabel?:string;
+export type FreqDialMode = "listen" | "remember" | "recreate" | "result";
+
+export type FrequencyMemoryDialProps = {
+  minHz: number;
+  maxHz: number;
+  valueHz: number;
+  waveHz: number;
+  mode: FreqDialMode;
+  playing?: boolean;
+  disabled?: boolean;
+  targetHz?: number | null;
+  revealTarget?: boolean;
+  audioError?: string | null;
+  onChangeHz: (hz: number) => void;
+  onLock?: () => void;
+  onReplay?: () => void;
+  showReplay?: boolean;
+  replayLabel?: string;
+  resultScore?: number | null;
+  resultFeedback?: string | null;
+  roundLabel?: string;
+  brandLabel?: string;
 };
 
+const TEAL = "rgba(46, 230, 184,";
+const PURPLE = "rgba(122, 60, 255,";
+const CYAN = "rgba(94, 234, 212,";
+
 export function FrequencyMemoryDial({
- minHz,maxHz,valueHz,waveHz,mode,playing=false,disabled=false,targetHz=null,revealTarget=false,
- audioError=null,onChangeHz,onLock,onReplay,showReplay=false,replayLabel="پخش دوباره"
-}:Props){
- const surfaceRef=useRef<HTMLDivElement>(null);
- const dragRef=useRef({active:false,moved:false,lastX:0,lastY:0,lastT:0,angle:0});
- const velocityRef=useRef(0);
- const [velocity,setVelocity]=useState(0);
- const [pressure,setPressure]=useState(0);
- const [phase,setPhase]=useState(0);
- const [reducedMotion,setReducedMotion]=useState(false);
- const rafRef=useRef<number|null>(null);
- const gradientId=`fm-${useId().replace(/:/g,"")}`;
- const interactive=mode==="recreate"&&!disabled;
+  minHz,
+  maxHz,
+  valueHz,
+  waveHz,
+  mode,
+  playing = false,
+  disabled = false,
+  targetHz = null,
+  audioError = null,
+  onChangeHz,
+  onLock,
+  resultScore = null,
+  resultFeedback = null,
+  roundLabel,
+  brandLabel = "ArtistYar",
+}: FrequencyMemoryDialProps) {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dragRef = useRef({ active: false, moved: false, lastY: 0, pointerY: 0 });
+  const phaseRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [cursorY, setCursorY] = useState<number | null>(null);
+  const [displayScore, setDisplayScore] = useState(0);
+  const interactive = mode === "recreate" && !disabled;
 
- useEffect(()=>{const mq=window.matchMedia("(prefers-reduced-motion: reduce)");const apply=()=>setReducedMotion(mq.matches);apply();mq.addEventListener?.("change",apply);return()=>mq.removeEventListener?.("change",apply);},[]);
- useEffect(()=>{
-   if(reducedMotion)return;
-   let last=performance.now();
-   const tick=(now:number)=>{const dt=Math.min(.05,(now-last)/1000);last=now;velocityRef.current*=.91;setVelocity(velocityRef.current);setPhase(p=>p+dt*(playing?2.6:1));setPressure(p=>Math.max(0,p*.94));rafRef.current=requestAnimationFrame(tick);};
-   rafRef.current=requestAnimationFrame(tick); return()=>{if(rafRef.current)cancelAnimationFrame(rafRef.current);};
- },[playing,reducedMotion]);
- useEffect(()=>()=>{stopLiveTone();if(rafRef.current)cancelAnimationFrame(rafRef.current);},[]);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReducedMotion(mq.matches);
+    apply();
+    mq.addEventListener?.("change", apply);
+    return () => mq.removeEventListener?.("change", apply);
+  }, []);
 
- const setFromPoint=useCallback((x:number,y:number,withTone=true)=>{
-   const el=surfaceRef.current;if(!el)return;
-   const r=el.getBoundingClientRect();
-   const nx=clamp((x-r.left)/Math.max(1,r.width));
-   const ny=clamp((y-r.top)/Math.max(1,r.height));
-   const d=dragRef.current;const now=performance.now();const dt=Math.max(8,now-d.lastT);
-   const dx=x-d.lastX,dy=y-d.lastY;
-   const speed=Math.min(3,Math.hypot(dx,dy)/dt*8); velocityRef.current=speed;setVelocity(speed);
-   const angle=Math.atan2(y-r.top-(r.height/2),x-r.left-(r.width/2));
-   const angleDelta=Math.atan2(Math.sin(angle-d.angle),Math.cos(angle-d.angle));
-   const circular=Math.abs(dx)>1&&Math.abs(dy)>1;
-   const circularBoost=circular?angleDelta*.018:0;
-   const verticalFine=(.5-ny)*.035;
-   const t=clamp(nx+circularBoost+verticalFine);
-   const hz=fromLog(t,minHz,maxHz);
-   d.lastX=x;d.lastY=y;d.lastT=now;d.angle=angle;d.moved=d.moved||Math.hypot(dx,dy)>4;
-   onChangeHz(hz);setPressure(Math.min(1,.18+speed*.22+Math.abs(.5-ny)*.8));
-   if(withTone){void startLiveTone(hz);setLiveToneHz(hz);}
- },[minHz,maxHz,onChangeHz]);
+  useEffect(() => {
+    if (mode !== "result" || resultScore == null) {
+      setDisplayScore(0);
+      return;
+    }
+    const target = Math.max(0, Math.min(10, resultScore));
+    if (reducedMotion) {
+      setDisplayScore(target);
+      return;
+    }
+    const start = performance.now();
+    const dur = 900;
+    let id = 0;
+    const tick = (now: number) => {
+      const t = clamp((now - start) / dur);
+      const e = 1 - Math.pow(1 - t, 3);
+      setDisplayScore(Math.round(target * e * 100) / 100);
+      if (t < 1) id = requestAnimationFrame(tick);
+      else setDisplayScore(Math.round(target * 100) / 100);
+    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, [mode, resultScore, reducedMotion]);
 
- const down=(e:ReactPointerEvent<HTMLDivElement>)=>{
-   if(!interactive)return;
-   const r=surfaceRef.current?.getBoundingClientRect();if(!r)return;
-   e.currentTarget.setPointerCapture(e.pointerId);
-   const d=dragRef.current;d.active=true;d.moved=false;d.lastX=e.clientX;d.lastY=e.clientY;d.lastT=performance.now();d.angle=Math.atan2(e.clientY-r.top-r.height/2,e.clientX-r.left-r.width/2);
-   setPressure(.8);setFromPoint(e.clientX,e.clientY);
- };
- const move=(e:ReactPointerEvent<HTMLDivElement>)=>{if(dragRef.current.active)setFromPoint(e.clientX,e.clientY);};
- const up=(e:ReactPointerEvent<HTMLDivElement>)=>{
-   const d=dragRef.current;if(!d.active)return;d.active=false;setPressure(.35);
-   try{e.currentTarget.releasePointerCapture(e.pointerId);}catch{}
-   if(!d.moved&&interactive){void startLiveTone(valueHz);setLiveToneHz(valueHz);}
- };
- const key=(e:ReactKeyboardEvent<HTMLDivElement>)=>{
-   if(!interactive)return;const step=e.shiftKey?12:3;let hz=valueHz;
-   if(e.key==="ArrowLeft"||e.key==="ArrowDown")hz=fromLog(toLog(valueHz,minHz,maxHz)-step/100,minHz,maxHz);
-   else if(e.key==="ArrowRight"||e.key==="ArrowUp")hz=fromLog(toLog(valueHz,minHz,maxHz)+step/100,minHz,maxHz);
-   else if(e.key==="Enter"||e.key===" "){e.preventDefault();stopLiveTone();onLock?.();return;}else return;
-   e.preventDefault();onChangeHz(hz);void startLiveTone(hz);setLiveToneHz(hz);
- };
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const surface = surfaceRef.current;
+    if (!canvas || !surface) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let running = true;
+    let last = performance.now();
+    const resize = () => {
+      const r = surface.getBoundingClientRect();
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const w = Math.max(1, Math.floor(r.width));
+      const h = Math.max(1, Math.floor(r.height));
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
+    ro?.observe(surface);
+    window.addEventListener("resize", resize);
+    const draw = (now: number) => {
+      if (!running) return;
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      if (!reducedMotion) phaseRef.current += dt * (playing || dragging ? 2.8 : 1.15);
+      const r = surface.getBoundingClientRect();
+      const w = r.width;
+      const h = r.height;
+      ctx.clearRect(0, 0, w, h);
+      const hz = Math.max(40, waveHz || valueHz || 440);
+      const lobes = clamp(4 + Math.log2(hz / 80) * 2.2, 4, 18);
+      const wavelength = h / lobes;
+      const cx = w * 0.5;
+      const ampBase = Math.min(w * 0.22, 78);
+      const phase = phaseRef.current;
+      const g = ctx.createRadialGradient(cx, h * 0.45, 4, cx, h * 0.45, h * 0.55);
+      g.addColorStop(0, "rgba(94,234,212,0.07)");
+      g.addColorStop(0.45, "rgba(122,60,255,0.05)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      const layers = [
+        { color: PURPLE, alpha: 0.12, width: 1.1, phaseOff: 0.55, ampMul: 1.18, lag: 0.35 },
+        { color: TEAL, alpha: 0.14, width: 1.15, phaseOff: -0.4, ampMul: 1.12, lag: 0.22 },
+        { color: PURPLE, alpha: 0.22, width: 1.35, phaseOff: 0.18, ampMul: 1.05, lag: 0.1 },
+        { color: CYAN, alpha: 0.38, width: 1.55, phaseOff: 0, ampMul: 1, lag: 0 },
+        { color: TEAL, alpha: 0.55, width: 1.85, phaseOff: -0.08, ampMul: 0.92, lag: -0.05 },
+      ];
+      for (const layer of layers) {
+        ctx.beginPath();
+        const steps = Math.max(80, Math.floor(h / 2));
+        for (let i = 0; i <= steps; i++) {
+          const y = (i / steps) * h;
+          const yn = y / h;
+          const env = Math.sin(Math.PI * yn) ** 0.85;
+          const primary = Math.sin((y / wavelength) * Math.PI * 2 + phase + layer.phaseOff);
+          const secondary = Math.sin((y / (wavelength * 1.37)) * Math.PI * 2 - phase * 0.7 + layer.lag);
+          const beat = primary * 0.72 + secondary * 0.28;
+          let deform = 0;
+          if (dragging && cursorY != null) {
+            const dy = (y - cursorY) / (h * 0.12);
+            deform = Math.exp(-dy * dy) * 0.18 * ampBase;
+          }
+          const x = cx + beat * ampBase * layer.ampMul * env + deform * (layer.ampMul > 1 ? 0.6 : 1);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = `${layer.color}${layer.alpha})`;
+        ctx.lineWidth = layer.width;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        if (!reducedMotion) {
+          ctx.shadowColor = `${layer.color}0.45)`;
+          ctx.shadowBlur = layer.width * 4;
+        } else {
+          ctx.shadowBlur = 0;
+        }
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+      const fade = ctx.createLinearGradient(0, h * 0.72, 0, h);
+      fade.addColorStop(0, "rgba(0,0,0,0)");
+      fade.addColorStop(1, "rgba(0,0,0,0.85)");
+      ctx.fillStyle = fade;
+      ctx.fillRect(0, h * 0.72, w, h * 0.28);
+      rafRef.current = requestAnimationFrame(draw);
+    };
+    rafRef.current = requestAnimationFrame(draw);
+    return () => {
+      running = false;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      ro?.disconnect();
+      window.removeEventListener("resize", resize);
+    };
+  }, [waveHz, valueHz, playing, dragging, cursorY, reducedMotion]);
 
- const makePaths=(hz:number,offset=0)=>{
-   const t=toLog(hz,Math.min(minHz,40),Math.max(maxHz,4000));const cycles=1.4+t*5;
-   const amp=11+Math.min(8,velocity*2.2)+pressure*5;const pts:string[]=[];const n=reducedMotion?32:64;
-   for(let i=0;i<=n;i++){const y=i/n*200;const x=50+Math.sin(i/n*cycles*Math.PI*2+phase*(1+offset*.04)+offset)*amp*(1-offset*.08);pts.push(`${i?"L":"M"} ${x.toFixed(2)} ${y.toFixed(2)}`);}return pts.join(" ");
- };
- const paths=useMemo(()=>Array.from({length:5},(_,i)=>makePaths(Math.max(40,waveHz||valueHz),i)),[waveHz,valueHz,velocity,pressure,phase,reducedMotion]);
- const targetPath=targetHz&&revealTarget?makePaths(targetHz,7):null;
- const modeLabel=mode==="listen"?"گوش بده":mode==="remember"?"به‌خاطر بسپار":"بازسازی کن";
+  const setFromY = useCallback(
+    (clientY: number, withTone = true) => {
+      const el = surfaceRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const t = clamp(1 - (clientY - r.top) / Math.max(1, r.height));
+      const hz = fromLog(t, minHz, maxHz);
+      const rounded = Math.round(hz * 100) / 100;
+      onChangeHz(rounded);
+      setCursorY(clientY - r.top);
+      if (withTone) {
+        void startLiveTone(rounded);
+        setLiveToneHz(rounded);
+      }
+    },
+    [minHz, maxHz, onChangeHz],
+  );
 
- return <div className={`fm-dial ${playing?"is-playing":""} ${pressure>.5?"is-pressed":""}`}>
-   <p className="fm-dial-mode" aria-live="polite">{modeLabel}</p>
-   <div ref={surfaceRef} className={`fm-dial-surface ${interactive?"is-interactive":""} ${mode==="remember"?"is-locked":""} ${audioError?"has-error":""}`}
-     role="slider" tabIndex={interactive?0:-1} aria-valuemin={minHz} aria-valuemax={maxHz} aria-valuenow={valueHz}
-     aria-valuetext={formatHz(valueHz)} aria-label="تنظیم فرکانس با کشیدن موج" aria-disabled={!interactive}
-     onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onKeyDown={key}>
-     <div className="fm-wave-ambient" aria-hidden />
-     <svg viewBox="0 0 100 200" className="fm-wave" aria-hidden>
-       <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#5eead4"/><stop offset="48%" stopColor="#a78bfa"/><stop offset="100%" stopColor="#d4af37"/></linearGradient></defs>
-       {targetPath&&<path d={targetPath} fill="none" stroke="rgba(255,255,255,.32)" strokeWidth="1.1" strokeDasharray="2 4" className="fm-target-wave"/>}
-       {paths.map((d,i)=><path key={i} d={d} fill="none" stroke={`url(#${gradientId})`} strokeWidth={1.05+i*.2} opacity={.22+i*.13} strokeLinecap="round"/>)}
-     </svg>
-     <div className="fm-hz-readout">
-       <p className="fm-hz-label">{mode==="recreate"?"GUESS":mode==="listen"?"TARGET":"•••"}</p>
-       <p className="fm-hz-value">{mode==="remember"?"•••":formatHz(mode==="listen"?waveHz:valueHz)}</p>
-       {interactive&&<p className="fm-gesture-hint">بکش · نگه‌دار · کوک کن</p>}
-     </div>
-     {audioError&&<div className="fm-inline-error" role="status">{audioError}</div>}
-     <input type="range" className="fm-range-sr" min={0} max={1000} step={1} value={Math.round(toLog(valueHz,minHz,maxHz)*1000)}
-       disabled={!interactive} aria-label="اسلایدر فرکانس" onChange={e=>{const hz=fromLog(+e.target.value/1000,minHz,maxHz);onChangeHz(hz);void startLiveTone(hz);setLiveToneHz(hz);}}/>
-   </div>
-   <div className="fm-dial-actions">
-     {showReplay&&onReplay&&<button type="button" className="btn-ay inline-flex items-center gap-2" onClick={onReplay} disabled={playing}><Play size={16}/>{playing?"در حال پخش…":replayLabel}</button>}
-     {mode==="recreate"&&onLock&&<button type="button" className="btn-ay btn-ay-primary flex-1" onClick={()=>{stopLiveTone();onLock();}}>قفل پاسخ</button>}
-     {mode==="recreate"&&<button type="button" className="btn-ay" onClick={()=>{void startLiveTone(valueHz);setLiveToneHz(valueHz);}}><Play size={15}/> پخش حدس</button>}
-     {revealTarget&&targetHz&&<button type="button" className="btn-ay" onClick={()=>{onChangeHz(targetHz);void startLiveTone(targetHz);setLiveToneHz(targetHz);}}><RotateCcw size={15}/> شنیدن هدف</button>}
-   </div>
- </div>;
+  const down = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!interactive) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { active: true, moved: false, lastY: e.clientY, pointerY: 0 };
+    setDragging(true);
+    setFromY(e.clientY);
+  };
+  const move = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current.active) return;
+    if (Math.abs(e.clientY - dragRef.current.lastY) > 3) dragRef.current.moved = true;
+    dragRef.current.lastY = e.clientY;
+    setFromY(e.clientY);
+  };
+  const up = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current.active) return;
+    const moved = dragRef.current.moved;
+    dragRef.current.active = false;
+    setDragging(false);
+    setCursorY(null);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* */
+    }
+    if (!moved && interactive) {
+      void startLiveTone(valueHz);
+      setLiveToneHz(valueHz);
+    }
+  };
+  const key = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!interactive) return;
+    const step = e.shiftKey ? 0.04 : 0.012;
+    let t = toLog(valueHz, minHz, maxHz);
+    if (e.key === "ArrowDown" || e.key === "ArrowLeft") t -= step;
+    else if (e.key === "ArrowUp" || e.key === "ArrowRight") t += step;
+    else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      stopLiveTone();
+      onLock?.();
+      return;
+    } else return;
+    e.preventDefault();
+    const hz = Math.round(fromLog(t, minHz, maxHz) * 100) / 100;
+    onChangeHz(hz);
+    void startLiveTone(hz);
+    setLiveToneHz(hz);
+  };
+
+  const showHz = mode === "remember" ? null : mode === "listen" ? waveHz : valueHz;
+  const isResult = mode === "result";
+
+  return (
+    <div
+      className={`fm-dialed-card ${interactive ? "is-interactive" : ""} ${dragging ? "is-dragging" : ""} ${playing ? "is-playing" : ""} ${isResult ? "is-result" : ""}`}
+      dir="ltr"
+    >
+      <div className="fm-dialed-top">
+        <span className="fm-dialed-round">{roundLabel || ""}</span>
+        <span className="fm-dialed-brand">{brandLabel}</span>
+      </div>
+
+      <div
+        ref={surfaceRef}
+        className="fm-dialed-surface"
+        role="slider"
+        tabIndex={interactive ? 0 : -1}
+        aria-valuemin={Math.round(minHz)}
+        aria-valuemax={Math.round(maxHz)}
+        aria-valuenow={Math.round(valueHz)}
+        aria-valuetext={`${formatHzPrecise(valueHz)} ${formatHzUnit(valueHz)}`}
+        aria-label="Frequency control — drag vertically to change pitch"
+        aria-disabled={!interactive}
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={up}
+        onKeyDown={key}
+        style={{ touchAction: interactive ? "none" : undefined }}
+      >
+        <canvas ref={canvasRef} className="fm-dialed-canvas" aria-hidden />
+
+        {dragging && cursorY != null && (
+          <div className="fm-dialed-cursor" style={{ top: cursorY }} aria-hidden>
+            <svg width="14" height="28" viewBox="0 0 14 28" fill="none">
+              <path
+                d="M7 2 L7 26 M7 2 L3.5 7 M7 2 L10.5 7 M7 26 L3.5 21 M7 26 L10.5 21"
+                stroke="#fff"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        )}
+
+        {isResult && resultScore != null && (
+          <div className="fm-dialed-score" aria-live="polite">
+            {displayScore.toFixed(2)}
+          </div>
+        )}
+        {isResult && resultFeedback && <p className="fm-dialed-feedback">{resultFeedback}</p>}
+
+        <div className="fm-dialed-hz">
+          {isResult && targetHz != null && (
+            <div className="fm-dialed-target-block">
+              <span className="fm-dialed-target-label">TARGET</span>
+              <span className="fm-dialed-target-value">
+                {formatHzPrecise(targetHz)}
+                <span className="fm-dialed-hz-unit">{formatHzUnit(targetHz)}</span>
+              </span>
+            </div>
+          )}
+          {showHz != null ? (
+            <div className="fm-dialed-guess-block">
+              <span className="fm-dialed-guess-value">
+                {formatHzPrecise(showHz)}
+                <span className="fm-dialed-hz-unit">{formatHzUnit(showHz)}</span>
+              </span>
+            </div>
+          ) : (
+            <div className="fm-dialed-guess-block">
+              <span className="fm-dialed-guess-value fm-dialed-muted">•••</span>
+            </div>
+          )}
+        </div>
+
+        {mode === "recreate" && onLock && !disabled && (
+          <button
+            type="button"
+            className="fm-dialed-submit"
+            aria-label="Submit answer"
+            onClick={(e) => {
+              e.stopPropagation();
+              stopLiveTone();
+              onLock();
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="#0a0a0a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
+
+        <input
+          type="range"
+          className="fm-range-sr"
+          min={0}
+          max={1000}
+          step={1}
+          value={Math.round(toLog(valueHz, minHz, maxHz) * 1000)}
+          disabled={!interactive}
+          aria-label="Frequency slider"
+          onChange={(e) => {
+            const hz = Math.round(fromLog(+e.target.value / 1000, minHz, maxHz) * 100) / 100;
+            onChangeHz(hz);
+            void startLiveTone(hz);
+            setLiveToneHz(hz);
+          }}
+        />
+
+        {audioError && (
+          <div className="fm-dialed-error" role="status">
+            {audioError}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
