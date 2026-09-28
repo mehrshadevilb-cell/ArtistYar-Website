@@ -289,6 +289,19 @@ export function PracticeGameSession({
     return () => window.clearTimeout(id);
   }, [autoStart, gameId]);
 
+  useEffect(() => {
+    if (!isFreq || phase !== "play" || freqSub !== "listen" || !round || heard || freeLocked || quotaBlocked) {
+      return;
+    }
+    // The target should be heard immediately when a round starts. The session
+    // start gesture already unlocks Web Audio, so this does not require a
+    // second "play" action from the user.
+    const id = window.setTimeout(() => {
+      void playAudio();
+    }, 120);
+    return () => window.clearTimeout(id);
+  }, [isFreq, phase, freqSub, round, heard, freeLocked, quotaBlocked]);
+
   const playAudio = async () => {
     if (!round) return;
     stopLiveTone();
