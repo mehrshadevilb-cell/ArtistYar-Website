@@ -1,0 +1,70 @@
+/* CTA hierarchy polish — Linear-inspired single accent ownership
+ * Loaded after hero-layout / light-mode-fix
+ */
+
+.header-contact-quiet {
+  color: var(--color-fg-muted, #8f8a80) !important;
+  font-weight: 500;
+}
+.header-contact-quiet:hover,
+.header-contact-quiet:focus-visible {
+  color: var(--color-fg, #f5efe3) !important;
+}
+
+/* Primary Hero CTA is the loudest gold surface on the page */
+.hero-cta-under-title .btn-primary {
+  min-height: 3rem;
+  padding-inline: 1.65rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  box-shadow:
+    0 0 0 1px rgba(201, 162, 39, 0.35),
+    0 0 32px -6px rgba(201, 162, 39, 0.55),
+    0 14px 28px -16px rgba(0, 0, 0, 0.55);
+}
+
+.hero-secondary-link {
+  opacity: 0.92;
+}
+
+/* Mobile: primary CTA full-width under headline for thumb reach */
+@media (max-width: 639px) {
+  .hero-cta-under-title {
+    width: 100%;
+  }
+  .hero-cta-under-title .hero-actions,
+  .hero-cta-under-title .btn-primary {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* Light mode: header contact quiet */
+html.light .header-contact,
+html.light .header-contact-quiet {
+  color: #5a544c !important;
+  font-weight: 500;
+}
+html.light .header-contact:hover,
+html.light .header-contact-quiet:hover {
+  color: #1a1917 !important;
+}
+
+/* Light mode: FAB secondary glass */
+html.light .fa-cta {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(28, 27, 25, 0.12) !important;
+  color: #1a1917 !important;
+  box-shadow: 0 8px 24px -12px rgba(60, 45, 15, 0.25) !important;
+}
+html.light .fa-cta:hover {
+  background: #ffffff !important;
+  border-color: rgba(28, 27, 25, 0.2) !important;
+  color: #1a1917 !important;
+}
+html.light .fa-cta-icon {
+  background: rgba(28, 27, 25, 0.06) !important;
+}
+html.light .fa-ambient {
+  background: radial-gradient(circle, rgba(28, 27, 25, 0.08), transparent 68%) !important;
+}
