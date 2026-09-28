@@ -529,7 +529,7 @@ export function PracticeGameSession({
             playing={playing}
             disabled={freeLocked || quotaBlocked}
             targetHz={round.targetHz}
-            revealTarget={phase === "result"}
+            revealTarget={false}
             audioError={audioError}
             onChangeHz={setGuessHz}
             onLock={() => void submitSlider()}
