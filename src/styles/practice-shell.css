@@ -31,10 +31,9 @@
 
 .fm-dialed-card {
   position: relative;
-  width: min(100%, 26.5rem);
+  width: min(100%, 39.375rem);
   margin-inline: auto;
   aspect-ratio: 4 / 5;
-  max-height: min(78vh, 52rem);
   border-radius: 1.15rem;
   background: #000;
   box-shadow: 0 28px 80px -24px rgba(0, 0, 0, 0.75), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
@@ -173,8 +172,8 @@
   z-index: 7;
   right: 1.1rem;
   bottom: 1.1rem;
-  width: 2.65rem;
-  height: 2.65rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 999px;
   border: none;
   background: #fff;
@@ -246,8 +245,9 @@
 }
 .fm-rsgo-word {
   position: absolute;
-  top: 18%;
-  right: 1.25rem;
+  top: 50%;
+  left: 50%;
+  right: auto;
   font-size: clamp(2.8rem, 12vw, 4.25rem);
   font-weight: 600;
   letter-spacing: -0.035em;
@@ -257,8 +257,8 @@
   animation: fm-rsgo-in 0.55s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
 }
 @keyframes fm-rsgo-in {
-  from { opacity: 0; color: rgba(255, 255, 255, 0.18); transform: translateY(6px); }
-  to { opacity: 1; color: #fff; transform: translateY(0); }
+  from { opacity: 0; color: rgba(255, 255, 255, 0.18); transform: translate(-50%, calc(-50% + 6px)); }
+  to { opacity: 1; color: #fff; transform: translate(-50%, -50%); }
 }
 
 .fm-remember-count {
@@ -287,7 +287,6 @@
   .fm-dialed-card,
   .fm-rsgo {
     width: min(100%, 22.5rem);
-    max-height: min(82vh, 40rem);
     border-radius: 1rem;
   }
   .fm-dialed-submit { width: 2.85rem; height: 2.85rem; }
