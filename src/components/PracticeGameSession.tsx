@@ -289,20 +289,7 @@ export function PracticeGameSession({
     return () => window.clearTimeout(id);
   }, [autoStart, gameId]);
 
-  useEffect(() => {
-    if (!isFreq || phase !== "play" || freqSub !== "listen" || !round || heard || freeLocked || quotaBlocked) {
-      return;
-    }
-    // The target should be heard immediately when a round starts. The session
-    // start gesture already unlocks Web Audio, so this does not require a
-    // second "play" action from the user.
-    const id = window.setTimeout(() => {
-      void playAudio();
-    }, 120);
-    return () => window.clearTimeout(id);
-  }, [isFreq, phase, freqSub, round, heard, freeLocked, quotaBlocked]);
-
-  const playAudio = async () => {
+  const playAudio = useCallback(async () => {
     if (!round) return;
     stopLiveTone();
     stopPracticePlayback();
@@ -335,7 +322,20 @@ export function PracticeGameSession({
       setPlaying(false);
       setAudioError("خطا در پخش صوت.");
     }
-  };
+  }, [enterRemember, isFreq, round]);
+
+  useEffect(() => {
+    if (!isFreq || phase !== "play" || freqSub !== "listen" || !round || heard || freeLocked || quotaBlocked) {
+      return;
+    }
+    // The target should be heard immediately when a round starts. The session
+    // start gesture already unlocks Web Audio, so this does not require a
+    // second "play" action from the user.
+    const id = window.setTimeout(() => {
+      void playAudio();
+    }, 120);
+    return () => window.clearTimeout(id);
+  }, [freeLocked, freqSub, heard, isFreq, phase, playAudio, quotaBlocked, round]);
 
   const finishRound = async (correct: boolean, accuracy: number, detail: string) => {
     if (!round) return;
