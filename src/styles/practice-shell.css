@@ -9,6 +9,77 @@
   outline-offset: 2px;
 }
 
+.fm-intro-card {
+  width: min(100%, 39.375rem);
+  min-height: clamp(30rem, 70vh, 39.375rem);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+  padding: clamp(2rem, 6vw, 3.5rem);
+  border-radius: 1.15rem;
+  background: #000;
+  color: #fff;
+  box-shadow: 0 28px 80px -24px rgba(0, 0, 0, 0.75), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
+}
+.fm-intro-card .fm-intro-eyebrow {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.fm-intro-card .fm-intro-title {
+  color: #fff;
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+}
+.fm-intro-card .fm-intro-copy {
+  max-width: 30rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  line-height: 1.9;
+}
+.fm-intro-card .fm-intro-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 11px;
+}
+.fm-intro-card .fm-intro-meta span {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+}
+.fm-intro-card .fm-intro-cta {
+  width: min(100%, 15rem);
+  margin-top: 0.5rem;
+  border-radius: 999px;
+  background: #fff;
+  color: #000;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.fm-intro-card .fm-intro-cta:focus-visible {
+  outline: 2px solid rgba(46, 230, 184, 0.85);
+  outline-offset: 3px;
+}
+@media (max-width: 640px) {
+  .fm-intro-card {
+    width: min(100%, 22.5rem);
+    min-height: 30rem;
+    padding: 2rem 1.35rem;
+    border-radius: 1rem;
+  }
+  .fm-intro-card .fm-intro-title { font-size: clamp(2.5rem, 16vw, 3.5rem); }
+  .fm-intro-card .fm-intro-cta { width: 100%; }
+}
+
 .fm-dialed-wrap {
   width: 100%;
   display: flex;
