@@ -71,7 +71,7 @@ export function generateFreqMemory(level: number, seed: number): GameRound {
       ? "اول محدوده را حدس بزن، بعد دقیق‌تر تنظیم کن"
       : "گوش را روی رنگ تون قفل کن؛ اسلایدر را آرام حرکت بده",
     reviewText: `هدف ${formatHz(targetHz)} · تحمل ±${Math.round(tol)} Hz`,
-    source: { kind: "harmonic", fundamental: targetHz, partials: [1, 0.18], duration: dur },
+    source: { kind: "harmonic", fundamental: targetHz, partials: [1], duration: dur },
     challengeDsp: { type: "none" },
     targetHz,
     sliderMin: min,
