@@ -694,7 +694,7 @@ export async function processPendingPluginPairs(limit = 5) {
       errors.push({ photo_message_id: pair.photo.message_id, document_message_id: pair.document.message_id, error: message });
     }
   }
-  const captions = await reapplyLatestPluginCaptions(Math.min(safe, 3));
+  const captions = await reapplyLatestPluginCaptions(Math.min(safe, 10));
   return {
     processed: results.length,
     errors,
