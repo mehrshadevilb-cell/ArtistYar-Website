@@ -461,7 +461,7 @@ export function PracticeGameSession({
       : guessHz;
 
   return (
-    <main className="practice-shell container-ay relative pb-16 pt-6 sm:pt-10" dir="rtl">
+    <main className={`practice-shell container-ay relative pb-16 pt-6 sm:pt-10 ${isFreq && phase === "play" ? "practice-focus" : ""}`} dir="rtl">
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
           {!hideBack && (
@@ -528,6 +528,9 @@ export function PracticeGameSession({
             mode={freqSub}
             playing={playing}
             disabled={freeLocked || quotaBlocked}
+            targetHz={round.targetHz}
+            revealTarget={phase === "result"}
+            audioError={audioError}
             onChangeHz={setGuessHz}
             onLock={() => void submitSlider()}
             onReplay={() => void playAudio()}
@@ -584,7 +587,23 @@ export function PracticeGameSession({
           <p className="mt-1 text-center text-[12px] text-ink-500">از ۱۰</p>
           <p className="mt-4 text-center text-[14px] leading-7 text-ink-300">{freqResultLine(feedback.accuracy)}</p>
           {lastGuessHz != null && round?.targetHz != null && (
-            <div className="mt-8 space-y-2 border-t border-white/[0.06] pt-6">
+            <div className="mt-6 border-t border-white/[0.06] pt-6">
+              <p className="mb-3 text-center text-[10px] tracking-[0.16em] text-ink-500">COMPARISON</p>
+              <FrequencyMemoryDial
+                minHz={round.sliderMin || 100}
+                maxHz={round.sliderMax || 2000}
+                valueHz={lastGuessHz}
+                waveHz={lastGuessHz}
+                targetHz={round.targetHz}
+                revealTarget
+                mode="recreate"
+                disabled
+                onChangeHz={() => {}}
+                onReplay={() => {}}
+                showReplay={false}
+              />
+            </div>
+            <div className="mt-6 space-y-2 border-t border-white/[0.06] pt-6">
               <div className="flex items-baseline justify-between">
                 <span className="text-[10px] tracking-[0.14em] text-ink-500">TARGET</span>
                 <span className="font-mono text-2xl text-ink-400">{formatHz(round.targetHz)}</span>
