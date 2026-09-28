@@ -287,9 +287,14 @@ export function FrequencyMemoryDial({
     } catch {
       /* */
     }
-    if (!moved && interactive) {
-      void startLiveTone(valueHz);
-      setLiveToneHz(valueHz);
+    if (interactive) {
+      stopLiveTone();
+      if (moved) {
+        void onLock?.();
+      } else {
+        void startLiveTone(valueHz);
+        setLiveToneHz(valueHz);
+      }
     }
   };
   const key = (e: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -311,7 +316,9 @@ export function FrequencyMemoryDial({
     setLiveToneHz(hz);
   };
 
-  const showHz = mode === "remember" ? null : mode === "listen" ? waveHz : valueHz;
+  // Never reveal the target during listening. The target is intentionally only
+  // shown on the result screen, after the user's answer has been locked.
+  const showHz = mode === "recreate" ? valueHz : null;
   const isResult = mode === "result";
 
   return (
@@ -388,23 +395,6 @@ export function FrequencyMemoryDial({
             </div>
           )}
         </div>
-
-        {mode === "recreate" && onLock && !disabled && (
-          <button
-            type="button"
-            className="fm-dialed-submit"
-            aria-label="Submit answer"
-            onClick={(e) => {
-              e.stopPropagation();
-              stopLiveTone();
-              onLock();
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M5 12h14M13 6l6 6-6 6" stroke="#0a0a0a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        )}
 
         <input
           type="range"
