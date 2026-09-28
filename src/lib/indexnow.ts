@@ -19,7 +19,7 @@ function normalizeUrls(urls: string[]) {
         return null;
       }
     })
-    .filter((url): url is URL => Boolean(url) && url.origin === allowed.origin && url.protocol === "https:")
+    .filter((url): url is URL => url !== null && url.origin === allowed.origin && url.protocol === "https:")
     .map((url) => url.toString());
 }
 
