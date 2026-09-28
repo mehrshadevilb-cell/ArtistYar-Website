@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-auth";
 import { getPluginsDb } from "@/lib/plugins-db";
 import { isSpecificIdentity, PRODUCT_CATEGORIES, regenerateStoredCaption, regenerateStoredTranslation, verifyStoredPlugin } from "@/lib/telegram-plugin-intelligence";
@@ -71,10 +71,10 @@ export async function POST(request: Request) {
       processing_state: "PUBLISHED",
       updated_at: new Date().toISOString(),
     }).eq("id", id);
-    void submitIndexNow([
+    after(() => submitIndexNow([
       `/plugins/${id}`,
       "/plugins",
-    ]);
+    ]));
     return NextResponse.json({ ok: true, action });
   }
 
