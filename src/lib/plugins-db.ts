@@ -6,9 +6,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /** Progressive selects — try full first, then strip optional columns. */
 const SELECTS = [
-  "id,title,developer,version,category,formats,platforms,description,features,tags,telegram_photo_file_id,telegram_post_url,file_name,cover_storage_path,cover_public_url,created_at",
-  "id,title,developer,version,category,formats,platforms,description,features,tags,telegram_photo_file_id,telegram_post_url,file_name,created_at",
-  "id,title,developer,version,category,description,telegram_photo_file_id,telegram_post_url,file_name,created_at",
+  "id,title,developer,version,category,formats,platforms,description,features,tags,telegram_photo_file_id,telegram_post_url,file_name,file_names,attachment_count,cover_storage_path,cover_public_url,created_at",
+  "id,title,developer,version,category,formats,platforms,description,features,tags,telegram_photo_file_id,telegram_post_url,file_name,file_names,attachment_count,created_at",
+  "id,title,developer,version,category,description,telegram_photo_file_id,telegram_post_url,file_name,file_names,attachment_count,created_at",
   "id,title,category,telegram_post_url,created_at",
   "id,title,created_at",
 ];
@@ -79,6 +79,8 @@ export type PluginCatalogRow = {
   telegram_photo_file_id?: string | null;
   telegram_post_url?: string | null;
   file_name?: string | null;
+  file_names?: string[];
+  attachment_count?: number;
   cover_storage_path?: string | null;
   cover_public_url?: string | null;
   created_at: string;
