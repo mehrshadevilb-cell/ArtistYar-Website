@@ -43,8 +43,14 @@ import "@/styles/practice-shell.css";
 
 type Phase = "intro" | "play" | "result" | "summary" | "ready";
 type FreqSub = "listen" | "remember" | "recreate";
+type ReadyWord = "ready" | "set" | "go";
 
 const REMEMBER_MS = 2000;
+const FM_TIMING = {
+  readyMs: 700,
+  setMs: 600,
+  goMs: 500,
+} as const;
 
 export function PracticeGameSession({
   gameId,
@@ -98,6 +104,8 @@ export function PracticeGameSession({
   const [sessionPlan, setSessionPlan] = useState<SessionPlan | null>(null);
   const [activeExercise, setActiveExercise] = useState<FreqExerciseType>("general");
   const [lastGuessHz, setLastGuessHz] = useState<number | null>(null);
+  const [readyWord, setReadyWord] = useState<ReadyWord>("ready");
+  const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userId = user?.id || null;
   const isFreq = gameId === "freq-memory";
   const isInterval = gameId === "interval-recognition";
@@ -116,6 +124,10 @@ export function PracticeGameSession({
     if (rememberTickRef.current) {
       clearInterval(rememberTickRef.current);
       rememberTickRef.current = null;
+    }
+    if (readyTimerRef.current) {
+      clearTimeout(readyTimerRef.current);
+      readyTimerRef.current = null;
     }
   };
 
@@ -385,6 +397,30 @@ export function PracticeGameSession({
     await finishRound(correct, choiceAccuracy(correct), correct ? "درست" : `پاسخ: ${round.reviewText}`);
   };
 
+  const beginNextFromReady = useCallback(() => {
+    clearTimers();
+    const idx = roundIndex + 1;
+    setRoundIndex(idx);
+    setReadyWord("ready");
+    setPhase("play");
+    buildRound(idx < (game?.warmup ?? 2) ? Math.max(1, level - 6) : level, idx);
+  }, [roundIndex, game?.warmup, level, buildRound]);
+
+  const runReadySequence = useCallback(() => {
+    clearTimers();
+    setReadyWord("ready");
+    setPhase("ready");
+    readyTimerRef.current = setTimeout(() => {
+      setReadyWord("set");
+      readyTimerRef.current = setTimeout(() => {
+        setReadyWord("go");
+        readyTimerRef.current = setTimeout(() => {
+          beginNextFromReady();
+        }, FM_TIMING.goMs);
+      }, FM_TIMING.setMs);
+    }, FM_TIMING.readyMs);
+  }, [beginNextFromReady]);
+
   const advanceToNextRound = () => {
     stopLiveTone();
     stopPracticePlayback();
@@ -404,16 +440,9 @@ export function PracticeGameSession({
       return;
     }
     if (isFreq) {
-      setPhase("ready");
+      runReadySequence();
       return;
     }
-    const idx = roundIndex + 1;
-    setRoundIndex(idx);
-    setPhase("play");
-    buildRound(idx < (game?.warmup ?? 2) ? Math.max(1, level - 6) : level, idx);
-  };
-
-  const beginNextFromReady = () => {
     const idx = roundIndex + 1;
     setRoundIndex(idx);
     setPhase("play");
@@ -424,15 +453,17 @@ export function PracticeGameSession({
   const freqSessionScore = outcomes.reduce((s, o) => s + freqRoundScore(o.accuracy), 0);
   const freqSessionMax = Math.max(1, outcomes.length) * 10;
   const freqResultLine = (acc: number) =>
-    acc >= 95
-      ? "تقریباً کامل. گوش‌ات درست شنید."
-      : acc >= 85
-        ? "خیلی نزدیک — یک قدم تا کمال."
-        : acc >= 70
-          ? "قبول شد؛ هنوز کمی بافر می‌خواهد."
-          : acc >= 45
-            ? "جهت درست، مقدار نه."
-            : "گوش هنوز بافر می‌کند.";
+    acc >= 97
+      ? "دقیق؛ تقریباً پرفکت‌پیچ."
+      : acc >= 90
+        ? "همان حوالی است؛ کمی دیگر دقت کن."
+        : acc >= 78
+          ? "نزدیک بود؛ اما هنوز همان pitch نیست."
+          : acc >= 55
+            ? "خیابان اشتباه؛ دوباره گوش بده."
+            : acc >= 30
+              ? "فاصله زیاد است؛ دوباره امتحان کن."
+              : "در طیف گم شدی؛ از نو گوش بده.";
   const freqSummaryLine = (score: number, max: number) => {
     const r = max > 0 ? score / max : 0;
     if (r >= 0.9) return "نزدیک به کمال — انگار پشیمانی می‌شنوی.";
@@ -499,27 +530,17 @@ export function PracticeGameSession({
       )}
 
       {phase === "play" && round && isFreq && (
-        <div className="fm-glass-card">
-          <div className="fm-meta mb-3">
-            <span>
-              {roundIndex + 1} / {totalRounds}
-            </span>
-            <span>استریک {streak}</span>
-          </div>
-
+        <div className="fm-dialed-wrap">
           {freqSub === "listen" && !heard && (
-            <p className="mb-3 text-center text-[14px] leading-7 text-sand-50">
+            <p className="mb-3 text-center text-[13px] leading-7 text-ink-400">
               هدف را پخش کن و pitch را به خاطر بسپار.
             </p>
           )}
-
           {freqSub === "remember" && (
-            <p className="fm-remember-count mb-2" aria-live="polite">
-              سکوت… به‌خاطر بسپار
-              {rememberLeft > 0 ? ` · ${rememberLeft}` : ""}
+            <p className="fm-remember-count" aria-live="polite">
+              سکوت… به‌خاطر بسپار{rememberLeft > 0 ? ` · ${rememberLeft}` : ""}
             </p>
           )}
-
           <FrequencyMemoryDial
             minHz={round.sliderMin || 100}
             maxHz={round.sliderMax || 2000}
@@ -529,16 +550,27 @@ export function PracticeGameSession({
             playing={playing}
             disabled={freeLocked || quotaBlocked}
             targetHz={round.targetHz}
-            revealTarget={false}
             audioError={audioError}
             onChangeHz={setGuessHz}
             onLock={() => void submitSlider()}
             onReplay={() => void playAudio()}
             showReplay={freqSub === "listen" || (freqSub === "recreate" && heard)}
             replayLabel={freqSub === "listen" ? (heard ? "پخش دوباره هدف" : "پخش هدف") : "پخش دوباره هدف"}
+            roundLabel={`${roundIndex + 1} / ${totalRounds}`}
+            brandLabel="ArtistYar"
           />
-
-          {audioError && <p className="mt-3 text-center text-[12px] text-rose-400">{audioError}</p>}
+          {freqSub === "listen" && (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                className="btn-ay inline-flex items-center gap-2"
+                onClick={() => void playAudio()}
+                disabled={playing || freeLocked}
+              >
+                <Play size={16} /> {playing ? "در حال پخش…" : heard ? "پخش دوباره هدف" : "پخش هدف"}
+              </button>
+            </div>
+          )}
           {freeLocked && <p className="mt-3 text-center text-[12px] text-amber-200/80">محدودیت رایگان امروز تمام شد.</p>}
         </div>
       )}
@@ -557,14 +589,9 @@ export function PracticeGameSession({
           </button>
           {audioError && <p className="text-[12px] text-rose-400">{audioError}</p>}
           {round.mode === "choice" && round.options && heard && !picked && (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
               {round.options.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-right text-[13px] text-sand-50"
-                  onClick={() => void submitChoice(opt.id)}
-                >
+                <button key={opt.id} type="button" className="btn-ay w-full text-right" onClick={() => void submitChoice(opt.id)}>
                   {opt.label}
                 </button>
               ))}
@@ -574,61 +601,33 @@ export function PracticeGameSession({
       )}
 
       {phase === "result" && feedback && isFreq && (
-        <div className="fm-glass-card">
-          <div className="fm-meta">
-            <span>
-              {roundIndex + 1} / {totalRounds}
-            </span>
-            <span className={feedback.correct ? "text-emerald-400" : ""}>{feedback.correct ? "قبول" : "رد"}</span>
+        <div className="fm-dialed-wrap">
+          <FrequencyMemoryDial
+            minHz={round?.sliderMin || 100}
+            maxHz={round?.sliderMax || 2000}
+            valueHz={lastGuessHz ?? guessHz}
+            waveHz={lastGuessHz ?? guessHz}
+            mode="result"
+            disabled
+            targetHz={round?.targetHz}
+            revealTarget
+            onChangeHz={() => {}}
+            resultScore={freqRoundScore(feedback.accuracy)}
+            resultFeedback={freqResultLine(feedback.accuracy)}
+            roundLabel={`${roundIndex + 1} / ${totalRounds}`}
+            brandLabel="ArtistYar"
+          />
+          <div className="mt-5 flex justify-center">
+            <button type="button" className="btn-ay btn-ay-primary min-w-[10rem]" onClick={advanceToNextRound}>
+              ادامه
+            </button>
           </div>
-          <p className="mt-6 text-center font-mono text-5xl font-semibold tabular-nums text-sand-50 sm:text-6xl">
-            {freqRoundScore(feedback.accuracy).toFixed(2)}
-          </p>
-          <p className="mt-1 text-center text-[12px] text-ink-500">از ۱۰</p>
-          <p className="mt-4 text-center text-[14px] leading-7 text-ink-300">{freqResultLine(feedback.accuracy)}</p>
-          {lastGuessHz != null && round?.targetHz != null && (
-            <>
-              <div className="mt-6 border-t border-white/[0.06] pt-6">
-              <p className="mb-3 text-center text-[10px] tracking-[0.16em] text-ink-500">COMPARISON</p>
-              <FrequencyMemoryDial
-                minHz={round.sliderMin || 100}
-                maxHz={round.sliderMax || 2000}
-                valueHz={lastGuessHz}
-                waveHz={lastGuessHz}
-                targetHz={round.targetHz}
-                revealTarget
-                mode="recreate"
-                disabled
-                onChangeHz={() => {}}
-                onReplay={() => {}}
-                showReplay={false}
-              />
-            </div>
-            <div className="mt-6 space-y-2 border-t border-white/[0.06] pt-6">
-              <div className="flex items-baseline justify-between">
-                <span className="text-[10px] tracking-[0.14em] text-ink-500">TARGET</span>
-                <span className="font-mono text-2xl text-ink-400">{formatHz(round.targetHz)}</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-[10px] tracking-[0.14em] text-ink-500">GUESS</span>
-                <span className="font-mono text-3xl font-semibold text-sand-50">{formatHz(lastGuessHz)}</span>
-              </div>
-                <p className="pt-1 text-center text-[11px] text-ink-500">{feedback.detail}</p>
-              </div>
-            </>
-          )}
-          <button type="button" className="btn-ay btn-ay-primary mt-8 w-full" onClick={advanceToNextRound}>
-            {roundIndex + 1 >= totalRounds ? "نتیجه جلسه" : "ادامه"}
-          </button>
         </div>
       )}
 
       {phase === "result" && feedback && !isFreq && (
         <section className="card-ay space-y-3 p-5">
-          <div className="flex items-center gap-2">
-            {feedback.correct ? <Check className="text-emerald-300" size={20} /> : <X className="text-rose-300" size={20} />}
-            <p className="text-[15px] font-medium text-sand-50">{feedback.correct ? "درست" : "نادرست"}</p>
-          </div>
+          <p className={feedback.correct ? "text-emerald-400" : "text-rose-400"}>{feedback.correct ? "درست" : "نادرست"}</p>
           <p className="text-[13px] text-ink-400">{feedback.detail}</p>
           <button type="button" className="btn-ay btn-ay-primary" onClick={advanceToNextRound}>
             ادامه
@@ -637,16 +636,11 @@ export function PracticeGameSession({
       )}
 
       {phase === "ready" && isFreq && (
-        <div className="fm-glass-card">
-          <div className="fm-ready">
-            <h3>آماده</h3>
-            <p>
-              راند {roundIndex + 2} از {totalRounds}
-            </p>
-            <button type="button" className="btn-ay btn-ay-primary mt-6 w-full sm:w-auto" onClick={beginNextFromReady}>
-              برو
-            </button>
-          </div>
+        <div className="fm-rsgo" dir="ltr" key={readyWord}>
+          <span className="fm-rsgo-top">
+            {roundIndex + 2} / {totalRounds}
+          </span>
+          <span className="fm-rsgo-word">{readyWord}</span>
         </div>
       )}
 

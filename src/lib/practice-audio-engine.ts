@@ -66,7 +66,7 @@ export async function unlockPracticeAudio(): Promise<boolean> {
   } catch {
     /* */
   }
-  return sharedCtx.state === "running" || sharedCtx.state === "suspended";
+  return sharedCtx.state === "running";
 }
 
 function makeNoise(ctx: AudioContext, seconds: number, color: "white" | "pink" | "brown" = "pink"): AudioBuffer {
