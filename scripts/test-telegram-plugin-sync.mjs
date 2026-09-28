@@ -13,6 +13,7 @@ const renderYaml = read("../render.yaml");
 const bot = read("../src/lib/telegram-plugin-bot.ts");
 const adminPage = read("../src/components/admin/TelegramPluginCaptionStudio.tsx");
 const adminRoute = read("../src/app/api/admin/telegram/plugins/route.ts");
+const pluginsDb = read("../src/lib/plugins-db.ts");
 const patcher = read("../scripts/patch-telegram-plugin-intelligence.mjs");
 
 assert.match(sync, /export async function enqueuePluginMessage/);
@@ -64,6 +65,7 @@ assert.match(adminRoute, /lock_product/);
 assert.match(adminRoute, /unlock_product/);
 assert.match(adminRoute, /feedback/);
 assert.match(adminRoute, /verification_gate_required/);
+assert.match(pluginsDb, /eq\("review_required", false\)/);
 assert.match(patcher, /ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER/);
 
 for (const category of ["DAW", "Audio Effect Plugin", "VST Instrument", "Sample Library", "Preset Library", "Plugin Bundle"]) {
