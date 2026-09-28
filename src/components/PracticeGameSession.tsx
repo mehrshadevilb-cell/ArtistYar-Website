@@ -104,7 +104,8 @@ export function PracticeGameSession({
   const [sessionPlan, setSessionPlan] = useState<SessionPlan | null>(null);
   const [activeExercise, setActiveExercise] = useState<FreqExerciseType>("general");
   const [lastGuessHz, setLastGuessHz] = useState<number | null>(null);
-  const [readyWord, setReadyWord] = useState<ReadyWord>("ready");
+  const submitLockRef = useRef(false);
+  const [readyWord, setReadyWord = useState<ReadyWord>("ready");
   const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userId = user?.id || null;
   const isFreq = gameId === "freq-memory";
@@ -241,6 +242,8 @@ export function PracticeGameSession({
       setRound(r);
       setHeard(false);
       setPicked(null);
+      submitLockRef.current = false;
+      setLastGuessHz(null);
       setFeedback(null);
       setAudioError(null);
       setPlaying(false);
@@ -389,9 +392,10 @@ export function PracticeGameSession({
   };
 
   const submitSlider = async () => {
-    if (!round || picked || freeLocked || quotaBlocked || !round.targetHz) return;
+    if (!round || picked || submitLockRef.current || freeLocked || quotaBlocked || !round.targetHz) return;
     if (isFreq && freqSub !== "recreate") return;
     if (!isFreq && !heard) return;
+    submitLockRef.current = true;
     setPicked("slider");
     setLastGuessHz(guessHz);
     const { accuracy, hzErr, cents, perfect } = frequencyAccuracy(round.targetHz, guessHz, round.toleranceHz || 40);
@@ -404,7 +408,8 @@ export function PracticeGameSession({
   };
 
   const submitChoice = async (optionId: string) => {
-    if (!round || picked || !heard || freeLocked || quotaBlocked) return;
+    if (!round || picked || submitLockRef.current || !heard || freeLocked || quotaBlocked) return;
+    submitLockRef.current = true;
     setPicked(optionId);
     const correct = optionId === round.correctOptionId;
     await finishRound(correct, choiceAccuracy(correct), correct ? "درست" : `پاسخ: ${round.reviewText}`);
