@@ -16,9 +16,14 @@ export default function NotFound() {
           <Link href="/courses" className="btn-ghost">
             دیدن مسیرها
           </Link>
+          <Link href="/amoozesh-tanzim-mix-mastering" className="btn-ghost">
+            راهنمای تنظیم و میکس
+          </Link>
+          <Link href="/assistant" className="btn-ghost">
+            راه‌یار AI
+          </Link>
         </div>
       </div>
     </section>
   );
 }
-
