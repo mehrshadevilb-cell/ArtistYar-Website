@@ -41,20 +41,48 @@ const googleSiteVerification = (process.env.GOOGLE_SITE_VERIFICATION || "").trim
 
 const organizationJsonLd = {
   "@context": "https://schema.org",
-  "@type": "Organization",
+  "@type": ["Organization", "EducationalOrganization"],
   name: "ArtistYar",
-  alternateName: "آکادمی راه‌یار",
+  alternateName: ["آرتیست‌یار", "آکادمی راه‌یار", "RahYar Academy"],
   url: siteUrl,
+  logo: `${siteUrl}/icon.svg`,
+  image: `${siteUrl}/opengraph-image`,
+  description:
+    "آکادمی آموزش پروژه‌محور تنظیم، میکس و مسترینگ با کلاس آنلاین، گالری نمونه‌کار و دستیار هوشمند راه‌یار AI.",
+  inLanguage: "fa-IR",
+  areaServed: "IR",
+  founder: {
+    "@type": "Person",
+    name: "مهرشاد بنائی",
+    alternateName: "Mehrshad Banaei",
+    url: `${siteUrl}/about`,
+    sameAs: ["https://www.instagram.com/prodbymehrshad/"],
+    jobTitle: "Music Producer & Educator",
+  },
   sameAs: ["https://www.instagram.com/prodbymehrshad/"],
+  contactPoint: {
+    "@type": "ContactPoint",
+    contactType: "customer support",
+    url: `${siteUrl}/contact`,
+    availableLanguage: ["fa", "Persian"],
+  },
 };
 
 const websiteJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: "ArtistYar",
-  alternateName: "آرتیست‌یار",
+  alternateName: ["آرتیست‌یار", "آکادمی راه‌یار"],
   url: siteUrl,
   inLanguage: "fa-IR",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${siteUrl}/courses?q={search_term_string}`,
+    },
+    "query-input": "required name=search_term_string",
+  },
 };
 
 export const metadata: Metadata = {
