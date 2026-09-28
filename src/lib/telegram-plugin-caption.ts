@@ -268,8 +268,9 @@ export async function reapplyLatestPluginCaptions(limit = 3) {
   const safe = Math.min(Math.max(Number(limit) || 3, 1), 10);
   const rows = await db
     .from("telegram_plugin_posts")
-    .select("id,title")
+    .select("id,title,final_caption,detected_language")
     .eq("status", "published")
+    .or("final_caption.is.null,final_caption.eq.,detected_language.eq.Russian")
     .order("created_at", { ascending: false })
     .limit(safe);
 
