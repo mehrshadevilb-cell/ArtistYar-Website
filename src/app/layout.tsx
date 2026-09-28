@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Vazirmatn } from "next/font/google";
 import Script from "next/script";
+import { Suspense } from "react";
 import "./design-tokens.css";
 import "./globals.css";
 import "./theme-music.css";
@@ -21,6 +22,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { FloatingAssistant } from "@/components/FloatingAssistant";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { TelegramMiniAppBridge } from "@/components/TelegramMiniAppBridge";
 import { SmoothScroll } from "@/components/SmoothScroll";
 
@@ -184,6 +186,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>
             <TelegramMiniAppBridge />
             <SiteAnalytics />
+            <Suspense fallback={null}>
+              <GoogleAnalytics />
+            </Suspense>
             <div className="site-root relative min-h-screen">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-radial-fade" />
               <div className="route-ambient route-ambient-one" aria-hidden="true" />
