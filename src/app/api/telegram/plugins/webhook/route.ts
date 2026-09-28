@@ -3,6 +3,7 @@ import { NextResponse, after } from "next/server";
 import {
   enqueuePluginMessage,
   processPendingPluginPairs,
+  refreshPublishedPluginPostFromEdit,
 } from "@/lib/telegram-plugin-sync";
 import { resolvePluginBotToken } from "@/lib/telegram-plugin-bot";
 
@@ -41,6 +42,22 @@ export async function POST(request: Request) {
 
   if (isEdit && /ArtistYar.*@ProAudios/i.test(String(message.caption || ""))) {
     return NextResponse.json({ ok: true, ignored: true, reason: "own_caption_edit" });
+  }
+
+  if (isEdit) {
+    try {
+      const refreshed = await refreshPublishedPluginPostFromEdit(message);
+      if (refreshed.refreshed || refreshed.ignored && refreshed.reason === "published_post_not_found") {
+        if (refreshed.refreshed) {
+          return NextResponse.json({ ok: true, accepted: true, refreshed: true, result: refreshed });
+        }
+        // If the post is not in the catalog yet, fall through to normal queueing.
+      }
+    } catch (error) {
+      // Never fail the Telegram webhook because enrichment failed. The edit can
+      // still be retried/queued through the normal ingestion path.
+      console.error("telegram_plugin_edit_refresh_failed", error instanceof Error ? error.message : String(error));
+    }
   }
 
   // A successfully queued update can be acknowledged immediately; expensive
