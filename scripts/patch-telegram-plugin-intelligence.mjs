@@ -102,6 +102,7 @@ if (applyStart >= 0 && applyEnd > applyStart) {
 writeFileSync(intelligenceTarget, intelligence);
 
 let source = readFileSync(syncTarget, "utf8");
+source = source.replace('allowed_updates: ["channel_post"]', 'allowed_updates: ["channel_post", "edited_channel_post"]');
 
 // The checked-in source may already contain the previous wrapper. Rebuild only
 // the wrapper and keep the historical legacy processor intact.
