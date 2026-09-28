@@ -331,28 +331,23 @@ export function PracticeGameSession({
   }, [enterRemember, isFreq, round]);
 
   useEffect(() => {
-    if (!isFreq || phase !== "play" || freqSub !== "listen" || !round || heard || freeLocked || quotaBlocked) {
+    if (
+      !isFreq ||
+      phase !== "play" ||
+      freqSub !== "listen" ||
+      !round ||
+      heard ||
+      freeLocked ||
+      quotaBlocked ||
+      !sessionStartedRef.current
+    ) {
       return;
     }
-    // Frequency Memory must never start or make sound merely because its
-    // component mounted. The only automatic listen is the first round after
-    // the user explicitly pressed "شروع تمرین" (or the explicit next-round
-    // ready/set/go sequence).
+    const id = window.setTimeout(() => {
+      void playAudio();
+    }, 0);
     return () => window.clearTimeout(id);
-    if (!sessionStartedRef.current) return;
-    if (roundIndex > 0 && phase === "play" && freqSub === "listen") {
-      const id = window.setTimeout(() => {
-        void playAudio();
-      }, 0);
-      return () => window.clearTimeout(id);
-    }
-    if (roundIndex === 0 && phase === "play" && freqSub === "listen") {
-      const id = window.setTimeout(() => {
-        void playAudio();
-      }, 0);
-      return () => window.clearTimeout(id);
-    }
-  }, [freeLocked, freqSub, heard, isFreq, phase, playAudio, quotaBlocked, round, roundIndex]);
+  }, [freeLocked, freqSub, heard, isFreq, phase, playAudio, quotaBlocked, round]);
 
   const finishRound = async (correct: boolean, accuracy: number, detail: string) => {
     if (!round) return;
