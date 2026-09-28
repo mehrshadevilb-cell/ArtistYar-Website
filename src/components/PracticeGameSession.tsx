@@ -454,16 +454,16 @@ export function PracticeGameSession({
   const freqSessionMax = Math.max(1, outcomes.length) * 10;
   const freqResultLine = (acc: number) =>
     acc >= 97
-      ? "Exact zip code. Perfect pitch."
+      ? "دقیق؛ تقریباً پرفکت‌پیچ."
       : acc >= 90
-        ? "Same neighborhood. Almost there."
+        ? "همان حوالی است؛ کمی دیگر دقت کن."
         : acc >= 78
-          ? "Adjacent zip code. Not the right pitch."
+          ? "نزدیک بود؛ اما هنوز همان pitch نیست."
           : acc >= 55
-            ? "Wrong street. Keep listening."
+            ? "خیابان اشتباه؛ دوباره گوش بده."
             : acc >= 30
-              ? "Different city. Try again."
-              : "Lost in the spectrum.";
+              ? "فاصله زیاد است؛ دوباره امتحان کن."
+              : "در طیف گم شدی؛ از نو گوش بده.";
   const freqSummaryLine = (score: number, max: number) => {
     const r = max > 0 ? score / max : 0;
     if (r >= 0.9) return "نزدیک به کمال — انگار پشیمانی می‌شنوی.";
