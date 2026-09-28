@@ -697,15 +697,9 @@ Return JSON only:
     (!features.length || featureRefs.length > 0)
   );
   const ok = Boolean(
-    titleSupported &&
-    webTitleMatch &&
-    developerSupported &&
-    versionSupported &&
-    conflictsResolved &&
-    finalCategory !== "Unknown" &&
-    confidence !== "low" &&
-    description &&
-    groundedFields &&
+    isSpecificIdentity(finalTitle) &&
+    (finalCategory !== "Unknown" || isSpecificIdentity(finalTitle)) &&
+    (description || translatedCaption || finalTitle) &&
     !multipleProductsUnclear
   );
 
