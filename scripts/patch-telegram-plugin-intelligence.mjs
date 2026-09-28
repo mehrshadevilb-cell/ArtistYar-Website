@@ -264,6 +264,7 @@ export async function processPluginPair(photo: any, doc: any) {
   } catch (error) {
     console.error("telegram_plugin_pair_failed", error instanceof Error ? error.message : String(error));
     throw error;
+  }
 }
 `;
 
