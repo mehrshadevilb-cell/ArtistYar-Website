@@ -630,7 +630,7 @@ export async function processPendingPluginPairs(limit = 5) {
     const claimed = await claimPair(ids[0], ids[1]);
     if (!claimed) continue;
     try {
-      const result = await processPluginPairLegacy(pair.photo, pair.document);
+      const result = await processPluginPair(pair.photo, pair.document);
       results.push(result);
     } catch (error) {
       const message = clean(error instanceof Error ? error.message : String(error), 500);
