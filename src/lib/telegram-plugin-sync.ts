@@ -670,7 +670,7 @@ async function processPluginPairLegacy(photo: any, document: any, intelligence?:
     console.error("telegram_plugin_caption_publish_failed", { postId, reason: message });
     throw error;
   }
-  await markQueueDone([String(photo.id), String(document.id)]);
+  await markQueueDone([String(photo.id), ...((Array.isArray(document.relatedDocuments) ? document.relatedDocuments : [document]).map((item: any) => String(item.id || "")).filter(Boolean))]);
   return { id: postId, title, postUrl, cover_public_url: !coverError, cover_error: coverError || null, ai_provider: metadata.provider, ai_model: metadata.model };
 }
 
