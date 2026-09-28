@@ -217,7 +217,7 @@ export function PracticeEngine() {
         )}
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0b0d12]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden" aria-label="ناوبری تمرین">
+      <nav className="fixed inset-x-0 bottom-0 z-40 practice-mobile-nav border-t border-white/10 bg-ink-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden" aria-label="ناوبری تمرین">
         <div className="mx-auto grid max-w-lg grid-cols-5 gap-0">
           {TABS.map((t) => {
             const Icon = t.icon;
