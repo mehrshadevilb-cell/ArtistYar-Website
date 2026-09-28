@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getCatalog } from "@/lib/catalog";
+import { queryPublishedPluginIdsForSitemap } from "@/lib/plugins-db";
 
 const publicRoutes: { path: string; priority: number; changeFrequency: "weekly" | "monthly" | "daily" }[] = [
   { path: "/", priority: 1, changeFrequency: "weekly" },
@@ -34,7 +35,7 @@ function slugify(title: string): string {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
   const lastModified = new Date();
-  const catalog = await getCatalog();
+  const [catalog, pluginRows] = await Promise.all([getCatalog(), queryPublishedPluginIdsForSitemap()]);
   const packageRoutes = catalog.items.filter((item) => item.is_active !== false).map((item) => ({
     url: `${baseUrl}/courses/${slugify(item.title)}`,
     lastModified,
