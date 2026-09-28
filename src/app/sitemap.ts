@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { getCatalog } from "@/lib/catalog";
 import { queryPublishedPluginIdsForSitemap } from "@/lib/plugins-db";
 
-const publicRoutes: { path: string; priority: number; changeFrequency: "weekly" | "monthly" | "daily" }[] = [
+const publicRoutes: { path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[0]["changeFrequency"] }[] = [
   { path: "/", priority: 1, changeFrequency: "weekly" },
   { path: "/assistant", priority: 0.95, changeFrequency: "weekly" },
   { path: "/ai", priority: 0.9, changeFrequency: "weekly" },
@@ -10,6 +10,7 @@ const publicRoutes: { path: string; priority: number; changeFrequency: "weekly" 
   { path: "/music-analyzer", priority: 0.88, changeFrequency: "weekly" },
   { path: "/courses", priority: 0.9, changeFrequency: "weekly" },
   { path: "/amoozesh-tanzim-mix-mastering", priority: 0.98, changeFrequency: "weekly" },
+  { path: "/tafavot-mix-va-mastering", priority: 0.95, changeFrequency: "monthly" },
   { path: "/free-player", priority: 0.9, changeFrequency: "monthly" },
   { path: "/online", priority: 0.85, changeFrequency: "monthly" },
   { path: "/arrangement", priority: 0.82, changeFrequency: "monthly" },
