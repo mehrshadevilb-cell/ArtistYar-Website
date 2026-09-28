@@ -235,8 +235,15 @@ export function generateFreqExerciseRound(
       break;
   }
 
-  const targetHz = pickTargetHz(pool, seed, recentTargets);
-  let finalTarget = safeHz(targetHz, 440);
+  const anchorHz = pickTargetHz(pool, seed, recentTargets);
+  // Keep the training anchor familiar enough for adaptive difficulty, but add
+  // deterministic continuous micro-variation so the player cannot memorize a
+  // finite frequency list. Targets are intentionally not quantized to the pool.
+  const jitterSemitones =
+    exercise === "precision" ? (seeded(seed + 71) - 0.5) * 4.5 :
+    exercise === "challenge" ? (seeded(seed + 71) - 0.5) * 7 :
+    (seeded(seed + 71) - 0.5) * 6;
+  let finalTarget = safeHz(anchorHz * Math.pow(2, jitterSemitones / 12), anchorHz);
   if (exercise === "stability" && recentTargets.length) {
     const last = recentTargets[recentTargets.length - 1];
     const near = FULL_POOL.filter(
