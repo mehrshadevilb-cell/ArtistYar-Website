@@ -882,3 +882,30 @@ export async function processPluginPair(photo: any, doc: any) {
     },
   };
 }
+
+
+/** Runtime fallback processor for Render free instances without cron. */
+let runtimeProcessorStarted = false;
+
+function startRuntimePluginProcessor() {
+  if (runtimeProcessorStarted || process.env.NEXT_RUNTIME !== "nodejs" || process.env.NODE_ENV !== "production") return;
+  runtimeProcessorStarted = true;
+  const run = async () => {
+    try {
+      const result = await processPendingPluginPairs(5);
+      if (result.processed || result.errors.length) {
+        console.info("telegram_plugin_runtime_processor", {
+          processed: result.processed,
+          errors: result.errors.length,
+          pending_checked: result.pending_checked,
+        });
+      }
+    } catch (error) {
+      console.error("telegram_plugin_runtime_processor_failed", error instanceof Error ? error.message : String(error));
+    }
+  };
+  setTimeout(() => void run(), 5000);
+  setInterval(() => void run(), 120000);
+}
+
+startRuntimePluginProcessor();
