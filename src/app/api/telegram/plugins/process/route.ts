@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 function authorized(request: Request) {
   const key = (process.env.WEB_ADMIN_API_KEY || "").trim();
+  const processSecret = (process.env.TELEGRAM_PLUGIN_PROCESS_SECRET || "").trim();
   if (!key) return false;
   const url = new URL(request.url);
   const provided =
@@ -14,7 +15,11 @@ function authorized(request: Request) {
     request.headers.get("x-admin-api-key") ||
     url.searchParams.get("key") ||
     "";
-  return provided === key;
+  const providedProcessSecret =
+    request.headers.get("x-telegram-plugin-process-secret") ||
+    url.searchParams.get("process_secret") ||
+    "";
+  return (Boolean(key) && provided === key) || (Boolean(processSecret) && providedProcessSecret === processSecret);
 }
 
 async function queueSnapshot() {
