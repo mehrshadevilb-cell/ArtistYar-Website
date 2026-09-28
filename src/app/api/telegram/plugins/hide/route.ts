@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPluginsDb } from "@/lib/plugins-db";
+import { submitIndexNow } from "@/lib/indexnow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -93,6 +94,12 @@ async function run(request: Request) {
   }
 
   const rows = updated.data || [];
+  if (rows.length) {
+    void submitIndexNow([
+      ...rows.map((row) => `/plugins/${row.id}`),
+      "/plugins",
+    ]);
+  }
   return NextResponse.json({
     ok: true,
     hidden: rows.length,
