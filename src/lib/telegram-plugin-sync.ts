@@ -567,11 +567,33 @@ async function processPluginPairLegacy(photo: any, document: any) {
     updated_at: new Date().toISOString(),
   };
 
-  const upserted = await db
+  let upserted = await db
     .from("telegram_plugin_posts")
     .upsert(payload, { onConflict: "channel_id,document_message_id" })
     .select("id")
     .single();
+
+  // A Telegram file can be redelivered/re-associated with an existing catalog
+  // row. The file identity constraint must not strand the queue forever.
+  if (upserted.error && String((upserted.error as any)?.code || "") === "23505") {
+    const existing = await db
+      .from("telegram_plugin_posts")
+      .select("id")
+      .eq("channel_id", channelId)
+      .eq("telegram_file_id", documentFileId)
+      .limit(1)
+      .maybeSingle();
+    if (!existing.error && existing.data?.id) {
+      const updated = await db
+        .from("telegram_plugin_posts")
+        .update(payload)
+        .eq("id", existing.data.id)
+        .select("id")
+        .single();
+      if (!updated.error) upserted = updated;
+    }
+  }
+
   if (upserted.error) throw new Error("plugin_db_upsert_failed:" + upserted.error.message);
   const postId = String(upserted.data.id);
 
