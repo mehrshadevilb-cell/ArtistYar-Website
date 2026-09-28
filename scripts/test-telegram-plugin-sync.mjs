@@ -29,6 +29,8 @@ assert.match(sync, /const result = await processPluginPair\(pair\.photo, pair\.d
 assert.match(sync, /claim_telegram_plugin_pair/);
 assert.match(sync, /next_attempt_at/);
 assert.match(sync, /syncPublishedPluginCover/);
+assert.match(sync, /cover_sync_deferred/);
+assert.match(sync, /intelligenceCaption/);
 assert.match(sync, /messageBelongsToConfiguredChannel/);
 assert.doesNotMatch(sync, /adm-zip|yauzl|JSZip|node-stream-zip|unzipper|extract-zip/i);
 assert.doesNotMatch(sync, /extractAllTo|extractEntry|unzipSync|gunzipSync/);
@@ -37,6 +39,7 @@ assert.match(intelligence, /Never guess/);
 assert.match(intelligence, /visionCandidate/);
 assert.match(intelligence, /webSearch/);
 assert.match(intelligence, /officialRank/);
+assert.match(intelligence, /Web\/official-source evidence is enrichment only/);
 assert.match(intelligence, /MAX_SEARCH_QUERIES/);
 assert.match(intelligence, /MAX_REANALYSIS/);
 assert.match(intelligence, /latestOfficialVersion/);
