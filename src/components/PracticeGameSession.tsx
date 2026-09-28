@@ -176,13 +176,13 @@ export function PracticeGameSession({
     };
   }, [gameId, userId]);
 
-  const enterRemember = useCallback(() => {
+  const enterRemember = useCallback((durationMs = REMEMBER_MS) => {
     stopLiveTone();
     stopPracticePlayback();
     setPlaying(false);
     freqSubRef.current = "remember";
     setFreqSub("remember");
-    const total = REMEMBER_MS;
+    const total = Math.max(1200, Math.min(3000, Math.round(durationMs * 0.9)));
     setRememberLeft(Math.ceil(total / 1000));
     if (rememberTickRef.current) clearInterval(rememberTickRef.current);
     rememberTickRef.current = setInterval(() => {
@@ -318,7 +318,7 @@ export function PracticeGameSession({
         setPlaying(false);
         playTimerRef.current = null;
         if (isFreq && freqSubRef.current === "listen") {
-          enterRemember();
+          enterRemember(ms);
         }
       }, ms);
     } catch {
@@ -502,12 +502,9 @@ export function PracticeGameSession({
     );
   }
 
-  const waveHz =
-    isFreq && round?.targetHz
-      ? freqSub === "recreate"
-        ? guessHz
-        : round.targetHz
-      : guessHz;
+  // The target is audio-only during listen/remember. Never use it to drive a
+  // visual waveform or any other UI signal before submission.
+  const waveHz = guessHz;
 
   return (
     <main className={`practice-shell container-ay relative pb-16 pt-6 sm:pt-10 ${isFreq && phase === "play" ? "practice-focus" : ""}`} dir="rtl">
