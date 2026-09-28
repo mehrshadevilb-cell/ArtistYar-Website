@@ -114,7 +114,7 @@ if (!source.includes("async function processPluginPairLegacy(")) {
     /export async function processPluginPair\(/,
     "async function processPluginPairLegacy(",
   );
-  source = source.replace(/\\bprocessPluginPair\\(/g, "processPluginPairLegacy(");
+  source = source.split("processPluginPair(").join("processPluginPairLegacy(");
 }
 if (!source.includes('import {\n  analyzeTelegramPluginPost,')) {
   source = `import {
