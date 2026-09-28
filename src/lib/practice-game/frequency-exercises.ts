@@ -279,7 +279,7 @@ export function generateFreqExerciseRound(
     source: {
       kind: "harmonic",
       fundamental: finalTarget,
-      partials: [1, 0.18],
+      partials: [1],
       duration: exercise === "challenge" ? Math.max(0.55, dur * 0.85) : dur,
     } as AudioProgram,
     challengeDsp: { type: "none" } as DspChain,
