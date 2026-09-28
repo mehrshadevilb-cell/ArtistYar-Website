@@ -4,6 +4,7 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/server-admin-aut
 import { getPluginsDb } from "@/lib/plugins-db";
 import { isSpecificIdentity, PRODUCT_CATEGORIES, regenerateStoredCaption, regenerateStoredTranslation, verifyStoredPlugin } from "@/lib/telegram-plugin-intelligence";
 import { publishPluginCaption } from "@/lib/telegram-plugin-caption";
+import { submitIndexNow } from "@/lib/indexnow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,6 +71,10 @@ export async function POST(request: Request) {
       processing_state: "PUBLISHED",
       updated_at: new Date().toISOString(),
     }).eq("id", id);
+    void submitIndexNow([
+      `/plugins/${id}`,
+      "/plugins",
+    ]);
     return NextResponse.json({ ok: true, action });
   }
 
