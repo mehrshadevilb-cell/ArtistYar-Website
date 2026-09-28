@@ -11,6 +11,7 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import { usePracticeAccess } from "@/components/usePracticeAccess";
 import { FrequencySkillOverview } from "@/components/FrequencySkillOverview";
+import { FrequencyMemoryDial } from "@/components/FrequencyMemoryDial";
 import { playExerciseRound, stopPracticePlayback, unlockPracticeAudio, startLiveTone, setLiveToneHz, stopLiveTone } from "@/lib/practice-audio-engine";
 import {
   BAND_LABEL,
@@ -392,17 +393,15 @@ export function PracticeGameSession({
             {audioError && <p className="mt-2 text-center text-[12px] text-rose-400">{audioError}</p>}
             {round.mode === "slider" && heard && !picked && (
               <div className="mt-7 space-y-4">
-                <p className="text-center font-mono text-4xl font-semibold tabular-nums text-sand-50">{formatHz(guessHz)}</p>
-                <input type="range" min={round.sliderMin} max={round.sliderMax} step={1} value={guessHz} className="w-full cursor-pointer accent-gold-500" aria-label="فرکانس"
-                  onPointerDown={() => { void startLiveTone(guessHz); }}
-                  onChange={(e) => { const hz = Number(e.target.value); setGuessHz(hz); setLiveToneHz(hz); void startLiveTone(hz); }}
+                <FrequencyMemoryDial
+                  min={round.sliderMin || 40}
+                  max={round.sliderMax || 12000}
+                  value={guessHz}
+                  onChange={(hz) => setGuessHz(hz)}
+                  onReplay={() => { void startLiveTone(guessHz); }}
                 />
-                <div className="flex justify-between font-mono text-[11px] text-ink-600">
-                  <span>{formatHz(round.sliderMin || 0)}</span><span>{formatHz(round.sliderMax || 0)}</span>
-                </div>
-                <div className="flex gap-2">
+                <div className="mt-5 flex gap-2">
                   <button type="button" className="btn-ay btn-ay-primary flex-1" onClick={() => { stopLiveTone(); void submitSlider(); }}>قفل پاسخ</button>
-                  <button type="button" className="btn-ay" onClick={() => void startLiveTone(guessHz)}>پخش حدس</button>
                 </div>
               </div>
             )}
