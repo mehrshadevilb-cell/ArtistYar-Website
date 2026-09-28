@@ -888,7 +888,7 @@ export async function processPluginPair(photo: any, doc: any) {
 let runtimeProcessorStarted = false;
 
 function startRuntimePluginProcessor() {
-  if (runtimeProcessorStarted || process.env.NEXT_RUNTIME !== "nodejs" || process.env.NODE_ENV !== "production") return;
+  if (runtimeProcessorStarted || process.env.NEXT_RUNTIME !== "nodejs" || process.env.NODE_ENV !== "production" || process.env.NEXT_PHASE === "phase-production-build") return;
   runtimeProcessorStarted = true;
   const run = async () => {
     try {
