@@ -16,8 +16,21 @@ export function centsError(targetHz: number, guessHz: number) {
  * Frequency memory: perceptual pitch-distance scoring in cents. Returns 0–100.
  */
 export function frequencyAccuracy(targetHz: number, guessHz: number, _toleranceHz?: number) {
-  const t = safeHz(targetHz, 440);
-  const g = safeHz(guessHz, t);
+  const rawTarget = Number(targetHz);
+  const rawGuess = Number(guessHz);
+  if (
+    !Number.isFinite(rawTarget) ||
+    !Number.isFinite(rawGuess) ||
+    rawTarget <= 0 ||
+    rawGuess <= 0 ||
+    rawTarget >= 24000 ||
+    rawGuess >= 24000
+  ) {
+    return { accuracy: 0, hzErr: Infinity, cents: Infinity, perfect: false };
+  }
+
+  const t = safeHz(rawTarget, 0);
+  const g = safeHz(rawGuess, 0);
   const hzErr = Math.abs(g - t);
   const cents = Math.abs(centsError(t, g));
 
