@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { Activity, Bot, Brain, Code2, Github, Layers3, Loader2, MemoryStick, Paperclip, Plus, RefreshCw, Send, ShieldCheck, Sparkles, Square, Zap, X } from "lucide-react";
+import { Activity, Bot, Brain, Code2, GitBranch, Layers3, Loader2, MemoryStick, Paperclip, Plus, RefreshCw, Send, ShieldCheck, Sparkles, Square, Zap, X } from "lucide-react";
 import { withTimeout, isAbortError } from "@/lib/admin-ai-timeout";
 
 type Mode = "chat" | "agent";
@@ -14,7 +14,7 @@ type Connector = { id:string; name:string; status:string; hint?:string };
 type Model = { id:string; provider_id?:string; model_id?:string; display_name?:string; enabled?:boolean; preferred?:boolean; priority?:number; status?:string };
 
 const NAV:[Panel,string,typeof Layers3][] = [
-  ["workspace","Workspace",Layers3],["skills","Skills",Zap],["connectors","Connectors",Github],
+  ["workspace","Workspace",Layers3],["skills","Skills",Zap],["connectors","Connectors",GitBranch],
   ["memory","Memory",MemoryStick],["models","Models",Bot],["activity","Activity",Activity],
 ];
 
@@ -135,7 +135,7 @@ export default function AdminAiPage(){
 
 function Status({label,value,ok}:{label:string;value:string;ok:boolean}){return <div className="mb-2 rounded-xl border border-white/[.06] p-3"><div className="flex justify-between text-[10px] text-ink-500">{label}<i className={`h-1.5 w-1.5 rounded-full ${ok?"bg-emerald-400":"bg-amber-400"}`}/></div><p className="mt-2 truncate text-[10px] text-sand-50" dir="ltr">{value}</p></div>}
 
-function AgentResult({result}:{result:any}){return <div className="rounded-2xl border border-white/[.08] bg-[#0c0c0b] p-4"><div className="flex items-center gap-2"><Code2 size={16} className="text-emerald-300"/><div><b className="text-xs">Agent run complete</b><p className="text-[10px] text-ink-600">{result?.filesRead?.length||0} files inspected · {result?.proposedFiles?.length||0} proposed changes</p></div></div>{result?.analysis?<pre className="mt-4 whitespace-pre-wrap rounded-xl bg-black/20 p-3 text-xs leading-6 text-ink-300">{result.analysis}</pre>:null}{result?.proposedFiles?.length?<div className="mt-3 space-y-1">{result.proposedFiles.map((f:any)=><div key={f.path} className="rounded-lg border border-white/[.05] px-3 py-2 text-[10px] text-ink-300" dir="ltr">{f.path}</div>)}</div>:null}{result?.pullRequest?.url?<a href={result.pullRequest.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-sand-50 px-3 py-2 text-[10px] text-black"><Github size={13}/> Open Draft PR #{result.pullRequest.number}</a>:null}{result?.error?<p className="mt-3 text-[10px] text-red-300">{result.error}</p>:null}</div>}
+function AgentResult({result}:{result:any}){return <div className="rounded-2xl border border-white/[.08] bg-[#0c0c0b] p-4"><div className="flex items-center gap-2"><Code2 size={16} className="text-emerald-300"/><div><b className="text-xs">Agent run complete</b><p className="text-[10px] text-ink-600">{result?.filesRead?.length||0} files inspected · {result?.proposedFiles?.length||0} proposed changes</p></div></div>{result?.analysis?<pre className="mt-4 whitespace-pre-wrap rounded-xl bg-black/20 p-3 text-xs leading-6 text-ink-300">{result.analysis}</pre>:null}{result?.proposedFiles?.length?<div className="mt-3 space-y-1">{result.proposedFiles.map((f:any)=><div key={f.path} className="rounded-lg border border-white/[.05] px-3 py-2 text-[10px] text-ink-300" dir="ltr">{f.path}</div>)}</div>:null}{result?.pullRequest?.url?<a href={result.pullRequest.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-sand-50 px-3 py-2 text-[10px] text-black"><GitBranch size={13}/> Open Draft PR #{result.pullRequest.number}</a>:null}{result?.error?<p className="mt-3 text-[10px] text-red-300">{result.error}</p>:null}</div>}
 
 function ControlPanel({panel,skills,connectors,models,activity,onRefresh}:{panel:Panel;skills:Skill[];connectors:Connector[];models:Model[];activity:ActivityItem[];onRefresh:()=>void}){
   const title=panel==="skills"?"Skills":panel==="connectors"?"Connectors":panel==="memory"?"Memory":panel==="models"?"Models":"Activity";
