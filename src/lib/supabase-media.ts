@@ -290,12 +290,11 @@ export async function registerFreeLessonFromStorage(input: { publicId: string; t
   const file = (info.data || []).find((item) => item.name === fileName);
   const mimeType = String(file?.metadata?.mimetype || "video/mp4");
   const publicUrl = supabase.storage.from(bucket).getPublicUrl(input.publicId).data.publicUrl;
-  // Do not write chapters — column may be missing until Supabase migration is applied.
   const result = await supabase.from("media_assets").insert({
     storage_path: input.publicId, public_url: publicUrl, title: input.title.trim().slice(0, 200), description: input.description.trim().slice(0, 1000),
     category: "free-training", mime_type: mimeType, file_ext: (fileName.split(".").pop() || "mp4").toLowerCase(),
     cover_url: input.thumbnailUrl || null, consent: true, status: "published",
-    sort_order: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0, is_active: true,
+    sort_order: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0, is_active: true, chapters: [],
   }).select().single();
   if (result.error) throw new SupabaseOperationError("free_lesson_register", result.error);
   return freeLessonFromRow(result.data);
@@ -303,13 +302,19 @@ export async function registerFreeLessonFromStorage(input: { publicId: string; t
 
 export async function updateFreeLesson(input: { publicId: string; title: string; description: string; thumbnailUrl?: string | null; chapters?: FreeLessonChapter[]; sortOrder?: number; isActive?: boolean; }) {
   if (!supabase) throw new Error("supabase_not_configured");
-  // Omit chapters until column exists on media_assets (run migration 20260923_media_assets_chapters.sql).
-  const result = await supabase.from("media_assets").update({
+  const patch: Record<string, unknown> = {
     title: input.title.trim().slice(0, 200), description: input.description.trim().slice(0, 1000),
     cover_url: input.thumbnailUrl || null,
     sort_order: Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0,
     is_active: input.isActive !== false, status: input.isActive === false ? "draft" : "published", updated_at: new Date().toISOString(),
-  }).eq("storage_path", input.publicId).eq("category", "free-training").select().single();
+  };
+  if (input.chapters) {
+    patch.chapters = input.chapters
+      .filter((chapter) => chapter && typeof chapter.title === "string")
+      .map((chapter) => ({ title: chapter.title.trim().slice(0, 200), time: Math.max(0, Number(chapter.time) || 0) }))
+      .filter((chapter) => chapter.title);
+  }
+  const result = await supabase.from("media_assets").update(patch).eq("storage_path", input.publicId).eq("category", "free-training").select().single();
   if (result.error) throw new SupabaseOperationError("free_lesson_update", result.error);
   return freeLessonFromRow(result.data);
 }
