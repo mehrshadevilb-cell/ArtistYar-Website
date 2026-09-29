@@ -5,7 +5,7 @@ import { SafeLink } from "@/components/SafeLink";
 
 const signals = [
   {
-    label: "ArtistYar AI",
+    label: "راه‌یار AI",
     detail: "سؤال بپرس، عیب‌یابی میکس کن و قدم بعدی را با دستیار هوشمند پیدا کن.",
     icon: Bot,
     href: "/assistant",
@@ -14,7 +14,7 @@ const signals = [
     extra: null as null | "arcade",
   },
   {
-    label: "Practice Arcade",
+    label: "تمرین",
     detail: "تمرین شنیداری و مهارت‌های حرفه‌ای صدا با XP و چالش روزانه.",
     icon: Gamepad2,
     href: "/practice",
@@ -23,7 +23,7 @@ const signals = [
     extra: "arcade" as const,
   },
   {
-    label: "Analyze Music",
+    label: "تحلیل موسیقی",
     detail: "فایل، میکس، فرکانس و بالانس را با نگاه حرفه‌ای بررسی کن.",
     icon: BarChart3,
     href: "/music-analyzer",
@@ -32,7 +32,7 @@ const signals = [
     extra: null as null | "arcade",
   },
   {
-    label: "AI Music Generator",
+    label: "تولید موسیقی AI",
     detail: "ریف، بیس‌لاین، ملودی و فیل درام را با زبان طبیعی بخواه و بشنو.",
     icon: Wand2,
     href: "/ai-music",
@@ -41,7 +41,7 @@ const signals = [
     extra: null as null | "arcade",
   },
   {
-    label: "HitNevis",
+    label: "هیت‌نویس",
     detail: "ایده، هوک و ساختار آهنگ را با ابزارهای هوشمند توسعه بده و صیقل بده.",
     icon: PenTool,
     href: "/hitnevis",
