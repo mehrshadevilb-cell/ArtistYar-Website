@@ -141,7 +141,9 @@ export class ElevenMusicProvider implements MusicGenerationProvider {
     );
     const prompt = buildPrompt(req.spec);
     const modelId = process.env.ELEVENLABS_MUSIC_MODEL || "music_v2_5";
-    const endpoint = process.env.ELEVENLABS_MUSIC_PATH || "/v1/music";
+    // ElevenLabs Music generation is always POST /v1/music.
+    // Ignore stale env paths such as /v1/music/compose or /v1/music/stream.
+    const endpoint = "/v1/music";
 
     const res = await fetch(`${BASE}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`, {
       method: "POST",
