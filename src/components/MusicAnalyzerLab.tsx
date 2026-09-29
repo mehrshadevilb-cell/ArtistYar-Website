@@ -1,1 +1,1 @@
-PLACEHOLDER_READ_FROM_FILE
+LOAD_FROM_/tmp/ay2/src/components/MusicAnalyzerLab.tsx
