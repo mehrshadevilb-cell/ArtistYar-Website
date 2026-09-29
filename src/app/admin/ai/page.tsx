@@ -20,14 +20,21 @@ const NAV:[Panel,string,typeof Layers3][] = [
 ];
 
 async function api(url:string, init?:RequestInit, timeout=30000){
-  const t=withTimeout(init?.signal ?? undefined,timeout);
+  const parentSignal=init?.signal ?? undefined;
+  const t=withTimeout(parentSignal,timeout);
   try{
     const res=await fetch(url,{credentials:"include",cache:"no-store",...init,signal:t.signal});
     const text=await res.text(); let json:any={}; try{json=text?JSON.parse(text):{}}catch{}
     if(res.status===401&&typeof window!=="undefined") window.location.assign("/login?next="+encodeURIComponent(location.pathname));
     if(!res.ok||json.ok===false) throw new Error(json.error||text.slice(0,240)||"Request failed");
     return json;
-  }catch(e){if(isAbortError(e)) throw new Error("زمان درخواست تمام شد."); throw e}finally{t.clear()}
+  }catch(e){
+    if(isAbortError(e)) {
+      if(parentSignal?.aborted) throw new Error("درخواست لغو شد.");
+      if(t.didTimeout()) throw new Error("زمان درخواست تمام شد.");
+    }
+    throw e;
+  }finally{t.clear()}
 }
 
 export default function AdminAiPage(){
@@ -95,8 +102,7 @@ export default function AdminAiPage(){
       </div></div>
     </header>
 
-    <div className="grid min-h-[calc(100vh-134px)] lg:grid-cols-[210px_minmax(0,1fr)_290px]">
-      <aside className="hidden border-l border-white/[.07] p-3 lg:block">
+    <div className="border-b border-white/[.06] px-3 py-2 lg:hidden"><div className="flex gap-1 overflow-x-auto">{NAV.map(([id,label,Icon])=><button key={id} onClick={()=>setPanel(id)} className={`shrink-0 rounded-lg px-3 py-2 text-[10px] ${panel===id?"bg-white/[.07] text-sand-50":"text-ink-600"}`}><Icon size={13} className="mx-auto mb-1"/>{label}</button>)}</div></div>\n    <div className="grid min-h-[calc(100vh-134px)] lg:grid-cols-[210px_minmax(0,1fr)_290px]">\n      <aside className="hidden border-l border-white/[.07] p-3 lg:block">
         <button onClick={()=>void newChat()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-3 py-2.5 text-xs"><Plus size={14}/> گفتگوی جدید</button>
         <p className="mb-2 px-2 text-[9px] uppercase tracking-[.18em] text-ink-700">Workspace</p>
         {NAV.map(([id,label,Icon])=><button key={id} onClick={()=>setPanel(id)} className={`mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[11px] ${panel===id?"bg-white/[.07] text-sand-50":"text-ink-500 hover:bg-white/[.035]"}`}><Icon size={14}/>{label}</button>)}
