@@ -30,9 +30,9 @@ export const DEFAULT_HOMEPAGE: HomepageConfig = {
   version: 1,
   proofItems: [
     { label: "آموزش", detail: "پکیج و کلاس ساختاریافته" },
+    { label: "راه‌یار AI", detail: "دستیار هوشمند تا نتیجه" },
     { label: "تمرین", detail: "Arcade با XP و پیشرفت" },
-    { label: "ابزار", detail: "تحلیل · AI · استودیو" },
-    { label: "پشتیبانی", detail: "راه‌یار تا نتیجه" },
+    { label: "ابزار", detail: "تحلیل · تولید · استودیو" },
   ],
   sections: [
     {
