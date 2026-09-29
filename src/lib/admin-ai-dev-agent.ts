@@ -96,7 +96,7 @@ async function executeTool(call: ToolCall, signal?: AbortSignal) {
   if (call.name === "github_read") {
     const path = typeof call.arguments.path === "string" ? call.arguments.path.trim() : "";
     if (!path || path.includes("..") || path.startsWith("/")) return { error: "path نامعتبر است" };
-    const file = await readFile(path);
+    const file = await readFile(path, undefined, input.signal);
     return { path: file.path, sha: file.sha, content: file.content.slice(0, 20000) };
   }
   const path = typeof call.arguments.path === "string" ? call.arguments.path.trim() || "src" : "src";
@@ -135,7 +135,7 @@ export async function runDevAgent(input: {
   const filesRead: Array<{ path: string; bytes: number; content: string }> = [];
   addTrace(events, "plan", "Agent task started", task);
 
-  const gh = await githubStatus();
+  const gh = await githubStatus(input.signal);
   if (!gh.ok) {
     return { ok: false, plan: "", analysis: "", filesRead: [], searchHits: [], proposedFiles: [], trace: events, error: gh.error || "GitHub connector آماده نیست." };
   }
@@ -145,7 +145,8 @@ export async function runDevAgent(input: {
   const mem = await memoryContext(input.adminUsername).catch(() => "");
 
   const initialQuery = task.split(/\s+/).slice(0, 8).join(" ");
-  const searchHits = await searchCode(initialQuery, 12).catch(() => []);
+  let searchHits: Array<{ path: string; name: string; url?: string }> = [];
+  try { searchHits = await searchCode(initialQuery, 12, input.signal); } catch (error) { if (input.signal?.aborted) throw error; }
   addTrace(events, "tool", "Repository search completed", `${searchHits.length} hits`);
 
   const initialPaths = [...(input.paths || []), ...searchHits.slice(0, 6).map((h) => h.path)]
@@ -157,7 +158,8 @@ export async function runDevAgent(input: {
       addTrace(events, "tool", `Reading ${path}`);
       const file = await readFile(path);
       filesRead.push({ path: file.path, bytes: file.content.length, content: file.content.slice(0, 16000) });
-    } catch {
+    } catch (error) {
+      if (input.signal?.aborted) throw error;
       addTrace(events, "error", `Could not read ${path}`);
     }
   }
