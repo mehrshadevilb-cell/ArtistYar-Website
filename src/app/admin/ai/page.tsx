@@ -11,7 +11,8 @@ type Conversation = { id:string; title:string; archived:boolean; created_at:stri
 type ActivityItem = { id:string; at:string; kind:"info"|"tool"|"model"|"error"|"done"; message:string; detail?:string };
 type Skill = { id:string; name:string; description:string; version:string; tools:string[]; enabled:boolean; source?:string };
 type Connector = { id:string; name:string; status:string; hint?:string };
-type Model = { id:string; provider_id?:string; model_id?:string; display_name?:string; enabled?:boolean; preferred?:boolean; priority?:number; status?:string };\ntype TraceEvent = { id:string; kind:string; message:string; detail?:string; at:string };
+type Model = { id:string; provider_id?:string; model_id?:string; display_name?:string; enabled?:boolean; preferred?:boolean; priority?:number; status?:string };
+type TraceEvent = { id:string; kind:string; message:string; detail?:string; at:string };
 
 const NAV:[Panel,string,typeof Layers3][] = [
   ["workspace","Workspace",Layers3],["skills","Skills",Zap],["connectors","Connectors",GitBranch],
