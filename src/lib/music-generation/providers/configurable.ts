@@ -45,11 +45,20 @@ function joinUrl(base: string, path: string): string {
   return `${b}${p}`;
 }
 
+function isElevenLabsToken(token: ProviderTokenRow): boolean {
+  if (token.provider_kind === "elevenlabs") return true;
+  try {
+    return new URL(token.base_url).hostname.toLowerCase() === "api.elevenlabs.io";
+  } catch {
+    return false;
+  }
+}
+
 function pathCandidates(token: ProviderTokenRow): string[] {
   const configured = (token.path || "").trim();
-  // ElevenLabs has one supported Compose Music endpoint for this provider.
-  // Never probe legacy /music or streaming endpoints from the normal generator.
-  if (token.provider_kind === "elevenlabs") return ["/v1/music"];
+  // Detect the official ElevenLabs host even if an existing DB row has a stale
+  // provider_kind/path. Never probe /compose, /generate, or /stream there.
+  if (isElevenLabsToken(token)) return ["/v1/music"];
 
   const base = token.base_url.replace(/\/$/, "");
   const baseHasV1 = /\/v1$/i.test(base);
@@ -67,7 +76,7 @@ function authHeaderVariants(token: ProviderTokenRow): Record<string, string>[] {
     "Content-Type": "application/json",
     Accept: "audio/mpeg, audio/*, application/octet-stream, application/json",
   };
-  if (token.provider_kind === "elevenlabs") return [{ ...common, "xi-api-key": token.api_key }];
+  if (isElevenLabsToken(token)) return [{ ...common, "xi-api-key": token.api_key }];
   return [
     { ...common, Authorization: `Bearer ${token.api_key}` },
     { ...common, "xi-api-key": token.api_key },
@@ -134,7 +143,8 @@ async function callToken(token: ProviderTokenRow, req: ProviderGenerateRequest):
   const prompt = buildPrompt(req.spec);
   const modelId = token.model_id || "music_v2_5";
   const paths = pathCandidates(token);
-  const bodies = bodyVariants(prompt, modelId, lengthMs, token.provider_kind);
+  const elevenLabs = isElevenLabsToken(token);
+  const bodies = bodyVariants(prompt, modelId, lengthMs, elevenLabs ? "elevenlabs" : token.provider_kind);
   const headerSets = authHeaderVariants(token);
   const started = Date.now();
   let success = false;
@@ -151,7 +161,9 @@ async function callToken(token: ProviderTokenRow, req: ProviderGenerateRequest):
             const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: req.signal ?? AbortSignal.timeout(120_000), cache: "no-store" });
             tried.push(`${res.status} ${url}`);
             if (res.status === 404 || res.status === 405) { lastError = `http_${res.status} ${url}`; continue; }
-            if (res.status === 401 || res.status === 403) { lastError = `auth_${res.status} ${url}`; continue; }
+            if (res.status === 401 || res.status === 403) {
+              throw new Error(elevenLabs ? "ElevenLabs authentication failed" : `auth_${res.status} ${url}`);
+            }
             if (res.status === 429) throw new Error("ProviderQuotaExceeded");
             if (!res.ok) {
               const text = await res.text().catch(() => "");
