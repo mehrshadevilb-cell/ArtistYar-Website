@@ -69,7 +69,7 @@ export function QuickConsultationForm() {
           <label><span>الان بیشتر روی چه چیزی کار می‌کنی؟ <small>(اختیاری)</small></span><textarea className="input-ay min-h-24 resize-y" name="message" placeholder="مثلاً می‌خواهم میکس وکال را بهتر یاد بگیرم" /></label>
           <button className="btn-primary w-full gap-2" type="submit" disabled={status === "loading"}>{status === "loading" ? <><LoaderCircle size={16} className="animate-spin" /> در حال ارسال...</> : <>درخواست مشاوره رایگان <ArrowLeft size={16} /></>}</button>
           {status === "success" ? <p className="quick-form-message quick-form-success"><Check size={15} /> {message}</p> : null}
-          {status === "error" ? <p className="quick-form-message quick-form-error">{message}</p> : null}
+          {status === "error" ? <p className="quick-form-message quick-form-error" role="alert">{message} — اطلاعات فرم حفظ شده؛ می‌توانی دوباره ارسال کنی.</p> : null}
         </form>
       </div>
     </section>
