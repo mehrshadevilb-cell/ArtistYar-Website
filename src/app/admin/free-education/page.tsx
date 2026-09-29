@@ -102,8 +102,9 @@ export default function FreeEducationAdminPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError(""); setMessage("");
+    const formElement = event.currentTarget;
     try {
-      const form = new FormData(event.currentTarget);
+      const form = new FormData(formElement);
       form.set("mode", mode);
 
       if (mode === "upload") {
@@ -131,7 +132,7 @@ export default function FreeEducationAdminPage() {
       setMessage("در حال ثبت متادیتا…");
       const data = await api("/api/admin/free-education", { method: "POST", body: form });
       setMessage(data.message || "آموزش ثبت شد.");
-      event.currentTarget.reset();
+      formElement.reset();
       await load();
     } catch (e) { setError(e instanceof Error ? e.message : "ثبت آموزش ناموفق بود."); }
     finally { setBusy(false); }
