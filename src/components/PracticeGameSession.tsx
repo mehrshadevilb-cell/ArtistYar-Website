@@ -665,7 +665,7 @@ export function PracticeGameSession({
       )}
 
       {phase === "summary" && isFreq && (
-        <div className="fm-glass-card">
+        <div className="fm-summary-card">
           <p className="text-[11px] text-ink-500">
             سطح {level}/50 · {BAND_LABEL[band]}
           </p>
