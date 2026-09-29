@@ -4,7 +4,7 @@ import { githubConfig } from "./admin-ai-platform";
 
 type GhJson = Record<string, unknown>;
 
-async function gh(path: string, init: RequestInit = {}): Promise<{ ok: boolean; status: number; data: GhJson }> {
+async function gh(path: string, init: RequestInit = {}, signal?: AbortSignal): Promise<{ ok: boolean; status: number; data: GhJson }> {
   const { token } = githubConfig();
   if (!token) throw new Error("github_not_configured");
   const response = await fetch(`https://api.github.com${path}`, {
@@ -16,15 +16,16 @@ async function gh(path: string, init: RequestInit = {}): Promise<{ ok: boolean; 
       "Content-Type": "application/json",
       ...(init.headers || {}),
     },
+    signal,
   });
   const data = (await response.json().catch(() => ({}))) as GhJson;
   return { ok: response.ok, status: response.status, data };
 }
 
-export async function githubStatus() {
+export async function githubStatus(signal?: AbortSignal) {
   const cfg = githubConfig();
   if (!cfg.configured) return { ok: false, configured: false, error: "GITHUB_TOKEN تنظیم نشده است." };
-  const me = await gh("/user");
+  const me = await gh("/user", {}, signal);
   if (!me.ok) return { ok: false, configured: true, error: "توکن GitHub نامعتبر است." };
   return {
     ok: true,
@@ -36,10 +37,10 @@ export async function githubStatus() {
   };
 }
 
-export async function searchCode(query: string, limit = 12) {
+export async function searchCode(query: string, limit = 12, signal?: AbortSignal) {
   const { owner, repo } = githubConfig();
   const q = encodeURIComponent(`${query} repo:${owner}/${repo}`);
-  const result = await gh(`/search/code?q=${q}&per_page=${Math.min(30, limit)}`);
+  const result = await gh(`/search/code?q=${q}&per_page=${Math.min(30, limit)}`, {}, signal);
   if (!result.ok) throw new Error(String(result.data.message || "github_search_failed"));
   const items = Array.isArray(result.data.items) ? result.data.items : [];
   return items.map((item) => {
@@ -52,10 +53,10 @@ export async function searchCode(query: string, limit = 12) {
   });
 }
 
-export async function readFile(path: string, ref?: string) {
+export async function readFile(path: string, ref?: string, signal?: AbortSignal) {
   const { owner, repo, baseBranch } = githubConfig();
   const branch = ref || baseBranch;
-  const result = await gh(`/repos/${owner}/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`);
+  const result = await gh(`/repos/${owner}/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`, {}, signal);
   if (!result.ok) throw new Error(String(result.data.message || "github_read_failed"));
   const encoding = String(result.data.encoding || "");
   const content = String(result.data.content || "");
@@ -68,11 +69,11 @@ export async function readFile(path: string, ref?: string) {
   };
 }
 
-export async function listTree(path = "", ref?: string) {
+export async function listTree(path = "", ref?: string, signal?: AbortSignal) {
   const { owner, repo, baseBranch } = githubConfig();
   const branch = ref || baseBranch;
   const prefix = path ? `${path.replace(/\/$/, "")}/` : "";
-  const result = await gh(`/repos/${owner}/${repo}/contents/${prefix}?ref=${encodeURIComponent(branch)}`);
+  const result = await gh(`/repos/${owner}/${repo}/contents/${prefix}?ref=${encodeURIComponent(branch)}`, {}, signal);
   if (!result.ok) throw new Error(String(result.data.message || "github_list_failed"));
   const rows = Array.isArray(result.data) ? result.data : [];
   return rows.map((item) => {
@@ -89,12 +90,14 @@ export async function createBranchAndPullRequest(input: {
   body: string;
   files: FileChange[];
   draft?: boolean;
+  signal?: AbortSignal;
 }) {
   const { owner, repo, baseBranch } = githubConfig();
   if (!input.files.length) throw new Error("no_files_to_commit");
   if (input.files.some((f) => f.path.includes("..") || f.path.startsWith("/"))) throw new Error("invalid_path");
 
-  const ref = await gh(`/repos/${owner}/${repo}/git/ref/heads/${baseBranch}`);
+  if (input.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+  const ref = await gh(`/repos/${owner}/${repo}/git/ref/heads/${baseBranch}`, {}, input.signal);
   if (!ref.ok) throw new Error(String(ref.data.message || "base_ref_failed"));
   const baseSha = String((ref.data.object as { sha?: string } | undefined)?.sha || "");
   if (!baseSha) throw new Error("base_sha_missing");
@@ -103,15 +106,16 @@ export async function createBranchAndPullRequest(input: {
   const createRef = await gh(`/repos/${owner}/${repo}/git/refs`, {
     method: "POST",
     body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseSha }),
-  });
+  }, input.signal);
   if (!createRef.ok && createRef.status !== 422) {
     throw new Error(String(createRef.data.message || "create_branch_failed"));
   }
 
   for (const file of input.files.slice(0, 20)) {
+    if (input.signal?.aborted) throw new DOMException("Aborted", "AbortError");
     let sha: string | undefined;
     try {
-      const existing = await readFile(file.path, branch);
+      const existing = await readFile(file.path, branch, input.signal);
       sha = existing.sha;
     } catch {
       sha = undefined;
@@ -124,10 +128,11 @@ export async function createBranchAndPullRequest(input: {
         branch,
         ...(sha ? { sha } : {}),
       }),
-    });
+    }, input.signal);
     if (!put.ok) throw new Error(String(put.data.message || `write_failed:${file.path}`));
   }
 
+  if (input.signal?.aborted) throw new DOMException("Aborted", "AbortError");
   const pr = await gh(`/repos/${owner}/${repo}/pulls`, {
     method: "POST",
     body: JSON.stringify({
@@ -137,7 +142,7 @@ export async function createBranchAndPullRequest(input: {
       body: input.body.slice(0, 8000),
       draft: input.draft !== false,
     }),
-  });
+  }, input.signal);
   if (!pr.ok) throw new Error(String(pr.data.message || "create_pr_failed"));
   return {
     branch,
