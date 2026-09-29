@@ -659,13 +659,13 @@ export function PracticeGameSession({
             {roundIndex + 2} / {totalRounds}
           </span>
           <span className="fm-rsgo-word">
-            {readyWord === "ready" ? "آماده" : readyWord === "set" ? "تنظیم" : "برو"}
+            {readyWord}
           </span>
         </div>
       )}
 
       {phase === "summary" && isFreq && (
-        <div className="fm-glass-card">
+        <div className="fm-summary-card">
           <p className="text-[11px] text-ink-500">
             سطح {level}/50 · {BAND_LABEL[band]}
           </p>

@@ -79,7 +79,7 @@
 }
 @media (max-width: 640px) {
   .fm-intro-card {
-    width: min(100%, 22.5rem);
+    width: min(100%, 100vw);
     min-height: 30rem;
     padding: 2rem 1.35rem;
     border-radius: 1rem;
@@ -96,10 +96,28 @@
 }
 .fm-dialed-wrap > .fm-remember-count { margin-bottom: 0.65rem; }
 
+.fm-summary-card {
+  position: relative;
+  width: min(100%, 630px);
+  aspect-ratio: 630 / 786;
+  margin-inline: auto;
+  border-radius: 16px;
+  background: #000;
+  color: #fff;
+  box-shadow: 0 28px 80px -24px rgba(0, 0, 0, 0.75), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  padding: 4.5rem 1.25rem 1.25rem;
+}
+.fm-summary-card > * { position: relative; z-index: 1; }
+.fm-summary-card .btn-ay { border-color: rgba(255,255,255,.14); }
+@media (max-width: 640px) {
+  .fm-summary-card { width: min(100%, 100vw); border-radius: 16px; }
+}
+
 .fm-glass-card {
   position: relative;
   overflow: hidden;
-  max-width: 32rem;
+  max-width: 630px;
   margin-inline: auto;
   border-radius: 1.75rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -225,7 +243,7 @@
   z-index: 6;
   top: 3.2rem;
   right: 1.15rem;
-  font-size: clamp(2.6rem, 9vw, 3.6rem);
+  font-size: clamp(3rem, 8.9vw, 3.5rem);
   font-weight: 600;
   letter-spacing: -0.04em;
   line-height: 1;
@@ -236,7 +254,7 @@
 .fm-dialed-feedback {
   position: absolute;
   z-index: 6;
-  top: 7.1rem;
+  top: 11.15rem;
   right: 1.15rem;
   left: 42%;
   text-align: right;
@@ -269,7 +287,7 @@
   text-transform: uppercase;
 }
 .fm-dialed-target-value {
-  font-size: clamp(1.35rem, 4.5vw, 1.75rem);
+  font-size: clamp(2.1rem, 6.2vw, 2.65rem);
   font-weight: 500;
   letter-spacing: -0.03em;
   color: rgba(255, 255, 255, 0.42);
@@ -277,7 +295,7 @@
   line-height: 1.1;
 }
 .fm-dialed-guess-value {
-  font-size: clamp(2.4rem, 8vw, 3.4rem);
+  font-size: clamp(3rem, 8.7vw, 3.55rem);
   font-weight: 600;
   letter-spacing: -0.04em;
   color: #fff;
@@ -330,7 +348,7 @@
 .fm-dialed-replay {
   position: absolute;
   z-index: 7;
-  right: 4.15rem;
+  right: 3.75rem;
   bottom: 1.1rem;
   width: 2.75rem;
   height: 2.75rem;
@@ -415,7 +433,7 @@
   top: 50%;
   left: 50%;
   right: auto;
-  font-size: clamp(2.8rem, 12vw, 4.25rem);
+  font-size: clamp(3.4rem, 11vw, 4.5rem);
   font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1;

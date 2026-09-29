@@ -1,115 +1,78 @@
-# Dialed.gg Sound → ArtistYar Frequency Memory — Pixel Spec & Gap Table
+# Dialed.gg Sound → ArtistYar Frequency Memory — Recon, Gap Table & Verification
 
-**Date:** 2026-09-28  
-**Reference:** https://dialed.gg/sound + user video IMG_5214.MP4 (17.4s)  
-**Target:** https://artistyaar.ir/practice → Frequency Memory only  
-**Authority:** main branch; stable baseline preserved for all non-FM paths
+**Date:** 2026-09-30  
+**Target:** `artistyaar.ir/practice` → Frequency Memory only  
+**Reference:** `dialed.gg/sound` + `IMG_5214.MP4` (630×786, 24 fps, 17.4 s)  
+**Implementation branch:** `feat/fm-dialed-pixel-20260930`
 
----
+## Recon status
 
-## 1. Reference game flow (verified live + video)
+The repository already contained a prior Dialed parity recon dated 2026-09-28. That recon established the reference flow, the existing ArtistYar gaps, and the measured video timeline below. A fresh Playwright/Chromium attempt was made during this pass, but the execution environment blocks direct outbound navigation to both production origins (`ERR_BLOCKED_BY_ADMINISTRATOR` for the headless browser; Dialed also returns 403 through the web fetcher). Therefore this document does **not** claim a new live DOM/JS/network capture where one could not be obtained. The implementation below uses the existing recon + supplied frame-by-frame video ground truth, and the codebase itself was inspected from the GitHub default branch.
 
-1. **Intro card** — title “sound”, short copy, Solo / Multi (beta) / Easy toggle, rainbow calendar CTA.
-2. **Round N/5** — pure black portrait card (~630×786, ~4:5, radius ~16–20px, soft large shadow).
-3. **Listen** — target tone plays; vertical multi-lobe waveform animates (teal ↔ purple interference + stacked echo outlines). No drag yet.
-4. **Remember** — short silence / hold (reference uses ~2s memory window after tone ends).
-5. **Recreate (tuning)** — full-surface **vertical** drag/scroll changes Hz logarithmically; live tone follows; white double-arrow cursor at pointer; large Hz bottom-left; white circular → submit bottom-right.
-6. **Result** — score counts up 0.00 → final (right-aligned ~56px); “TARGET” + gray target Hz above user’s white Hz; witty gray feedback line under score; waveform keeps animating.
-7. **Inter-round** — full black; counter “2 / 5”; sequential words **ready → set → go** (fade gray→white); then next listen.
-8. **End** — aggregate score / 50 after 5 rounds.
+## Reference flow / measured video checkpoints
 
-Scoring (hypothesis confirmed by public docs + video 202.57 vs 209.36 → 7.14):
-- Perceptual (cents / ERB-style). Practical formula matching the frame:
-  - cents ≈ 1200 × log2(guess/target)
-  - score ≈ clamp(0, 10, 10 × (1 − |cents| / 200))
-- 5 rounds → total / 50.
+| Time | State | Ground truth |
+|---:|---|---|
+| 0.00–1.00s | tuning | `1/5`, wordmark top-right, ~740.09 Hz, dual teal/purple wave |
+| 1.33–9.00s | drag | non-monotonic pitch changes; vertical double-arrow cursor; lobe density follows Hz |
+| 9.00–12.00s | hold | ~202.57 Hz held before submit |
+| ~12.33s | submit | wordmark disappears; score starts at `0.00`; waveform simplifies to one teal strand |
+| ~12.67s | target | `TARGET` + `209.36 Hz` reveal |
+| 13.00–14.67s | score | `0.00 → 6.02 → 7.12 → 7.14` ease-out |
+| ~15.00s | transition | black card, `2/5`, then `ready → set → go` |
+| 17.4s | capture end | round 2 tuning is outside the supplied recording |
 
-Font (live): `Suisse Intl S Alt` (proprietary). We use system / Inter / ui-sans equivalent; no licensed copy.
+## Reference technical model
 
-Waveform: **canvas** (4 canvases observed). Dual-color thin lines + glow + frequency-dependent lobe density + continuous phase drift + bottom fade.
+- **Waveform:** canvas; dual-strand interference in tuning/listen, stacked faint echo/glow layers; result state becomes a single clean teal strand.
+- **Palette:** teal approximately `#2ee6b8`, purple approximately `#7a3cff`; final-state wave is teal only.
+- **Interaction:** vertical drag; frequency is mapped on a logarithmic/pitch-like scale rather than linear Hz-per-pixel.
+- **Audio:** continuous sine oscillator during tuning with short pitch portamento; the ArtistYar implementation now uses exponential frequency ramps over a short interval rather than a linear Hz jump.
+- **Scoring:** existing ArtistYar scoring is cents-based: `accuracy = clamp(100 * (1 - abs(cents)/200), 0, 100)`, where `cents = 1200 * log2(guess/target)`; displayed round score is accuracy/10. The supplied 202.57→209.36 example yields approximately 7.14/10.
+- **Result dwell:** implementation uses 2.65 s from result entry before the next ready/set/go sequence; score count-up uses 1.65 s.
+- **Ready/set/go:** implementation uses 700 ms / 650 ms / 700 ms.
+- **Typography:** reference recon identified a proprietary Suisse-family face. ArtistYar intentionally keeps an open/system stack and does not copy the proprietary font files.
 
-Audio: WebAudio sine (or near-sine); live portamento while dragging; envelope on start/stop.
+## Gap table — current main vs reference
 
----
+| Element | dialed.gg | ours (current main before this branch) | change needed | risk |
+|---|---|---|---|---|
+| Card | black portrait ~4:5, soft shadow | black FM card existed but capped at 32rem | use 630×786 geometry and 16px radius | medium |
+| Round counter | top-left, compact tabular | present | retain LTR/tabular placement | low |
+| Wordmark | top-right during tuning | ArtistYar wordmark | retain own branding only | low |
+| Wave | canvas, two-strand teal/purple + echoes | canvas but result also reused multi-layer wave | result must be single teal; keep interference only pre-result | high |
+| Lobe density | tracks frequency | approximate logarithmic lobe count | keep frequency-dependent density; tune constants only from captures | high |
+| Drag | vertical pitch/log feel | vertical log drag | preserve, improve ramp feel | medium |
+| Cursor | white vertical double arrow while dragging | custom SVG double arrow | retain | low |
+| Hz | large bottom-left, tabular | large bottom-left | retain; reference-sized typography | medium |
+| Submit | small white circular arrow | circular submit was present but oversized | 32px reference-sized control | low |
+| Listen/replay | replay mechanics need live verification | replay control exists | keep only where already supported; do not add alternate chrome | medium |
+| Result score | top-right, count-up | top-right, 900ms count-up | 1.65s measured presentation | medium |
+| Target | gray reveal below result score | target lived in bottom-left block | move target to right result stack | high |
+| Feedback | right-aligned under result stack | right-aligned but too high | align under target/result area | medium |
+| Result wave | one teal strand | reused dual wave | single teal renderer | high |
+| Ready/set/go | full black surface, literal words | Persian words in previous implementation | use literal `ready/set/go` | high |
+| Transition timing | ~0.6–0.7s words | 700/600/500 | 700/650/700 | medium |
+| Result dwell | ~submit→next transition ≈2.6s | 2.0s | 2.65s | medium |
+| Summary | reference has a dedicated final summary | existing ArtistYar glass card | use black portrait summary surface | high |
+| Intro | reference has a dedicated sound intro | existing FM-specific intro | retain dedicated FM surface; exact live copy requires a fresh unblocked capture | high |
+| Mobile | same interaction model, touch | touch-action + pointer capture | preserve and test on deployed/staging origin | medium |
+| Reduced motion | live behavior requires capture | existing media-query handling | preserve; disable nonessential transitions/count-up | low |
+| Audio envelope | short sine attack/release + pitch glide | existing WebAudio sine | use short ramps and exponential pitch glide | high |
+| Font | proprietary Suisse family | system/Inter-like stack | keep licensed substitute | low |
+| RTL | chrome may be RTL, game card geometry LTR | card already `dir=ltr` | preserve | low |
 
-## 2. Video frame reconciliation (IMG_5214.MP4)
+## Current branch changes
 
-| t (s) | State | Visible |
-|------:|-------|--------|
-| 0–1 | Tuning | 740→642 Hz, vertical wave, double-arrow cursor |
-| 2–4 | Tuning | 440→340 Hz, lobes widen as Hz drops |
-| 5–10 | Tuning | 382→202 Hz |
-| 11 | Submit | Arrow button pressed |
-| 12–14 | Result | Score 0.00→7.14 count-up; TARGET 209.36; user 202.57 |
-| 14 | Feedback | “Adjacent zip code. Not the right pitch.” |
-| 15–16 | Next | Black “ready” → “set” |
+1. **Waveform renderer:** result-state renderer is a single teal strand; tuning retains dual-strand interference and glow/echo layers.
+2. **Audio engine:** live oscillator pitch changes now use a short exponential ramp to better match pitch-perceptual movement.
+3. **Result sequence:** target is presented in the upper-right result stack; feedback remains right-aligned; score count-up is 1.65 s.
+4. **Round transition:** result dwell is 2.65 s; ready/set/go is 700/650/700 ms and uses literal reference words.
+5. **Geometry:** FM and final-summary surfaces use the 630×786 reference aspect and 16px radius, with a 32px submit control.
+6. **Domain isolation:** no routing, auth, analytics, persistence, adaptive logic, or Supabase schema changes.
 
----
+## Verification limitations / remaining work
 
-## 3. Current ArtistYar implementation (main HEAD)
+A production side-by-side recording cannot honestly be marked complete from this environment because the headless browser cannot reach either live origin. The required comparison captures should therefore be generated in an environment with outbound Chromium navigation enabled (or from the deployment CI runner), at minimum for desktop and mobile: intro, listen, tuning, result, ready/set/go, and final summary.
 
-| File | Role |
-|------|------|
-| `src/components/PracticeGameSession.tsx` | Session state machine, rounds, persist, auth, adaptive |
-| `src/components/FrequencyMemoryDial.tsx` | Vertical SVG wave + log mapping + live tone |
-| `src/styles/practice-shell.css` | Glass card, dial surface, meta |
-| `src/lib/practice-audio-engine.ts` | playExerciseRound, startLiveTone, setLiveToneHz |
-| `src/lib/practice-game/*` | catalog, rounds, difficulty, frequencyAccuracy, selectFreqExercise |
-
-**Existing strengths (keep):** routing, auth, RLS/persist, adaptive level 1–50, SessionPlan, skill profile, IR sibling game, Persian RTL shell outside the card.
-
----
-
-## 4. Gap table
-
-| Element | dialed.gg | ours (main) | Change needed |
-|---------|-----------|-------------|----------------|
-| Card chrome | Pure `#000`, portrait ~4:5, radius ~16px, soft shadow on light page | Glass dark (rgba + blur), max-w 42rem, padding, gold accents | Replace FM-only chrome with pure black portrait card; keep outer practice shell |
-| Round counter | Top-left `1 / 5` ~11px bold | `fm-meta` mono | Match size/weight/position; LTR numbers |
-| Brand | Top-right `Dialed.gg` mid-gray | None / game title | Our wordmark or “ArtistYar” small mid-gray |
-| Waveform | Canvas dual teal/purple interference + many echo outlines, lobe count ∝ Hz, bottom fade, continuous drift | SVG 5 mono-gradient paths (teal→purple→gold), single sine family | Rebuild canvas dual-wave + echo trails; remove gold; match lobe density math |
-| Drag axis | **Vertical** (Y → log Hz) | Primarily X (+ circular/vertical fine) | Switch primary axis to **clientY**; invert so top=high Hz (or match reference feel) |
-| Cursor | White vertical double-arrow at pointer | grab/grabbing | Custom cursor / floating ↑↓ icon while dragging |
-| Hz readout | Bottom-left ~56px white + small “Hz” | Centered under wave, GUESS/TARGET label | Bottom-left large tabular; unit muted |
-| Submit | White circle ~32px + black → | “قفل پاسخ” full button + extra actions | Circular arrow only; primary CTA |
-| Live tone | Continuous while drag | startLiveTone / setLiveToneHz | Keep engine; ensure portamento/smoothing matches feel |
-| Result layout | Score top-right count-up; TARGET gray above; user Hz white; witty line | Persian accuracy card + detail string | New result overlay inside same card; score 0–10 with count-up |
-| Feedback copy | English witty tiers (“Adjacent zip code…”) | Persian accuracy lines | Keep Persian tone + length; mirror tier structure (near / mid / far) |
-| Inter-round | Black full-bleed **ready → set → go** | `phase === "ready"` with Persian CTA | Implement ready/set/go sequence (Persian: آماده / تنظیم / برو or keep English short words for parity) |
-| Score scale | 0.00–10.00 per round, /50 session | accuracy 0–100 → display /10 already partial | Align formula to cents-based 0–10; show 2 decimals |
-| Listen → remember | Tone then silence | listen → 2s remember timer → recreate | Keep 2s remember; optionally show black hold |
-| State machine | intro → listen → remember → recreate → result → ready/set/go → … | intro / play(freqSub) / result / ready / summary | Extend result + ready visuals only; do not break adaptive/persist |
-| Mobile / touch | Full-card vertical drag | touch-action:none present | Verify vertical drag + 44px hit targets |
-| Reduced motion | — | prefers-reduced-motion handled | Preserve |
-| Font | Suisse Intl S Alt | system / Inter / mono for Hz | Keep open fonts; match weight & tracking |
-| RTL | LTR card | Site RTL; card should stay LTR for numbers/Hz | `dir="ltr"` on the black card only |
-
----
-
-## 5. Non-goals (explicit)
-
-- Do **not** change Interval Recognition, EQ Detective, or other games.
-- Do **not** alter auth, persist, adaptive `nextLevel`, SessionPlan, or skill API.
-- Do **not** copy Dialed proprietary font or logo assets.
-- Do **not** add heavy deps (no Three.js / extra animation libs unless already present).
-- Branding text only: “Dialed.gg” → “ArtistYar” (or omit).
-
----
-
-## 6. Implementation plan (after this spec)
-
-1. Feature branch `feat/fm-dialed-pixel`.
-2. Rewrite `FrequencyMemoryDial` presentation: canvas dual-wave, vertical log drag, bottom-left Hz, circular submit.
-3. Extend `PracticeGameSession` FM result + ready/set/go overlays only (same black card).
-4. CSS: pure-black portrait card scoped under `.fm-dialed-card`; leave glass path for non-FM if needed.
-5. Scoring display: map existing `frequencyAccuracy` → 0–10 with 2 decimals + count-up animation.
-6. Small logical commits; PR with side-by-side screenshots (tuning / result / ready-set-go) desktop + mobile.
-
----
-
-## 7. Success criteria
-
-- Side-by-side screenshots at 3 states show no obvious layout/typography/motion differences to a non-designer.
-- Vertical drag + live tone + lobe density feel match reference.
-- Auth / persist / adaptive still work; IR game unchanged.
-- Remaining differences documented (font license, brand, Persian feedback wording).
+The exact live feedback-tier copy, exact waveform draw constants, exact WebAudio envelope constants, and exact intro/final-summary copy remain **capture-dependent** and should not be represented as verified facts until the live browser trace is available again.
