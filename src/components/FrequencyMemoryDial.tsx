@@ -437,18 +437,18 @@ export function FrequencyMemoryDial({
             {displayScore.toFixed(2)}
           </div>
         )}
+        {isResult && targetHz != null && (
+          <div className="fm-dialed-result-target">
+            <span className="fm-dialed-target-label">TARGET</span>
+            <span className="fm-dialed-target-value">
+              {formatHzPrecise(targetHz)}
+              <span className="fm-dialed-hz-unit">{formatHzUnit(targetHz)}</span>
+            </span>
+          </div>
+        )}
         {isResult && resultFeedback && <p className="fm-dialed-feedback">{resultFeedback}</p>}
 
         <div className="fm-dialed-hz">
-          {isResult && targetHz != null && (
-            <div className="fm-dialed-target-block">
-              <span className="fm-dialed-target-label">TARGET</span>
-              <span className="fm-dialed-target-value">
-                {formatHzPrecise(targetHz)}
-                <span className="fm-dialed-hz-unit">{formatHzUnit(targetHz)}</span>
-              </span>
-            </div>
-          )}
           {showHz != null ? (
             <div className="fm-dialed-guess-block">
               <span className="fm-dialed-guess-value">
