@@ -65,7 +65,6 @@ const secondaryNav = [
 ] as const;
 
 const moreItems = [
-  { href: "/about", label: "درباره آکادمی" },
   { href: "/amoozesh-tanzim-mix-mastering", label: "راهنمای تنظیم و میکس" },
   { href: "/tafavot-mix-va-mastering", label: "تفاوت میکس و مسترینگ" },
   { href: "/online", label: "کلاس آنلاین" },
@@ -74,7 +73,6 @@ const moreItems = [
   { href: "/plugins", label: "VST و پلاگین‌ها" },
   { href: "/contact", label: "تماس و مشاوره" },
   { href: "/#feedback", label: "بازخورد هنرجوها" },
-  { href: "/#quick-consultation", label: "مشاوره رایگان" },
   { href: "/track", label: "پیگیری سفارش" },
 ] as const;
 
@@ -474,26 +472,6 @@ export function SiteHeader() {
               ورود هنرجو
             </Link>
           )}
-          <SafeLink
-            href="/courses"
-            hard
-            onClick={() => setOpen(false)}
-            tabIndex={open ? 0 : -1}
-            className="btn-primary mt-4 flex items-center justify-center gap-2 text-center"
-          >
-            <GraduationCap size={16} aria-hidden />
-            دیدن پکیج‌های آموزشی
-          </SafeLink>
-          <SafeLink
-            href="/assistant"
-            hard
-            onClick={() => setOpen(false)}
-            tabIndex={open ? 0 : -1}
-            className="btn-ghost mt-2 flex items-center justify-center gap-2 text-center"
-          >
-            <Bot size={16} aria-hidden />
-            سؤال از راه‌یار AI
-          </SafeLink>
         </nav>
       </div>
     </header>
