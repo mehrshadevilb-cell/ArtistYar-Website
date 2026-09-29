@@ -51,7 +51,7 @@ function pathCandidates(token: ProviderTokenRow): string[] {
   // Never probe legacy /music or streaming endpoints from the normal generator.
   if (token.provider_kind === "elevenlabs") return [configured || "/v1/music"];
 
-  const base = token.base_url.replace(/\\/$/, "");
+  const base = token.base_url.replace(/\/$/, "");
   const baseHasV1 = /\/v1$/i.test(base);
   const extras: string[] = [];
   if (baseHasV1) {
