@@ -49,7 +49,7 @@ function pathCandidates(token: ProviderTokenRow): string[] {
   const configured = (token.path || "").trim();
   // ElevenLabs has one supported Compose Music endpoint for this provider.
   // Never probe legacy /music or streaming endpoints from the normal generator.
-  if (token.provider_kind === "elevenlabs") return [configured || "/v1/music"];
+  if (token.provider_kind === "elevenlabs") return ["/v1/music"];
 
   const base = token.base_url.replace(/\/$/, "");
   const baseHasV1 = /\/v1$/i.test(base);
