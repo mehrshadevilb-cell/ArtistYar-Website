@@ -1,1 +1,2 @@
-PLACEHOLDER_ANALYZER
+"use client";
+export default function Broken() { return null }
