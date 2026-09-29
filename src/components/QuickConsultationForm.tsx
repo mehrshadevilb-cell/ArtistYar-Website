@@ -31,7 +31,8 @@ export function QuickConsultationForm() {
     }
     setStatus("loading");
     setMessage("");
-    const data = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const data = new FormData(formElement);
     try {
       const response = await fetch("/api/rahyar/class-inquiries", {
         method: "POST",
@@ -47,7 +48,7 @@ export function QuickConsultationForm() {
       if (!response.ok || result.ok === false) throw new Error(result.error || result.detail || "ثبت درخواست ناموفق بود.");
       setStatus("success");
       setMessage(result.message || "درخواستت ثبت شد؛ به‌زودی برای هماهنگی باهات تماس می‌گیریم.");
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "ثبت درخواست ناموفق بود. دوباره تلاش کن.");
