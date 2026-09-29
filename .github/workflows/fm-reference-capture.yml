@@ -1,0 +1,74 @@
+name: Frequency Memory reference capture
+
+on:
+  workflow_dispatch:
+    inputs:
+      capture_runs:
+        description: "Number of complete capture runs per site/viewport"
+        required: false
+        default: "2"
+        type: string
+  push:
+    branches:
+      - chore/fm-reference-capture-harness
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout capture branch
+        uses: actions/checkout@v4
+        with:
+          ref: chore/fm-reference-capture-harness
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Confirm outbound HTTPS
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo "dialed.gg:"
+          curl -fsSI --max-time 20 https://dialed.gg/sound
+          echo "artistyaar production:"
+          curl -fsSI --max-time 20 https://artistyar-website-iis2.onrender.com/practice
+
+      - name: Install Playwright
+        run: npm install --save-dev playwright
+
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture reference and production
+        env:
+          CAPTURE_RUNS: ${{ inputs.capture_runs || '2' }}
+        run: node scripts/capture-comparison.mjs
+
+      - name: Validate non-empty capture artifact
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -d capture
+          test -s capture/preflight.json
+          test "$(find capture -type f | wc -l)" -gt 5
+          test -d capture/pairs/desktop
+          test -d capture/pairs/mobile
+          find capture -type f -maxdepth 4 -print | sort | head -100
+
+      # One-off diagnostic artifact. Retain for 14 days only; download and
+      # store any evidence that needs longer retention elsewhere. For PR #87,
+      # prefer attaching the specific paired screenshots rather than raw
+      # videos/traces.
+      - name: Upload capture artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fm-reference-capture
+          path: capture/
+          if-no-files-found: error
+          retention-days: 14
