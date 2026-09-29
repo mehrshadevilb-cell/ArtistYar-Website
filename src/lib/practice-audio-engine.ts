@@ -377,7 +377,9 @@ export async function startLiveTone(hz: number, peak = 0.28): Promise<boolean> {
   const safe = Math.max(40, Math.min(16000, safeNumber));
   try {
     if (liveOsc && liveCtx === ctx) {
-      liveOsc.frequency.setTargetAtTime(safe, ctx.currentTime, 0.01);
+      liveOsc.frequency.cancelScheduledValues(ctx.currentTime);
+      liveOsc.frequency.setValueAtTime(Math.max(40, liveOsc.frequency.value), ctx.currentTime);
+      liveOsc.frequency.exponentialRampToValueAtTime(safe, ctx.currentTime + 0.018);
       if (liveGain) {
         liveGain.gain.cancelScheduledValues(ctx.currentTime);
         liveGain.gain.setTargetAtTime(peak, ctx.currentTime, 0.02);
@@ -409,7 +411,9 @@ export function setLiveToneHz(hz: number) {
   if (!Number.isFinite(safeNumber) || safeNumber <= 0) return;
   const safe = Math.max(40, Math.min(16000, safeNumber));
   try {
-    liveOsc.frequency.setTargetAtTime(safe, liveCtx.currentTime, 0.012);
+    liveOsc.frequency.cancelScheduledValues(liveCtx.currentTime);
+    liveOsc.frequency.setValueAtTime(Math.max(40, liveOsc.frequency.value), liveCtx.currentTime);
+    liveOsc.frequency.exponentialRampToValueAtTime(safe, liveCtx.currentTime + 0.018);
   } catch {
     /* */
   }
