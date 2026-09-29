@@ -115,6 +115,7 @@ export function FrequencyMemoryDial({
   const [displayScore, setDisplayScore] = useState(0);
   const [lowPower, setLowPower] = useState(false);
   const waveHzRef = useRef(waveHz);
+  const modeRef = useRef<FreqDialMode>(mode);
   const valueHzRef = useRef(valueHz);
   const playingRef = useRef(playing);
   const draggingRef = useRef(false);
@@ -130,6 +131,7 @@ export function FrequencyMemoryDial({
 
   useEffect(() => {
     waveHzRef.current = waveHz;
+    modeRef.current = mode;
     valueHzRef.current = valueHz;
     playingRef.current = playing;
     draggingRef.current = dragging;
@@ -248,7 +250,10 @@ export function FrequencyMemoryDial({
         ctx.fillStyle = glowRef.current;
         ctx.fillRect(0, 0, w, h);
       }
-      const layers = lp ? WAVE_LAYERS.slice(2) : WAVE_LAYERS;
+      const resultMode = modeRef.current === "result";
+      const layers = resultMode
+        ? [{ color: TEAL, alpha: 0.72, width: 1.65, phaseOff: 0, ampMul: 0.96, lag: 0 }]
+        : (lp ? WAVE_LAYERS.slice(2) : WAVE_LAYERS);
       const stepDiv = lp ? 3 : 2;
       for (const layer of layers) {
         ctx.beginPath();
@@ -258,8 +263,8 @@ export function FrequencyMemoryDial({
           const yn = y / h;
           const env = Math.sin(Math.PI * yn) ** 0.85;
           const primary = Math.sin((y / wavelength) * Math.PI * 2 + phase + layer.phaseOff);
-          const secondary = Math.sin((y / (wavelength * 1.37)) * Math.PI * 2 - phase * 0.7 + layer.lag);
-          const beat = primary * 0.72 + secondary * 0.28;
+          const secondary = resultMode ? 0 : Math.sin((y / (wavelength * 1.37)) * Math.PI * 2 - phase * 0.7 + layer.lag);
+          const beat = resultMode ? primary : primary * 0.72 + secondary * 0.28;
           let deform = 0;
           const currentCursorY = cursorYRef.current;
           if (draggingRef.current && currentCursorY != null) {
