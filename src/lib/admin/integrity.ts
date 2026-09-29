@@ -168,6 +168,31 @@ export async function runIntegrityScan(limit = 50): Promise<IntegrityReport> {
     // Education tables may not be deployed in older environments.
   }
 
+  checksRun++;
+  try {
+    const { data: orphanEnrollments, error } = await sb
+      .from("ay_class_enrollments")
+      .select("id, class_id, rahyar_student_id, student_name, status")
+      .is("rahyar_student_id", null)
+      .is("student_name", null)
+      .eq("status", "active")
+      .limit(limit);
+    if (!error && orphanEnrollments && orphanEnrollments.length > 0) {
+      findings.push({
+        id: "class_active_enrollment_without_student",
+        severity: "high",
+        category: "data",
+        title: "ثبت‌نام فعال کلاس بدون هنرجو",
+        description: \`${orphanEnrollments.length} ثبت‌نام فعال کلاس به هیچ هنرجوی RahYar متصل نیست.\`,
+        entity_type: "ay_class_enrollments",
+        count: orphanEnrollments.length,
+        sample_ids: orphanEnrollments.slice(0, 5).map((r: { id: string }) => String(r.id)),
+      });
+    }
+  } catch {
+    // optional
+  }
+
   // Class / session / attendance integrity (Phase 2)
   checksRun++;
   try {
