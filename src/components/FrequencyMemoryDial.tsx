@@ -169,7 +169,7 @@ export function FrequencyMemoryDial({
       return;
     }
     const start = performance.now();
-    const dur = 900;
+    const dur = 1650;
     let id = 0;
     const tick = (now: number) => {
       const t = clamp((now - start) / dur);
