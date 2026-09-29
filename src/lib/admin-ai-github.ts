@@ -70,9 +70,11 @@ export async function readFile(path: string, ref?: string, signal?: AbortSignal)
 }
 
 export async function listTree(path = "", ref?: string, signal?: AbortSignal) {
+  const cleanPath = path.trim();
+  if (cleanPath.includes("..") || cleanPath.startsWith("/")) throw new Error("invalid_path");
   const { owner, repo, baseBranch } = githubConfig();
   const branch = ref || baseBranch;
-  const prefix = path ? `${path.replace(/\/$/, "")}/` : "";
+  const prefix = cleanPath ? `${cleanPath.replace(/\/$/, "")}/` : "";
   const result = await gh(`/repos/${owner}/${repo}/contents/${prefix}?ref=${encodeURIComponent(branch)}`, {}, signal);
   if (!result.ok) throw new Error(String(result.data.message || "github_list_failed"));
   const rows = Array.isArray(result.data) ? result.data : [];
