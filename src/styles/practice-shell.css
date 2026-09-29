@@ -96,6 +96,24 @@
 }
 .fm-dialed-wrap > .fm-remember-count { margin-bottom: 0.65rem; }
 
+.fm-summary-card {
+  position: relative;
+  width: min(100%, 630px);
+  aspect-ratio: 630 / 786;
+  margin-inline: auto;
+  border-radius: 16px;
+  background: #000;
+  color: #fff;
+  box-shadow: 0 28px 80px -24px rgba(0, 0, 0, 0.75), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  padding: 4.5rem 1.25rem 1.25rem;
+}
+.fm-summary-card > * { position: relative; z-index: 1; }
+.fm-summary-card .btn-ay { border-color: rgba(255,255,255,.14); }
+@media (max-width: 640px) {
+  .fm-summary-card { width: min(100%, 100vw); border-radius: 16px; }
+}
+
 .fm-glass-card {
   position: relative;
   overflow: hidden;
