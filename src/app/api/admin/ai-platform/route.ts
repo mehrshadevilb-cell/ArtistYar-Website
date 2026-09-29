@@ -18,7 +18,7 @@ import { getConfiguredProviders } from "@/lib/ai-providers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 async function requireAdmin() {
   return verifyAdminSession((await cookies()).get(ADMIN_SESSION_COOKIE)?.value);
