@@ -19,7 +19,7 @@ const NAV:[Panel,string,typeof Layers3][] = [
 ];
 
 async function api(url:string, init?:RequestInit, timeout=30000){
-  const t=withTimeout(init?.signal,timeout);
+  const t=withTimeout(init?.signal ?? undefined,timeout);
   try{
     const res=await fetch(url,{credentials:"include",cache:"no-store",...init,signal:t.signal});
     const text=await res.text(); let json:any={}; try{json=text?JSON.parse(text):{}}catch{}
