@@ -5,8 +5,8 @@ const coreFeatures = [
   {
     href: "/assistant",
     eyebrow: "01 · LIVE SYSTEM",
-    title: "ArtistYar AI",
-    body: "سؤال بپرس، عیب‌یابی میکس کن و قدم بعدی را با دستیار هوشمند راه‌یار پیدا کن.",
+    title: "راه‌یار AI",
+    body: "سؤال بپرس، عیب‌یابی میکس کن و قدم بعدی را با دستیار هوشمند پیدا کن.",
     icon: Bot,
     tone: "cyan",
     cta: "شروع گفتگو",
@@ -15,8 +15,8 @@ const coreFeatures = [
   {
     href: "/practice",
     eyebrow: "02 · PRACTICE ARCADE",
-    title: "Practice Arcade",
-    body: "تمرین شنیداری و مهارت‌های حرفه‌ای صدا در یک مسیر یکپارچه با XP و چالش روزانه.",
+    title: "تمرین · Practice Arcade",
+    body: "تمرین شنیداری و مهارت‌های حرفه‌ای صدا با XP، پیشرفت و چالش روزانه.",
     icon: Gamepad2,
     tone: "gold",
     cta: "ورود به تمرین",
@@ -25,8 +25,8 @@ const coreFeatures = [
   {
     href: "/music-analyzer",
     eyebrow: "03 · PRO ANALYSIS",
-    title: "Analyze Music",
-    body: "فایل، میکس، فرکانس و بالانس را با نگاه حرفه‌ای بررسی و تحلیل کن.",
+    title: "تحلیل موسیقی",
+    body: "فایل، میکس، فرکانس و بالانس را با نگاه حرفه‌ای بررسی کن.",
     icon: BarChart3,
     tone: "blue",
     cta: "تحلیل فایل",
@@ -35,7 +35,7 @@ const coreFeatures = [
   {
     href: "/ai-music",
     eyebrow: "04 · AI CREATE",
-    title: "AI Music Generator",
+    title: "تولید موسیقی با AI",
     body: "ریف، بیس‌لاین، ملودی و فیل درام را با زبان طبیعی بخواه و بشنو.",
     icon: Wand2,
     tone: "violet",
@@ -57,7 +57,7 @@ export function CoreFeatureRail() {
           </h2>
         </div>
         <p className="core-rail-copy">
-          ArtistYar AI، Practice Arcade، تحلیل موسیقی و ساخت با هوش مصنوعی — همه از همین‌جا.
+          دستیار راه‌یار، تمرین شنیداری، تحلیل حرفه‌ای میکس و تولید ایده با AI — چهار ستون ابزار ArtistYar.
         </p>
       </div>
 
