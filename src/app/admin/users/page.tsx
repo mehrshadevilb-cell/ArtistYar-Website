@@ -251,14 +251,14 @@ export default function AdminUsersPage() {
 
               {learning ? (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                  {[
-                    ["دوره‌ها / ثبت‌نام‌های کلاس", legacy.length + learning.summary.classes, BookOpen],
-                    ["کلاس فعال", learning.summary.active_classes, Users],
-                    ["کل جلسات", learning.summary.sessions, CalendarDays],
-                    ["جلسه برگزارشده", learning.summary.completed_sessions, CheckCircle2],
-                    ["حضور ثبت‌شده", learning.summary.attendance_marked, CheckCircle2],
-                  ].map(([label, value, Icon]) => (
-                    <div key={String(label)} className="card-ay p-4">
+                  {([
+                    { label: "دوره‌ها / ثبت‌نام‌های کلاس", value: legacy.length + learning.summary.classes, Icon: BookOpen },
+                    { label: "کلاس فعال", value: learning.summary.active_classes, Icon: Users },
+                    { label: "کل جلسات", value: learning.summary.sessions, Icon: CalendarDays },
+                    { label: "جلسه برگزارشده", value: learning.summary.completed_sessions, Icon: CheckCircle2 },
+                    { label: "حضور ثبت‌شده", value: learning.summary.attendance_marked, Icon: CheckCircle2 },
+                  ] as const).map(({ label, value, Icon }) => (
+                    <div key={label} className="card-ay p-4">
                       <Icon size={16} className="text-gold-400" />
                       <strong className="mt-3 block text-xl text-sand-50">{Number(value).toLocaleString("fa-IR")}</strong>
                       <p className="mt-1 text-[11px] text-ink-500">{label}</p>
