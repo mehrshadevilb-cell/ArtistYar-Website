@@ -39,9 +39,9 @@ function buildPrompt(spec: GenerationSpec): string {
 }
 
 function joinUrl(base: string, path: string): string {
-  const b = base.replace(/\\/$/, "");
+  const b = base.replace(/\/$/, "");
   let p = path.startsWith("/") ? path : `/${path}`;
-  if (/\\/v1$/i.test(b) && p.startsWith("/v1/")) p = p.slice(3);
+  if (/\/v1$/i.test(b) && p.startsWith("/v1/")) p = p.slice(3);
   return `${b}${p}`;
 }
 
@@ -52,7 +52,7 @@ function pathCandidates(token: ProviderTokenRow): string[] {
   if (token.provider_kind === "elevenlabs") return [configured || "/v1/music"];
 
   const base = token.base_url.replace(/\\/$/, "");
-  const baseHasV1 = /\\/v1$/i.test(base);
+  const baseHasV1 = /\/v1$/i.test(base);
   const extras: string[] = [];
   if (baseHasV1) {
     extras.push("/music", "/music/generate", "/music/compose", "/audio/music", "/generate/music");
