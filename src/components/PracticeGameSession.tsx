@@ -659,7 +659,7 @@ export function PracticeGameSession({
             {roundIndex + 2} / {totalRounds}
           </span>
           <span className="fm-rsgo-word">
-            {readyWord === "ready" ? "آماده" : readyWord === "set" ? "تنظیم" : "برو"}
+            {readyWord}
           </span>
         </div>
       )}
