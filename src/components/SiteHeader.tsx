@@ -21,25 +21,47 @@ import { useAuth } from "./AuthProvider";
 import { ThemeToggle } from "./ThemeToggle";
 import { SafeLink } from "./SafeLink";
 
-const primaryNav = [
-  { href: "/my-artistyar", label: "داشبورد", Icon: LayoutDashboard },
+/**
+ * Navigation IA (P0-1 / P0-2)
+ * Top-level priority: تمرین · راه‌یار AI · ابزار · پکیج‌های آموزشی · داشبورد · FAQ · درباره
+ * Tools dropdown priority: تحلیل موسیقی · تولید موسیقی · هیت‌نویس · سپس سایر
+ * راه‌یار AI = conversational assistant (/assistant)
+ * فضای AI / ابزارهای AI = structured AI workflows (/ai)
+ */
+
+const coreNav = [
   { href: "/practice", label: "تمرین", Icon: Gamepad2 },
+  { href: "/assistant", label: "راه‌یار AI", Icon: Bot, hard: true as const },
 ] as const;
 
-const toolsItems = [
-  { href: "/ai", label: "فضای AI" },
-  { href: "/hitnevis", label: "هیت‌نویس" },
+/** Primary tools surfaced first in dropdown and mobile "ابزارهای اصلی" */
+const primaryTools = [
   { href: "/music-analyzer", label: "تحلیل موسیقی" },
   { href: "/ai-music", label: "تولید موسیقی" },
+  { href: "/hitnevis", label: "هیت‌نویس" },
+] as const;
+
+/** Secondary tools — progressive disclosure under primary tools */
+const secondaryTools = [
+  {
+    href: "/ai",
+    label: "فضای AI",
+    hint: "ابزارها و گردش‌کارهای ساختاریافته",
+  },
   { href: "/studio", label: "استودیو" },
   { href: "/separate", label: "جداسازی وکال" },
   { href: "/arrangement", label: "سفارش تنظیم" },
 ] as const;
 
-const afterToolsNav = [
-  { href: "/assistant", label: "راه‌یار AI", Icon: Bot, hard: true },
-  { href: "/courses", label: "پکیج‌های آموزشی", Icon: GraduationCap, hard: false },
-  { href: "/faq", label: "پرسش‌های متداول", Icon: HelpCircle, hard: false },
+const toolsItems = [...primaryTools, ...secondaryTools] as const;
+
+const learningNav = [
+  { href: "/courses", label: "پکیج‌های آموزشی", Icon: GraduationCap, hard: false as const },
+] as const;
+
+const secondaryNav = [
+  { href: "/my-artistyar", label: "داشبورد", Icon: LayoutDashboard },
+  { href: "/faq", label: "پرسش‌های متداول", Icon: HelpCircle, hard: false as const },
 ] as const;
 
 const moreItems = [
@@ -130,20 +152,23 @@ export function SiteHeader() {
         </Link>
 
         <nav aria-label="ناوبری اصلی" className="hidden items-center gap-0.5 lg:flex">
-          {primaryNav.map(({ href, label, Icon }) => (
+          {/* 1–2: تمرین · راه‌یار AI */}
+          {coreNav.map((item) => (
             <SafeLink
-              key={href}
-              href={href}
+              key={item.href}
+              href={item.href}
+              hard={"hard" in item ? item.hard : undefined}
               className={`nav-link inline-flex items-center gap-1.5 ${
-                isActive(pathname, href) ? "nav-link-active" : ""
+                isActive(pathname, item.href) ? "nav-link-active" : ""
               }`}
-              aria-current={isActive(pathname, href) ? "page" : undefined}
+              aria-current={isActive(pathname, item.href) ? "page" : undefined}
             >
-              <Icon size={14} aria-hidden className="opacity-70" />
-              {label}
+              <item.Icon size={14} aria-hidden className="opacity-70" />
+              {item.label}
             </SafeLink>
           ))}
 
+          {/* 3: ابزار (progressive disclosure) */}
           <div className="relative" ref={toolsRef}>
             <button
               type="button"
@@ -168,9 +193,12 @@ export function SiteHeader() {
             {toolsOpen ? (
               <div
                 role="menu"
-                className="nav-dropdown absolute top-full right-0 z-50 mt-1 min-w-[13rem] rounded-xl border border-white/10 bg-ink-950/95 p-1.5 shadow-xl backdrop-blur-xl"
+                className="nav-dropdown absolute top-full right-0 z-50 mt-1 min-w-[14.5rem] rounded-xl border border-white/10 bg-ink-950/95 p-1.5 shadow-xl backdrop-blur-xl"
               >
-                {toolsItems.map((item) => (
+                <p className="px-3 pb-1 pt-1.5 text-[10px] font-medium tracking-wider text-ink-500">
+                  ابزارهای اصلی
+                </p>
+                {primaryTools.map((item) => (
                   <SafeLink
                     key={item.href}
                     href={item.href}
@@ -183,11 +211,34 @@ export function SiteHeader() {
                     {item.label}
                   </SafeLink>
                 ))}
+                <div className="my-1.5 border-t border-white/10" role="separator" />
+                <p className="px-3 pb-1 pt-0.5 text-[10px] font-medium tracking-wider text-ink-500">
+                  سایر ابزارها
+                </p>
+                {secondaryTools.map((item) => (
+                  <SafeLink
+                    key={item.href}
+                    href={item.href}
+                    role="menuitem"
+                    className={`block rounded-lg px-3 py-2 text-sm transition hover:bg-white/[0.06] hover:text-gold-300 ${
+                      isActive(pathname, item.href) ? "text-gold-400" : "text-sand-100"
+                    }`}
+                    onClick={() => setToolsOpen(false)}
+                  >
+                    <span className="block">{item.label}</span>
+                    {"hint" in item && item.hint ? (
+                      <span className="mt-0.5 block text-[11px] leading-snug text-ink-500">
+                        {item.hint}
+                      </span>
+                    ) : null}
+                  </SafeLink>
+                ))}
               </div>
             ) : null}
           </div>
 
-          {afterToolsNav.map(({ href, label, Icon, hard }) => (
+          {/* 4: پکیج‌های آموزشی */}
+          {learningNav.map(({ href, label, Icon, hard }) => (
             <SafeLink
               key={href}
               href={href}
@@ -202,6 +253,23 @@ export function SiteHeader() {
             </SafeLink>
           ))}
 
+          {/* 5–6: داشبورد · FAQ (quieter secondary) */}
+          {secondaryNav.map((item) => (
+            <SafeLink
+              key={item.href}
+              href={item.href}
+              hard={"hard" in item ? item.hard : undefined}
+              className={`nav-link inline-flex items-center gap-1.5 ${
+                isActive(pathname, item.href) ? "nav-link-active" : ""
+              }`}
+              aria-current={isActive(pathname, item.href) ? "page" : undefined}
+            >
+              <item.Icon size={14} aria-hidden className="opacity-70" />
+              {item.label}
+            </SafeLink>
+          ))}
+
+          {/* 7: درباره آکادمی */}
           <div className="relative" ref={moreRef}>
             <button
               type="button"
@@ -288,10 +356,28 @@ export function SiteHeader() {
           aria-label="ناوبری موبایل"
           className="container-ay flex max-h-[min(70dvh,32rem)] flex-col gap-0.5 overflow-y-auto overscroll-contain py-4 pb-[max(1rem,var(--tg-safe-bottom))]"
         >
-          {primaryNav.map(({ href, label, Icon }) => (
+          {/* Core pillars */}
+          <p className="mobile-nav-group-label px-4 pb-1 pt-1 text-[10px] font-medium tracking-wider text-ink-500">
+            هسته
+          </p>
+          {coreNav.map((item) => (
+            <SafeLink
+              key={item.href}
+              href={item.href}
+              hard={"hard" in item ? item.hard : undefined}
+              onClick={() => setOpen(false)}
+              tabIndex={open ? 0 : -1}
+              className="mobile-nav-link inline-flex items-center gap-2"
+            >
+              <item.Icon size={16} aria-hidden className="opacity-70" />
+              {item.label}
+            </SafeLink>
+          ))}
+          {learningNav.map(({ href, label, Icon, hard }) => (
             <SafeLink
               key={href}
               href={href}
+              hard={hard}
               onClick={() => setOpen(false)}
               tabIndex={open ? 0 : -1}
               className="mobile-nav-link inline-flex items-center gap-2"
@@ -301,10 +387,11 @@ export function SiteHeader() {
             </SafeLink>
           ))}
 
+          {/* Primary tools */}
           <p className="mobile-nav-group-label px-4 pb-1 pt-3 text-[10px] font-medium tracking-wider text-ink-500">
-            ابزار
+            ابزارهای اصلی
           </p>
-          {toolsItems.map((item) => (
+          {primaryTools.map((item) => (
             <SafeLink
               key={item.href}
               href={item.href}
@@ -316,17 +403,40 @@ export function SiteHeader() {
             </SafeLink>
           ))}
 
-          {afterToolsNav.map(({ href, label, Icon, hard }) => (
+          {/* Secondary tools */}
+          <p className="mobile-nav-group-label px-4 pb-1 pt-3 text-[10px] font-medium tracking-wider text-ink-500">
+            سایر ابزارها
+          </p>
+          {secondaryTools.map((item) => (
             <SafeLink
-              key={href}
-              href={href}
-              hard={hard}
+              key={item.href}
+              href={item.href}
+              onClick={() => setOpen(false)}
+              tabIndex={open ? 0 : -1}
+              className="mobile-nav-link"
+            >
+              {item.label}
+              {"hint" in item && item.hint ? (
+                <span className="mt-0.5 block text-[11px] text-ink-500">{item.hint}</span>
+              ) : null}
+            </SafeLink>
+          ))}
+
+          {/* Secondary + about */}
+          <p className="mobile-nav-group-label px-4 pb-1 pt-3 text-[10px] font-medium tracking-wider text-ink-500">
+            حساب و پشتیبانی
+          </p>
+          {secondaryNav.map((item) => (
+            <SafeLink
+              key={item.href}
+              href={item.href}
+              hard={"hard" in item ? item.hard : undefined}
               onClick={() => setOpen(false)}
               tabIndex={open ? 0 : -1}
               className="mobile-nav-link inline-flex items-center gap-2"
             >
-              <Icon size={16} aria-hidden className="opacity-70" />
-              {label}
+              <item.Icon size={16} aria-hidden className="opacity-70" />
+              {item.label}
             </SafeLink>
           ))}
 
