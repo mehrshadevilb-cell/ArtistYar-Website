@@ -13,7 +13,9 @@ import type {
 } from "../types";
 import { expectedDurationMs } from "../provider";
 
-const BASE = (process.env.ELEVENLABS_MUSIC_BASE_URL || "https://api.elevenlabs.io").replace(/\/$/, "");
+const BASE = (process.env.ELEVENLABS_MUSIC_BASE_URL || "https://api.elevenlabs.io")
+  .replace(/\/$/, "")
+  .replace(/\/v1$/i, "");
 
 function apiKey(): string {
   return (process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_API_KEY || "").trim();
