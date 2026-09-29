@@ -183,7 +183,7 @@ export async function runIntegrityScan(limit = 50): Promise<IntegrityReport> {
         severity: "high",
         category: "data",
         title: "ثبت‌نام فعال کلاس بدون هنرجو",
-        description: \`${orphanEnrollments.length} ثبت‌نام فعال کلاس به هیچ هنرجوی RahYar متصل نیست.\`,
+        description: `${orphanEnrollments.length} ثبت‌نام فعال کلاس به هیچ هنرجوی RahYar متصل نیست.`,
         entity_type: "ay_class_enrollments",
         count: orphanEnrollments.length,
         sample_ids: orphanEnrollments.slice(0, 5).map((r: { id: string }) => String(r.id)),
