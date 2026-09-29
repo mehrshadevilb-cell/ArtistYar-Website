@@ -1,2 +1,1 @@
-"use client";
-export default function Broken() { return null }
+PLACEHOLDER_WILL_REPLACE
