@@ -109,16 +109,24 @@ export async function createProviderToken(input: {
   const apiKey = input.apiKey.trim();
   if (!baseUrl || !apiKey) throw new Error("base_url_and_api_key_required");
 
+  const providerKind = input.providerKind || "openai_compat";
+  // ElevenLabs Compose Music has one canonical generation endpoint.
+  // Normalize it here so stale/admin-entered legacy paths cannot break generation.
+  const normalizedPath =
+    providerKind === "elevenlabs"
+      ? "/v1/music"
+      : input.path?.trim() || "/music/generate";
+
   const total = input.creditsTotal != null ? Number(input.creditsTotal) : null;
   const inserted = await client
     .from("ai_music_provider_tokens")
     .insert({
       label: input.label.trim().slice(0, 120) || "token",
-      provider_kind: input.providerKind || "openai_compat",
+      provider_kind: providerKind,
       base_url: baseUrl,
       api_key: apiKey,
       model_id: input.modelId?.trim() || null,
-      path: input.path?.trim() || "/music/generate",
+      path: normalizedPath,
       enabled: true,
       priority: input.priority ?? 100,
       credits_total: total,
@@ -154,7 +162,11 @@ export async function updateProviderToken(
   if (patch.baseUrl != null) row.base_url = patch.baseUrl.trim().replace(/\/$/, "");
   if (patch.apiKey != null && patch.apiKey.trim()) row.api_key = patch.apiKey.trim();
   if (patch.modelId !== undefined) row.model_id = patch.modelId;
-  if (patch.path !== undefined) row.path = patch.path;
+  if (patch.path !== undefined) {
+    row.path = patch.providerKind === "elevenlabs" ? "/v1/music" : patch.path;
+  } else if (patch.providerKind === "elevenlabs") {
+    row.path = "/v1/music";
+  }
   if (patch.enabled != null) row.enabled = patch.enabled;
   if (patch.priority != null) row.priority = patch.priority;
   if (patch.creditsTotal !== undefined) row.credits_total = patch.creditsTotal;
