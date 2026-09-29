@@ -244,3 +244,40 @@ html, body {
     align-items: stretch;
   }
 }
+
+
+/* AY-UX-P0-P2-2026-09-29 — hierarchy + touch + focus polish */
+
+.hero-lead {
+  color: color-mix(in srgb, var(--ink-400, #9a958c) 100%, transparent);
+}
+
+.hero-discovery-links a {
+  min-height: 2rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Primary interactive floor ~44px where practical */
+.nav-link,
+.mobile-nav-link,
+.menu-button {
+  min-height: 2.5rem;
+}
+
+.btn-primary,
+.btn-ghost {
+  min-height: 2.75rem;
+}
+
+/* Focus-visible already gold-ringed; ensure dropdown items inherit */
+.nav-dropdown [role="menuitem"]:focus-visible {
+  outline: 2px solid color-mix(in srgb, #c9a227 80%, white);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-dropdown {
+    animation: none !important;
+  }
+}
