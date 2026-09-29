@@ -18,7 +18,7 @@ import { getConfiguredProviders } from "@/lib/ai-providers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 async function requireAdmin() {
   return verifyAdminSession((await cookies()).get(ADMIN_SESSION_COOKIE)?.value);
@@ -252,7 +252,6 @@ export async function POST(request: Request) {
         skillId: typeof body.skillId === "string" ? body.skillId : undefined,
         provider: typeof body.provider === "string" ? body.provider : undefined,
         model: typeof body.model === "string" ? body.model : undefined,
-        parallel: body.parallel === true,
         apply: body.apply === true,
         paths: Array.isArray(body.paths)
           ? body.paths.filter((p): p is string => typeof p === "string").slice(0, 8)
