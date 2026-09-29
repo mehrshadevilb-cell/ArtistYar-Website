@@ -20,6 +20,8 @@ import {
 
 type Tab = "overview" | "students" | "sessions" | "schedule" | "attendance";
 
+type StudentOption = { id: number; full_name: string; phone: string | null };
+
 export default function AdminClassDetailPage() {
   const params = useParams();
   const id = String(params?.id || "");
@@ -35,6 +37,7 @@ export default function AdminClassDetailPage() {
   const [busy, setBusy] = useState(false);
   const [studentName, setStudentName] = useState("");
   const [studentId, setStudentId] = useState("");
+  const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
   const [weekdays, setWeekdays] = useState<number[]>([1, 3]);
   const [startTime, setStartTime] = useState("18:00");
   const [duration, setDuration] = useState(60);
@@ -57,6 +60,15 @@ export default function AdminClassDetailPage() {
       setLoading(false);
     }
   }, [id]);
+
+  const loadStudents = useCallback(async () => {
+    const res = await fetch("/api/rahyar/admin/students?limit=500", { credentials: "include", cache: "no-store" });
+    const json = await res.json();
+    if (res.ok) {
+      const items = Array.isArray(json) ? json : json.items || [];
+      setStudentOptions(items.filter((item: StudentOption) => Number.isInteger(Number(item.id))).map((item: StudentOption) => ({ id: Number(item.id), full_name: item.full_name, phone: item.phone })));
+    }
+  }, []);
 
   const loadEnrollments = useCallback(async () => {
     const res = await fetch(`/api/admin/classes/${id}/enrollments`, { credentials: "include", cache: "no-store" });
@@ -85,7 +97,10 @@ export default function AdminClassDetailPage() {
   }, [loadClass]);
 
   useEffect(() => {
-    if (tab === "students") void loadEnrollments();
+    if (tab === "students") {
+      void loadEnrollments();
+      void loadStudents();
+    }
     if (tab === "sessions" || tab === "schedule" || tab === "attendance") void loadSessions();
   }, [tab, loadEnrollments, loadSessions]);
 
