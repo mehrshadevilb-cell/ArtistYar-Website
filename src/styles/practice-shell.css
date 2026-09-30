@@ -213,12 +213,13 @@
 
 .fm-dialed-card {
   position: relative;
-  width: min(100%, 32rem);
+  width: min(100%, 39.375rem);
   margin-inline: auto;
-  aspect-ratio: 4 / 5;
-  border-radius: 1.15rem;
+  aspect-ratio: 630 / 786;
+  border-radius: 1.35rem;
   background: #000;
-  box-shadow: 0 28px 80px -24px rgba(0, 0, 0, 0.75), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 34px 100px -30px rgba(0, 0, 0, 0.82), 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  contain: layout paint;
   overflow: hidden;
   color: #fff;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, Arial, sans-serif;
@@ -227,13 +228,13 @@
 }
 .fm-dialed-card.is-playing {
   box-shadow:
-    0 28px 80px -24px rgba(0, 0, 0, 0.75),
-    0 0 48px -12px rgba(46, 230, 184, 0.18);
+    0 34px 100px -30px rgba(0, 0, 0, 0.82),
+    0 0 56px -14px rgba(46, 230, 184, 0.2);
 }
 .fm-dialed-card.is-remember {
   box-shadow:
-    0 28px 80px -24px rgba(0, 0, 0, 0.75),
-    0 0 36px -10px rgba(122, 60, 255, 0.16);
+    0 34px 100px -30px rgba(0, 0, 0, 0.82),
+    0 0 44px -12px rgba(122, 60, 255, 0.18);
 }
 .fm-dialed-card.is-dragging .fm-dialed-surface { cursor: none; }
 .fm-dialed-card.is-interactive .fm-dialed-surface { cursor: ns-resize; }
@@ -275,26 +276,17 @@
 .fm-dialed-status-pill {
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   text-transform: none;
-  color: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 999px;
-  padding: 0.32rem 0.75rem;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  color: rgba(255, 255, 255, 0.38);
+  padding: 0.3rem 0.5rem;
   transition: color 0.35s cubic-bezier(0.32, 0.72, 0, 1), border-color 0.35s cubic-bezier(0.32, 0.72, 0, 1), background 0.35s cubic-bezier(0.32, 0.72, 0, 1);
 }
 .fm-dialed-status-pill.is-live {
-  color: rgba(46, 230, 184, 0.92);
-  border-color: rgba(46, 230, 184, 0.28);
-  background: rgba(46, 230, 184, 0.08);
+  color: rgba(46, 230, 184, 0.88);
 }
 .fm-dialed-status-pill.is-hold {
-  color: rgba(196, 181, 253, 0.9);
-  border-color: rgba(122, 60, 255, 0.28);
-  background: rgba(122, 60, 255, 0.1);
+  color: rgba(196, 181, 253, 0.82);
 }
 
 .fm-dialed-surface {
@@ -335,6 +327,7 @@
   color: #fff;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
+  animation: fm-result-score-in 0.55s cubic-bezier(0.2, 0.85, 0.25, 1) both;
 }
 .fm-dialed-feedback {
   position: absolute;
@@ -347,6 +340,7 @@
   line-height: 1.45;
   color: rgba(255, 255, 255, 0.42);
   pointer-events: none;
+  animation: fm-result-feedback-in 0.7s 0.18s cubic-bezier(0.2, 0.85, 0.25, 1) both;
 }
 .fm-dialed-hz {
   position: absolute;
@@ -378,6 +372,7 @@
   color: rgba(255, 255, 255, 0.42);
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+  animation: fm-result-target-in 0.8s 0.1s cubic-bezier(0.2, 0.85, 0.25, 1) both;
 }
 .fm-dialed-guess-value {
   font-size: clamp(3rem, 8.7vw, 3.55rem);
@@ -494,37 +489,41 @@
 
 .fm-rsgo {
   position: relative;
-  width: min(100%, 32rem);
+  width: min(100%, 39.375rem);
   margin-inline: auto;
-  aspect-ratio: 4 / 5;
-  border-radius: 1.15rem;
+  aspect-ratio: 630 / 786;
+  border-radius: 1.35rem;
   background: #000;
-  box-shadow: 0 28px 80px -24px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 34px 100px -30px rgba(0, 0, 0, 0.82);
+  contain: layout paint;
   overflow: hidden;
   color: #fff;
 }
-.fm-rsgo-top {
-  position: absolute;
-  top: 1rem;
-  left: 1.15rem;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.72);
-  font-variant-numeric: tabular-nums;
-}
+.fm-rsgo-top { display: none; }
 .fm-rsgo-word {
   position: absolute;
   top: 50%;
   left: 50%;
   right: auto;
-  font-size: clamp(3.4rem, 11vw, 4.5rem);
+  font-size: clamp(3.8rem, 13vw, 5.25rem);
   font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1;
   color: #fff;
   opacity: 0;
   animation: fm-rsgo-in 0.55s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+}
+@keyframes fm-result-score-in {
+  from { opacity: 0; transform: translateY(5px) scale(.985); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@keyframes fm-result-target-in {
+  from { opacity: 0; transform: translateY(7px); filter: blur(7px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes fm-result-feedback-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @keyframes fm-rsgo-in {
   from { opacity: 0; color: rgba(255, 255, 255, 0.18); transform: translate(-50%, calc(-50% + 6px)); }
@@ -574,6 +573,9 @@
 @media (prefers-reduced-motion: reduce) {
   .fm-dialed-card,
   .fm-rsgo-word,
+  .fm-dialed-score,
+  .fm-dialed-target-value,
+  .fm-dialed-feedback,
   .fm-dialed-submit,
   .fm-dialed-replay,
   .fm-intro-card .fm-intro-cta,
