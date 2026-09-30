@@ -453,7 +453,7 @@ export function PracticeGameSession({
     setReadyWord("ready");
     setPhase("ready");
     const schedule = (fn: () => void, ms: number) => {
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         if (gen !== roundGenRef.current) return;
         fn();
       }, ms);
