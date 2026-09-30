@@ -28,20 +28,6 @@ type Props = {
   hideHeader?: boolean;
 };
 
-function isPluginCoverUrl(url: string | null | undefined) {
-  const value = String(url || "").trim().toLowerCase();
-  if (!value) return false;
-  // Never show Telegram channel avatar / public CDN logos
-  if (value.includes("telesco.pe")) return false;
-  if (value.includes("telegram.org")) return false;
-  if (value.includes("telegram-cdn.org")) return false;
-  // Only trusted stored covers (Supabase / ArtistYar media)
-  if (value.includes("supabase.co")) return true;
-  if (value.includes("artistyaar.ir")) return true;
-  if (value.includes("artistyar")) return true;
-  return false;
-}
-
 function coverSrc(p: LatestPlugin) {
   // Telegram is the canonical media source. Never prefer or require Supabase
   // Storage for plugin covers.
