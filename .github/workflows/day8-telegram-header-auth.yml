@@ -1,0 +1,32 @@
+name: day8-telegram-header-auth
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/day8-strip-query-key-auth.mjs"
+      - "src/lib/telegram-admin-auth.ts"
+      - ".github/workflows/day8-telegram-header-auth.yml"
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Apply header-only auth
+        run: node scripts/day8-strip-query-key-auth.mjs
+      - name: Commit if changed
+        run: |
+          git config user.name "artistyar-bot"
+          git config user.email "bot@artistyar.ir"
+          git add src/app/api/telegram/plugins
+          if git diff --staged --quiet; then
+            echo "No route changes"
+          else
+            git commit -m "fix(day8): telegram plugin admin auth is header-only"
+            git push origin HEAD
+          fi
