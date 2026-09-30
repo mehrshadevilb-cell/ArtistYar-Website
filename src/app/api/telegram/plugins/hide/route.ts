@@ -1,4 +1,5 @@
 import { after, NextResponse } from "next/server";
+import { isTelegramAdminAuthorized } from "@/lib/telegram-admin-auth";
 import { getPluginsDb } from "@/lib/plugins-db";
 import { submitIndexNow } from "@/lib/indexnow";
 
@@ -18,15 +19,7 @@ export const dynamic = "force-dynamic";
  *   post_url      — full https://t.me/... link
  */
 function authorized(request: Request) {
-  const key = (process.env.WEB_ADMIN_API_KEY || "").trim();
-  if (!key) return false;
-  const url = new URL(request.url);
-  const provided =
-    request.headers.get("x-web-admin-key") ||
-    request.headers.get("x-admin-api-key") ||
-    url.searchParams.get("key") ||
-    "";
-  return provided === key;
+  return isTelegramAdminAuthorized(request);
 }
 
 async function run(request: Request) {

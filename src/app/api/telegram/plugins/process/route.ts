@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isTelegramProcessAuthorized } from "@/lib/telegram-admin-auth";
 import { processPendingPluginPairs } from "@/lib/telegram-plugin-sync";
 import { getPluginsDb } from "@/lib/plugins-db";
 
@@ -6,22 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function authorized(request: Request) {
-  const key = (process.env.WEB_ADMIN_API_KEY || "").trim();
-  const processSecret = (process.env.TELEGRAM_PLUGIN_PROCESS_SECRET || "").trim();
-  const url = new URL(request.url);
-  // Admin key: header preferred; legacy query key still accepted for ops tooling.
-  const provided =
-    request.headers.get("x-web-admin-key") ||
-    request.headers.get("x-admin-api-key") ||
-    url.searchParams.get("key") ||
-    "";
-  // Process secret: header only — never accept from query string.
-  const providedProcessSecret =
-    request.headers.get("x-telegram-plugin-process-secret") || "";
-  return (
-    (Boolean(key) && provided === key) ||
-    (Boolean(processSecret) && providedProcessSecret === processSecret)
-  );
+  return isTelegramProcessAuthorized(request);
 }
 
 async function queueSnapshot() {
