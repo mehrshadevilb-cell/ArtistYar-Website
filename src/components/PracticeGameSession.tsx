@@ -111,7 +111,7 @@ export function PracticeGameSession({
   const totalRounds = Math.max(1, maxRounds ?? (isFreq ? 5 : game?.rounds ?? 8));
   const freeLocked = !accessLoading && !pro && roundIndex + 1 > (stageLimit || 5);
 
-  const clearTimers = () => {
+  const clearTimers = useCallback(() => {
     if (playTimerRef.current) {
       clearTimeout(playTimerRef.current);
       playTimerRef.current = null;
@@ -128,7 +128,7 @@ export function PracticeGameSession({
       clearTimeout(readyTimerRef.current);
       readyTimerRef.current = null;
     }
-  };
+  }, []);
 
   useEffect(() => {
     sessionStartedRef.current = false;
@@ -493,6 +493,7 @@ export function PracticeGameSession({
     gameId,
     isFreq,
     runReadySequence,
+    clearTimers,
     level,
     game?.warmup,
     buildRound,
