@@ -884,18 +884,11 @@ export async function processPluginPair(photo: any, doc: any) {
 }
 
 
-/** Runtime fallback processor — disabled by default.
- * Next.js instrumentation.ts owns the single in-process interval to avoid
- * duplicate timers when this module is also imported. Set
- * ARTISTYAR_TELEGRAM_PROCESSOR_OWNER=sync-module only for exceptional recovery.
- */
+/** Runtime fallback processor for Render free instances without cron. */
 let runtimeProcessorStarted = false;
 
 function startRuntimePluginProcessor() {
-  if (runtimeProcessorStarted) return;
-  if (process.env.ARTISTYAR_TELEGRAM_PROCESSOR_OWNER !== "sync-module") return;
-  if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NODE_ENV !== "production" || process.env.NEXT_PHASE === "phase-production-build") return;
-  if (process.env.ARTISTYAR_DISABLE_INLINE_TELEGRAM_PROCESSOR === "1") return;
+  if (runtimeProcessorStarted || process.env.NEXT_RUNTIME !== "nodejs" || process.env.NODE_ENV !== "production" || process.env.NEXT_PHASE === "phase-production-build") return;
   runtimeProcessorStarted = true;
   const run = async () => {
     try {

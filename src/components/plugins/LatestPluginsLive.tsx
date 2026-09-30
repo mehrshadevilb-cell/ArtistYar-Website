@@ -28,9 +28,25 @@ type Props = {
   hideHeader?: boolean;
 };
 
+function isPluginCoverUrl(url: string | null | undefined) {
+  const value = String(url || "").trim().toLowerCase();
+  if (!value) return false;
+  // Never show Telegram channel avatar / public CDN logos
+  if (value.includes("telesco.pe")) return false;
+  if (value.includes("telegram.org")) return false;
+  if (value.includes("telegram-cdn.org")) return false;
+  // Only trusted stored covers (Supabase / ArtistYar media)
+  if (value.includes("supabase.co")) return true;
+  if (value.includes("artistyaar.ir")) return true;
+  if (value.includes("artistyar")) return true;
+  return false;
+}
+
 function coverSrc(p: LatestPlugin) {
-  // Telegram is the canonical media source. Never prefer or require Supabase
-  // Storage for plugin covers.
+  // Prefer the persisted cover, but fall back to the exact photo from the
+  // Telegram post. The API verifies that the file belongs to a published post,
+  // so a missing Storage cover never turns a real plugin into a generic card.
+  if (isPluginCoverUrl(p.cover_public_url)) return p.cover_public_url as string;
   if (p.telegram_photo_file_id) {
     return "/api/plugins/image?file_id=" + encodeURIComponent(p.telegram_photo_file_id);
   }

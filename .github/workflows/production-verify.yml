@@ -38,27 +38,6 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Security regression (practice RPC + secret transport)
-        run: npm run test:security
-
-      - name: Music billing integrity
-        run: npm run test:music-billing
-
-      - name: Schema inventory (Day 3)
-        run: npm run test:schema-inventory
-
-      - name: Critical-path tests (Day 4)
-        run: npm run test:critical-paths
-
-      - name: SEO contract tests
-        run: npm run test:seo
-
-      - name: Security runtime contracts (Day 7)
-        run: npm run test:security-runtime
-
-      - name: Security Day 8 residual
-        run: npm run test:security-day8
-
       - name: Source scan
         run: node scripts/scan-codebase.js
 

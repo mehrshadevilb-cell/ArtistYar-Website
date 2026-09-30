@@ -1,15 +1,7 @@
 /** Client-side request timeout helper for admin AI fetches. */
-export function withTimeout(parent?: AbortSignal, ms = 25000): {
-  signal: AbortSignal;
-  clear: () => void;
-  didTimeout: () => boolean;
-} {
+export function withTimeout(parent?: AbortSignal, ms = 25000): { signal: AbortSignal; clear: () => void } {
   const controller = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, ms);
+  const timer = setTimeout(() => controller.abort(), ms);
   const onAbort = () => controller.abort();
   if (parent) {
     if (parent.aborted) controller.abort();
@@ -21,7 +13,6 @@ export function withTimeout(parent?: AbortSignal, ms = 25000): {
       clearTimeout(timer);
       if (parent) parent.removeEventListener("abort", onAbort);
     },
-    didTimeout: () => timedOut,
   };
 }
 

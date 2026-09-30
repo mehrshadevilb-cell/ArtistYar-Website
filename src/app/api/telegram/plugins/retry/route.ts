@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { isTelegramAdminAuthorized } from "@/lib/telegram-admin-auth";
 import { getPluginsDb } from "@/lib/plugins-db";
 import { processPendingPluginPairs } from "@/lib/telegram-plugin-sync";
 import { reapplyPluginCaption } from "@/lib/telegram-plugin-caption";
@@ -8,7 +7,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function authorized(request: Request) {
-  return isTelegramAdminAuthorized(request);
+  const expected = (process.env.WEB_ADMIN_API_KEY || "").trim();
+  const provided =
+    request.headers.get("x-web-admin-key") ||
+    request.headers.get("x-admin-api-key") ||
+    new URL(request.url).searchParams.get("key") ||
+    "";
+  return Boolean(expected && provided === expected);
 }
 
 export async function POST(request: Request) {

@@ -48,8 +48,9 @@ type ReadyWord = "ready" | "set" | "go";
 const REMEMBER_MS = 2000;
 const FM_TIMING = {
   readyMs: 700,
-  setMs: 600,
-  goMs: 500,
+  setMs: 650,
+  goMs: 700,
+  resultDwellMs: 2650,
 } as const;
 
 export function PracticeGameSession({
@@ -107,7 +108,9 @@ export function PracticeGameSession({
   const submitLockRef = useRef(false);
   const sessionStartedRef = useRef(false);
   const [readyWord, setReadyWord] = useState<ReadyWord>("ready");
-  const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readyTimersRef = useRef<number[]>([]);
+  const resultDwellTimerRef = useRef<number | null>(null);
+  const roundGenRef = useRef(0);
   const userId = user?.id || null;
   const isFreq = gameId === "freq-memory";
   const isInterval = gameId === "interval-recognition";
@@ -127,9 +130,11 @@ export function PracticeGameSession({
       clearInterval(rememberTickRef.current);
       rememberTickRef.current = null;
     }
-    if (readyTimerRef.current) {
-      clearTimeout(readyTimerRef.current);
-      readyTimerRef.current = null;
+    for (const timer of readyTimersRef.current) clearTimeout(timer);
+    readyTimersRef.current = [];
+    if (resultDwellTimerRef.current) {
+      clearTimeout(resultDwellTimerRef.current);
+      resultDwellTimerRef.current = null;
     }
   };
 
@@ -191,7 +196,9 @@ export function PracticeGameSession({
       setRememberLeft((s) => Math.max(0, s - 1));
     }, 1000);
     if (rememberTimerRef.current) clearTimeout(rememberTimerRef.current);
+    const gen = roundGenRef.current;
     rememberTimerRef.current = setTimeout(() => {
+      if (gen !== roundGenRef.current) return;
       if (rememberTickRef.current) {
         clearInterval(rememberTickRef.current);
         rememberTickRef.current = null;
@@ -206,7 +213,8 @@ export function PracticeGameSession({
   const buildRound = useCallback(
     (lvl: number, idx: number) => {
       clearTimers();
-      const seed = (seedBase.current + idx * 97 + lvl * 13 + Math.floor(Math.random() * 1e9)) >>> 0;
+      const gen = ++roundGenRef.current;
+    const seed = (seedBase.current + idx * 97 + lvl * 13 + Math.floor(Math.random() * 1e9)) >>> 0;
       let exerciseType: FreqExerciseType | undefined;
       if (gameId === "freq-memory") {
         try {
@@ -235,6 +243,7 @@ export function PracticeGameSession({
       } catch {
         r = generateRoundForGame(gameId, lvl, seed);
       }
+      if (gen !== roundGenRef.current) return;
       if (typeof r.targetHz === "number" && r.targetHz > 0) {
         recentTargetsRef.current = [...recentTargetsRef.current.slice(-7), r.targetHz];
       }
@@ -251,6 +260,7 @@ export function PracticeGameSession({
       setPlaying(false);
       setFreqSub("listen");
       freqSubRef.current = "listen";
+      roundGenRef.current += 1;
       stopLiveTone();
       stopPracticePlayback();
       setGuessHz(r.targetHz ? Math.round(((r.sliderMin || 0) + (r.sliderMax || 0)) / 2) : 440);
@@ -292,7 +302,7 @@ export function PracticeGameSession({
   useEffect(() => {
     if (!autoStart || !game || isFreq) return;
     const id = window.setTimeout(() => startSession(), 0);
-    return () => window.clearTimeout(id);
+    return () => clearTimeout(id);
   }, [autoStart, gameId]);
 
   const playAudio = useCallback(async () => {
@@ -317,7 +327,9 @@ export function PracticeGameSession({
       const src = round.source as { duration?: number; seconds?: number };
       const ms = Math.round((src.duration || src.seconds || 1.2) * 1000) + 80;
       if (playTimerRef.current) clearTimeout(playTimerRef.current);
+      const gen = roundGenRef.current;
       playTimerRef.current = setTimeout(() => {
+        if (gen !== roundGenRef.current) return;
         setPlaying(false);
         playTimerRef.current = null;
         if (isFreq && freqSubRef.current === "listen") {
@@ -343,7 +355,7 @@ export function PracticeGameSession({
     ) {
       return;
     }
-    const id = window.setTimeout(() => {
+    const id = setTimeout(() => {
       void playAudio();
     }, 0);
     return () => window.clearTimeout(id);
@@ -405,6 +417,7 @@ export function PracticeGameSession({
     if (isFreq && freqSub !== "recreate") return;
     if (!isFreq && !heard) return;
     submitLockRef.current = true;
+    roundGenRef.current += 1;
     setPicked("slider");
     setLastGuessHz(guessHz);
     const { accuracy, hzErr, cents, perfect } = frequencyAccuracy(round.targetHz, guessHz, round.toleranceHz || 40);
@@ -419,6 +432,7 @@ export function PracticeGameSession({
   const submitChoice = async (optionId: string) => {
     if (!round || picked || submitLockRef.current || !heard || freeLocked || quotaBlocked) return;
     submitLockRef.current = true;
+    roundGenRef.current += 1;
     setPicked(optionId);
     const correct = optionId === round.correctOptionId;
     await finishRound(correct, choiceAccuracy(correct), correct ? "درست" : `پاسخ: ${round.reviewText}`);
@@ -435,13 +449,21 @@ export function PracticeGameSession({
 
   const runReadySequence = useCallback(() => {
     clearTimers();
+    const gen = roundGenRef.current;
     setReadyWord("ready");
     setPhase("ready");
-    readyTimerRef.current = setTimeout(() => {
+    const schedule = (fn: () => void, ms: number) => {
+      const timer = window.setTimeout(() => {
+        if (gen !== roundGenRef.current) return;
+        fn();
+      }, ms);
+      readyTimersRef.current.push(timer);
+    };
+    schedule(() => {
       setReadyWord("set");
-      readyTimerRef.current = setTimeout(() => {
+      schedule(() => {
         setReadyWord("go");
-        readyTimerRef.current = setTimeout(() => {
+        schedule(() => {
           beginNextFromReady();
         }, FM_TIMING.goMs);
       }, FM_TIMING.setMs);
@@ -479,6 +501,8 @@ export function PracticeGameSession({
   const freqRoundScore = (acc: number) => Math.round((Math.max(0, Math.min(100, acc)) / 10) * 100) / 100;
   const freqSessionScore = outcomes.reduce((s, o) => s + freqRoundScore(o.accuracy), 0);
   const freqSessionMax = Math.max(1, outcomes.length) * 10;
+  const freqAverageScore = outcomes.length ? freqSessionScore / outcomes.length : 0;
+  const freqBestScore = outcomes.length ? Math.max(...outcomes.map((o) => freqRoundScore(o.accuracy))) : 0;
   const freqResultLine = (acc: number) =>
     acc >= 97
       ? "دقیق؛ تقریباً بی‌نقص."
@@ -499,15 +523,22 @@ export function PracticeGameSession({
     return "این دور گرم‌کردن بود.";
   };
   const band = bandForLevel(level);
+  const readyWordFa: Record<ReadyWord, string> = { ready: "آماده", set: "تنظیم", go: "برو" };
 
   // Dialed-style result dwell: let the score count-up and result overlay
   // remain visible briefly, then advance automatically into ready/set/go.
   useEffect(() => {
     if (!isFreq || phase !== "result" || !feedback) return;
+    const gen = roundGenRef.current;
     const id = window.setTimeout(() => {
+      if (gen !== roundGenRef.current) return;
       advanceToNextRound();
-    }, 2000);
-    return () => window.clearTimeout(id);
+    }, FM_TIMING.resultDwellMs);
+    resultDwellTimerRef.current = id;
+    return () => {
+      window.clearTimeout(id);
+      if (resultDwellTimerRef.current === id) resultDwellTimerRef.current = null;
+    };
   }, [advanceToNextRound, feedback, isFreq, phase]);
 
   if (!game) {
@@ -527,8 +558,7 @@ export function PracticeGameSession({
   const waveHz = isFreq && round && (freqSub === "listen" || freqSub === "remember")
     ? round.targetHz
     : guessHz;
-  const numericWaveHz = typeof waveHz === "number" ? waveHz : guessHz;
-  const safeWaveHz = Number.isFinite(numericWaveHz) && numericWaveHz > 0 ? numericWaveHz : guessHz;
+  const safeWaveHz = typeof waveHz === "number" && Number.isFinite(waveHz) && waveHz > 0 ? waveHz : guessHz;
 
   return (
     <main className={`practice-shell container-ay relative pb-16 pt-6 sm:pt-10 ${isFreq && phase === "play" ? "practice-focus" : ""}`} dir="rtl">
@@ -658,37 +688,39 @@ export function PracticeGameSession({
           <span className="fm-rsgo-top">
             {roundIndex + 2} / {totalRounds}
           </span>
-          <span className="fm-rsgo-word">
-            {readyWord}
+          <span className="fm-rsgo-word" aria-live="assertive">
+            {readyWordFa[readyWord]}
           </span>
         </div>
       )}
 
       {phase === "summary" && isFreq && (
-        <div className="fm-summary-card">
-          <p className="text-[11px] text-ink-500">
-            سطح {level}/50 · {BAND_LABEL[band]}
-          </p>
-          <p className="mt-4 font-mono text-5xl font-semibold tabular-nums text-sand-50 sm:text-6xl">
-            {freqSessionScore.toFixed(2)}
-            <span className="text-2xl text-ink-500">/{freqSessionMax}</span>
-          </p>
-          <p className="mt-3 text-[14px] leading-7 text-ink-300">{freqSummaryLine(freqSessionScore, freqSessionMax)}</p>
-          <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
+        <div className="fm-summary-card" dir="ltr">
+          <div className="fm-summary-kicker">YOUR SESSION</div>
+          <div className="fm-summary-total">
+            <span>{freqSessionScore.toFixed(2)}</span>
+            <small>/{freqSessionMax}</small>
+          </div>
+          <div className="fm-summary-stats">
+            <div><span>Total</span><strong>{freqSessionScore.toFixed(2)}</strong></div>
+            <div><span>Average</span><strong>{freqAverageScore.toFixed(2)}</strong></div>
+            <div><span>Best</span><strong>{freqBestScore.toFixed(2)}</strong></div>
+            <div><span>Level</span><strong>{level}</strong></div>
+          </div>
+          <div className="fm-summary-rounds" aria-label="Round scores">
             {outcomes.map((o, i) => (
-              <div key={i} className="min-w-[4.25rem] flex-1 rounded-xl border border-white/[0.07] bg-white/[0.03] px-2 py-3 text-center">
-                <p className="font-mono text-[12px] text-sand-50">{freqRoundScore(o.accuracy).toFixed(2)}</p>
+              <div key={i} className="fm-summary-round">
+                <span>R{i + 1}</span>
+                <strong>{freqRoundScore(o.accuracy).toFixed(2)}</strong>
               </div>
             ))}
           </div>
-          <p className="mt-5 text-[12px] text-ink-500">
-            {outcomes.filter((o) => o.correct).length} از {outcomes.length} قبول · {sessionXp} XP
-          </p>
-          <div className="mt-6 flex gap-2">
-            <button type="button" className="btn-ay btn-ay-primary flex-1" onClick={startSession}>
-              <RotateCcw size={16} className="ml-1 inline" /> دوباره
+          <p className="fm-summary-caption">{freqSummaryLine(freqSessionScore, freqSessionMax)}</p>
+          <div className="fm-summary-actions">
+            <button type="button" className="fm-summary-play" onClick={startSession}>
+              <RotateCcw size={15} aria-hidden /> Play again
             </button>
-            <button type="button" className="btn-ay flex-1" onClick={onBack}>
+            <button type="button" className="fm-summary-back" onClick={onBack}>
               بازگشت
             </button>
           </div>

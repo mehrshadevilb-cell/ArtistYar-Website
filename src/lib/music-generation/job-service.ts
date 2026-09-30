@@ -124,8 +124,6 @@ export async function createGenerationJob(input: {
   const prompt = input.prompt.trim().slice(0, 2000);
   if (!prompt) throw new Error("prompt_required");
 
-  // Authoritative uniqueness is DB unique index (user_id, idempotency_key).
-  // Select-then-insert can race; on unique violation re-load the winner.
   if (input.idempotencyKey) {
     const existing = await client
       .from("ai_music_generation_jobs")
@@ -158,21 +156,7 @@ export async function createGenerationJob(input: {
     .select("*")
     .single();
 
-  if (inserted.error) {
-    const msg = inserted.error.message || "";
-    const code = (inserted.error as { code?: string }).code || "";
-    // 23505 unique_violation — concurrent claim of same (user_id, idempotency_key)
-    if (input.idempotencyKey && (code === "23505" || /duplicate|unique/i.test(msg))) {
-      const raced = await client
-        .from("ai_music_generation_jobs")
-        .select("*")
-        .eq("user_id", input.userId)
-        .eq("idempotency_key", input.idempotencyKey)
-        .maybeSingle();
-      if (raced.data) return rowToJob(raced.data as Record<string, unknown>);
-    }
-    throw new Error(`job_create_failed:${msg}`);
-  }
+  if (inserted.error) throw new Error(`job_create_failed:${inserted.error.message}`);
   return rowToJob(inserted.data as Record<string, unknown>);
 }
 

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { isTelegramAdminAuthorized } from "@/lib/telegram-admin-auth";
 import { createClient } from "@supabase/supabase-js";
 import {
   getPluginWebhookInfo,
@@ -19,7 +18,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function authorized(request: Request) {
-  return isTelegramAdminAuthorized(request);
+  const expected = (process.env.WEB_ADMIN_API_KEY || "").trim();
+  const provided =
+    request.headers.get("x-admin-api-key") ||
+    request.headers.get("x-web-admin-key") ||
+    new URL(request.url).searchParams.get("key") ||
+    "";
+  return Boolean(expected && provided === expected);
 }
 
 export async function GET(request: Request) {
