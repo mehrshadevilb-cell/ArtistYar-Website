@@ -501,6 +501,8 @@ export function PracticeGameSession({
   const freqRoundScore = (acc: number) => Math.round((Math.max(0, Math.min(100, acc)) / 10) * 100) / 100;
   const freqSessionScore = outcomes.reduce((s, o) => s + freqRoundScore(o.accuracy), 0);
   const freqSessionMax = Math.max(1, outcomes.length) * 10;
+  const freqAverageScore = outcomes.length ? freqSessionScore / outcomes.length : 0;
+  const freqBestScore = outcomes.length ? Math.max(...outcomes.map((o) => freqRoundScore(o.accuracy))) : 0;
   const freqResultLine = (acc: number) =>
     acc >= 97
       ? "دقیق؛ تقریباً بی‌نقص."
@@ -692,30 +694,32 @@ export function PracticeGameSession({
       )}
 
       {phase === "summary" && isFreq && (
-        <div className="fm-glass-card">
-          <p className="text-[11px] text-ink-500">
-            سطح {level}/50 · {BAND_LABEL[band]}
-          </p>
-          <p className="mt-4 font-mono text-5xl font-semibold tabular-nums text-sand-50 sm:text-6xl">
-            {freqSessionScore.toFixed(2)}
-            <span className="text-2xl text-ink-500">/{freqSessionMax}</span>
-          </p>
-          <p className="mt-3 text-[14px] leading-7 text-ink-300">{freqSummaryLine(freqSessionScore, freqSessionMax)}</p>
-          <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
+        <div className="fm-summary-card" dir="ltr">
+          <div className="fm-summary-kicker">YOUR SESSION</div>
+          <div className="fm-summary-total">
+            <span>{freqSessionScore.toFixed(2)}</span>
+            <small>/{freqSessionMax}</small>
+          </div>
+          <div className="fm-summary-stats">
+            <div><span>Total</span><strong>{freqSessionScore.toFixed(2)}</strong></div>
+            <div><span>Average</span><strong>{freqAverageScore.toFixed(2)}</strong></div>
+            <div><span>Best</span><strong>{freqBestScore.toFixed(2)}</strong></div>
+            <div><span>Level</span><strong>{level}</strong></div>
+          </div>
+          <div className="fm-summary-rounds" aria-label="Round scores">
             {outcomes.map((o, i) => (
-              <div key={i} className="min-w-[4.25rem] flex-1 rounded-xl border border-white/[0.07] bg-white/[0.03] px-2 py-3 text-center">
-                <p className="font-mono text-[12px] text-sand-50">{freqRoundScore(o.accuracy).toFixed(2)}</p>
+              <div key={i} className="fm-summary-round">
+                <span>R{i + 1}</span>
+                <strong>{freqRoundScore(o.accuracy).toFixed(2)}</strong>
               </div>
             ))}
           </div>
-          <p className="mt-5 text-[12px] text-ink-500">
-            {outcomes.filter((o) => o.correct).length} از {outcomes.length} قبول · {sessionXp} XP
-          </p>
-          <div className="mt-6 flex gap-2">
-            <button type="button" className="btn-ay btn-ay-primary flex-1" onClick={startSession}>
-              <RotateCcw size={16} className="ml-1 inline" /> دوباره
+          <p className="fm-summary-caption">{freqSummaryLine(freqSessionScore, freqSessionMax)}</p>
+          <div className="fm-summary-actions">
+            <button type="button" className="fm-summary-play" onClick={startSession}>
+              <RotateCcw size={15} aria-hidden /> Play again
             </button>
-            <button type="button" className="btn-ay flex-1" onClick={onBack}>
+            <button type="button" className="fm-summary-back" onClick={onBack}>
               بازگشت
             </button>
           </div>
