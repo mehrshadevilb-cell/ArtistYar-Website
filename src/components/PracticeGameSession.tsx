@@ -523,6 +523,7 @@ export function PracticeGameSession({
     return "این دور گرم‌کردن بود.";
   };
   const band = bandForLevel(level);
+  const readyWordFa: Record<ReadyWord, string> = { ready: "آماده", set: "تنظیم", go: "برو" };
 
   // Dialed-style result dwell: let the score count-up and result overlay
   // remain visible briefly, then advance automatically into ready/set/go.
@@ -687,8 +688,8 @@ export function PracticeGameSession({
           <span className="fm-rsgo-top">
             {roundIndex + 2} / {totalRounds}
           </span>
-          <span className="fm-rsgo-word">
-            {readyWord}
+          <span className="fm-rsgo-word" aria-live="assertive">
+            {readyWordFa[readyWord]}
           </span>
         </div>
       )}
