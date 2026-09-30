@@ -77,14 +77,8 @@ const websiteJsonLd = {
   alternateName: ["آرتیست‌یار", "آکادمی راه‌یار"],
   url: siteUrl,
   inLanguage: "fa-IR",
-  potentialAction: {
-    "@type": "SearchAction",
-    target: {
-      "@type": "EntryPoint",
-      urlTemplate: `${siteUrl}/courses?q={search_term_string}`,
-    },
-    "query-input": "required name=search_term_string",
-  },
+  // SearchAction omitted: /courses does not implement ?q= search.
+  // Advertising SearchAction without matching UI is misleading structured data.
 };
 
 export const metadata: Metadata = {
