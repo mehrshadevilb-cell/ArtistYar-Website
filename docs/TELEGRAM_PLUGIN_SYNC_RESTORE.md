@@ -1,16 +1,37 @@
 # CRITICAL — Restore telegram-plugin-sync.ts
 
-During Day 5 tooling, `src/lib/telegram-plugin-sync.ts` was accidentally truncated on `main`.
+`src/lib/telegram-plugin-sync.ts` on `main` is currently a placeholder (`PLACEHOLDER_WILL_REPLACE`).
+This must be restored before Telegram plugin processing will work in production.
 
-## Immediate restore
+## Restore (preferred)
+
+From a machine with the Day 5 agent artifact:
 
 ```bash
-git show 0fd93340e828abbee0a800537beda9acb8a21281:src/lib/telegram-plugin-sync.ts > src/lib/telegram-plugin-sync.ts
+cp path/to/telegram-plugin-sync.DAY5_RESTORED.ts src/lib/telegram-plugin-sync.ts
+# or
+cp path/to/telegram-plugin-sync.RESTORE.ts src/lib/telegram-plugin-sync.ts
+```
+
+Integrity check (must all pass):
+
+```bash
+grep -q 'export async function enqueuePluginMessage' src/lib/telegram-plugin-sync.ts
+grep -q 'export async function processPendingPluginPairs' src/lib/telegram-plugin-sync.ts
+grep -q 'ARTISTYAR_TELEGRAM_PROCESSOR_OWNER' src/lib/telegram-plugin-sync.ts
+test $(wc -c < src/lib/telegram-plugin-sync.ts) -gt 20000
+```
+
+Then:
+
+```bash
 git add src/lib/telegram-plugin-sync.ts
-git commit -m "fix: restore telegram-plugin-sync.ts after truncation"
+git commit -m "fix: restore telegram-plugin-sync.ts after Day 5 truncation"
 git push origin main
 ```
 
-Or copy from agent artifact `telegram-plugin-sync.RESTORE.ts` if available.
+## Notes
 
-Optional Day 5 processor-owner guard (after restore): ensure module auto-start is gated by `ARTISTYAR_TELEGRAM_PROCESSOR_OWNER=sync-module` so only `instrumentation.ts` runs the in-process interval by default.
+- Day 5 health/liveness/readiness and instrumentation shutdown are already on `main` and do not depend on this file.
+- After restore, the in-module processor auto-start remains gated by `ARTISTYAR_TELEGRAM_PROCESSOR_OWNER=sync-module` so only `src/instrumentation.ts` owns the interval by default.
+- Optional: `ARTISTYAR_DISABLE_INLINE_TELEGRAM_PROCESSOR=1` to rely on Render cron only.
