@@ -122,7 +122,7 @@ export async function chargeCredits(input: {
     return chargeCredits(input);
   }
 
-  await client.from("ai_music_generation_credit_ledger").insert({
+  const led = await client.from("ai_music_generation_credit_ledger").insert({
     user_id: input.userId,
     job_id: input.jobId || null,
     delta: -amount,
@@ -130,6 +130,30 @@ export async function chargeCredits(input: {
     balance_after: next,
     idempotency_key: input.idempotencyKey,
   });
+
+  // Concurrent charge with same idempotency key: unique (user_id, idempotency_key)
+  // means another worker already recorded the charge — treat as success of that charge.
+  if (led.error) {
+    const code = (led.error as { code?: string }).code || "";
+    const msg = led.error.message || "";
+    if (code === "23505" || /duplicate|unique/i.test(msg)) {
+      const priorAgain = await client
+        .from("ai_music_generation_credit_ledger")
+        .select("id, balance_after, delta")
+        .eq("user_id", input.userId)
+        .eq("idempotency_key", input.idempotencyKey)
+        .maybeSingle();
+      if (priorAgain.data) {
+        return {
+          ok: true,
+          balance: Number(priorAgain.data.balance_after) || 0,
+          charged: Math.abs(Number(priorAgain.data.delta) || 0),
+        };
+      }
+    }
+    // Balance already decremented; surface error so caller can attempt refund path.
+    throw new Error(`charge_ledger_failed:${msg}`);
+  }
 
   return { ok: true, balance: next, charged: amount };
 }
@@ -202,7 +226,7 @@ export async function grantPurchaseCredits(input: {
     .from("ai_music_generation_credit_ledger")
     .select("id, balance_after")
     .eq("user_id", input.userId)
-    .eq("idempotency_key", idempotencyKey)
+    .eq("idempotency_key", input.idempotencyKey)
     .maybeSingle();
   if (prior.data) {
     return { ok: true, balance: Number(prior.data.balance_after) || 0 };

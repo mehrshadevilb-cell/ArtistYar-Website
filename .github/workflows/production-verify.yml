@@ -41,6 +41,9 @@ jobs:
       - name: Security regression (practice RPC + secret transport)
         run: npm run test:security
 
+      - name: Music billing integrity
+        run: npm run test:music-billing
+
       - name: Source scan
         run: node scripts/scan-codebase.js
 
