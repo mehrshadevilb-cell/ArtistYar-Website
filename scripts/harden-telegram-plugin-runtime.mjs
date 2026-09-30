@@ -69,6 +69,49 @@ sync = sync.replace(
 );
 
 sync = sync.replace(
+  /  let upserted = await db\\n    \.from\("telegram_plugin_posts"\)\\n    \.upsert\(payload, \{ onConflict: "channel_id,document_message_id" \}\)\\n    \.select\("id"\)\\n    \.single\(\);/,
+  `  let upserted;
+  // One Telegram cover/photo can own multiple document messages. Reuse the
+  // existing product row by photo message id and merge every file into it.
+  const existingByPhoto = await db
+    .from("telegram_plugin_posts")
+    .select("id,telegram_file_ids,file_names,attachment_count")
+    .eq("channel_id", channelId)
+    .eq("photo_message_id", Number(photo.message_id))
+    .eq("status", "published")
+    .maybeSingle();
+
+  if (!existingByPhoto.error && existingByPhoto.data?.id) {
+    const oldIds = Array.isArray(existingByPhoto.data.telegram_file_ids)
+      ? existingByPhoto.data.telegram_file_ids.map(String)
+      : [];
+    const oldNames = Array.isArray(existingByPhoto.data.file_names)
+      ? existingByPhoto.data.file_names.map(String)
+      : [];
+    const mergedIds = [...new Set([...oldIds, ...relatedDocuments.map((item: any) => String(item.file_id || "")).filter(Boolean)])];
+    const mergedNames = [...new Set([...oldNames, ...relatedDocuments.map((item: any) => String(item.file_name || "")).filter(Boolean)])];
+    const merged = await db
+      .from("telegram_plugin_posts")
+      .update({
+        telegram_file_ids: mergedIds,
+        file_names: mergedNames,
+        attachment_count: Math.max(1, mergedIds.length),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingByPhoto.data.id)
+      .select("id")
+      .single();
+    upserted = merged;
+  } else {
+    upserted = await db
+      .from("telegram_plugin_posts")
+      .upsert(payload, { onConflict: "channel_id,document_message_id" })
+      .select("id")
+      .single();
+  }`,
+);
+
+sync = sync.replace(
   /error_message: coverError \? "cover_sync_deferred:" \+ coverError : null,/,
   'error_message: null,',
 );
