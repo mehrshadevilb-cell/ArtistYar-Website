@@ -123,7 +123,8 @@ These are presentation constants, not scoring constants.
 - One stable canvas and one `requestAnimationFrame` loop per mounted dial; cleanup cancels the RAF and disconnects `ResizeObserver`/listeners.
 - Canvas backing resolution is capped by device class to avoid uncontrolled high-DPR work.
 - Gradients are created during resize rather than inside the hot drawing loop.
-- Visual-only phase/cursor values are ref-backed; React state is reserved for values that affect rendered React content.
+- Visual-only phase/cursor values are ref-backed; the live Hz readout and hidden range position are updated directly in the DOM during drag, keeping pointer moves off the React render path.
+- Drag geometry is cached at pointer-down, avoiding repeated `getBoundingClientRect()` layout reads during pointer-move.
 - Tuning keeps the dual-strand interference renderer; result mode uses one teal strand.
 - The waveform continues to use the logarithmic frequency-to-lobe relationship already documented; no linear-Hz remapping was introduced.
 
