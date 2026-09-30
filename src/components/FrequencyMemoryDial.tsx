@@ -17,6 +17,7 @@ import {
 import { ArrowRight, RotateCcw } from "lucide-react";
 import { startLiveTone, setLiveToneHz, stopLiveTone } from "@/lib/practice-audio-engine";
 import "@/styles/practice-shell.css";
+import { FREQUENCY_MEMORY_TIMING } from "@/lib/frequency-memory-timing";
 
 function clamp(v: number, a = 0, b = 1) {
   return Math.max(a, Math.min(b, v));
@@ -113,6 +114,8 @@ export function FrequencyMemoryDial({
   const [dragging, setDragging] = useState(false);
   const [cursorY, setCursorY] = useState<number | null>(null);
   const [displayScore, setDisplayScore] = useState(0);
+  const [targetVisible, setTargetVisible] = useState(false);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [lowPower, setLowPower] = useState(false);
   const waveHzRef = useRef(waveHz);
   const modeRef = useRef<FreqDialMode>(mode);
@@ -161,6 +164,8 @@ export function FrequencyMemoryDial({
   useEffect(() => {
     if (mode !== "result" || resultScore == null) {
       setDisplayScore(0);
+      setTargetVisible(false);
+      setFeedbackVisible(false);
       return;
     }
     const target = Math.max(0, Math.min(10, resultScore));
@@ -169,7 +174,7 @@ export function FrequencyMemoryDial({
       return;
     }
     const start = performance.now();
-    const dur = 1650;
+    const dur = FREQUENCY_MEMORY_TIMING.resultScoreCountUpMs;
     let id = 0;
     const tick = (now: number) => {
       const t = clamp((now - start) / dur);
@@ -181,6 +186,25 @@ export function FrequencyMemoryDial({
     id = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(id);
   }, [mode, resultScore, reducedMotion]);
+
+  useEffect(() => {
+    if (mode !== "result" || targetHz == null || !revealTarget) {
+      setTargetVisible(false);
+      setFeedbackVisible(false);
+      return;
+    }
+    if (reducedMotion) {
+      setTargetVisible(true);
+      setFeedbackVisible(Boolean(resultFeedback));
+      return;
+    }
+    const targetTimer = window.setTimeout(() => setTargetVisible(true), FREQUENCY_MEMORY_TIMING.resultTargetDelayMs);
+    const feedbackTimer = window.setTimeout(() => setFeedbackVisible(Boolean(resultFeedback)), FREQUENCY_MEMORY_TIMING.resultFeedbackDelayMs);
+    return () => {
+      window.clearTimeout(targetTimer);
+      window.clearTimeout(feedbackTimer);
+    };
+  }, [mode, targetHz, revealTarget, resultFeedback, reducedMotion]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -438,7 +462,7 @@ export function FrequencyMemoryDial({
           </div>
         )}
         {isResult && targetHz != null && (
-          <div className="fm-dialed-result-target">
+          <div className={`fm-dialed-result-target ${targetVisible ? "is-visible" : ""}`}>
             <span className="fm-dialed-target-label">TARGET</span>
             <span className="fm-dialed-target-value">
               {formatHzPrecise(targetHz)}
@@ -446,7 +470,7 @@ export function FrequencyMemoryDial({
             </span>
           </div>
         )}
-        {isResult && resultFeedback && <p className="fm-dialed-feedback">{resultFeedback}</p>}
+        {isResult && resultFeedback && <p className={`fm-dialed-feedback ${feedbackVisible ? "is-visible" : ""}`} aria-live="polite">{resultFeedback}</p>}
 
         <div className="fm-dialed-hz">
           {showHz != null ? (
