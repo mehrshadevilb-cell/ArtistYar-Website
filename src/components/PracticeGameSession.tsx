@@ -108,7 +108,7 @@ export function PracticeGameSession({
   const submitLockRef = useRef(false);
   const sessionStartedRef = useRef(false);
   const [readyWord, setReadyWord] = useState<ReadyWord>("ready");
-  const readyTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const readyTimersRef = useRef<number[]>([]);
   const resultDwellTimerRef = useRef<number | null>(null);
   const roundGenRef = useRef(0);
   const userId = user?.id || null;
