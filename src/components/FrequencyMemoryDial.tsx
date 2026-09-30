@@ -134,9 +134,9 @@ export function FrequencyMemoryDial({
   const phaseStatus = PHASE_STATUS[mode];
 
   useEffect(() => {
-    waveHzRef.current = waveHz;
+    if (mode !== "recreate") waveHzRef.current = waveHz;
     modeRef.current = mode;
-    valueHzRef.current = valueHz;
+    if (mode !== "recreate" && !draggingRef.current) valueHzRef.current = valueHz;
     playingRef.current = playing;
     draggingRef.current = dragging;
     reducedMotionRef.current = reducedMotion;
@@ -159,9 +159,13 @@ export function FrequencyMemoryDial({
 
   useEffect(() => {
     phaseRef.current = 0;
+  }, [mode, roundLabel]);
+
+  useEffect(() => {
     setDisplayHz(valueHz);
     valueHzRef.current = valueHz;
-  }, [mode, roundLabel, valueHz]);
+    waveHzRef.current = waveHz;
+  }, [roundLabel]);
 
   useEffect(() => {
     if (mode !== "result" || resultScore == null) {
@@ -445,8 +449,8 @@ export function FrequencyMemoryDial({
         tabIndex={interactive ? 0 : -1}
         aria-valuemin={Math.round(minHz)}
         aria-valuemax={Math.round(maxHz)}
-        aria-valuenow={Math.round(valueHz)}
-        aria-valuetext={`${formatHzPrecise(valueHz)} ${formatHzUnit(valueHz)}`}
+        aria-valuenow={Math.round(displayHz)}
+        aria-valuetext={`${formatHzPrecise(displayHz)} ${formatHzUnit(displayHz)}`}
         aria-label="کنترل فرکانس — برای تغییر زیر و بمی به‌صورت عمودی بکشید"
         aria-disabled={!interactive}
         onPointerDown={down}
@@ -507,7 +511,7 @@ export function FrequencyMemoryDial({
           min={0}
           max={100000}
           step={1}
-          value={Math.round(toLog(valueHz, minHz, maxHz) * 100000)}
+          value={Math.round(toLog(displayHz, minHz, maxHz) * 100000)}
           disabled={!interactive}
           aria-label="تنظیم فرکانس"
           onChange={(e) => {
