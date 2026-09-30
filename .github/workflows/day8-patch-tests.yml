@@ -1,0 +1,28 @@
+name: day8-patch-tests
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/day8-patch-critical-paths.mjs"
+      - ".github/workflows/day8-patch-tests.yml"
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node scripts/day8-patch-critical-paths.mjs
+      - name: Commit
+        run: |
+          git config user.name "artistyar-bot"
+          git config user.email "bot@artistyar.ir"
+          git add scripts/test-critical-paths.mjs scripts/test-security-runtime-day7.mjs
+          if git diff --staged --quiet; then echo none; else
+            git commit -m "test(day8): update process-auth assertions for telegram-admin-auth helper"
+            git push origin HEAD
+          fi
