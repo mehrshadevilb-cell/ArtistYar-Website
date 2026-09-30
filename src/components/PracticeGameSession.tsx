@@ -348,7 +348,7 @@ export function PracticeGameSession({
     return () => window.clearTimeout(id);
   }, [freeLocked, freqSub, heard, isFreq, phase, playAudio, quotaBlocked, round]);
 
-  const finishRound = async (correct: boolean, accuracy: number, detail: string) => {
+  const finishRound = async (correct: boolean, accuracy: number, detail: string, guessHzOverride?: number) => {
     if (!round) return;
     const responseTimeMs = Math.max(1, Date.now() - startedAt.current);
     const nextStreak = correct ? streak + 1 : 0;
@@ -372,6 +372,12 @@ export function PracticeGameSession({
     stats.streak = nextStreak;
     stats.bestStreak = Math.max(stats.bestStreak, nextStreak);
     saveLocalStats(stats, userId);
+    // Freeze interaction before any network work. Persistence must never
+    // keep the dial/audio alive or delay the deterministic result sequence.
+    stopLiveTone();
+    setPlaying(false);
+    setPhase("result");
+
     if (user?.id) {
       const res = await persistPracticeRound({
         userId: user.id,
@@ -387,7 +393,7 @@ export function PracticeGameSession({
         source: "practice_game_session",
         extra: {
           mode: round.mode,
-          guessHz: round.mode === "slider" ? guessHz : undefined,
+          guessHz: round.mode === "slider" ? (guessHzOverride ?? guessHz) : undefined,
           targetHz: round.targetHz,
           sessionId: sessionIdRef.current,
           exerciseType: isFreq ? activeExercise : undefined,
@@ -395,12 +401,6 @@ export function PracticeGameSession({
       });
       if (!res.ok && res.quota) setQuotaBlocked(true);
     }
-    // Lock the UI immediately after submit. Persistence is intentionally
-    // decoupled from result presentation so a slow network cannot leave the
-    // dial interactive or delay the deterministic result sequence.
-    stopLiveTone();
-    setPlaying(false);
-    setPhase("result");
   };
 
   const updateGuessHz = useCallback((hz: number) => {
@@ -422,6 +422,7 @@ export function PracticeGameSession({
       correct,
       accuracy,
       `${formatHz(submittedGuessHz)} در برابر ${formatHz(round.targetHz)} · خطای ${Math.round(hzErr)} Hz (${formatCents(cents)})`,
+      submittedGuessHz,
     );
   };
 
