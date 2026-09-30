@@ -43,10 +43,16 @@ Domain accuracy stays 0–100. Display: `displayScore = accuracy/10` with 2 deci
 `clamp(0,10, 10*(1 - |cents|/200))`.
 
 ## Timing (central)
-```
+
+The implementation source of truth is `src/lib/frequency-memory-timing.ts`.
+
+```text
 rememberMs: 2000
-readyMs: 700, setMs: 600, goMs: 500
-scoreCountUpMs: 900
+resultTargetDelayMs: 340
+resultFeedbackDelayMs: 620
+resultScoreCountUpMs: 1650
+resultDwellMs: 2650
+readyMs: 700, setMs: 650, goMs: 700
 ```
 
 ## Non-goals
