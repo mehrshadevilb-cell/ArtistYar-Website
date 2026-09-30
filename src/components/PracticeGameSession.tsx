@@ -75,6 +75,7 @@ export function PracticeGameSession({
   const [playing, setPlaying] = useState(false);
   const [heard, setHeard] = useState(false);
   const [guessHz, setGuessHz] = useState(440);
+  const guessHzRef = useRef(440);
   const [picked, setPicked] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ correct: boolean; accuracy: number; detail: string; xp: number } | null>(null);
   const [outcomes, setOutcomes] = useState<RoundOutcome[]>([]);
@@ -250,7 +251,9 @@ export function PracticeGameSession({
       freqSubRef.current = "listen";
       stopLiveTone();
       stopPracticePlayback();
-      setGuessHz(r.targetHz ? Math.round(((r.sliderMin || 0) + (r.sliderMax || 0)) / 2) : 440);
+      const initialGuessHz = r.targetHz ? Math.round(((r.sliderMin || 0) + (r.sliderMax || 0)) / 2) : 440;
+      guessHzRef.current = initialGuessHz;
+      setGuessHz(initialGuessHz);
       startedAt.current = Date.now();
     },
     [gameId, maxRounds, game?.rounds],
@@ -401,19 +404,25 @@ export function PracticeGameSession({
     setPhase("result");
   };
 
+  const updateGuessHz = useCallback((hz: number) => {
+    if (!Number.isFinite(hz)) return;
+    guessHzRef.current = hz;
+  }, []);
+
   const submitSlider = async () => {
     if (!round || picked || submitLockRef.current || freeLocked || quotaBlocked || !round.targetHz) return;
     if (isFreq && freqSub !== "recreate") return;
     if (!isFreq && !heard) return;
     submitLockRef.current = true;
     setPicked("slider");
-    setLastGuessHz(guessHz);
-    const { accuracy, hzErr, cents, perfect } = frequencyAccuracy(round.targetHz, guessHz, round.toleranceHz || 40);
+    const submittedGuessHz = guessHzRef.current;
+    setLastGuessHz(submittedGuessHz);
+    const { accuracy, hzErr, cents, perfect } = frequencyAccuracy(round.targetHz, submittedGuessHz, round.toleranceHz || 40);
     const correct = sliderPass(accuracy) || perfect;
     await finishRound(
       correct,
       accuracy,
-      `${formatHz(guessHz)} در برابر ${formatHz(round.targetHz)} · خطای ${Math.round(hzErr)} Hz (${formatCents(cents)})`,
+      `${formatHz(submittedGuessHz)} در برابر ${formatHz(round.targetHz)} · خطای ${Math.round(hzErr)} Hz (${formatCents(cents)})`,
     );
   };
 
@@ -587,7 +596,7 @@ export function PracticeGameSession({
             disabled={freeLocked || quotaBlocked}
             targetHz={round.targetHz}
             audioError={audioError}
-            onChangeHz={setGuessHz}
+            onChangeHz={updateGuessHz}
             onLock={() => void submitSlider()}
             onReplay={() => void playAudio()}
             showReplay={freqSub === "listen" || (freqSub === "recreate" && heard)}
