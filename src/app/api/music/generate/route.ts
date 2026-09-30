@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import {
   USER_SESSION_COOKIE,
   ADMIN_SESSION_COOKIE,
@@ -50,6 +51,21 @@ async function resolveUser(): Promise<{ id: string; username: string } | null> {
   return { id: session.id, username: session.username };
 }
 
+/**
+ * Durable idempotency key for one logical generation.
+ * Prefer caller-provided body.idempotencyKey (required for safe client retries).
+ * Without a caller key each HTTP attempt is a new logical generation (randomUUID) —
+ * Date.now() is intentionally NOT used so keys are not time-guessable and not
+ * confused with durable identity.
+ */
+function resolveIdempotencyKey(body: Record<string, unknown>, userId: string): string {
+  if (typeof body.idempotencyKey === "string") {
+    const key = body.idempotencyKey.trim().slice(0, 120);
+    if (key.length >= 8) return key;
+  }
+  return `gen:${userId}:${randomUUID()}`;
+}
+
 export async function POST(request: Request) {
   const user = await resolveUser();
   if (!user) {
@@ -70,7 +86,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json().catch(() => ({}));
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const prompt = String(body.prompt || "").trim();
   const projectId = typeof body.projectId === "string" ? body.projectId.trim().slice(0, 80) : "";
   if (!prompt || prompt.length < 3) {
@@ -85,10 +101,35 @@ export async function POST(request: Request) {
   if (typeof body.assetType === "string") partialSpec.assetType = body.assetType as GenerationSpec["assetType"];
   if (typeof body.meter === "string") partialSpec.meter = body.meter.slice(0, 8);
 
-  const idempotencyKey =
-    typeof body.idempotencyKey === "string"
-      ? body.idempotencyKey.trim().slice(0, 120)
-      : `gen:${user.id}:${Date.now()}`;
+  const idempotencyKey = resolveIdempotencyKey(body, user.id);
+
+  // --- Authorization BEFORE any credit mutation ---
+  // Foreign / missing project must never debit the caller's balance.
+  if (projectId && !user.id.startsWith("admin:")) {
+    try {
+      const project = await ownedProject(user.id, projectId);
+      if (!project) {
+        return NextResponse.json(
+          { ok: false, code: "ProjectNotFound", error: "پروژه انتخاب‌شده معتبر نیست." },
+          { status: 404 },
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "project_lookup_failed";
+      if (msg.includes("supabase_not_configured")) {
+        return NextResponse.json(
+          { ok: false, error: "ذخیره‌سازی هنوز پیکربندی نشده است." },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json(
+        { ok: false, error: "بررسی پروژه ناموفق بود." },
+        { status: 503 },
+      );
+    }
+  }
+
+  let chargedAmount = 0;
 
   try {
     const creditCost = estimateGenerationCredits(
@@ -113,11 +154,7 @@ export async function POST(request: Request) {
         { status: 402 },
       );
     }
-
-    if (projectId && !user.id.startsWith("admin:")) {
-      const project = await ownedProject(user.id, projectId);
-      if (!project) return NextResponse.json({ ok: false, error: "پروژه انتخاب‌شده معتبر نیست." }, { status: 404 });
-    }
+    chargedAmount = charge.charged;
 
     const job = await createGenerationJob({
       userId: user.id,
@@ -126,12 +163,17 @@ export async function POST(request: Request) {
       idempotencyKey,
     });
 
-    const finished = await runGenerationJob(job.id);
+    // Idempotent retry of an already-terminal job: do not re-run provider; no extra charge
+    // (ledger key is already unique per charge:idempotencyKey).
+    const finished =
+      job.status === "completed" || job.status === "failed" || job.status === "cancelled" || job.status === "expired"
+        ? job
+        : await runGenerationJob(job.id);
 
     if (finished.status === "failed" || finished.status === "cancelled") {
       await refundCredits({
         userId: user.id,
-        amount: charge.charged,
+        amount: chargedAmount,
         jobId: job.id,
         idempotencyKey: `refund:${idempotencyKey}`,
       });
@@ -141,17 +183,38 @@ export async function POST(request: Request) {
     const view = publicJobView(finished);
     if (projectId && !user.id.startsWith("admin:") && finished.status === "completed" && ecosystemDb) {
       try {
-        const inserted = await ecosystemDb.from("artistyar_project_generations").insert({ project_id: projectId, user_id: user.id, generation_id: job.id, prompt, output_url: view.outputUrl || null, payload: { spec: view.spec || null, status: view.status } }).select("id").single();
-        if (!inserted.error) await logProjectActivity({ userId: user.id, projectId, eventType: "ai_generation_attached", entityType: "generation", entityId: inserted.data?.id, payload: { generationId: job.id } });
-      } catch { /* generated output remains valid if project persistence is unavailable */ }
+        const inserted = await ecosystemDb
+          .from("artistyar_project_generations")
+          .insert({
+            project_id: projectId,
+            user_id: user.id,
+            generation_id: job.id,
+            prompt,
+            output_url: view.outputUrl || null,
+            payload: { spec: view.spec || null, status: view.status },
+          })
+          .select("id")
+          .single();
+        if (!inserted.error) {
+          await logProjectActivity({
+            userId: user.id,
+            projectId,
+            eventType: "ai_generation_attached",
+            entityType: "generation",
+            entityId: inserted.data?.id,
+            payload: { generationId: job.id },
+          });
+        }
+      } catch {
+        /* generated output remains valid if project persistence is unavailable */
+      }
     }
 
-    // Always 200 with job payload so UI can show status + errorMessage
     return NextResponse.json(
       {
         ok: finished.status === "completed",
         job: view,
-        credits: { charged: charge.charged, balance },
+        credits: { charged: chargedAmount, balance },
         error:
           finished.status !== "completed"
             ? finished.errorMessage || PERSIAN_ERROR_MESSAGES.InternalError
@@ -161,6 +224,22 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (err) {
+    // Refund any charge that was applied if job creation / unexpected failure occurs after debit.
+    if (chargedAmount > 0) {
+      try {
+        await refundCredits({
+          userId: user.id,
+          amount: chargedAmount,
+          idempotencyKey: `refund:${idempotencyKey}:abort`,
+        });
+      } catch (refundErr) {
+        console.error(
+          "[music/generate] refund_after_failure",
+          refundErr instanceof Error ? refundErr.message : String(refundErr),
+        );
+      }
+    }
+
     const msg = err instanceof Error ? err.message : "internal";
     if (msg.includes("supabase_not_configured")) {
       return NextResponse.json(
