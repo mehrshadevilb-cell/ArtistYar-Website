@@ -112,7 +112,7 @@ export function FrequencyMemoryDial({
   const rafRef = useRef<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [cursorY, setCursorY] = useState<number | null>(null);
+  const [displayHz, setDisplayHz] = useState(valueHz);
   const [displayScore, setDisplayScore] = useState(0);
   const [targetVisible, setTargetVisible] = useState(false);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -123,6 +123,7 @@ export function FrequencyMemoryDial({
   const playingRef = useRef(playing);
   const draggingRef = useRef(false);
   const cursorYRef = useRef<number | null>(null);
+  const cursorElRef = useRef<HTMLDivElement>(null);
   const reducedMotionRef = useRef(false);
   const lowPowerRef = useRef(false);
   const visibleRef = useRef(true);
@@ -138,10 +139,9 @@ export function FrequencyMemoryDial({
     valueHzRef.current = valueHz;
     playingRef.current = playing;
     draggingRef.current = dragging;
-    cursorYRef.current = cursorY;
     reducedMotionRef.current = reducedMotion;
     lowPowerRef.current = lowPower;
-  }, [waveHz, valueHz, playing, dragging, cursorY, reducedMotion, lowPower]);
+  }, [waveHz, valueHz, playing, dragging, reducedMotion, lowPower]);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -159,7 +159,9 @@ export function FrequencyMemoryDial({
 
   useEffect(() => {
     phaseRef.current = 0;
-  }, [mode, roundLabel]);
+    setDisplayHz(valueHz);
+    valueHzRef.current = valueHz;
+  }, [mode, roundLabel, valueHz]);
 
   useEffect(() => {
     if (mode !== "result" || resultScore == null) {
@@ -338,8 +340,13 @@ export function FrequencyMemoryDial({
       const t = clamp(dragRef.current.startT + deltaT * 0.72);
       const hz = fromLog(t, minHz, maxHz);
       const rounded = Math.round(hz * 100) / 100;
+      valueHzRef.current = rounded;
+      waveHzRef.current = rounded;
+      setDisplayHz(rounded);
       onChangeHz(rounded);
-      setCursorY(clientY - r.top);
+      const localY = clientY - r.top;
+      cursorYRef.current = localY;
+      if (cursorElRef.current) cursorElRef.current.style.top = `${localY}px`;
       if (withTone) {
         void startLiveTone(rounded);
         setLiveToneHz(rounded);
@@ -356,7 +363,12 @@ export function FrequencyMemoryDial({
     const startT = toLog(valueHz, minHz, maxHz);
     dragRef.current = { active: true, moved: false, lastY: e.clientY, startY: e.clientY, startT };
     setDragging(true);
-    setCursorY(e.clientY - r.top);
+    const localY = e.clientY - r.top;
+    cursorYRef.current = localY;
+    if (cursorElRef.current) {
+      cursorElRef.current.style.top = `${localY}px`;
+      cursorElRef.current.style.opacity = "1";
+    }
     void startLiveTone(valueHz);
     setLiveToneHz(valueHz);
   };
@@ -370,7 +382,8 @@ export function FrequencyMemoryDial({
     if (!dragRef.current.active) return;
     dragRef.current.active = false;
     setDragging(false);
-    setCursorY(null);
+    cursorYRef.current = null;
+    if (cursorElRef.current) cursorElRef.current.style.opacity = "0";
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
@@ -395,6 +408,9 @@ export function FrequencyMemoryDial({
     e.preventDefault();
     hz = Math.max(minHz, Math.min(maxHz, hz));
     hz = Math.round(hz * 100) / 100;
+    valueHzRef.current = hz;
+    waveHzRef.current = hz;
+    setDisplayHz(hz);
     onChangeHz(hz);
     void startLiveTone(hz);
     setLiveToneHz(hz);
@@ -442,8 +458,7 @@ export function FrequencyMemoryDial({
       >
         <canvas ref={canvasRef} className="fm-dialed-canvas" aria-hidden />
 
-        {dragging && cursorY != null && (
-          <div className="fm-dialed-cursor" style={{ top: cursorY }} aria-hidden>
+        <div ref={cursorElRef} className="fm-dialed-cursor" aria-hidden>
             <svg width="14" height="28" viewBox="0 0 14 28" fill="none">
               <path
                 d="M7 2 L7 26 M7 2 L3.5 7 M7 2 L10.5 7 M7 26 L3.5 21 M7 26 L10.5 21"
@@ -476,7 +491,7 @@ export function FrequencyMemoryDial({
           {showHz != null ? (
             <div className="fm-dialed-guess-block">
               <span className="fm-dialed-guess-value">
-                {formatHzPrecise(showHz)}
+                {formatHzPrecise(displayHz)}
                 <span className="fm-dialed-hz-unit">{formatHzUnit(showHz)}</span>
               </span>
             </div>
@@ -498,6 +513,9 @@ export function FrequencyMemoryDial({
           aria-label="تنظیم فرکانس"
           onChange={(e) => {
             const hz = Math.round(fromLog(+e.target.value / 100000, minHz, maxHz) * 100) / 100;
+            valueHzRef.current = hz;
+            waveHzRef.current = hz;
+            setDisplayHz(hz);
             onChangeHz(hz);
             void startLiveTone(hz);
             setLiveToneHz(hz);
