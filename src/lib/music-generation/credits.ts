@@ -226,7 +226,7 @@ export async function grantPurchaseCredits(input: {
     .from("ai_music_generation_credit_ledger")
     .select("id, balance_after")
     .eq("user_id", input.userId)
-    .eq("idempotency_key", input.idempotencyKey)
+    .eq("idempotency_key", idempotencyKey)
     .maybeSingle();
   if (prior.data) {
     return { ok: true, balance: Number(prior.data.balance_after) || 0 };
