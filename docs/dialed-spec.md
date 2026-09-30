@@ -99,7 +99,7 @@ The authoritative lifecycle remains:
 
 `intro → play/listen → play/remember → play/recreate → result → ready(ready/set/go) → next round → summary`.
 
-Submit is guarded by both `submitLockRef` and the `recreate` sub-state. The result phase is entered immediately after the round score is computed, so pointer interaction and live audio are cut off before persistence completes. All timers are cleared on round construction, transition start, unmount, and route/session cleanup. The automatic result advance is guarded by the current phase/feedback state and a ref-backed transition callback.
+Submit is guarded by both `submitLockRef` and the `recreate` sub-state. The result phase is entered immediately after the round score is computed, so pointer interaction and live audio are cut off before persistence completes. All timers are cleared on round construction, transition start, unmount, and route/session cleanup. The automatic result advance is guarded by the current phase/feedback state and a memoized transition callback.
 
 ### Timing constants
 
