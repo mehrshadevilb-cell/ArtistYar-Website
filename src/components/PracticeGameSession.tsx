@@ -40,17 +40,13 @@ import {
   FREQ_EXERCISES,
 } from "@/lib/practice-game";
 import "@/styles/practice-shell.css";
+import { FREQUENCY_MEMORY_TIMING } from "@/lib/frequency-memory-timing";
 
 type Phase = "intro" | "play" | "result" | "summary" | "ready";
 type FreqSub = "listen" | "remember" | "recreate";
 type ReadyWord = "ready" | "set" | "go";
 
-const REMEMBER_MS = 2000;
-const FM_TIMING = {
-  readyMs: 700,
-  setMs: 600,
-  goMs: 500,
-} as const;
+const REMEMBER_MS = FREQUENCY_MEMORY_TIMING.rememberMs;
 
 export function PracticeGameSession({
   gameId,
@@ -108,6 +104,7 @@ export function PracticeGameSession({
   const sessionStartedRef = useRef(false);
   const [readyWord, setReadyWord] = useState<ReadyWord>("ready");
   const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const advanceToNextRoundRef = useRef<() => void>(() => {});
   const userId = user?.id || null;
   const isFreq = gameId === "freq-memory";
   const isInterval = gameId === "interval-recognition";
@@ -396,7 +393,11 @@ export function PracticeGameSession({
       });
       if (!res.ok && res.quota) setQuotaBlocked(true);
     }
+    // Lock the UI immediately after submit. Persistence is intentionally
+    // decoupled from result presentation so a slow network cannot leave the
+    // dial interactive or delay the deterministic result sequence.
     stopLiveTone();
+    setPlaying(false);
     setPhase("result");
   };
 
@@ -445,7 +446,7 @@ export function PracticeGameSession({
           beginNextFromReady();
         }, FM_TIMING.goMs);
       }, FM_TIMING.setMs);
-    }, FM_TIMING.readyMs);
+    }, FREQUENCY_MEMORY_TIMING.readyMs);
   }, [beginNextFromReady]);
 
   const advanceToNextRound = () => {
@@ -476,7 +477,7 @@ export function PracticeGameSession({
     buildRound(idx < (game?.warmup ?? 2) ? Math.max(1, level - 6) : level, idx);
   };
 
-  const freqRoundScore = (acc: number) => Math.round((Math.max(0, Math.min(100, acc)) / 10) * 100) / 100;
+  advanceToNextRoundRef.current = advanceToNextRound;\n\n  const freqRoundScore = (acc: number) => Math.round((Math.max(0, Math.min(100, acc)) / 10) * 100) / 100;
   const freqSessionScore = outcomes.reduce((s, o) => s + freqRoundScore(o.accuracy), 0);
   const freqSessionMax = Math.max(1, outcomes.length) * 10;
   const freqResultLine = (acc: number) =>
