@@ -124,6 +124,9 @@ export function FrequencyMemoryDial({
   const draggingRef = useRef(false);
   const cursorYRef = useRef<number | null>(null);
   const cursorElRef = useRef<HTMLDivElement>(null);
+  const hzValueElRef = useRef<HTMLSpanElement>(null);
+  const hzUnitElRef = useRef<HTMLSpanElement>(null);
+  const rangeElRef = useRef<HTMLInputElement>(null);
   const reducedMotionRef = useRef(false);
   const lowPowerRef = useRef(false);
   const visibleRef = useRef(true);
@@ -165,7 +168,10 @@ export function FrequencyMemoryDial({
     setDisplayHz(valueHz);
     valueHzRef.current = valueHz;
     waveHzRef.current = waveHz;
-  }, [roundLabel]);
+    if (rangeElRef.current) rangeElRef.current.value = String(Math.round(toLog(valueHz, minHz, maxHz) * 100000));
+    if (hzValueElRef.current) hzValueElRef.current.textContent = formatHzPrecise(valueHz);
+    if (hzUnitElRef.current) hzUnitElRef.current.textContent = formatHzUnit(valueHz);
+  }, [roundLabel, valueHz, waveHz, minHz, maxHz]);
 
   useEffect(() => {
     if (mode !== "result" || resultScore == null) {
@@ -334,6 +340,19 @@ export function FrequencyMemoryDial({
     };
   }, []);
 
+  const syncLiveDisplay = useCallback((hz: number) => {
+    const safeHz = Number.isFinite(hz) && hz > 0 ? hz : valueHzRef.current;
+    const value = formatHzPrecise(safeHz);
+    const unit = formatHzUnit(safeHz);
+    if (hzValueElRef.current) hzValueElRef.current.textContent = value;
+    if (hzUnitElRef.current) hzUnitElRef.current.textContent = unit;
+    if (rangeElRef.current) rangeElRef.current.value = String(Math.round(toLog(safeHz, minHz, maxHz) * 100000));
+    if (surfaceRef.current) {
+      surfaceRef.current.setAttribute("aria-valuenow", String(Math.round(safeHz)));
+      surfaceRef.current.setAttribute("aria-valuetext", `${value} ${unit}`);
+    }
+  }, [minHz, maxHz]);
+
   const setFromDrag = useCallback(
     (clientY: number, withTone = true) => {
       const el = surfaceRef.current;
@@ -346,7 +365,7 @@ export function FrequencyMemoryDial({
       const rounded = Math.round(hz * 100) / 100;
       valueHzRef.current = rounded;
       waveHzRef.current = rounded;
-      setDisplayHz(rounded);
+      syncLiveDisplay(rounded);
       onChangeHz(rounded);
       const localY = clientY - r.top;
       cursorYRef.current = localY;
@@ -356,7 +375,7 @@ export function FrequencyMemoryDial({
         setLiveToneHz(rounded);
       }
     },
-    [minHz, maxHz, onChangeHz],
+    [minHz, maxHz, onChangeHz, syncLiveDisplay],
   );
 
   const down = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -400,7 +419,7 @@ export function FrequencyMemoryDial({
   const key = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!interactive) return;
     const hzStep = e.shiftKey ? 0.01 : 0.1;
-    let hz = valueHz;
+    let hz = valueHzRef.current;
     if (e.key === "ArrowDown" || e.key === "ArrowLeft") hz -= hzStep;
     else if (e.key === "ArrowUp" || e.key === "ArrowRight") hz += hzStep;
     else if (e.key === "Enter" || e.key === " ") {
@@ -414,7 +433,7 @@ export function FrequencyMemoryDial({
     hz = Math.round(hz * 100) / 100;
     valueHzRef.current = hz;
     waveHzRef.current = hz;
-    setDisplayHz(hz);
+    syncLiveDisplay(hz);
     onChangeHz(hz);
     void startLiveTone(hz);
     setLiveToneHz(hz);
@@ -493,9 +512,9 @@ export function FrequencyMemoryDial({
         <div className="fm-dialed-hz">
           {showHz != null ? (
             <div className="fm-dialed-guess-block">
-              <span className="fm-dialed-guess-value">
+              <span ref={hzValueElRef} className="fm-dialed-guess-value">
                 {formatHzPrecise(displayHz)}
-                <span className="fm-dialed-hz-unit">{formatHzUnit(showHz)}</span>
+                <span ref={hzUnitElRef} className="fm-dialed-hz-unit">{formatHzUnit(displayHz)}</span>
               </span>
             </div>
           ) : (
@@ -511,14 +530,15 @@ export function FrequencyMemoryDial({
           min={0}
           max={100000}
           step={1}
-          value={Math.round(toLog(displayHz, minHz, maxHz) * 100000)}
+          ref={rangeElRef}
+          defaultValue={Math.round(toLog(valueHz, minHz, maxHz) * 100000)}
           disabled={!interactive}
           aria-label="تنظیم فرکانس"
           onChange={(e) => {
             const hz = Math.round(fromLog(+e.target.value / 100000, minHz, maxHz) * 100) / 100;
             valueHzRef.current = hz;
             waveHzRef.current = hz;
-            setDisplayHz(hz);
+            syncLiveDisplay(hz);
             onChangeHz(hz);
             void startLiveTone(hz);
             setLiveToneHz(hz);
