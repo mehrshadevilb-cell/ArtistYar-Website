@@ -528,7 +528,10 @@
   .fm-dialed-submit,
   .fm-dialed-replay,
   .fm-intro-card .fm-intro-cta,
-  .fm-dialed-status-pill,\n  .fm-dialed-result-target,\n  .fm-dialed-feedback,\n  .fm-dialed-submit::before { transition: none; animation: none; }
+  .fm-dialed-status-pill,
+  .fm-dialed-result-target,
+  .fm-dialed-feedback,
+  .fm-dialed-submit::before { transition: none; animation: none; }
   .fm-rsgo-word { opacity: 1; }
   .practice-focus > header { transition: none; }
 }
