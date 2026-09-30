@@ -16,9 +16,9 @@
     "test": "npm run test:security && npm run test:music-billing && npm run test:schema-inventory && npm run test:critical-paths",
     "start:standalone": "node .next/standalone/server.js",
     "seo:verify": "node scripts/verify-seo.mjs",
-    "prebuild": "node scripts/ensure-hero.cjs",
-    "postinstall": "node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs",
-    "pretest:telegram-plugins": "node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs"
+    "prebuild": "node scripts/ensure-hero.cjs && node scripts/assemble-tg-sync.mjs",
+    "postinstall": "node scripts/assemble-tg-sync.mjs && node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs",
+    "pretest:telegram-plugins": "node scripts/assemble-tg-sync.mjs && node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs"
   },
   "dependencies": {
     "@supabase/server": "^1.6.1",
