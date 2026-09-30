@@ -236,6 +236,7 @@
   transform: translate(-50%, -50%);
   z-index: 5;
   pointer-events: none;
+  opacity: 0;
   filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8));
 }
 .fm-dialed-score {
