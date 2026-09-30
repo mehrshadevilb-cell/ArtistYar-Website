@@ -109,7 +109,7 @@ export function PracticeGameSession({
   const sessionStartedRef = useRef(false);
   const [readyWord, setReadyWord] = useState<ReadyWord>("ready");
   const readyTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
-  const resultDwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resultDwellTimerRef = useRef<number | null>(null);
   const roundGenRef = useRef(0);
   const userId = user?.id || null;
   const isFreq = gameId === "freq-memory";
