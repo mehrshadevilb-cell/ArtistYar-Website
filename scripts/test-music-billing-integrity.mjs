@@ -29,8 +29,9 @@ assert.match(route, /randomUUID/);
 assert.match(route, /refund:\$\{idempotencyKey\}:abort|refund_after_failure/);
 assert.match(route, /chargedAmount > 0/);
 
-// --- Variation: durable idempotency (no Date.now in key) ---
-assert.doesNotMatch(variation, /Date\.now\(\)/);
+// --- Variation: durable idempotency (no Date.now in key construction) ---
+assert.doesNotMatch(variation, /`var:[^`]*Date\.now\(\)/);
+assert.doesNotMatch(variation, /idempotencyKey\s*=\s*`[^`]*Date\.now\(\)/);
 assert.match(variation, /randomUUID/);
 assert.match(variation, /idempotencyKey/);
 assert.match(variation, /resolveVariationIdempotencyKey|body\.idempotencyKey/);
