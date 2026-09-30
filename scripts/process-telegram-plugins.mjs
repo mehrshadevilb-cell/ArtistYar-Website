@@ -8,12 +8,18 @@ if (!base || (!key && !processSecret)) {
   process.exit(1);
 }
 
-const endpoint = key
-  ? base + "/api/telegram/plugins/process?key=" + encodeURIComponent(key)
-  : base + "/api/telegram/plugins/process?process_secret=" + encodeURIComponent(processSecret);
+const headers = {};
+let endpoint = base + "/api/telegram/plugins/process";
+if (key) {
+  headers["x-web-admin-key"] = key;
+} else {
+  headers["x-telegram-plugin-process-secret"] = processSecret;
+}
+
 const response = await fetch(endpoint, {
   method: "GET",
   cache: "no-store",
+  headers,
   signal: AbortSignal.timeout(120000),
 });
 const text = await response.text();

@@ -15,14 +15,13 @@ export async function register() {
       if (!secret) return;
       const port = String(process.env.PORT || "10000");
       const response = await fetch(
-        "http://127.0.0.1:" +
-          port +
-          "/api/telegram/plugins/process?process_secret=" +
-          encodeURIComponent(secret) +
-          "&limit=5",
+        "http://127.0.0.1:" + port + "/api/telegram/plugins/process?limit=5",
         {
           cache: "no-store",
           signal: AbortSignal.timeout(120000),
+          headers: {
+            "x-telegram-plugin-process-secret": secret,
+          },
         },
       );
       if (!response.ok) {

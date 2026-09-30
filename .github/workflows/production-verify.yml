@@ -38,6 +38,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Security regression (practice RPC + secret transport)
+        run: npm run test:security
+
       - name: Source scan
         run: node scripts/scan-codebase.js
 
