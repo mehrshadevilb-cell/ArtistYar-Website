@@ -469,7 +469,6 @@ export function FrequencyMemoryDial({
               />
             </svg>
           </div>
-        )}
 
         {isResult && resultScore != null && (
           <div className="fm-dialed-score" aria-live="polite">
