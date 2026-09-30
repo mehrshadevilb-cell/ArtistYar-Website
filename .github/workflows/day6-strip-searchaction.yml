@@ -1,0 +1,31 @@
+name: day6-strip-searchaction
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/day6-strip-searchaction.mjs"
+      - ".github/workflows/day6-strip-searchaction.yml"
+jobs:
+  strip:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Strip SearchAction
+        run: node scripts/day6-strip-searchaction.mjs
+      - name: Commit if changed
+        run: |
+          git config user.name "artistyar-bot"
+          git config user.email "bot@artistyar.ir"
+          git add src/app/layout.tsx
+          if git diff --staged --quiet; then
+            echo "No layout change needed"
+          else
+            git commit -m "fix(day6): remove misleading courses SearchAction from WebSite JSON-LD"
+            git push origin HEAD
+          fi
