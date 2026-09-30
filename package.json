@@ -13,14 +13,15 @@
     "test:music-billing": "node scripts/test-music-billing-integrity.mjs",
     "test:schema-inventory": "node scripts/verify-schema-inventory.mjs",
     "test:critical-paths": "node --test scripts/test-critical-paths.mjs",
-    "test": "npm run test:security && npm run test:music-billing && npm run test:schema-inventory && npm run test:critical-paths && npm run test:seo && npm run test:security-runtime",
+    "test": "npm run test:security && npm run test:music-billing && npm run test:schema-inventory && npm run test:critical-paths && npm run test:seo && npm run test:security-runtime && npm run test:security-day8",
     "start:standalone": "node .next/standalone/server.js",
     "seo:verify": "node scripts/verify-seo.mjs",
     "prebuild": "node scripts/ensure-hero.cjs && node scripts/assemble-tg-sync.mjs",
     "postinstall": "node scripts/assemble-tg-sync.mjs && node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs",
     "pretest:telegram-plugins": "node scripts/assemble-tg-sync.mjs && node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs",
     "test:seo": "node --test scripts/test-seo-contracts.mjs",
-    "test:security-runtime": "node --test scripts/test-security-runtime-day7.mjs"
+    "test:security-runtime": "node --test scripts/test-security-runtime-day7.mjs",
+    "test:security-day8": "node --test scripts/test-security-day8.mjs"
   },
   "dependencies": {
     "@supabase/server": "^1.6.1",

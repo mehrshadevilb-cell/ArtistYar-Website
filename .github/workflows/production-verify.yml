@@ -56,6 +56,9 @@ jobs:
       - name: Security runtime contracts (Day 7)
         run: npm run test:security-runtime
 
+      - name: Security Day 8 residual
+        run: npm run test:security-day8
+
       - name: Source scan
         run: node scripts/scan-codebase.js
 
