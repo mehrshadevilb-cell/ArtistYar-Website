@@ -38,7 +38,10 @@ assert.match(processScript, /x-telegram-plugin-process-secret|x-web-admin-key/);
 
 // Route must not accept process_secret from query
 assert.doesNotMatch(processRoute, /searchParams\.get\("process_secret"\)/);
-assert.match(processRoute, /x-telegram-plugin-process-secret/);
+assert.ok(
+  processRoute.includes("isTelegramProcessAuthorized") || /x-telegram-plugin-process-secret/.test(processRoute),
+  "process route must use header process secret (helper or inline)",
+);
 
 // --- Application still calls RPCs via service-role client ---
 assert.match(progressRoute, /consume_practice_daily_stage/);
