@@ -1,6 +1,7 @@
 /**
  * Assemble telegram-plugin-sync.ts from scripts/tg-sync.zlib.b64.* parts.
  * No-op if target already complete.
+ * Day 5 gate recovery — also used by CI restore-telegram-sync workflow.
  */
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { inflateSync } from "node:zlib";
@@ -18,7 +19,9 @@ function complete(src) {
     src.includes("export async function processPendingPluginPairs") &&
     src.includes("syncPublishedPluginCover") &&
     src.length > 20000 &&
-    !src.includes("PLACEHOLDER_WILL_REPLACE")
+    !src.includes("PLACEHOLDER_WILL_REPLACE") &&
+    !src.includes("PLACEHOLDER_TO_REPLACE") &&
+    !src.includes("not assembled")
   );
 }
 
