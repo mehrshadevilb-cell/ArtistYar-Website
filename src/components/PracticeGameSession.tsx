@@ -105,7 +105,6 @@ export function PracticeGameSession({
   const sessionStartedRef = useRef(false);
   const [readyWord, setReadyWord] = useState<ReadyWord>("ready");
   const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const advanceToNextRoundRef = useRef<() => void>(() => {});
   const userId = user?.id || null;
   const isFreq = gameId === "freq-memory";
   const isInterval = gameId === "interval-recognition";
@@ -458,7 +457,7 @@ export function PracticeGameSession({
     }, FREQUENCY_MEMORY_TIMING.readyMs);
   }, [beginNextFromReady]);
 
-  const advanceToNextRound = () => {
+  const advanceToNextRound = useCallback(() => {
     stopLiveTone();
     stopPracticePlayback();
     setPlaying(false);
@@ -484,9 +483,20 @@ export function PracticeGameSession({
     setRoundIndex(idx);
     setPhase("play");
     buildRound(idx < (game?.warmup ?? 2) ? Math.max(1, level - 6) : level, idx);
-  };
-
-  advanceToNextRoundRef.current = advanceToNextRound;
+  }, [
+    roundIndex,
+    totalRounds,
+    quotaBlocked,
+    onSessionEnd,
+    outcomes,
+    sessionXp,
+    gameId,
+    isFreq,
+    runReadySequence,
+    level,
+    game?.warmup,
+    buildRound,
+  ]);
 
   const freqRoundScore = (acc: number) => Math.round((Math.max(0, Math.min(100, acc)) / 10) * 100) / 100;
   const freqSessionScore = outcomes.reduce((s, o) => s + freqRoundScore(o.accuracy), 0);
