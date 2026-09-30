@@ -44,6 +44,12 @@ jobs:
       - name: Music billing integrity
         run: npm run test:music-billing
 
+      - name: Schema inventory (Day 3)
+        run: npm run test:schema-inventory
+
+      - name: Critical-path tests (Day 4)
+        run: npm run test:critical-paths
+
       - name: Source scan
         run: node scripts/scan-codebase.js
 
