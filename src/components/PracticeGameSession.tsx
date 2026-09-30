@@ -530,7 +530,7 @@ export function PracticeGameSession({
     if (!isFreq || phase !== "result" || !feedback) return;
     const id = window.setTimeout(() => {
       advanceToNextRound();
-    }, 2000);
+    }, FREQUENCY_MEMORY_TIMING.resultDwellMs);
     return () => window.clearTimeout(id);
   }, [advanceToNextRound, feedback, isFreq, phase]);
 
