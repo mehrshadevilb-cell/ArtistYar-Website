@@ -34,8 +34,8 @@ assert.match(sync, /cover_sync_deferred/);
 assert.match(sync, /intelligenceCaption/);
 assert.match(sync, /messageBelongsToConfiguredChannel/);
 assert.match(sync, /ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER_V3/);
-assert.match(sync, /photo\\?\\.file_id/);
-assert.doesNotMatch(sync, /ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER\\n/);
+assert.match(sync, /photo\?\.file_id/);
+assert.doesNotMatch(sync, /ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER\n/);
 
 assert.doesNotMatch(sync, /adm-zip|yauzl|JSZip|node-stream-zip|unzipper|extract-zip/i);
 assert.doesNotMatch(sync, /extractAllTo|extractEntry|unzipSync|gunzipSync/);
@@ -54,8 +54,8 @@ assert.match(intelligence, /product_count/);
 assert.match(intelligence, /included_products/);
 assert.match(intelligence, /buildVerifiedCaption/);
 assert.match(intelligence, /isGenericTitle/);
-assert.doesNotMatch(intelligence, /title \\|\\| "Plugin"/);
-assert.doesNotMatch(intelligence, /title \\|\\| "Software"/);
+assert.doesNotMatch(intelligence, /title \|\| "Plugin"/);
+assert.doesNotMatch(intelligence, /title \|\| "Software"/);
 
 assert.match(caption, /regenerateStoredCaption/);
 assert.match(caption, /publishPluginCaption/);
@@ -76,7 +76,7 @@ assert.match(renderYaml, /schedule: "\*\/2 \* \* \* \*"/);
 
 assert.match(bot, /resolvePluginBotToken/);
 assert.match(bot, /TELEGRAM_PLUGIN_BOT_TOKEN/);
-assert.doesNotMatch(bot, /console\\.log\\([^)]*token/i);
+assert.doesNotMatch(bot, /console\.log\([^)]*token/i);
 
 assert.match(adminPage, /Original Source/);
 assert.match(adminPage, /Verified Information/);
