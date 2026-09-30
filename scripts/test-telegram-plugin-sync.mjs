@@ -15,6 +15,7 @@ const adminPage = read("../src/components/admin/TelegramPluginCaptionStudio.tsx"
 const adminRoute = read("../src/app/api/admin/telegram/plugins/route.ts");
 const pluginsDb = read("../src/lib/plugins-db.ts");
 const patcher = read("../scripts/patch-telegram-plugin-intelligence.mjs");
+const instrumentation = read("../src/instrumentation.ts");
 assert.match(patcher, /review_required: false/);
 assert.match(patcher, /telegram_file_ids/);
 assert.match(patcher, /attachment_count/);
@@ -63,7 +64,13 @@ assert.doesNotMatch(caption, /Official/i);
 assert.match(webhook, /x-telegram-bot-api-secret-token/);
 assert.match(webhook, /edited_channel_post/);
 assert.match(processRoute, /TELEGRAM_PLUGIN_PROCESS_SECRET/);
+assert.match(processRoute, /x-telegram-plugin-process-secret/);
+assert.doesNotMatch(processRoute, /searchParams\.get\("process_secret"\)/);
 assert.match(processScript, /TELEGRAM_PLUGIN_PROCESS_SECRET/);
+assert.match(processScript, /x-telegram-plugin-process-secret|x-web-admin-key/);
+assert.doesNotMatch(processScript, /process_secret=/);
+assert.match(instrumentation, /x-telegram-plugin-process-secret/);
+assert.doesNotMatch(instrumentation, /process_secret=/);
 assert.match(renderYaml, /artistyar-telegram-plugin-processor/);
 assert.match(renderYaml, /schedule: "\*\/2 \* \* \* \*"/);
 
