@@ -17,8 +17,8 @@
     "start:standalone": "node .next/standalone/server.js",
     "seo:verify": "node scripts/verify-seo.mjs",
     "prebuild": "node scripts/ensure-hero.cjs && node scripts/assemble-tg-sync.mjs",
-    "postinstall": "node scripts/assemble-tg-sync.mjs && node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs",
-    "pretest:telegram-plugins": "node scripts/assemble-tg-sync.mjs && node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs",
+    "postinstall": "node scripts/assemble-tg-sync.mjs && node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs && node scripts/harden-telegram-plugin-runtime.mjs",
+    "pretest:telegram-plugins": "node scripts/assemble-tg-sync.mjs && node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs && node scripts/harden-telegram-plugin-runtime.mjs",
     "test:seo": "node --test scripts/test-seo-contracts.mjs",
     "test:security-runtime": "node --test scripts/test-security-runtime-day7.mjs",
     "test:security-day8": "node --test scripts/test-security-day8.mjs"
