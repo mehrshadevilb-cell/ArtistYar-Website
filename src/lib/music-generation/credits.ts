@@ -2,6 +2,9 @@
  * Credits accounting for User AI Music Generator.
  * Free: 3 generates without subscription (MUSIC_GEN_FREE_CREDITS default 3).
  * Paid: purchase grants more credits (reason=purchase).
+ *
+ * Charge/refund prefer atomic Postgres RPCs (charge_ai_music_credits /
+ * refund_ai_music_credits) so balance + ledger move in one transaction.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -83,79 +86,25 @@ export async function chargeCredits(input: {
   const client = db();
   await ensureCreditAccount(input.userId);
 
-  const prior = await client
-    .from("ai_music_generation_credit_ledger")
-    .select("id, balance_after, delta")
-    .eq("user_id", input.userId)
-    .eq("idempotency_key", input.idempotencyKey)
-    .maybeSingle();
-  if (prior.data) {
-    return {
-      ok: true,
-      balance: Number(prior.data.balance_after) || 0,
-      charged: Math.abs(Number(prior.data.delta) || 0),
-    };
-  }
-
-  const current = await client
-    .from("ai_music_generation_credits")
-    .select("balance, lifetime_spent")
-    .eq("user_id", input.userId)
-    .single();
-  if (current.error) throw new Error(current.error.message);
-  const balance = Number(current.data.balance) || 0;
-  if (balance < amount) {
-    return { ok: false, balance, charged: 0, reason: "InsufficientCredits" };
-  }
-
-  const next = balance - amount;
-  const lifetimeSpent = (Number(current.data.lifetime_spent) || 0) + amount;
-  const upd = await client
-    .from("ai_music_generation_credits")
-    .update({ balance: next, lifetime_spent: lifetimeSpent, updated_at: new Date().toISOString() })
-    .eq("user_id", input.userId)
-    .eq("balance", balance)
-    .select("balance")
-    .maybeSingle();
-
-  if (!upd.data) {
-    return chargeCredits(input);
-  }
-
-  const led = await client.from("ai_music_generation_credit_ledger").insert({
-    user_id: input.userId,
-    job_id: input.jobId || null,
-    delta: -amount,
-    reason: "charge",
-    balance_after: next,
-    idempotency_key: input.idempotencyKey,
+  const { data, error } = await client.rpc("charge_ai_music_credits", {
+    p_user_id: input.userId,
+    p_amount: amount,
+    p_idempotency_key: input.idempotencyKey,
+    p_job_id: input.jobId || null,
   });
 
-  // Concurrent charge with same idempotency key: unique (user_id, idempotency_key)
-  // means another worker already recorded the charge — treat as success of that charge.
-  if (led.error) {
-    const code = (led.error as { code?: string }).code || "";
-    const msg = led.error.message || "";
-    if (code === "23505" || /duplicate|unique/i.test(msg)) {
-      const priorAgain = await client
-        .from("ai_music_generation_credit_ledger")
-        .select("id, balance_after, delta")
-        .eq("user_id", input.userId)
-        .eq("idempotency_key", input.idempotencyKey)
-        .maybeSingle();
-      if (priorAgain.data) {
-        return {
-          ok: true,
-          balance: Number(priorAgain.data.balance_after) || 0,
-          charged: Math.abs(Number(priorAgain.data.delta) || 0),
-        };
-      }
-    }
-    // Balance already decremented; surface error so caller can attempt refund path.
-    throw new Error(`charge_ledger_failed:${msg}`);
+  if (error) {
+    throw new Error(`charge_ai_music_credits_failed: ${error.message}`);
   }
 
-  return { ok: true, balance: next, charged: amount };
+  const row = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+  const ok = Boolean(row.ok);
+  return {
+    ok,
+    balance: Number(row.balance) || 0,
+    charged: Number(row.charged) || 0,
+    reason: row.reason ? String(row.reason) : undefined,
+  };
 }
 
 export async function refundCredits(input: {
@@ -168,45 +117,22 @@ export async function refundCredits(input: {
   const client = db();
   await ensureCreditAccount(input.userId);
 
-  const prior = await client
-    .from("ai_music_generation_credit_ledger")
-    .select("id, balance_after")
-    .eq("user_id", input.userId)
-    .eq("idempotency_key", input.idempotencyKey)
-    .maybeSingle();
-  if (prior.data) {
-    return { ok: true, balance: Number(prior.data.balance_after) || 0 };
-  }
-
-  if (amount === 0) {
-    return { ok: true, balance: await getBalance(input.userId) };
-  }
-
-  const current = await client
-    .from("ai_music_generation_credits")
-    .select("balance, lifetime_spent")
-    .eq("user_id", input.userId)
-    .single();
-  if (current.error) throw new Error(current.error.message);
-  const balance = Number(current.data.balance) || 0;
-  const next = balance + amount;
-  const lifetimeSpent = Math.max(0, (Number(current.data.lifetime_spent) || 0) - amount);
-
-  await client
-    .from("ai_music_generation_credits")
-    .update({ balance: next, lifetime_spent: lifetimeSpent, updated_at: new Date().toISOString() })
-    .eq("user_id", input.userId);
-
-  await client.from("ai_music_generation_credit_ledger").insert({
-    user_id: input.userId,
-    job_id: input.jobId || null,
-    delta: amount,
-    reason: "refund",
-    balance_after: next,
-    idempotency_key: input.idempotencyKey,
+  const { data, error } = await client.rpc("refund_ai_music_credits", {
+    p_user_id: input.userId,
+    p_amount: amount,
+    p_idempotency_key: input.idempotencyKey,
+    p_job_id: input.jobId || null,
   });
 
-  return { ok: true, balance: next };
+  if (error) {
+    throw new Error(`refund_ai_music_credits_failed: ${error.message}`);
+  }
+
+  const row = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+  return {
+    ok: Boolean(row.ok),
+    balance: Number(row.balance) || 0,
+  };
 }
 
 /** Grant credits after payment (idempotent by paymentId). */
