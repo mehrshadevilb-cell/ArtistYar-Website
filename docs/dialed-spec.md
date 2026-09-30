@@ -136,3 +136,14 @@ The exact live feedback-tier copy, exact waveform draw constants, exact WebAudio
 - A direct local `git clone`/npm execution was blocked by the environment's inability to resolve `github.com`; therefore `npm ci`, `npm run typecheck`, `npm run build`, and `npm audit --omit=dev` are not claimed as locally executed.
 - The repository's existing `.github/workflows/production-verify.yml` runs those checks on pull requests to `main`; the branch should be verified through that CI path after the PR is opened.
 - Live Chromium side-by-side verification remains blocked by the same outbound-browser restriction documented above. Exact live feedback-tier copy and final waveform/audio constants remain capture-dependent rather than asserted as verified.
+
+
+### UI polish pass — 2026-09-30
+
+- Ready/set/go is localized to Persian copy: **آماده → تنظیم → برو** while retaining the existing deterministic 700/650/700ms transition sequence.
+- The round-transition surface is visually quieter: the secondary round counter is removed from the transition screen so the word is the sole focal element.
+- Frequency Memory tuning/result surfaces were enlarged toward the reference 630×786 portrait geometry, with stronger but still soft depth/shadow treatment.
+- Result reveal now has dedicated score, target, and feedback entrance motion (blur/opacity/translate) while preserving the 1650ms score count-up.
+- The phase status treatment was simplified from a bordered pill to a low-contrast micro-label so it does not compete with the waveform.
+- Mobile keeps the compact 22.5rem surface cap and reduced-motion disables the new result/transition animations.
+- Changes remain scoped to the Frequency Memory presentation layer; routing/auth/analytics/data flow were not changed.
