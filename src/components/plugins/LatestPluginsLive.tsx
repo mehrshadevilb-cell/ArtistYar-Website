@@ -43,10 +43,8 @@ function isPluginCoverUrl(url: string | null | undefined) {
 }
 
 function coverSrc(p: LatestPlugin) {
-  // Prefer the persisted cover, but fall back to the exact photo from the
-  // Telegram post. The API verifies that the file belongs to a published post,
-  // so a missing Storage cover never turns a real plugin into a generic card.
-  if (isPluginCoverUrl(p.cover_public_url)) return p.cover_public_url as string;
+  // Telegram is the canonical media source. Never prefer or require Supabase
+  // Storage for plugin covers.
   if (p.telegram_photo_file_id) {
     return "/api/plugins/image?file_id=" + encodeURIComponent(p.telegram_photo_file_id);
   }
