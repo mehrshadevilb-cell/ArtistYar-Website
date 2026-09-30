@@ -17,6 +17,7 @@ import {
 import { ArrowRight, RotateCcw } from "lucide-react";
 import { startLiveTone, setLiveToneHz, stopLiveTone } from "@/lib/practice-audio-engine";
 import "@/styles/practice-shell.css";
+import { FREQUENCY_MEMORY_TIMING } from "@/lib/frequency-memory-timing";
 
 function clamp(v: number, a = 0, b = 1) {
   return Math.max(a, Math.min(b, v));
@@ -106,13 +107,15 @@ export function FrequencyMemoryDial({
 }: FrequencyMemoryDialProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const dragRef = useRef({ active: false, moved: false, lastY: 0, startY: 0, startT: 0 });
+  const dragRef = useRef({ active: false, moved: false, lastY: 0, startY: 0, startT: 0, top: 0, height: 1 });
   const phaseRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [cursorY, setCursorY] = useState<number | null>(null);
+  const [displayHz, setDisplayHz] = useState(valueHz);
   const [displayScore, setDisplayScore] = useState(0);
+  const [targetVisible, setTargetVisible] = useState(false);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [lowPower, setLowPower] = useState(false);
   const waveHzRef = useRef(waveHz);
   const modeRef = useRef<FreqDialMode>(mode);
@@ -120,6 +123,10 @@ export function FrequencyMemoryDial({
   const playingRef = useRef(playing);
   const draggingRef = useRef(false);
   const cursorYRef = useRef<number | null>(null);
+  const cursorElRef = useRef<HTMLDivElement>(null);
+  const hzValueElRef = useRef<HTMLSpanElement>(null);
+  const hzUnitElRef = useRef<HTMLSpanElement>(null);
+  const rangeElRef = useRef<HTMLInputElement>(null);
   const reducedMotionRef = useRef(false);
   const lowPowerRef = useRef(false);
   const visibleRef = useRef(true);
@@ -130,15 +137,14 @@ export function FrequencyMemoryDial({
   const phaseStatus = PHASE_STATUS[mode];
 
   useEffect(() => {
-    waveHzRef.current = waveHz;
+    if (mode !== "recreate") waveHzRef.current = waveHz;
     modeRef.current = mode;
-    valueHzRef.current = valueHz;
+    if (mode !== "recreate" && !draggingRef.current) valueHzRef.current = valueHz;
     playingRef.current = playing;
     draggingRef.current = dragging;
-    cursorYRef.current = cursorY;
     reducedMotionRef.current = reducedMotion;
     lowPowerRef.current = lowPower;
-  }, [waveHz, valueHz, playing, dragging, cursorY, reducedMotion, lowPower]);
+  }, [waveHz, valueHz, playing, dragging, reducedMotion, lowPower]);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -159,8 +165,19 @@ export function FrequencyMemoryDial({
   }, [mode, roundLabel]);
 
   useEffect(() => {
+    setDisplayHz(valueHz);
+    valueHzRef.current = valueHz;
+    waveHzRef.current = waveHz;
+    if (rangeElRef.current) rangeElRef.current.value = String(Math.round(toLog(valueHz, minHz, maxHz) * 100000));
+    if (hzValueElRef.current) hzValueElRef.current.textContent = formatHzPrecise(valueHz);
+    if (hzUnitElRef.current) hzUnitElRef.current.textContent = formatHzUnit(valueHz);
+  }, [roundLabel, valueHz, waveHz, minHz, maxHz]);
+
+  useEffect(() => {
     if (mode !== "result" || resultScore == null) {
       setDisplayScore(0);
+      setTargetVisible(false);
+      setFeedbackVisible(false);
       return;
     }
     const target = Math.max(0, Math.min(10, resultScore));
@@ -169,7 +186,7 @@ export function FrequencyMemoryDial({
       return;
     }
     const start = performance.now();
-    const dur = 1650;
+    const dur = FREQUENCY_MEMORY_TIMING.resultScoreCountUpMs;
     let id = 0;
     const tick = (now: number) => {
       const t = clamp((now - start) / dur);
@@ -181,6 +198,25 @@ export function FrequencyMemoryDial({
     id = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(id);
   }, [mode, resultScore, reducedMotion]);
+
+  useEffect(() => {
+    if (mode !== "result" || targetHz == null || !revealTarget) {
+      setTargetVisible(false);
+      setFeedbackVisible(false);
+      return;
+    }
+    if (reducedMotion) {
+      setTargetVisible(true);
+      setFeedbackVisible(Boolean(resultFeedback));
+      return;
+    }
+    const targetTimer = window.setTimeout(() => setTargetVisible(true), FREQUENCY_MEMORY_TIMING.resultTargetDelayMs);
+    const feedbackTimer = window.setTimeout(() => setFeedbackVisible(Boolean(resultFeedback)), FREQUENCY_MEMORY_TIMING.resultFeedbackDelayMs);
+    return () => {
+      window.clearTimeout(targetTimer);
+      window.clearTimeout(feedbackTimer);
+    };
+  }, [mode, targetHz, revealTarget, resultFeedback, reducedMotion]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -304,24 +340,41 @@ export function FrequencyMemoryDial({
     };
   }, []);
 
+  const syncLiveDisplay = useCallback((hz: number) => {
+    const safeHz = Number.isFinite(hz) && hz > 0 ? hz : valueHzRef.current;
+    const value = formatHzPrecise(safeHz);
+    const unit = formatHzUnit(safeHz);
+    if (hzValueElRef.current) hzValueElRef.current.textContent = value;
+    if (hzUnitElRef.current) hzUnitElRef.current.textContent = unit;
+    if (rangeElRef.current) rangeElRef.current.value = String(Math.round(toLog(safeHz, minHz, maxHz) * 100000));
+    if (surfaceRef.current) {
+      surfaceRef.current.setAttribute("aria-valuenow", String(Math.round(safeHz)));
+      surfaceRef.current.setAttribute("aria-valuetext", `${value} ${unit}`);
+    }
+  }, [minHz, maxHz]);
+
   const setFromDrag = useCallback(
     (clientY: number, withTone = true) => {
       const el = surfaceRef.current;
       if (!el || !dragRef.current.active) return;
-      const r = el.getBoundingClientRect();
-      const height = Math.max(1, r.height);
+      const height = dragRef.current.height;
       const deltaT = -(clientY - dragRef.current.startY) / height;
       const t = clamp(dragRef.current.startT + deltaT * 0.72);
       const hz = fromLog(t, minHz, maxHz);
       const rounded = Math.round(hz * 100) / 100;
+      valueHzRef.current = rounded;
+      waveHzRef.current = rounded;
+      syncLiveDisplay(rounded);
       onChangeHz(rounded);
-      setCursorY(clientY - r.top);
+      const localY = clientY - dragRef.current.top;
+      cursorYRef.current = localY;
+      if (cursorElRef.current) cursorElRef.current.style.top = `${localY}px`;
       if (withTone) {
         void startLiveTone(rounded);
         setLiveToneHz(rounded);
       }
     },
-    [minHz, maxHz, onChangeHz],
+    [minHz, maxHz, onChangeHz, syncLiveDisplay],
   );
 
   const down = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -329,12 +382,17 @@ export function FrequencyMemoryDial({
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     const r = e.currentTarget.getBoundingClientRect();
-    const startT = toLog(valueHz, minHz, maxHz);
-    dragRef.current = { active: true, moved: false, lastY: e.clientY, startY: e.clientY, startT };
+    const startT = toLog(valueHzRef.current, minHz, maxHz);
+    dragRef.current = { active: true, moved: false, lastY: e.clientY, startY: e.clientY, startT, top: r.top, height: Math.max(1, r.height) };
     setDragging(true);
-    setCursorY(e.clientY - r.top);
-    void startLiveTone(valueHz);
-    setLiveToneHz(valueHz);
+    const localY = e.clientY - r.top;
+    cursorYRef.current = localY;
+    if (cursorElRef.current) {
+      cursorElRef.current.style.top = `${localY}px`;
+      cursorElRef.current.style.opacity = "1";
+    }
+    void startLiveTone(valueHzRef.current);
+    setLiveToneHz(valueHzRef.current);
   };
   const move = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragRef.current.active) return;
@@ -346,7 +404,8 @@ export function FrequencyMemoryDial({
     if (!dragRef.current.active) return;
     dragRef.current.active = false;
     setDragging(false);
-    setCursorY(null);
+    cursorYRef.current = null;
+    if (cursorElRef.current) cursorElRef.current.style.opacity = "0";
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
@@ -359,7 +418,7 @@ export function FrequencyMemoryDial({
   const key = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!interactive) return;
     const hzStep = e.shiftKey ? 0.01 : 0.1;
-    let hz = valueHz;
+    let hz = valueHzRef.current;
     if (e.key === "ArrowDown" || e.key === "ArrowLeft") hz -= hzStep;
     else if (e.key === "ArrowUp" || e.key === "ArrowRight") hz += hzStep;
     else if (e.key === "Enter" || e.key === " ") {
@@ -371,6 +430,9 @@ export function FrequencyMemoryDial({
     e.preventDefault();
     hz = Math.max(minHz, Math.min(maxHz, hz));
     hz = Math.round(hz * 100) / 100;
+    valueHzRef.current = hz;
+    waveHzRef.current = hz;
+    syncLiveDisplay(hz);
     onChangeHz(hz);
     void startLiveTone(hz);
     setLiveToneHz(hz);
@@ -405,8 +467,8 @@ export function FrequencyMemoryDial({
         tabIndex={interactive ? 0 : -1}
         aria-valuemin={Math.round(minHz)}
         aria-valuemax={Math.round(maxHz)}
-        aria-valuenow={Math.round(valueHz)}
-        aria-valuetext={`${formatHzPrecise(valueHz)} ${formatHzUnit(valueHz)}`}
+        aria-valuenow={Math.round(displayHz)}
+        aria-valuetext={`${formatHzPrecise(displayHz)} ${formatHzUnit(displayHz)}`}
         aria-label="کنترل فرکانس — برای تغییر زیر و بمی به‌صورت عمودی بکشید"
         aria-disabled={!interactive}
         onPointerDown={down}
@@ -418,8 +480,7 @@ export function FrequencyMemoryDial({
       >
         <canvas ref={canvasRef} className="fm-dialed-canvas" aria-hidden />
 
-        {dragging && cursorY != null && (
-          <div className="fm-dialed-cursor" style={{ top: cursorY }} aria-hidden>
+        <div ref={cursorElRef} className="fm-dialed-cursor" aria-hidden>
             <svg width="14" height="28" viewBox="0 0 14 28" fill="none">
               <path
                 d="M7 2 L7 26 M7 2 L3.5 7 M7 2 L10.5 7 M7 26 L3.5 21 M7 26 L10.5 21"
@@ -430,7 +491,6 @@ export function FrequencyMemoryDial({
               />
             </svg>
           </div>
-        )}
 
         {isResult && resultScore != null && (
           <div className="fm-dialed-score" aria-live="polite">
@@ -438,7 +498,7 @@ export function FrequencyMemoryDial({
           </div>
         )}
         {isResult && targetHz != null && (
-          <div className="fm-dialed-result-target">
+          <div className={`fm-dialed-result-target ${targetVisible ? "is-visible" : ""}`}>
             <span className="fm-dialed-target-label">TARGET</span>
             <span className="fm-dialed-target-value">
               {formatHzPrecise(targetHz)}
@@ -446,14 +506,14 @@ export function FrequencyMemoryDial({
             </span>
           </div>
         )}
-        {isResult && resultFeedback && <p className="fm-dialed-feedback">{resultFeedback}</p>}
+        {isResult && resultFeedback && <p className={`fm-dialed-feedback ${feedbackVisible ? "is-visible" : ""}`} aria-live="polite">{resultFeedback}</p>}
 
         <div className="fm-dialed-hz">
           {showHz != null ? (
             <div className="fm-dialed-guess-block">
-              <span className="fm-dialed-guess-value">
-                {formatHzPrecise(showHz)}
-                <span className="fm-dialed-hz-unit">{formatHzUnit(showHz)}</span>
+              <span ref={hzValueElRef} className="fm-dialed-guess-value">
+                {formatHzPrecise(displayHz)}
+                <span ref={hzUnitElRef} className="fm-dialed-hz-unit">{formatHzUnit(displayHz)}</span>
               </span>
             </div>
           ) : (
@@ -469,11 +529,15 @@ export function FrequencyMemoryDial({
           min={0}
           max={100000}
           step={1}
-          value={Math.round(toLog(valueHz, minHz, maxHz) * 100000)}
+          ref={rangeElRef}
+          defaultValue={Math.round(toLog(valueHz, minHz, maxHz) * 100000)}
           disabled={!interactive}
           aria-label="تنظیم فرکانس"
           onChange={(e) => {
             const hz = Math.round(fromLog(+e.target.value / 100000, minHz, maxHz) * 100) / 100;
+            valueHzRef.current = hz;
+            waveHzRef.current = hz;
+            syncLiveDisplay(hz);
             onChangeHz(hz);
             void startLiveTone(hz);
             setLiveToneHz(hz);

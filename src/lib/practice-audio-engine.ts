@@ -362,10 +362,12 @@ export async function playTestTone(hz = 440, seconds = 0.5): Promise<boolean> {
 let liveOsc: OscillatorNode | null = null;
 let liveGain: GainNode | null = null;
 let liveCtx: AudioContext | null = null;
+let liveRequestId = 0;
 
 export async function startLiveTone(hz: number, peak = 0.28): Promise<boolean> {
+  const requestId = ++liveRequestId;
   const ctx = await getPracticeAudioContext();
-  if (!ctx) return false;
+  if (!ctx || requestId !== liveRequestId) return false;
   try {
     if (ctx.state !== "running") await ctx.resume();
   } catch {
@@ -420,6 +422,7 @@ export function setLiveToneHz(hz: number) {
 }
 
 export function stopLiveTone() {
+  liveRequestId += 1;
   try {
     if (liveGain && liveCtx) {
       liveGain.gain.cancelScheduledValues(liveCtx.currentTime);

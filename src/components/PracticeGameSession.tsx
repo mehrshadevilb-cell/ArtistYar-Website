@@ -40,17 +40,13 @@ import {
   FREQ_EXERCISES,
 } from "@/lib/practice-game";
 import "@/styles/practice-shell.css";
+import { FREQUENCY_MEMORY_TIMING } from "@/lib/frequency-memory-timing";
 
 type Phase = "intro" | "play" | "result" | "summary" | "ready";
 type FreqSub = "listen" | "remember" | "recreate";
 type ReadyWord = "ready" | "set" | "go";
 
-const REMEMBER_MS = 2000;
-const FM_TIMING = {
-  readyMs: 700,
-  setMs: 600,
-  goMs: 500,
-} as const;
+const REMEMBER_MS = FREQUENCY_MEMORY_TIMING.rememberMs;
 
 export function PracticeGameSession({
   gameId,
@@ -79,6 +75,7 @@ export function PracticeGameSession({
   const [playing, setPlaying] = useState(false);
   const [heard, setHeard] = useState(false);
   const [guessHz, setGuessHz] = useState(440);
+  const guessHzRef = useRef(440);
   const [picked, setPicked] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ correct: boolean; accuracy: number; detail: string; xp: number } | null>(null);
   const [outcomes, setOutcomes] = useState<RoundOutcome[]>([]);
@@ -114,7 +111,7 @@ export function PracticeGameSession({
   const totalRounds = Math.max(1, maxRounds ?? (isFreq ? 5 : game?.rounds ?? 8));
   const freeLocked = !accessLoading && !pro && roundIndex + 1 > (stageLimit || 5);
 
-  const clearTimers = () => {
+  const clearTimers = useCallback(() => {
     if (playTimerRef.current) {
       clearTimeout(playTimerRef.current);
       playTimerRef.current = null;
@@ -131,7 +128,7 @@ export function PracticeGameSession({
       clearTimeout(readyTimerRef.current);
       readyTimerRef.current = null;
     }
-  };
+  }, []);
 
   useEffect(() => {
     sessionStartedRef.current = false;
@@ -152,7 +149,7 @@ export function PracticeGameSession({
       stopPracticePlayback();
       stopLiveTone();
     };
-  }, [gameId, userId]);
+  }, [gameId, userId, clearTimers]);
 
   useEffect(() => {
     if (gameId !== "freq-memory" || !userId) return;
@@ -253,10 +250,12 @@ export function PracticeGameSession({
       freqSubRef.current = "listen";
       stopLiveTone();
       stopPracticePlayback();
-      setGuessHz(r.targetHz ? Math.round(((r.sliderMin || 0) + (r.sliderMax || 0)) / 2) : 440);
+      const initialGuessHz = r.targetHz ? Math.round(((r.sliderMin || 0) + (r.sliderMax || 0)) / 2) : 440;
+      guessHzRef.current = initialGuessHz;
+      setGuessHz(initialGuessHz);
       startedAt.current = Date.now();
     },
-    [gameId, maxRounds, game?.rounds],
+    [gameId, maxRounds, game?.rounds, clearTimers],
   );
 
   const startSession = () => {
@@ -349,7 +348,7 @@ export function PracticeGameSession({
     return () => window.clearTimeout(id);
   }, [freeLocked, freqSub, heard, isFreq, phase, playAudio, quotaBlocked, round]);
 
-  const finishRound = async (correct: boolean, accuracy: number, detail: string) => {
+  const finishRound = async (correct: boolean, accuracy: number, detail: string, guessHzOverride?: number) => {
     if (!round) return;
     const responseTimeMs = Math.max(1, Date.now() - startedAt.current);
     const nextStreak = correct ? streak + 1 : 0;
@@ -373,6 +372,12 @@ export function PracticeGameSession({
     stats.streak = nextStreak;
     stats.bestStreak = Math.max(stats.bestStreak, nextStreak);
     saveLocalStats(stats, userId);
+    // Freeze interaction before any network work. Persistence must never
+    // keep the dial/audio alive or delay the deterministic result sequence.
+    stopLiveTone();
+    setPlaying(false);
+    setPhase("result");
+
     if (user?.id) {
       const res = await persistPracticeRound({
         userId: user.id,
@@ -388,7 +393,7 @@ export function PracticeGameSession({
         source: "practice_game_session",
         extra: {
           mode: round.mode,
-          guessHz: round.mode === "slider" ? guessHz : undefined,
+          guessHz: round.mode === "slider" ? (guessHzOverride ?? guessHz) : undefined,
           targetHz: round.targetHz,
           sessionId: sessionIdRef.current,
           exerciseType: isFreq ? activeExercise : undefined,
@@ -396,9 +401,12 @@ export function PracticeGameSession({
       });
       if (!res.ok && res.quota) setQuotaBlocked(true);
     }
-    stopLiveTone();
-    setPhase("result");
   };
+
+  const updateGuessHz = useCallback((hz: number) => {
+    if (!Number.isFinite(hz)) return;
+    guessHzRef.current = hz;
+  }, []);
 
   const submitSlider = async () => {
     if (!round || picked || submitLockRef.current || freeLocked || quotaBlocked || !round.targetHz) return;
@@ -406,13 +414,15 @@ export function PracticeGameSession({
     if (!isFreq && !heard) return;
     submitLockRef.current = true;
     setPicked("slider");
-    setLastGuessHz(guessHz);
-    const { accuracy, hzErr, cents, perfect } = frequencyAccuracy(round.targetHz, guessHz, round.toleranceHz || 40);
+    const submittedGuessHz = guessHzRef.current;
+    setLastGuessHz(submittedGuessHz);
+    const { accuracy, hzErr, cents, perfect } = frequencyAccuracy(round.targetHz, submittedGuessHz, round.toleranceHz || 40);
     const correct = sliderPass(accuracy) || perfect;
     await finishRound(
       correct,
       accuracy,
-      `${formatHz(guessHz)} در برابر ${formatHz(round.targetHz)} · خطای ${Math.round(hzErr)} Hz (${formatCents(cents)})`,
+      `${formatHz(submittedGuessHz)} در برابر ${formatHz(round.targetHz)} · خطای ${Math.round(hzErr)} Hz (${formatCents(cents)})`,
+      submittedGuessHz,
     );
   };
 
@@ -443,12 +453,12 @@ export function PracticeGameSession({
         setReadyWord("go");
         readyTimerRef.current = setTimeout(() => {
           beginNextFromReady();
-        }, FM_TIMING.goMs);
-      }, FM_TIMING.setMs);
-    }, FM_TIMING.readyMs);
+        }, FREQUENCY_MEMORY_TIMING.goMs);
+      }, FREQUENCY_MEMORY_TIMING.setMs);
+    }, FREQUENCY_MEMORY_TIMING.readyMs);
   }, [beginNextFromReady]);
 
-  const advanceToNextRound = () => {
+  const advanceToNextRound = useCallback(() => {
     stopLiveTone();
     stopPracticePlayback();
     setPlaying(false);
@@ -474,7 +484,21 @@ export function PracticeGameSession({
     setRoundIndex(idx);
     setPhase("play");
     buildRound(idx < (game?.warmup ?? 2) ? Math.max(1, level - 6) : level, idx);
-  };
+  }, [
+    roundIndex,
+    totalRounds,
+    quotaBlocked,
+    onSessionEnd,
+    outcomes,
+    sessionXp,
+    gameId,
+    isFreq,
+    runReadySequence,
+    clearTimers,
+    level,
+    game?.warmup,
+    buildRound,
+  ]);
 
   const freqRoundScore = (acc: number) => Math.round((Math.max(0, Math.min(100, acc)) / 10) * 100) / 100;
   const freqSessionScore = outcomes.reduce((s, o) => s + freqRoundScore(o.accuracy), 0);
@@ -506,7 +530,7 @@ export function PracticeGameSession({
     if (!isFreq || phase !== "result" || !feedback) return;
     const id = window.setTimeout(() => {
       advanceToNextRound();
-    }, 2000);
+    }, FREQUENCY_MEMORY_TIMING.resultDwellMs);
     return () => window.clearTimeout(id);
   }, [advanceToNextRound, feedback, isFreq, phase]);
 
@@ -586,7 +610,7 @@ export function PracticeGameSession({
             disabled={freeLocked || quotaBlocked}
             targetHz={round.targetHz}
             audioError={audioError}
-            onChangeHz={setGuessHz}
+            onChangeHz={updateGuessHz}
             onLock={() => void submitSlider()}
             onReplay={() => void playAudio()}
             showReplay={freqSub === "listen" || (freqSub === "recreate" && heard)}
