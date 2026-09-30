@@ -10,7 +10,7 @@ services:
       cp -r public .next/standalone/public &&
       cp -r .next/static .next/standalone/.next/static
     startCommand: node .next/standalone/server.js
-    healthCheckPath: /
+    healthCheckPath: /api/health/live
     envVars:
       - key: NODE_ENV
         value: production
