@@ -69,7 +69,7 @@ sync = sync.replace(
 );
 
 sync = sync.replace(
-  /  let upserted = await db\\n    \.from\("telegram_plugin_posts"\)\\n    \.upsert\(payload, \{ onConflict: "channel_id,document_message_id" \}\)\\n    \.select\("id"\)\\n    \.single\(\);/,
+  /  let upserted = await db\n    \.from\("telegram_plugin_posts"\)\n    \.upsert\(payload, \{ onConflict: "channel_id,document_message_id" \}\)\n    \.select\("id"\)\n    \.single\(\);/,
   `  let upserted;
   // One Telegram cover/photo can own multiple document messages. Reuse the
   // existing product row by photo message id and merge every file into it.
