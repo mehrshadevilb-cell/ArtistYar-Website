@@ -255,7 +255,7 @@ describe("security contracts — telegram processor", () => {
   const instrumentation = read("src/instrumentation.ts");
 
   test("processor authenticates via header not query secret", () => {
-    assert.match(processRoute, /x-telegram-plugin-process-secret/i);
+    assert.ok(processRoute.includes("isTelegramProcessAuthorized") || /x-telegram-plugin-process-secret/i.test(processRoute));
     assert.doesNotMatch(processRoute, /searchParams\.get\(["']process_secret["']\)/);
   });
 

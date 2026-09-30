@@ -41,7 +41,9 @@ describe("Day7 education progress authorization", () => {
 describe("Day7 process secret transport", () => {
   it("telegram process secret is header-only", () => {
     const src = read("src/app/api/telegram/plugins/process/route.ts");
-    assert.ok(src.includes("x-telegram-plugin-process-secret"));
+    const helper = read("src/lib/telegram-admin-auth.ts");
+    assert.ok(src.includes("isTelegramProcessAuthorized") || helper.includes("x-telegram-plugin-process-secret"));
+    assert.ok(helper.includes("x-telegram-plugin-process-secret"));
     assert.ok(!src.includes('searchParams.get("process_secret")'));
     assert.ok(!src.includes("searchParams.get('process_secret')"));
   });
