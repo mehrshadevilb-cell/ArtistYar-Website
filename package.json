@@ -11,6 +11,7 @@
     "test:telegram-plugins": "node scripts/test-telegram-plugin-sync.mjs",
     "test:security": "node scripts/test-practice-rpc-security.mjs",
     "test:music-billing": "node scripts/test-music-billing-integrity.mjs",
+    "test:schema-inventory": "node scripts/verify-schema-inventory.mjs",
     "start:standalone": "node .next/standalone/server.js",
     "seo:verify": "node scripts/verify-seo.mjs",
     "prebuild": "node scripts/ensure-hero.cjs",
