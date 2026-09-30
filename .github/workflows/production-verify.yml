@@ -53,6 +53,9 @@ jobs:
       - name: SEO contract tests
         run: npm run test:seo
 
+      - name: Security runtime contracts (Day 7)
+        run: npm run test:security-runtime
+
       - name: Source scan
         run: node scripts/scan-codebase.js
 
