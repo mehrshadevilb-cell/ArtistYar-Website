@@ -107,7 +107,7 @@ export function FrequencyMemoryDial({
 }: FrequencyMemoryDialProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const dragRef = useRef({ active: false, moved: false, lastY: 0, startY: 0, startT: 0 });
+  const dragRef = useRef({ active: false, moved: false, lastY: 0, startY: 0, startT: 0, top: 0, height: 1 });
   const phaseRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -357,8 +357,7 @@ export function FrequencyMemoryDial({
     (clientY: number, withTone = true) => {
       const el = surfaceRef.current;
       if (!el || !dragRef.current.active) return;
-      const r = el.getBoundingClientRect();
-      const height = Math.max(1, r.height);
+      const height = dragRef.current.height;
       const deltaT = -(clientY - dragRef.current.startY) / height;
       const t = clamp(dragRef.current.startT + deltaT * 0.72);
       const hz = fromLog(t, minHz, maxHz);
@@ -367,7 +366,7 @@ export function FrequencyMemoryDial({
       waveHzRef.current = rounded;
       syncLiveDisplay(rounded);
       onChangeHz(rounded);
-      const localY = clientY - r.top;
+      const localY = clientY - dragRef.current.top;
       cursorYRef.current = localY;
       if (cursorElRef.current) cursorElRef.current.style.top = `${localY}px`;
       if (withTone) {
@@ -383,8 +382,8 @@ export function FrequencyMemoryDial({
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     const r = e.currentTarget.getBoundingClientRect();
-    const startT = toLog(valueHz, minHz, maxHz);
-    dragRef.current = { active: true, moved: false, lastY: e.clientY, startY: e.clientY, startT };
+    const startT = toLog(valueHzRef.current, minHz, maxHz);
+    dragRef.current = { active: true, moved: false, lastY: e.clientY, startY: e.clientY, startT, top: r.top, height: Math.max(1, r.height) };
     setDragging(true);
     const localY = e.clientY - r.top;
     cursorYRef.current = localY;
@@ -392,8 +391,8 @@ export function FrequencyMemoryDial({
       cursorElRef.current.style.top = `${localY}px`;
       cursorElRef.current.style.opacity = "1";
     }
-    void startLiveTone(valueHz);
-    setLiveToneHz(valueHz);
+    void startLiveTone(valueHzRef.current);
+    setLiveToneHz(valueHzRef.current);
   };
   const move = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragRef.current.active) return;
