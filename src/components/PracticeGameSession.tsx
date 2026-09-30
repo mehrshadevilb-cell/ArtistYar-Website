@@ -48,8 +48,9 @@ type ReadyWord = "ready" | "set" | "go";
 const REMEMBER_MS = 2000;
 const FM_TIMING = {
   readyMs: 700,
-  setMs: 600,
-  goMs: 500,
+  setMs: 650,
+  goMs: 700,
+  resultDwellMs: 2650,
 } as const;
 
 export function PracticeGameSession({
@@ -107,7 +108,9 @@ export function PracticeGameSession({
   const submitLockRef = useRef(false);
   const sessionStartedRef = useRef(false);
   const [readyWord, setReadyWord] = useState<ReadyWord>("ready");
-  const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readyTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const resultDwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const roundGenRef = useRef(0);
   const userId = user?.id || null;
   const isFreq = gameId === "freq-memory";
   const isInterval = gameId === "interval-recognition";
@@ -127,9 +130,11 @@ export function PracticeGameSession({
       clearInterval(rememberTickRef.current);
       rememberTickRef.current = null;
     }
-    if (readyTimerRef.current) {
-      clearTimeout(readyTimerRef.current);
-      readyTimerRef.current = null;
+    for (const timer of readyTimersRef.current) clearTimeout(timer);
+    readyTimersRef.current = [];
+    if (resultDwellTimerRef.current) {
+      clearTimeout(resultDwellTimerRef.current);
+      resultDwellTimerRef.current = null;
     }
   };
 
@@ -191,7 +196,9 @@ export function PracticeGameSession({
       setRememberLeft((s) => Math.max(0, s - 1));
     }, 1000);
     if (rememberTimerRef.current) clearTimeout(rememberTimerRef.current);
+    const gen = roundGenRef.current;
     rememberTimerRef.current = setTimeout(() => {
+      if (gen !== roundGenRef.current) return;
       if (rememberTickRef.current) {
         clearInterval(rememberTickRef.current);
         rememberTickRef.current = null;
@@ -206,7 +213,8 @@ export function PracticeGameSession({
   const buildRound = useCallback(
     (lvl: number, idx: number) => {
       clearTimers();
-      const seed = (seedBase.current + idx * 97 + lvl * 13 + Math.floor(Math.random() * 1e9)) >>> 0;
+      const gen = ++roundGenRef.current;
+    const seed = (seedBase.current + idx * 97 + lvl * 13 + Math.floor(Math.random() * 1e9)) >>> 0;
       let exerciseType: FreqExerciseType | undefined;
       if (gameId === "freq-memory") {
         try {
@@ -235,6 +243,7 @@ export function PracticeGameSession({
       } catch {
         r = generateRoundForGame(gameId, lvl, seed);
       }
+      if (gen !== roundGenRef.current) return;
       if (typeof r.targetHz === "number" && r.targetHz > 0) {
         recentTargetsRef.current = [...recentTargetsRef.current.slice(-7), r.targetHz];
       }
@@ -251,6 +260,7 @@ export function PracticeGameSession({
       setPlaying(false);
       setFreqSub("listen");
       freqSubRef.current = "listen";
+      roundGenRef.current += 1;
       stopLiveTone();
       stopPracticePlayback();
       setGuessHz(r.targetHz ? Math.round(((r.sliderMin || 0) + (r.sliderMax || 0)) / 2) : 440);
@@ -317,7 +327,9 @@ export function PracticeGameSession({
       const src = round.source as { duration?: number; seconds?: number };
       const ms = Math.round((src.duration || src.seconds || 1.2) * 1000) + 80;
       if (playTimerRef.current) clearTimeout(playTimerRef.current);
+      const gen = roundGenRef.current;
       playTimerRef.current = setTimeout(() => {
+        if (gen !== roundGenRef.current) return;
         setPlaying(false);
         playTimerRef.current = null;
         if (isFreq && freqSubRef.current === "listen") {
@@ -405,6 +417,7 @@ export function PracticeGameSession({
     if (isFreq && freqSub !== "recreate") return;
     if (!isFreq && !heard) return;
     submitLockRef.current = true;
+    roundGenRef.current += 1;
     setPicked("slider");
     setLastGuessHz(guessHz);
     const { accuracy, hzErr, cents, perfect } = frequencyAccuracy(round.targetHz, guessHz, round.toleranceHz || 40);
@@ -419,6 +432,7 @@ export function PracticeGameSession({
   const submitChoice = async (optionId: string) => {
     if (!round || picked || submitLockRef.current || !heard || freeLocked || quotaBlocked) return;
     submitLockRef.current = true;
+    roundGenRef.current += 1;
     setPicked(optionId);
     const correct = optionId === round.correctOptionId;
     await finishRound(correct, choiceAccuracy(correct), correct ? "درست" : `پاسخ: ${round.reviewText}`);
@@ -435,13 +449,21 @@ export function PracticeGameSession({
 
   const runReadySequence = useCallback(() => {
     clearTimers();
+    const gen = roundGenRef.current;
     setReadyWord("ready");
     setPhase("ready");
-    readyTimerRef.current = setTimeout(() => {
+    const schedule = (fn: () => void, ms: number) => {
+      const timer = setTimeout(() => {
+        if (gen !== roundGenRef.current) return;
+        fn();
+      }, ms);
+      readyTimersRef.current.push(timer);
+    };
+    schedule(() => {
       setReadyWord("set");
-      readyTimerRef.current = setTimeout(() => {
+      schedule(() => {
         setReadyWord("go");
-        readyTimerRef.current = setTimeout(() => {
+        schedule(() => {
           beginNextFromReady();
         }, FM_TIMING.goMs);
       }, FM_TIMING.setMs);
@@ -504,10 +526,16 @@ export function PracticeGameSession({
   // remain visible briefly, then advance automatically into ready/set/go.
   useEffect(() => {
     if (!isFreq || phase !== "result" || !feedback) return;
+    const gen = roundGenRef.current;
     const id = window.setTimeout(() => {
+      if (gen !== roundGenRef.current) return;
       advanceToNextRound();
-    }, 2000);
-    return () => window.clearTimeout(id);
+    }, FM_TIMING.resultDwellMs);
+    resultDwellTimerRef.current = id;
+    return () => {
+      window.clearTimeout(id);
+      if (resultDwellTimerRef.current === id) resultDwellTimerRef.current = null;
+    };
   }, [advanceToNextRound, feedback, isFreq, phase]);
 
   if (!game) {
@@ -658,7 +686,7 @@ export function PracticeGameSession({
             {roundIndex + 2} / {totalRounds}
           </span>
           <span className="fm-rsgo-word">
-            {readyWord === "ready" ? "آماده" : readyWord === "set" ? "تنظیم" : "برو"}
+            {readyWord}
           </span>
         </div>
       )}
