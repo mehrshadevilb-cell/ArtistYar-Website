@@ -453,8 +453,8 @@ export function PracticeGameSession({
         setReadyWord("go");
         readyTimerRef.current = setTimeout(() => {
           beginNextFromReady();
-        }, FM_TIMING.goMs);
-      }, FM_TIMING.setMs);
+        }, FREQUENCY_MEMORY_TIMING.goMs);
+      }, FREQUENCY_MEMORY_TIMING.setMs);
     }, FREQUENCY_MEMORY_TIMING.readyMs);
   }, [beginNextFromReady]);
 
@@ -486,7 +486,9 @@ export function PracticeGameSession({
     buildRound(idx < (game?.warmup ?? 2) ? Math.max(1, level - 6) : level, idx);
   };
 
-  advanceToNextRoundRef.current = advanceToNextRound;\n\n  const freqRoundScore = (acc: number) => Math.round((Math.max(0, Math.min(100, acc)) / 10) * 100) / 100;
+  advanceToNextRoundRef.current = advanceToNextRound;
+
+  const freqRoundScore = (acc: number) => Math.round((Math.max(0, Math.min(100, acc)) / 10) * 100) / 100;
   const freqSessionScore = outcomes.reduce((s, o) => s + freqRoundScore(o.accuracy), 0);
   const freqSessionMax = Math.max(1, outcomes.length) * 10;
   const freqResultLine = (acc: number) =>
