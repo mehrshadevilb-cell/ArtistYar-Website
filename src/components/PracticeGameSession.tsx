@@ -149,7 +149,7 @@ export function PracticeGameSession({
       stopPracticePlayback();
       stopLiveTone();
     };
-  }, [gameId, userId]);
+  }, [gameId, userId, clearTimers]);
 
   useEffect(() => {
     if (gameId !== "freq-memory" || !userId) return;
@@ -255,7 +255,7 @@ export function PracticeGameSession({
       setGuessHz(initialGuessHz);
       startedAt.current = Date.now();
     },
-    [gameId, maxRounds, game?.rounds],
+    [gameId, maxRounds, game?.rounds, clearTimers],
   );
 
   const startSession = () => {
