@@ -116,5 +116,15 @@ sync = sync.replace(
   'error_message: null,',
 );
 
+if (!sync.includes("One Telegram cover/photo can own multiple document messages")) {
+  throw new Error("telegram_runtime_hardening_multi_file_patch_not_applied");
+}
+if (sync.includes("telegram_plugin_cover_sync_deferred") || /await syncPublishedPluginCover\(/.test(sync)) {
+  throw new Error("telegram_runtime_hardening_storage_cover_call_remains");
+}
+if (!intelligence.includes("VST Instrument") || !intelligence.includes("Audio Plugin")) {
+  throw new Error("telegram_runtime_hardening_taxonomy_not_applied");
+}
+
 writeFileSync(syncPath, sync);
 console.log("telegram plugin runtime hardening applied");
