@@ -1,15 +1,16 @@
 /**
  * Day 5 emergency restore: if telegram-plugin-sync.ts is truncated, expand
- * from scripts/telegram-plugin-sync.restore.zlib.b64 (zlib+base64).
+ * from scripts/telegram-plugin-sync.restore.zlib.b64.* (zlib+base64 parts).
  */
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inflateSync } from "node:zlib";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const target = join(root, "src/lib/telegram-plugin-sync.ts");
-const payload = join(root, "scripts/telegram-plugin-sync.restore.zlib.b64");
+const scriptsDir = join(root, "scripts");
+const prefix = "telegram-plugin-sync.restore.zlib.b64.";
 
 function looksIntact(src) {
   return (
@@ -26,16 +27,20 @@ if (looksIntact(current)) {
   process.exit(0);
 }
 
-if (!existsSync(payload)) {
-  console.error("missing scripts/telegram-plugin-sync.restore.zlib.b64");
+const parts = readdirSync(scriptsDir)
+  .filter((n) => n.startsWith(prefix) && /^\d+$/.test(n.slice(prefix.length)))
+  .sort((a, b) => Number(a.slice(prefix.length)) - Number(b.slice(prefix.length)));
+
+if (!parts.length) {
+  console.error("missing telegram-plugin-sync restore payload parts");
   process.exit(1);
 }
 
-const b64 = readFileSync(payload, "utf8").trim();
+const b64 = parts.map((n) => readFileSync(join(scriptsDir, n), "utf8").trim()).join("");
 const source = inflateSync(Buffer.from(b64, "base64")).toString("utf8");
 if (!looksIntact(source)) {
   console.error("restored payload failed integrity check");
   process.exit(1);
 }
 writeFileSync(target, source);
-console.log("restored telegram-plugin-sync.ts from Day5 payload", source.length);
+console.log("restored telegram-plugin-sync.ts from Day5 payload", source.length, "parts", parts.length);
