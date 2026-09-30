@@ -1,0 +1,33 @@
+name: restore-telegram-sync
+on:
+  workflow_dispatch:
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Assemble telegram-plugin-sync
+        run: node scripts/assemble-tg-sync.mjs
+      - name: Verify full source
+        run: |
+          test $(wc -c < src/lib/telegram-plugin-sync.ts) -gt 20000
+          grep -q enqueuePluginMessage src/lib/telegram-plugin-sync.ts
+          grep -q processPendingPluginPairs src/lib/telegram-plugin-sync.ts
+          ! grep -q PLACEHOLDER_WILL_REPLACE src/lib/telegram-plugin-sync.ts
+          ! grep -q "not assembled" src/lib/telegram-plugin-sync.ts
+      - name: Commit assembled source
+        run: |
+          git config user.name "artistyar-bot"
+          git config user.email "bot@artistyar.ir"
+          git add src/lib/telegram-plugin-sync.ts
+          if git diff --staged --quiet; then
+            echo "Already complete"
+          else
+            git commit -m "fix(day5-gate): commit assembled telegram-plugin-sync.ts full source"
+            git push origin HEAD
+          fi
