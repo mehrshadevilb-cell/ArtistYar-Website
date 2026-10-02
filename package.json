@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && rm -rf .next/standalone/public .next/standalone/.next/static && cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static",
-    "start": "node .next/standalone/server.js",
+    "start": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test:telegram-plugins": "node scripts/test-telegram-plugin-sync.mjs",
@@ -14,7 +14,7 @@
     "test:schema-inventory": "node scripts/verify-schema-inventory.mjs",
     "test:critical-paths": "node --test scripts/test-critical-paths.mjs",
     "test": "npm run test:security && npm run test:music-billing && npm run test:schema-inventory && npm run test:critical-paths && npm run test:seo && npm run test:security-runtime && npm run test:security-day8",
-    "start:standalone": "node .next/standalone/server.js",
+    "start:standalone": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "seo:verify": "node scripts/verify-seo.mjs",
     "prebuild": "node scripts/ensure-hero.cjs && node scripts/assemble-tg-sync.mjs",
     "postinstall": "node scripts/assemble-tg-sync.mjs && node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs && node scripts/harden-telegram-plugin-runtime.mjs",
