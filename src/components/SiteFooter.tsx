@@ -149,7 +149,6 @@ export function SiteFooter() {
               width={125}
               height={125}
               style={{ cursor: "pointer", width: 80, height: "auto" }}
-              code={ENAMAD_CODE}
             />
           </a>
         </div>
