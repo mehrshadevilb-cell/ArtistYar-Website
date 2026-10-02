@@ -3,6 +3,9 @@ import { BrandMark } from "./BrandMark";
 import { CommunityLinks } from "./CommunityLinks";
 import { communityLinks } from "@/data/community";
 
+const ENAMAD_ID = "7854355";
+const ENAMAD_CODE = "pDrXMz5TEnSw849YNyX2msHHbvmiqrn1";
+
 export function SiteFooter() {
   return (
     <footer className="site-footer mt-24 border-t border-white/[0.06] bg-black/20">
@@ -123,8 +126,33 @@ export function SiteFooter() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-white/[0.05] py-6 text-center text-xs text-ink-500">
-        © {new Date().getFullYear()} آرتیست‌یار · یادگیری جدی با مسیر روشن و راه‌یار AI
+      <div className="border-t border-white/[0.05] py-6">
+        <div className="container-ay flex flex-col items-center justify-center gap-4 sm:flex-row sm:justify-between">
+          <p className="text-center text-xs text-ink-500 sm:text-right">
+            © {new Date().getFullYear()} آرتیست‌یار · یادگیری جدی با مسیر روشن و راه‌یار AI
+          </p>
+          {/* نماد اعتماد الکترونیکی (اینماد) — کد رسمی از پنل enamad.ir */}
+          <a
+            referrerPolicy="origin"
+            target="_blank"
+            rel="noopener noreferrer"
+            href={`https://trustseal.enamad.ir/?id=${ENAMAD_ID}&Code=${ENAMAD_CODE}`}
+            className="inline-flex shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 rounded-sm"
+            title="نماد اعتماد الکترونیکی"
+            aria-label="نماد اعتماد الکترونیکی اینماد"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              referrerPolicy="origin"
+              src={`https://trustseal.enamad.ir/logo.aspx?id=${ENAMAD_ID}&Code=${ENAMAD_CODE}`}
+              alt="نماد اعتماد الکترونیکی"
+              width={125}
+              height={125}
+              style={{ cursor: "pointer", width: 80, height: "auto" }}
+              code={ENAMAD_CODE}
+            />
+          </a>
+        </div>
       </div>
     </footer>
   );

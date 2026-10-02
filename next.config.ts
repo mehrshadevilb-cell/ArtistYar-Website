@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**.supabase.co" },
       { protocol: "https", hostname: "**.instagram.com" },
       { protocol: "https", hostname: "**.cdninstagram.com" },
+      { protocol: "https", hostname: "trustseal.enamad.ir" },
     ],
   },
   async redirects() {
@@ -58,7 +59,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' https://cdn.kavenegar.com https://www.googletagmanager.com https://www.google-analytics.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://*.supabase.co https://*.instagram.com https://*.cdninstagram.com https://www.google-analytics.com https://www.googletagmanager.com",
+              "img-src 'self' data: blob: https://*.supabase.co https://*.instagram.com https://*.cdninstagram.com https://www.google-analytics.com https://www.googletagmanager.com https://trustseal.enamad.ir",
               "font-src 'self' data:",
               "connect-src 'self' https://*.supabase.co https://www.google-analytics.com https://www.googletagmanager.com https://cdn.kavenegar.com https://*.onrender.com https://artistyaar.ir wss://*.supabase.co",
               "media-src 'self' blob: data: https://*.supabase.co",
