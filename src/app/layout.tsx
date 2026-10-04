@@ -37,7 +37,6 @@ const vazirmatn = Vazirmatn({
   preload: true,
 });
 
-const backend = (process.env.RAHYAR_API_URL || "").replace(/\/$/, "");
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
 const googleSiteVerification = (process.env.GOOGLE_SITE_VERIFICATION || "").trim();
 
@@ -159,8 +158,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fa" className={vazirmatn.variable} suppressHydrationWarning>
       <head>
         <meta name="enamad" content="43325481" />
-        {backend ? <link rel="preconnect" href={backend} crossOrigin="anonymous" /> : null}
-        {/* Kavenegar Web Push SDK */}
+        {/* Kavenegar Web Push SDK — deferred; not needed for first paint */}
         <Script
           src="https://cdn.kavenegar.com/sdk/page.js?appId=5b6c18c0-c2d6-47c0-ae2f-3fddcf7f499e"
           strategy="lazyOnload"
