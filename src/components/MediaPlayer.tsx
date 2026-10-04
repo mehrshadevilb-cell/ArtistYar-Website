@@ -46,6 +46,8 @@ export function MediaPlayer({
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [coverError, setCoverError] = useState(false);
+  /** Source is attached only after explicit user play — avoids multi-MB homepage fetches. */
+  const [sourceAttached, setSourceAttached] = useState(false);
 
   useEffect(() => {
     setPlaying(false);
@@ -55,6 +57,7 @@ export function MediaPlayer({
     setReady(false);
     setFailed(false);
     setCoverError(false);
+    setSourceAttached(false);
   }, [src]);
 
   useEffect(() => {
@@ -73,6 +76,36 @@ export function MediaPlayer({
 
   async function toggle() {
     if (!ref.current || failed) return;
+
+    // Attach the real media URL only on first play so initial page load
+    // never downloads the binary (homepage had ~25 MB of student MP3s).
+    if (!sourceAttached) {
+      ref.current.src = src;
+      setSourceAttached(true);
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const el = ref.current!;
+          const onReady = () => {
+            el.removeEventListener("canplay", onReady);
+            el.removeEventListener("error", onErr);
+            resolve();
+          };
+          const onErr = () => {
+            el.removeEventListener("canplay", onReady);
+            el.removeEventListener("error", onErr);
+            reject(new Error("load failed"));
+          };
+          el.addEventListener("canplay", onReady, { once: true });
+          el.addEventListener("error", onErr, { once: true });
+          el.load();
+        });
+        setReady(true);
+      } catch {
+        setFailed(true);
+        return;
+      }
+    }
+
     if (ref.current.paused) {
       try {
         await ref.current.play();
@@ -119,7 +152,7 @@ export function MediaPlayer({
           ref={(node) => {
             ref.current = node;
           }}
-          src={src}
+          // Video still uses metadata preload (posters are small); binary loads on play.
           preload="metadata"
           poster={coverUrl || undefined}
           controlsList={protectDownload ? "nodownload noplaybackrate noremoteplayback" : undefined}
@@ -145,8 +178,9 @@ export function MediaPlayer({
             ref={(node) => {
               ref.current = node;
             }}
-            src={src}
-            preload="metadata"
+            // Critical: never set src until the user presses Play.
+            // preload="none" + empty src prevents the multi-MB homepage downloads.
+            preload="none"
             controlsList={protectDownload ? "nodownload" : undefined}
             onLoadedMetadata={onLoaded}
             onCanPlay={() => setReady(true)}
@@ -168,6 +202,7 @@ export function MediaPlayer({
                   src={coverUrl!}
                   alt={`کاور ${title}`}
                   decoding="async"
+                  loading="lazy"
                   className="h-full w-full object-cover"
                   onError={() => setCoverError(true)}
                   draggable={!protectDownload}
@@ -239,7 +274,8 @@ export function MediaPlayer({
             type="button"
             className="media-play-button flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-400 text-ink-950 transition hover:bg-gold-300 disabled:opacity-40"
             onClick={() => void toggle()}
-            disabled={!ready}
+            // Play is always enabled for audio until first load; then ready gates seek/mute.
+            disabled={kind === "video" ? !ready : false}
             aria-label={playing ? "توقف" : "پخش"}
           >
             {playing ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ms-0.5" />}
