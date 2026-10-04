@@ -121,7 +121,13 @@ export async function GET() {
       { headers: { "Cache-Control": "private, no-store" } },
     );
   }
-  return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
+
+  // Anonymous probe is normal for public pages. Return 200 so browsers and
+  // Lighthouse do not treat the expected unauthenticated state as an error.
+  return NextResponse.json(
+    { authenticated: false, user: null },
+    { status: 200, headers: { "Cache-Control": "private, no-store" } },
+  );
 }
 
 export async function POST(request: Request) {
