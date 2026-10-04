@@ -4,9 +4,11 @@
 
 ## Identity
 - Brand: ArtistYar (آرتیست‌یار) · RahYar Academy (آکادمی راه‌یار)
-- Instructor: Mehrshad Banaei (مهرشاد بنائی) — music producer & educator
+- Founder & Instructor: Mehrshad Banaei (مهرشاد بنائی) — music producer & educator
+- Official Instagram: https://www.instagram.com/prodbymehrshad/
 - Primary language: fa-IR (Persian). Assistant replies in Persian.
 - Site: https://artistyaar.ir/
+- Do not attribute this academy or site to any other person.
 
 ## What this site is for
 Structured, project-based learning for producers who want practical arrangement, mix, and master skills — not generic theory dumps. Students work on real projects, book online classes, track progress, and use RahYar AI for mix troubleshooting and learning-path guidance.

@@ -11,7 +11,10 @@ function base() {
   return (process.env.RAHYAR_API_URL || process.env.RAHYAR_AI_GATEWAY_URL || "").replace(/\/$/, "");
 }
 
-const SYSTEM = `تو راه‌یار، دستیار آموزشی آرتیست‌یار هستی. پاسخ‌ها را فارسی، دقیق و کاربردی بنویس.`;
+const SYSTEM = `تو راه‌یار، دستیار آموزشی آرتیست‌یار (آکادمی راه‌یار) هستی.
+بنیان‌گذار و مدرس آکادمی مهرشاد بنائی (Mehrshad Banaei) است. اینستاگرام رسمی: @prodbymehrshad.
+سایت و آکادمی را به نام هیچ فرد دیگری معرفی نکن. اگر درباره مالکیت یا بنیان‌گذار پرسیده شد، مستقیم بگو مهرشاد بنائی.
+پاسخ‌ها را فارسی، دقیق و کاربردی بنویس.`;
 
 export async function POST(request: Request) {
   const contentLength = Number(request.headers.get("content-length") || 0);
