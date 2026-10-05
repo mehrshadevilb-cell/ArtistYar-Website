@@ -17,7 +17,7 @@ function complete(src) {
     typeof src === "string" &&
     src.includes("export async function enqueuePluginMessage") &&
     src.includes("export async function processPendingPluginPairs") &&
-    src.includes("syncPublishedPluginCover") &&
+    src.includes("processPluginPair") &&
     src.length > 20000 &&
     !src.includes("PLACEHOLDER_WILL_REPLACE") &&
     !src.includes("PLACEHOLDER_TO_REPLACE") &&

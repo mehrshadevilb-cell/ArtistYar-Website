@@ -75,3 +75,11 @@ describe("SEO contracts — structured data honesty", () => {
     assert.ok(!layout.includes("potentialAction"));
   });
 });
+
+describe("SEO contracts — root document direction", () => {
+  it("root layout sets lang=fa and dir=rtl on html", () => {
+    const layout = read("src/app/layout.tsx");
+    assert.match(layout, /<html[^>]*lang="fa"/);
+    assert.match(layout, /<html[^>]*dir="rtl"/);
+  });
+});

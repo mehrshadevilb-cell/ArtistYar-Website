@@ -6,14 +6,14 @@
     "dev": "next dev",
     "build": "next build && rm -rf .next/standalone/public .next/standalone/.next/static && cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static",
     "start": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
-    "lint": "next lint",
+    "lint": "CI=1 npm_config_registry=https://registry.npmjs.org npm install --no-save --no-package-lock eslint@9.17.0 eslint-config-next@15.5.25 && CI=1 next lint --quiet",
     "typecheck": "tsc --noEmit",
     "test:telegram-plugins": "node scripts/test-telegram-plugin-sync.mjs",
     "test:security": "node scripts/test-practice-rpc-security.mjs",
     "test:music-billing": "node scripts/test-music-billing-integrity.mjs",
     "test:schema-inventory": "node scripts/verify-schema-inventory.mjs",
     "test:critical-paths": "node --test scripts/test-critical-paths.mjs",
-    "test": "npm run test:security && npm run test:music-billing && npm run test:schema-inventory && npm run test:critical-paths && npm run test:seo && npm run test:security-runtime && npm run test:security-day8",
+    "test": "npm run test:security && npm run test:music-billing && npm run test:schema-inventory && npm run test:critical-paths && npm run test:seo && npm run test:security-runtime && npm run test:security-day8 && npm run test:practice-logic && npm run test:auth-static",
     "start:standalone": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "seo:verify": "node scripts/verify-seo.mjs",
     "prebuild": "node scripts/ensure-hero.cjs && node scripts/assemble-tg-sync.mjs",
@@ -21,7 +21,9 @@
     "pretest:telegram-plugins": "node scripts/assemble-tg-sync.mjs && node scripts/restore-telegram-plugin-sync-day5.mjs && node scripts/inflate-telegram-sync.mjs && node scripts/patch-telegram-plugin-intelligence.mjs && node scripts/harden-telegram-plugin-runtime.mjs",
     "test:seo": "node --test scripts/test-seo-contracts.mjs",
     "test:security-runtime": "node --test scripts/test-security-runtime-day7.mjs",
-    "test:security-day8": "node --test scripts/test-security-day8.mjs"
+    "test:security-day8": "node --test scripts/test-security-day8.mjs",
+    "test:practice-logic": "node --test scripts/test-practice-game-logic.mjs scripts/test-practice-scoring-pure.mjs",
+    "test:auth-static": "node --test scripts/test-auth-idor-static.mjs"
   },
   "dependencies": {
     "@supabase/server": "^1.6.1",

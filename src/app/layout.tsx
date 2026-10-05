@@ -155,7 +155,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fa" className={vazirmatn.variable} suppressHydrationWarning>
+    <html lang="fa" dir="rtl" className={vazirmatn.variable} suppressHydrationWarning>
       <head>
         <meta name="enamad" content="43325481" />
         {/* Kavenegar Web Push SDK — deferred; not needed for first paint */}
