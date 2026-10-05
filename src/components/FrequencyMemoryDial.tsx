@@ -67,8 +67,6 @@ export type FrequencyMemoryDialProps = {
 
 const TEAL = "rgba(46, 230, 184,";
 const PURPLE = "rgba(122, 60, 255,";
-const CYAN = "rgba(94, 234, 212,";
-
 const WAVE_LAYERS = [
   { color: PURPLE, alpha: 0.08, width: 1.0, phaseOff: 0.55, ampMul: 1.16, lag: 0.34 },
   { color: TEAL, alpha: 0.10, width: 1.05, phaseOff: -0.4, ampMul: 1.10, lag: 0.22 },
