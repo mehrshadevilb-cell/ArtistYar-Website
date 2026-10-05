@@ -262,7 +262,6 @@
   color: rgba(255, 255, 255, 0.45);
 }
 
-/* Phase status pill — Apple-style micro label */
 .fm-dialed-surface {
   position: absolute;
   inset: 0;
@@ -552,7 +551,6 @@
   .fm-dialed-submit,
   .fm-dialed-replay,
   .fm-intro-card .fm-intro-cta,
-  .fm-dialed-status-pill { transition: none; animation: none; }
   .fm-rsgo-word { opacity: 1; }
   .practice-focus > header { transition: none; }
 }
