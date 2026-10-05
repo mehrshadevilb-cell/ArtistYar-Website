@@ -70,19 +70,11 @@ const PURPLE = "rgba(122, 60, 255,";
 const CYAN = "rgba(94, 234, 212,";
 
 const WAVE_LAYERS = [
-  { color: PURPLE, alpha: 0.12, width: 1.1, phaseOff: 0.55, ampMul: 1.18, lag: 0.35 },
-  { color: TEAL, alpha: 0.14, width: 1.15, phaseOff: -0.4, ampMul: 1.12, lag: 0.22 },
-  { color: PURPLE, alpha: 0.22, width: 1.35, phaseOff: 0.18, ampMul: 1.05, lag: 0.1 },
-  { color: CYAN, alpha: 0.38, width: 1.55, phaseOff: 0, ampMul: 1, lag: 0 },
-  { color: TEAL, alpha: 0.55, width: 1.85, phaseOff: -0.08, ampMul: 0.92, lag: -0.05 },
+  { color: PURPLE, alpha: 0.08, width: 1.0, phaseOff: 0.55, ampMul: 1.16, lag: 0.34 },
+  { color: TEAL, alpha: 0.10, width: 1.05, phaseOff: -0.4, ampMul: 1.10, lag: 0.22 },
+  { color: PURPLE, alpha: 0.20, width: 1.3, phaseOff: 0.16, ampMul: 1.04, lag: 0.1 },
+  { color: TEAL, alpha: 0.58, width: 1.8, phaseOff: -0.08, ampMul: 0.94, lag: -0.05 },
 ] as const;
-
-const PHASE_STATUS: Record<FreqDialMode, string | null> = {
-  listen: "گوش بده",
-  remember: "به‌خاطر بسپار",
-  recreate: "بکش و تنظیم کن",
-  result: null,
-};
 
 export function FrequencyMemoryDial({
   minHz,
@@ -131,7 +123,6 @@ export function FrequencyMemoryDial({
   const glowRef = useRef<CanvasGradient | null>(null);
   const fadeRef = useRef<CanvasGradient | null>(null);
   const interactive = mode === "recreate" && !disabled;
-  const phaseStatus = PHASE_STATUS[mode];
 
   useEffect(() => {
     waveHzRef.current = waveHz;
@@ -338,13 +329,12 @@ export function FrequencyMemoryDial({
       if (!r) return;
       const height = Math.max(1, r.height);
       const deltaT = -(clientY - dragRef.current.startY) / height;
-      const t = clamp(dragRef.current.startT + deltaT * 0.72);
+      const t = clamp(dragRef.current.startT + deltaT);
       const rounded = Math.round(fromLog(t, minHz, maxHz) * 100) / 100;
       queueHzUpdate(rounded);
       cursorYRef.current = clientY - r.top;
       if (cursorElRef.current) cursorElRef.current.style.top = `${cursorYRef.current}px`;
       if (withTone) {
-        void startLiveTone(rounded);
         setLiveToneHz(rounded);
       }
     },
@@ -422,14 +412,6 @@ export function FrequencyMemoryDial({
         <span className="fm-dialed-round">{roundLabel || ""}</span>
         <span className="fm-dialed-brand">{brandLabel}</span>
       </div>
-
-      {phaseStatus && (
-        <div className="fm-dialed-status" aria-live="polite">
-          <span className={`fm-dialed-status-pill ${playing ? "is-live" : ""} ${mode === "remember" ? "is-hold" : ""}`}>
-            {phaseStatus}
-          </span>
-        </div>
-      )}
 
       <div
         ref={surfaceRef}
