@@ -16,7 +16,7 @@ function looksComplete(src) {
   return (
     src.includes("export async function enqueuePluginMessage") &&
     src.includes("export async function processPendingPluginPairs") &&
-    src.includes("syncPublishedPluginCover") &&
+    src.includes("processPluginPair") &&
     src.length > 20000
   );
 }
