@@ -76,3 +76,86 @@ The repository already contained a prior Dialed parity recon dated 2026-09-28. T
 A production side-by-side recording cannot honestly be marked complete from this environment because the headless browser cannot reach either live origin. The required comparison captures should therefore be generated in an environment with outbound Chromium navigation enabled (or from the deployment CI runner), at minimum for desktop and mobile: intro, listen, tuning, result, ready/set/go, and final summary.
 
 The exact live feedback-tier copy, exact waveform draw constants, exact WebAudio envelope constants, and exact intro/final-summary copy remain **capture-dependent** and should not be represented as verified facts until the live browser trace is available again.
+
+
+## Frequency Memory Engineering Audit
+
+### Restore / correctness
+
+- Restored `src/components/PracticeGameSession.tsx` from the last known complete production implementation after the branch contained placeholder content. The branch file now contains the real session implementation; no `RESTORE_VIA_SCRIPT`, `PLACEHOLDER`, or `PLACEHOLDER_PGS` marker is intentionally present.
+- The Frequency Memory flow is `intro → listen → remember → recreate → submit → result → ready → set → go → next round → summary`.
+- Frequency Memory uses five rounds by default. Duplicate submission is guarded by `submitLockRef`.
+- A round generation token (`roundGenRef`) is incremented when a round is built and when a submission is accepted. Async playback, remember, result-dwell, and ready/set/go callbacks capture the generation and bail when stale.
+- Timer ownership is centralized in `clearTimers()`. Ready/set/go timers are stored in `readyTimersRef[]`; result dwell has its own cleanup owner. Unmount clears timers and stops both playback and live tone.
+
+### Runtime / input model
+
+- Pointer Events remain the single drag input path: pointerdown → pointermove → pointerup/pointercancel, with pointer capture and `touch-action: none` during recreation.
+- The frequency dial uses the full vertical travel of the card on a logarithmic Hz scale; the previous 0.72 travel multiplier was removed because it made pitch changes feel sluggish and forced excessive hand movement.
+- High-frequency pointer movement no longer drives React state for cursor position. The cursor is updated through a DOM ref, while the current Hz value is kept in a ref and React updates are coalesced at the animation-frame boundary.
+- Live pitch retuning is driven directly by the shared oscillator during drag; pointermove no longer calls the async `startLiveTone()` path, avoiding repeated AudioContext work and audible micro-lag.
+- Drag geometry is measured once on pointerdown and reused during the drag; pointermove no longer calls `getBoundingClientRect()`.
+- Keyboard and the visually-hidden range control remain available for accessible frequency adjustment.
+
+### Waveform rendering model
+
+- One RAF loop is created by the mounted dial and cancelled on cleanup. It reads mutable refs for frequency, mode, playing, drag state, reduced motion, and low-power behavior.
+- Canvas backing resolution is DPR-aware and capped on coarse/narrow devices. Static gradients are rebuilt only during resize rather than inside RAF.
+- Tuning keeps two main teal/purple strands plus two faint echo layers; result mode uses the single teal strand. Visibility changes pause meaningful drawing work while keeping the loop lifecycle intact. The previous five-layer renderer was simplified to remove visual noise.
+- No per-frame React state is used by the waveform renderer.
+
+### Audio model
+
+- The dial uses the shared practice WebAudio engine rather than allocating audio nodes per pointer event. Live pitch changes remain exponential-ramp based and the audio path is stopped on submit, phase changes, and unmount.
+- The session explicitly unlocks audio from the user start action and handles rejected/suspended playback with a minimal retryable error message.
+
+### Timing constants
+
+| Sequence | Constant |
+|---|---:|
+| Remember phase | 2000 ms base (display countdown derived from duration) |
+| Result score count-up | 1650 ms |
+| Result dwell | 2650 ms |
+| Ready | 700 ms |
+| Set | 650 ms |
+| Go | 700 ms |
+
+### Reduced motion / mobile
+
+- `prefers-reduced-motion: reduce` disables CSS transition/animation effects and snaps the result score to its final value instead of running the count-up.
+- Canvas motion also stops advancing its phase under reduced motion. Pointer/touch interaction remains available without changing the game mechanics.
+- The card keeps the same 4:5 interaction surface on desktop and mobile. At narrow widths the controls retain reachable circular targets and the summary switches its four-stat grid to two columns.
+
+### UX polish kept within the reference interaction
+
+- Summary presentation remains isolated from the tuning surface; the tuning screen does not expose extra status pills or replay controls during recreate.
+- Play Again reuses the same session reset path: timers, audio, round history, target history, exercise history, score, and generation state are rebuilt for a fresh five-round run.
+- Result persistence is now fire-and-forget from the UI path so a slow API request cannot delay score reveal or ready/set/go timing. No routing, authentication, analytics, Supabase schema, or unrelated application infrastructure was changed.
+
+### Verification status
+
+- Repository inspection was performed through the GitHub integration because a local checkout is not mounted in this execution environment.
+- A direct local `git clone`/npm execution was blocked by the environment's inability to resolve `github.com`; therefore `npm ci`, `npm run typecheck`, `npm run build`, and `npm audit --omit=dev` are not claimed as locally executed.
+- The repository's existing `.github/workflows/production-verify.yml` runs those checks on pull requests to `main`; the branch should be verified through that CI path after the PR is opened.
+- Live Chromium side-by-side verification remains blocked by the same outbound-browser restriction documented above. Exact live feedback-tier copy and final waveform/audio constants remain capture-dependent rather than asserted as verified.
+
+
+### UI polish pass — 2026-09-30
+
+### Follow-up smoothness pass — 2026-10-05
+
+- Removed the extra recreate-phase replay control and phase-status label that made the card visibly busier than the reference.
+- Expanded vertical drag mapping from 72% to 100% of the card height so users can move between frequencies with less repeated dragging.
+- Removed async `startLiveTone()` calls from pointermove; the oscillator is created once on pointerdown and subsequently retuned directly with short exponential ramps.
+- Reduced the waveform from five visible layers to two primary strands plus two faint echoes.
+- Reduced the submit button from 44px to 32px and tightened card shadow/radius toward the reference.
+- Replaced awkward Persian feedback phrases with short, natural Persian copy; ready/set/go now renders as **آماده / حاضر / برو**.
+- Decoupled round persistence from the result animation so network latency cannot stall the score reveal.
+
+- Ready/set/go is localized to clear Persian copy: **آماده → حاضر → برو** while retaining the existing deterministic 700/650/700ms transition sequence.
+- The round-transition surface is visually quieter: the secondary round counter is removed from the transition screen so the word is the sole focal element.
+- Frequency Memory tuning/result surfaces were enlarged toward the reference 630×786 portrait geometry, with stronger but still soft depth/shadow treatment.
+- Result reveal now has dedicated score, target, and feedback entrance motion (blur/opacity/translate) while preserving the 1650ms score count-up.
+- The phase-status pill/micro-label was removed entirely; the reference tuning surface should remain visually quiet with only the round counter, wordmark, waveform, Hz readout, cursor, and submit control.
+- Mobile keeps the compact 22.5rem surface cap; the submit control is reduced to the reference-sized ~32px circle and reduced-motion disables nonessential result/transition animations.
+- Changes remain scoped to the Frequency Memory presentation layer; routing/auth/analytics/data flow were not changed.
