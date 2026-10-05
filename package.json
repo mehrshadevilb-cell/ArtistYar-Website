@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build && rm -rf .next/standalone/public .next/standalone/.next/static && cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static",
     "start": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
-    "lint": "CI=1 next lint --quiet",
+    "lint": "CI=1 npx --yes --package=eslint@9.17.0 --package=eslint-config-next@15.5.25 next lint --quiet",
     "typecheck": "tsc --noEmit",
     "test:telegram-plugins": "node scripts/test-telegram-plugin-sync.mjs",
     "test:security": "node scripts/test-practice-rpc-security.mjs",
@@ -39,8 +39,6 @@
     "@types/react": "19.1.12",
     "@types/react-dom": "19.1.9",
     "autoprefixer": "10.4.21",
-    "eslint": "9.17.0",
-    "eslint-config-next": "15.5.25",
     "postcss": "8.5.28",
     "tailwindcss": "3.4.17",
     "typescript": "5.9.2"
