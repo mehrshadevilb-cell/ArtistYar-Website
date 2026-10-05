@@ -13,7 +13,7 @@
     "test:music-billing": "node scripts/test-music-billing-integrity.mjs",
     "test:schema-inventory": "node scripts/verify-schema-inventory.mjs",
     "test:critical-paths": "node --test scripts/test-critical-paths.mjs",
-    "test": "npm run test:security && npm run test:music-billing && npm run test:schema-inventory && npm run test:critical-paths && npm run test:seo && npm run test:security-runtime && npm run test:security-day8 && npm run test:practice-logic && npm run test:auth-static && npm run test:my-artistyar && npm run test:practice-auth && npm run test:rls-contracts",
+    "test": "npm run test:security && npm run test:music-billing && npm run test:schema-inventory && npm run test:critical-paths && npm run test:seo && npm run test:security-runtime && npm run test:security-day8 && npm run test:practice-logic && npm run test:auth-static && npm run test:my-artistyar && npm run test:practice-auth && npm run test:rls-contracts && npm run test:e2e-remainings",
     "start:standalone": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "seo:verify": "node scripts/verify-seo.mjs",
     "prebuild": "node scripts/ensure-hero.cjs && node scripts/assemble-tg-sync.mjs",
@@ -26,7 +26,8 @@
     "test:auth-static": "node --test scripts/test-auth-idor-static.mjs",
     "test:my-artistyar": "node --test scripts/test-my-artistyar-auth.mjs",
     "test:practice-auth": "node --test scripts/test-practice-auth-contracts.mjs",
-    "test:rls-contracts": "node --test scripts/test-rls-practice-contracts.mjs"
+    "test:rls-contracts": "node --test scripts/test-rls-practice-contracts.mjs",
+    "test:e2e-remainings": "node --test scripts/test-e2e-three-remainings.mjs"
   },
   "dependencies": {
     "@supabase/server": "^1.6.1",
