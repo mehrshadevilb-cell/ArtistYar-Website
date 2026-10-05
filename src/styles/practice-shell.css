@@ -110,6 +110,91 @@
 }
 .fm-summary-card > * { position: relative; z-index: 1; }
 .fm-summary-card .btn-ay { border-color: rgba(255,255,255,.14); }
+
+.fm-summary-kicker {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: rgba(255,255,255,.42);
+}
+.fm-summary-total {
+  display: flex;
+  align-items: baseline;
+  gap: .35rem;
+  margin-top: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.fm-summary-total span {
+  font-size: clamp(3rem, 10vw, 4.5rem);
+  font-weight: 600;
+  letter-spacing: -.055em;
+  line-height: .95;
+}
+.fm-summary-total small { color: rgba(255,255,255,.28); font-size: 1rem; }
+.fm-summary-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .45rem;
+  margin-top: 1.5rem;
+}
+.fm-summary-stats > div {
+  min-width: 0;
+  padding: .7rem .6rem;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: .75rem;
+  background: rgba(255,255,255,.025);
+}
+.fm-summary-stats span,
+.fm-summary-round span {
+  display: block;
+  color: rgba(255,255,255,.34);
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.fm-summary-stats strong { display:block; margin-top:.2rem; font: 600 13px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.fm-summary-rounds {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: .45rem;
+  margin-top: 1.25rem;
+}
+.fm-summary-round {
+  padding: .65rem .4rem;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+  text-align: center;
+}
+.fm-summary-round strong { display:block; margin-top:.22rem; font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.fm-summary-caption { margin-top: 1rem; color: rgba(255,255,255,.42); font-size: 11px; line-height: 1.6; }
+.fm-summary-actions { display:flex; gap:.5rem; margin-top:1.4rem; }
+.fm-summary-play,
+.fm-summary-back {
+  min-height: 40px;
+  border-radius: 999px;
+  padding: 0 .9rem;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:.4rem;
+  font-size:11px;
+  font-weight:600;
+  cursor:pointer;
+  transition: transform .35s cubic-bezier(.32,.72,0,1), background .25s ease, border-color .25s ease;
+}
+.fm-summary-play { flex:1; border:0; background:#fff; color:#080808; }
+.fm-summary-back { border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.04); color:rgba(255,255,255,.8); }
+.fm-summary-play:hover,
+.fm-summary-back:hover { transform: translateY(-1px); }
+.fm-summary-play:focus-visible,
+.fm-summary-back:focus-visible { outline:2px solid rgba(46,230,184,.85); outline-offset:3px; }
+@media (max-width: 430px) {
+  .fm-summary-card { padding: 3.6rem 1rem 1rem; }
+  .fm-summary-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fm-summary-play,
+  .fm-summary-back { transition:none; }
+}
 @media (max-width: 640px) {
   .fm-summary-card { width: min(100%, 100vw); border-radius: 16px; }
 }
@@ -128,12 +213,13 @@
 
 .fm-dialed-card {
   position: relative;
-  width: min(100%, 32rem);
+  width: min(100%, 39.375rem);
   margin-inline: auto;
-  aspect-ratio: 4 / 5;
-  border-radius: 1.15rem;
+  aspect-ratio: 630 / 786;
+  border-radius: 16px;
   background: #000;
-  box-shadow: 0 28px 80px -24px rgba(0, 0, 0, 0.75), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 30px 86px -30px rgba(0, 0, 0, 0.82), 0 8px 24px -10px rgba(0, 0, 0, 0.45);
+  contain: layout paint;
   overflow: hidden;
   color: #fff;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, Arial, sans-serif;
@@ -142,13 +228,13 @@
 }
 .fm-dialed-card.is-playing {
   box-shadow:
-    0 28px 80px -24px rgba(0, 0, 0, 0.75),
-    0 0 48px -12px rgba(46, 230, 184, 0.18);
+    0 34px 100px -30px rgba(0, 0, 0, 0.82),
+    0 0 56px -14px rgba(46, 230, 184, 0.2);
 }
 .fm-dialed-card.is-remember {
   box-shadow:
-    0 28px 80px -24px rgba(0, 0, 0, 0.75),
-    0 0 36px -10px rgba(122, 60, 255, 0.16);
+    0 34px 100px -30px rgba(0, 0, 0, 0.82),
+    0 0 44px -12px rgba(122, 60, 255, 0.18);
 }
 .fm-dialed-card.is-dragging .fm-dialed-surface { cursor: none; }
 .fm-dialed-card.is-interactive .fm-dialed-surface { cursor: ns-resize; }
@@ -174,42 +260,6 @@
   font-size: 11px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.45);
-}
-
-/* Phase status pill — Apple-style micro label */
-.fm-dialed-status {
-  position: absolute;
-  z-index: 6;
-  top: 2.65rem;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-}
-.fm-dialed-status-pill {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: none;
-  color: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 999px;
-  padding: 0.32rem 0.75rem;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: color 0.35s cubic-bezier(0.32, 0.72, 0, 1), border-color 0.35s cubic-bezier(0.32, 0.72, 0, 1), background 0.35s cubic-bezier(0.32, 0.72, 0, 1);
-}
-.fm-dialed-status-pill.is-live {
-  color: rgba(46, 230, 184, 0.92);
-  border-color: rgba(46, 230, 184, 0.28);
-  background: rgba(46, 230, 184, 0.08);
-}
-.fm-dialed-status-pill.is-hold {
-  color: rgba(196, 181, 253, 0.9);
-  border-color: rgba(122, 60, 255, 0.28);
-  background: rgba(122, 60, 255, 0.1);
 }
 
 .fm-dialed-surface {
@@ -250,6 +300,7 @@
   color: #fff;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
+  animation: fm-result-score-in 0.55s cubic-bezier(0.2, 0.85, 0.25, 1) both;
 }
 .fm-dialed-feedback {
   position: absolute;
@@ -262,6 +313,7 @@
   line-height: 1.45;
   color: rgba(255, 255, 255, 0.42);
   pointer-events: none;
+  animation: fm-result-feedback-in 0.7s 0.18s cubic-bezier(0.2, 0.85, 0.25, 1) both;
 }
 .fm-dialed-hz {
   position: absolute;
@@ -293,6 +345,7 @@
   color: rgba(255, 255, 255, 0.42);
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+  animation: fm-result-target-in 0.8s 0.1s cubic-bezier(0.2, 0.85, 0.25, 1) both;
 }
 .fm-dialed-guess-value {
   font-size: clamp(3rem, 8.7vw, 3.55rem);
@@ -317,8 +370,8 @@
   z-index: 7;
   right: 1.1rem;
   bottom: 1.1rem;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2rem;
+  height: 2rem;
   border-radius: 999px;
   border: none;
   background: #fff;
@@ -332,11 +385,11 @@
     box-shadow 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 }
 .fm-dialed-submit:hover {
-  transform: scale(1.08);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  transform: scale(1.04);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4);
 }
 .fm-dialed-submit:active {
-  transform: scale(0.94);
+  transform: scale(0.96);
   transition-duration: 0.12s;
 }
 .fm-dialed-submit:focus-visible {
@@ -409,37 +462,41 @@
 
 .fm-rsgo {
   position: relative;
-  width: min(100%, 32rem);
+  width: min(100%, 39.375rem);
   margin-inline: auto;
-  aspect-ratio: 4 / 5;
-  border-radius: 1.15rem;
+  aspect-ratio: 630 / 786;
+  border-radius: 1.35rem;
   background: #000;
-  box-shadow: 0 28px 80px -24px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 34px 100px -30px rgba(0, 0, 0, 0.82);
+  contain: layout paint;
   overflow: hidden;
   color: #fff;
 }
-.fm-rsgo-top {
-  position: absolute;
-  top: 1rem;
-  left: 1.15rem;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.72);
-  font-variant-numeric: tabular-nums;
-}
+.fm-rsgo-top { display: none; }
 .fm-rsgo-word {
   position: absolute;
   top: 50%;
   left: 50%;
   right: auto;
-  font-size: clamp(3.4rem, 11vw, 4.5rem);
+  font-size: clamp(3.8rem, 13vw, 5.25rem);
   font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1;
   color: #fff;
   opacity: 0;
   animation: fm-rsgo-in 0.55s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+}
+@keyframes fm-result-score-in {
+  from { opacity: 0; transform: translateY(5px) scale(.985); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@keyframes fm-result-target-in {
+  from { opacity: 0; transform: translateY(7px); filter: blur(7px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes fm-result-feedback-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @keyframes fm-rsgo-in {
   from { opacity: 0; color: rgba(255, 255, 255, 0.18); transform: translate(-50%, calc(-50% + 6px)); }
@@ -476,23 +533,24 @@
   }
   .fm-dialed-submit,
   .fm-dialed-replay {
-    width: 2.85rem;
-    height: 2.85rem;
+    width: 2rem;
+    height: 2rem;
   }
   .fm-dialed-replay {
-    right: 4.3rem;
+    right: 3.55rem;
   }
   .fm-dialed-guess-value { font-size: clamp(2.1rem, 9vw, 2.8rem); }
-  .fm-dialed-status { top: 2.5rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .fm-dialed-card,
   .fm-rsgo-word,
+  .fm-dialed-score,
+  .fm-dialed-target-value,
+  .fm-dialed-feedback,
   .fm-dialed-submit,
   .fm-dialed-replay,
   .fm-intro-card .fm-intro-cta,
-  .fm-dialed-status-pill { transition: none; animation: none; }
   .fm-rsgo-word { opacity: 1; }
   .practice-focus > header { transition: none; }
 }
