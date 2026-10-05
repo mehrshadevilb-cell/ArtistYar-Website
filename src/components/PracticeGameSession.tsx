@@ -386,7 +386,7 @@ export function PracticeGameSession({
     stats.bestStreak = Math.max(stats.bestStreak, nextStreak);
     saveLocalStats(stats, userId);
     if (user?.id) {
-      const res = await persistPracticeRound({
+      void persistPracticeRound({
         userId: user.id,
         username: user.username,
         fullName: user.fullName,
@@ -405,8 +405,11 @@ export function PracticeGameSession({
           sessionId: sessionIdRef.current,
           exerciseType: isFreq ? activeExercise : undefined,
         },
+      }).then((res) => {
+        if (!res.ok && res.quota) setQuotaBlocked(true);
+      }).catch(() => {
+        // Persistence must never block the visual result sequence.
       });
-      if (!res.ok && res.quota) setQuotaBlocked(true);
     }
     stopLiveTone();
     setPhase("result");
@@ -517,13 +520,13 @@ export function PracticeGameSession({
               : "در طیف گم شدی؛ از نو گوش بده.";
   const freqSummaryLine = (score: number, max: number) => {
     const r = max > 0 ? score / max : 0;
-    if (r >= 0.9) return "نزدیک به کمال — انگار پشیمانی می‌شنوی.";
-    if (r >= 0.7) return "مسیر درست است؛ دقت هنوز جا دارد.";
-    if (r >= 0.5) return "شروع قابل قبول. با تکرار بهتر می‌شود.";
-    return "این دور گرم‌کردن بود.";
+    if (r >= 0.9) return "عملکرد خیلی خوب بود؛ دقتت را حفظ کن.";
+    if (r >= 0.7) return "مسیرت درست است؛ با کمی دقت بهتر می‌شود.";
+    if (r >= 0.5) return "شروع خوبی بود؛ با تکرار دقیق‌تر می‌شوی.";
+    return "این دور را برای تمرین در نظر بگیر و دوباره امتحان کن.";
   };
   const band = bandForLevel(level);
-  const readyWordFa: Record<ReadyWord, string> = { ready: "آماده", set: "تنظیم", go: "برو" };
+  const readyWordFa: Record<ReadyWord, string> = { ready: "آماده", set: "حاضر", go: "برو" };
 
   // Dialed-style result dwell: let the score count-up and result overlay
   // remain visible briefly, then advance automatically into ready/set/go.
@@ -619,8 +622,8 @@ export function PracticeGameSession({
             onChangeHz={setGuessHz}
             onLock={() => void submitSlider()}
             onReplay={() => void playAudio()}
-            showReplay={freqSub === "listen" || (freqSub === "recreate" && heard)}
-            replayLabel={freqSub === "listen" ? (heard ? "پخش دوباره هدف" : "پخش هدف") : "پخش دوباره هدف"}
+            showReplay={freqSub === "listen"}
+            replayLabel={heard ? "پخش دوباره هدف" : "پخش هدف"}
             roundLabel={`${roundIndex + 1} / ${totalRounds}`}
             brandLabel="ArtistYar"
           />
