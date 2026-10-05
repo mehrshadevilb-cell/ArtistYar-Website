@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { Check, ChevronLeft, Clock3, FolderOpen, LockKeyhole, Play, RotateCcw, Sparkles, Upload } from "lucide-react";
+import Link from "next/link";
 import { SectionHeading } from "@/components/SectionHeading";
 import { StatusChip } from "@/components/StatusChip";
 import { fetchFreeLessons, type ApiFreeLesson } from "@/lib/rahyar-api";
@@ -180,12 +181,12 @@ export default function FreePlayerPage() {
                       تا آماده‌شدن ویدیو، از مسیرهای آموزشی و راه‌یار AI شروع کن.
                     </p>
                     <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                      <a href="/courses" className="rounded-full bg-gold-500 px-4 py-2 text-xs font-medium text-ink-950 transition hover:bg-gold-400">
+                      <Link href="/courses" className="rounded-full bg-gold-500 px-4 py-2 text-xs font-medium text-ink-950 transition hover:bg-gold-400">
                         مسیرهای آموزشی
-                      </a>
-                      <a href="/assistant" className="rounded-full border border-white/15 bg-white/[.04] px-4 py-2 text-xs font-medium text-sand-50 transition hover:border-gold-500/40 hover:bg-gold-500/10">
+                      </Link>
+                      <Link href="/assistant" className="rounded-full border border-white/15 bg-white/[.04] px-4 py-2 text-xs font-medium text-sand-50 transition hover:border-gold-500/40 hover:bg-gold-500/10">
                         سؤال از راه‌یار AI
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 </div>
