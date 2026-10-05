@@ -508,16 +508,16 @@ export function PracticeGameSession({
   const freqBestScore = outcomes.length ? Math.max(...outcomes.map((o) => freqRoundScore(o.accuracy))) : 0;
   const freqResultLine = (acc: number) =>
     acc >= 97
-      ? "دقیق؛ تقریباً بی‌نقص."
+      ? "عالی بود؛ تقریباً دقیق."
       : acc >= 90
-        ? "همان حوالی است؛ کمی دیگر دقت کن."
+        ? "خیلی نزدیک بود؛ کمی دقیق‌تر تنظیم کن."
         : acc >= 78
-          ? "نزدیک بود؛ اما هنوز همان زیر و بمی نیست."
+          ? "نزدیک بود؛ هنوز کمی اختلاف دارد."
           : acc >= 55
-            ? "خیابان اشتباه؛ دوباره گوش بده."
+            ? "فاصله دارد؛ دوباره گوش بده."
             : acc >= 30
-              ? "فاصله زیاد است؛ دوباره امتحان کن."
-              : "در طیف گم شدی؛ از نو گوش بده.";
+              ? "اختلاف زیاد است؛ دوباره امتحان کن."
+              : "خیلی دور بود؛ دوباره گوش بده.";
   const freqSummaryLine = (score: number, max: number) => {
     const r = max > 0 ? score / max : 0;
     if (r >= 0.9) return "عملکرد خیلی خوب بود؛ دقتت را حفظ کن.";
