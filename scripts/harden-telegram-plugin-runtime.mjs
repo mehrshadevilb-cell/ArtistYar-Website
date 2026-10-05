@@ -14,11 +14,11 @@ const taxonomy = `function normalizeCategory(value: unknown): ProductCategory | 
   const t = clean(value, 120).toLowerCase();
   if (!t) return "";
 
-  if (/\b(daw|digital audio workstation|music production software)\b/.test(t)) return "DAW";
-  if (/\b(vst instrument|virtual instrument|software instrument|synth|synthesizer|sampler|instrument)\b/.test(t)) return "VST Instrument";
-  if (/\b(sample|samples|loop|loops|sample pack|loop pack|drum kit|one[- ]shot|construction kit)\b/.test(t)) return "Sample Pack";
-  if (/\b(library|sound library|sample library|instrument library|kontakt library|orchestral library|preset library|preset pack|soundbank|sound bank|patch bank)\b/.test(t)) return "Sound Library";
-  if (/\b(audio plugin|audio effect|effect plugin|vst plugin|plugin|audio processor|utility plugin|audio utility)\b/.test(t)) return "Audio Plugin";
+  if (/\\b(daw|digital audio workstation|music production software)\\b/.test(t)) return "DAW";
+  if (/\\b(vst instrument|virtual instrument|software instrument|synth|synthesizer|sampler|instrument)\\b/.test(t)) return "VST Instrument";
+  if (/\\b(sample|samples|loop|loops|sample pack|loop pack|drum kit|one[- ]shot|construction kit)\\b/.test(t)) return "Sample Pack";
+  if (/\\b(library|sound library|sample library|instrument library|kontakt library|orchestral library|preset library|preset pack|soundbank|sound bank|patch bank)\\b/.test(t)) return "Sound Library";
+  if (/\\b(audio plugin|audio effect|effect plugin|vst plugin|plugin|audio processor|utility plugin|audio utility)\\b/.test(t)) return "Audio Plugin";
 
   if (PRODUCT_CATEGORIES.some((x) => x.toLowerCase() === t)) {
     return PRODUCT_CATEGORIES.find((x) => x.toLowerCase() === t) || "";
@@ -88,6 +88,7 @@ sync = sync.replace(
     const oldNames = Array.isArray(existingByPhoto.data.file_names)
       ? existingByPhoto.data.file_names.map(String)
       : [];
+    const relatedDocuments = Array.isArray(document.relatedDocuments) ? document.relatedDocuments : [document];
     const mergedIds = [...new Set([...oldIds, ...relatedDocuments.map((item: any) => String(item.file_id || "")).filter(Boolean)])];
     const mergedNames = [...new Set([...oldNames, ...relatedDocuments.map((item: any) => String(item.file_name || "")).filter(Boolean)])];
     const merged = await db
