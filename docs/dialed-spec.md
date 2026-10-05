@@ -91,7 +91,9 @@ The exact live feedback-tier copy, exact waveform draw constants, exact WebAudio
 ### Runtime / input model
 
 - Pointer Events remain the single drag input path: pointerdown → pointermove → pointerup/pointercancel, with pointer capture and `touch-action: none` during recreation.
+- The frequency dial uses the full vertical travel of the card on a logarithmic Hz scale; the previous 0.72 travel multiplier was removed because it made pitch changes feel sluggish and forced excessive hand movement.
 - High-frequency pointer movement no longer drives React state for cursor position. The cursor is updated through a DOM ref, while the current Hz value is kept in a ref and React updates are coalesced at the animation-frame boundary.
+- Live pitch retuning is driven directly by the shared oscillator during drag; pointermove no longer calls the async `startLiveTone()` path, avoiding repeated AudioContext work and audible micro-lag.
 - Drag geometry is measured once on pointerdown and reused during the drag; pointermove no longer calls `getBoundingClientRect()`.
 - Keyboard and the visually-hidden range control remain available for accessible frequency adjustment.
 
@@ -99,7 +101,7 @@ The exact live feedback-tier copy, exact waveform draw constants, exact WebAudio
 
 - One RAF loop is created by the mounted dial and cancelled on cleanup. It reads mutable refs for frequency, mode, playing, drag state, reduced motion, and low-power behavior.
 - Canvas backing resolution is DPR-aware and capped on coarse/narrow devices. Static gradients are rebuilt only during resize rather than inside RAF.
-- Tuning keeps the layered teal/purple interference renderer; result mode uses the single teal strand. Visibility changes pause meaningful drawing work while keeping the loop lifecycle intact.
+- Tuning keeps two main teal/purple strands plus two faint echo layers; result mode uses the single teal strand. Visibility changes pause meaningful drawing work while keeping the loop lifecycle intact. The previous five-layer renderer was simplified to remove visual noise.
 - No per-frame React state is used by the waveform renderer.
 
 ### Audio model
@@ -126,9 +128,9 @@ The exact live feedback-tier copy, exact waveform draw constants, exact WebAudio
 
 ### UX polish kept within the reference interaction
 
-- Summary presentation now uses the compact portrait session surface with `YOUR SESSION`, Total, Average, Best, Level, R1–R5, Play again, and بازگشت.
+- Summary presentation remains isolated from the tuning surface; the tuning screen does not expose extra status pills or replay controls during recreate.
 - Play Again reuses the same session reset path: timers, audio, round history, target history, exercise history, score, and generation state are rebuilt for a fresh five-round run.
-- No routing, authentication, analytics, Supabase schema, or unrelated application infrastructure was changed.
+- Result persistence is now fire-and-forget from the UI path so a slow API request cannot delay score reveal or ready/set/go timing. No routing, authentication, analytics, Supabase schema, or unrelated application infrastructure was changed.
 
 ### Verification status
 
@@ -140,10 +142,20 @@ The exact live feedback-tier copy, exact waveform draw constants, exact WebAudio
 
 ### UI polish pass — 2026-09-30
 
-- Ready/set/go is localized to Persian copy: **آماده → تنظیم → برو** while retaining the existing deterministic 700/650/700ms transition sequence.
+### Follow-up smoothness pass — 2026-10-05
+
+- Removed the extra recreate-phase replay control and phase-status label that made the card visibly busier than the reference.
+- Expanded vertical drag mapping from 72% to 100% of the card height so users can move between frequencies with less repeated dragging.
+- Removed async `startLiveTone()` calls from pointermove; the oscillator is created once on pointerdown and subsequently retuned directly with short exponential ramps.
+- Reduced the waveform from five visible layers to two primary strands plus two faint echoes.
+- Reduced the submit button from 44px to 32px and tightened card shadow/radius toward the reference.
+- Replaced awkward Persian feedback phrases with short, natural Persian copy; ready/set/go now renders as **آماده / حاضر / برو**.
+- Decoupled round persistence from the result animation so network latency cannot stall the score reveal.
+
+- Ready/set/go is localized to clear Persian copy: **آماده → حاضر → برو** while retaining the existing deterministic 700/650/700ms transition sequence.
 - The round-transition surface is visually quieter: the secondary round counter is removed from the transition screen so the word is the sole focal element.
 - Frequency Memory tuning/result surfaces were enlarged toward the reference 630×786 portrait geometry, with stronger but still soft depth/shadow treatment.
 - Result reveal now has dedicated score, target, and feedback entrance motion (blur/opacity/translate) while preserving the 1650ms score count-up.
-- The phase status treatment was simplified from a bordered pill to a low-contrast micro-label so it does not compete with the waveform.
-- Mobile keeps the compact 22.5rem surface cap and reduced-motion disables the new result/transition animations.
+- The phase-status pill/micro-label was removed entirely; the reference tuning surface should remain visually quiet with only the round counter, wordmark, waveform, Hz readout, cursor, and submit control.
+- Mobile keeps the compact 22.5rem surface cap; the submit control is reduced to the reference-sized ~32px circle and reduced-motion disables nonessential result/transition animations.
 - Changes remain scoped to the Frequency Memory presentation layer; routing/auth/analytics/data flow were not changed.
