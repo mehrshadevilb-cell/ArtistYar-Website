@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  // Avoid source-map generation memory pressure on small build agents
+  productionBrowserSourceMaps: false,
   // Smaller deploy + faster cold start on Render
   output: "standalone",
   experimental: {
@@ -47,12 +49,10 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
-          // Production is HTTPS-only (Cloudflare + Render). HSTS from origin reinforces CF policy.
           {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains",
           },
-          // CSP allows known first/third-party surfaces. unsafe-inline retained for theme boot + JSON-LD + GA init (no nonce pipeline yet).
           {
             key: "Content-Security-Policy",
             value: [
