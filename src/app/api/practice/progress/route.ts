@@ -54,10 +54,6 @@ async function consumeDailyStage(userId: string, isPro: boolean): Promise<QuotaR
   };
 }
 
-/**
- * Refund only the exact consumption token — cannot refund another request's quota.
- * Never swallows failures: caller must fail-closed if ok=false when a token was held.
- */
 async function refundDailyStage(
   userId: string,
   consumptionId: string | null,
@@ -152,13 +148,13 @@ async function authorizedUser(_request: Request, requestedId: string) {
 }
 
 export async function GET(request: Request) {
-  const userId = new URL(request.url).searchParams.get("userId")?.trim();
-  if (!userId) return NextResponse.json({ ok: false, error: "شناسه کاربر لازم است." }, { status: 400 });
   if (!hasPracticeStore()) return NextResponse.json({ ok: false, error: "ذخیره‌سازی تمرین تنظیم نشده است." }, { status: 503 });
-  const auth = await authorizedUser(request, userId);
-  if (!auth || (auth.id !== userId && !auth.admin)) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
+  // Prefer authenticated session identity. Query userId is only honored for admins.
+  const requested = new URL(request.url).searchParams.get("userId")?.trim() || "";
+  const auth = await authorizedUser(request, requested);
+  if (!auth) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  const userId = auth.admin && requested ? requested : auth.id;
+  if (!userId) return NextResponse.json({ ok: false, error: "شناسه کاربر لازم است." }, { status: 400 });
   try {
     return NextResponse.json({ ok: true, ...(await getPracticeProfile(userId)) });
   } catch (error) {
