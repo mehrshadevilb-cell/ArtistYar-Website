@@ -277,3 +277,25 @@ export async function probeTelegramFileId(fileId: string): Promise<{
     };
   }
 }
+
+
+/** Ensure the plugin bot webhook is bound to the current production site on startup. */
+export async function ensurePluginWebhook(): Promise<{ ok: boolean; error?: string }> {
+  const token = resolvePluginBotToken();
+  if (!token) return { ok: false, error: "telegram_bot_token_missing" };
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\\/$/, "");
+  const explicit = String(process.env.TELEGRAM_PLUGIN_WEBHOOK_SECRET || "").trim();
+  const secret = explicit || (await import("crypto")).createHash("sha256").update("artistyar-plugin-webhook:" + token).digest("hex").slice(0, 48);
+  try {
+    const res = await fetch(TG + "/bot" + token + "/setWebhook", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: site + "/api/telegram/plugins/webhook", allowed_updates: ["channel_post", "edited_channel_post"], secret_token: secret }),
+      cache: "no-store", signal: AbortSignal.timeout(12000),
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.ok) return { ok: true };
+    return { ok: false, error: String(data?.description || "telegram_set_webhook_failed").slice(0, 240) };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message.slice(0, 240) : String(error).slice(0, 240) };
+  }
+}

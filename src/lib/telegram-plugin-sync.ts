@@ -3,6 +3,7 @@ import {
   applyVerificationToPost,
   buildVerifiedCaption,
   createReviewRequiredPost,
+  isSpecificIdentity,
 } from "@/lib/telegram-plugin-intelligence";
 import type { VerificationResult } from "@/lib/telegram-plugin-intelligence";
 
@@ -455,7 +456,7 @@ async function editCaption(chatId: string | number, messageId: number, caption: 
 
 async function findPairRows(limit: number) {
   if (!db) return [];
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const result = await db
     .from("telegram_plugin_ingest_queue")
     .select("id,channel_id,channel_username,message_id,kind,file_id,file_name,mime_type,file_size,caption,received_at,processing_at,media_group_id,thumbnail_file_id,attempt_count,last_error,next_attempt_at")
@@ -551,6 +552,7 @@ async function processPluginPairLegacy(photo: any, document: any, intelligence?:
   const intelligenceCaption = String(intelligence ? buildVerifiedCaption(intelligence) : "").trim();
   const caption = intelligenceCaption || captionFor({ ...p, title });
   if (!caption.trim()) throw new Error("plugin_caption_generation_empty");
+  const verifiedForPublication = Boolean(intelligence && intelligence.ok && intelligence.verificationStatus === "verified" && Boolean(intelligence.verifiedSourceUrl) && isSpecificIdentity(intelligence.title) && !intelligence.reviewRequired);
 
   const channelId = String(document.channel_id || photo.channel_id);
   const channelUser = String(photo.channel_username || document.channel_username || "").replace(/^@/, "") || channelHandle().replace(/^@/, "");
@@ -582,11 +584,12 @@ async function processPluginPairLegacy(photo: any, document: any, intelligence?:
     telegram_post_url: postUrl,
     ai_provider: metadata.provider,
     ai_model: metadata.model,
-    status: "published",
-    error_message: null,
-    final_caption: caption,
+    status: verifiedForPublication ? "published" : "failed",
+    error_message: verifiedForPublication ? null : "review_required:" + (intelligence?.reason || "verification_failed"),
+    final_caption: verifiedForPublication ? caption : "",
     draft_caption: caption,
-    processing_state: "PUBLISHED",
+    processing_state: verifiedForPublication ? "PUBLISHED" : "NEEDS_REVIEW",
+    review_required: !verifiedForPublication,
     updated_at: new Date().toISOString(),
   };
 
@@ -620,15 +623,20 @@ async function processPluginPairLegacy(photo: any, document: any, intelligence?:
   if (upserted.error) throw new Error("plugin_db_upsert_failed:" + upserted.error.message);
   const postId = String(upserted.data.id);
 
-  // Cover synchronization is independent from caption publication. A stale
-  // Telegram file_id must never prevent the Persian caption from reaching the channel.
   let coverError = "";
-  try {
-    const { syncPublishedPluginCover } = await import("@/lib/telegram-plugin-covers");
-    await syncPublishedPluginCover({ postId, photoFileId });
-  } catch (error) {
-    coverError = clean(error instanceof Error ? error.message : String(error), 300);
-    console.warn("telegram_plugin_cover_sync_deferred", { postId, reason: coverError });
+  if (verifiedForPublication) {
+    try {
+      const { syncPublishedPluginCover } = await import("@/lib/telegram-plugin-covers");
+      await syncPublishedPluginCover({ postId, photoFileId });
+    } catch (error) {
+      coverError = clean(error instanceof Error ? error.message : String(error), 300);
+      console.warn("telegram_plugin_cover_sync_deferred", { postId, reason: coverError });
+    }
+  }
+
+  if (!verifiedForPublication) {
+    await markQueueDone([String(photo.id), ...((Array.isArray(document.relatedDocuments) ? document.relatedDocuments : [document]).map((item: any) => String(item.id || "")).filter(Boolean))]);
+    return { id: postId, title, postUrl, cover_public_url: false, ai_provider: metadata.provider, ai_model: metadata.model, review_required: true };
   }
 
   try {
@@ -787,7 +795,7 @@ export async function refreshPublishedPluginPostFromEdit(message: TgMessage) {
 
 /**
  * ARTISTYAR_TELEGRAM_INTELLIGENCE_WRAPPER_V3
- * Publication is never gated by AI verification. The queue row shape uses flat
+ * Publication is gated by verified product identity and evidence. The queue row shape uses flat
  * file_id values, so the runtime must pass those exact IDs to vision/cover code.
  */
 export async function processPluginPair(photo: any, doc: any) {
@@ -842,7 +850,7 @@ export async function processPluginPair(photo: any, doc: any) {
   const publishable: VerificationResult = {
     ok: true,
     reviewRequired: false,
-    title: intelligence?.title || titleFromFileName(fileName) || titleFromCaption(rawCaption) || "پلاگین جدید",
+    title: intelligence?.title || titleFromFileName(fileName) || titleFromCaption(rawCaption) || "",
     developer: intelligence?.developer || "",
     version: intelligence?.version || "",
     latestOfficialVersion: intelligence?.latestOfficialVersion || "",
@@ -864,6 +872,13 @@ export async function processPluginPair(photo: any, doc: any) {
     includedProducts: intelligence?.includedProducts || [],
     fileIdentity: intelligence?.fileIdentity || { fileName, consistent: true, detail: "fallback_or_partial" },
   };
+
+  if (!publishable.title || !isSpecificIdentity(publishable.title) || publishable.verificationStatus !== "verified" || !publishable.verifiedSourceUrl || publishable.reviewRequired) {
+    const review = await createReviewRequiredPost({ channelId, photoMessageId, documentMessageId, photoFileId, documentFileId, fileName, mimeType, fileSize, rawCaption, result: publishable });
+    if (!review.ok) throw new Error("plugin_review_upsert_failed:" + String(review.error || "unknown"));
+    await markQueueDone([String(photo.id), ...((Array.isArray(doc.relatedDocuments) ? doc.relatedDocuments : [doc]).map((item: any) => String(item.id || "")).filter(Boolean))]);
+    return { id: review.id, title: publishable.title, postUrl: null, cover_public_url: false, review_required: true, intelligence: { confidence: publishable.confidence, verification_status: publishable.verificationStatus, verified_source_url: publishable.verifiedSourceUrl } };
+  }
 
   const result = await processPluginPairLegacy(photo, doc, publishable);
   const postId = String(result?.id || "");

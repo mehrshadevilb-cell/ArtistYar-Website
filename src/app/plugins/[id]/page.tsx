@@ -19,6 +19,8 @@ async function loadPlugin(id: string) {
     )
     .eq("id", id)
     .eq("status", "published")
+    .eq("review_required", false)
+    .eq("verification_status", "verified")
     .maybeSingle();
   if (result.error || !result.data) return null;
   return result.data;
