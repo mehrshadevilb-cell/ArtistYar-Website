@@ -552,7 +552,7 @@ async function processPluginPairLegacy(photo: any, document: any, intelligence?:
   const intelligenceCaption = String(intelligence ? buildVerifiedCaption(intelligence) : "").trim();
   const caption = intelligenceCaption || captionFor({ ...p, title });
   if (!caption.trim()) throw new Error("plugin_caption_generation_empty");
-  const verifiedForPublication = Boolean(intelligence && intelligence.ok && intelligence.verificationStatus === "verified" && intelligence.searchStatus === "verified" && isSpecificIdentity(intelligence.title) && !intelligence.reviewRequired);
+  const verifiedForPublication = Boolean(intelligence && intelligence.ok && intelligence.verificationStatus === "verified" && Boolean(intelligence.verifiedSourceUrl) && isSpecificIdentity(intelligence.title) && !intelligence.reviewRequired);
 
   const channelId = String(document.channel_id || photo.channel_id);
   const channelUser = String(photo.channel_username || document.channel_username || "").replace(/^@/, "") || channelHandle().replace(/^@/, "");
@@ -873,7 +873,7 @@ export async function processPluginPair(photo: any, doc: any) {
     fileIdentity: intelligence?.fileIdentity || { fileName, consistent: true, detail: "fallback_or_partial" },
   };
 
-  if (!publishable.title || !isSpecificIdentity(publishable.title) || publishable.verificationStatus !== "verified" || publishable.searchStatus !== "verified" || publishable.reviewRequired) {
+  if (!publishable.title || !isSpecificIdentity(publishable.title) || publishable.verificationStatus !== "verified" || !publishable.verifiedSourceUrl || publishable.reviewRequired) {
     const review = await createReviewRequiredPost({ channelId, photoMessageId, documentMessageId, photoFileId, documentFileId, fileName, mimeType, fileSize, rawCaption, result: publishable });
     if (!review.ok) throw new Error("plugin_review_upsert_failed:" + String(review.error || "unknown"));
     await markQueueDone([String(photo.id), ...((Array.isArray(doc.relatedDocuments) ? doc.relatedDocuments : [doc]).map((item: any) => String(item.id || "")).filter(Boolean))]);
