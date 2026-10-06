@@ -853,7 +853,7 @@ export async function applyVerificationToPost(postId: string, result: Verificati
   const store = db();
   if (!store) return { ok: false, error: "supabase_not_configured" };
 
-  const verifiedForPublication = Boolean(result.ok && result.verificationStatus === "verified" && result.searchStatus === "verified" && isSpecificIdentity(result.title) && !result.reviewRequired);
+  const verifiedForPublication = Boolean(result.ok && result.verificationStatus === "verified" && Boolean(result.verifiedSourceUrl) && isSpecificIdentity(result.title) && !result.reviewRequired);
 
   if (!verifiedForPublication) {
     const draft = buildVerifiedCaption(result) || "";
