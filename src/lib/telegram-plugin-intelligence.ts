@@ -853,6 +853,22 @@ export async function applyVerificationToPost(postId: string, result: Verificati
   const store = db();
   if (!store) return { ok: false, error: "supabase_not_configured" };
 
+  const verifiedForPublication = Boolean(result.ok && result.verificationStatus === "verified" && result.searchStatus === "verified" && isSpecificIdentity(result.title) && !result.reviewRequired);
+
+  if (!verifiedForPublication) {
+    const draft = buildVerifiedCaption(result) || "";
+    const update = await store.from("telegram_plugin_posts").update({
+      title: result.title || "نیازمند بررسی", developer: result.developer || null, version: result.version || null, category: result.category || "Unknown",
+      formats: result.formats || [], platforms: result.platforms || [], features: result.features || [], description: result.description || result.translatedCaption || "",
+      draft_caption: draft, final_caption: "", review_required: true, verification_status: result.verificationStatus || "partial", verification_confidence: result.confidence || "medium",
+      evidence: result.evidence || [], detected_language: result.detectedLanguage || "Unknown", verified_source_url: result.verifiedSourceUrl || null, verified_source_title: result.verifiedSourceTitle || null,
+      search_status: result.searchStatus || "unavailable", latest_official_version: result.latestOfficialVersion || null, product_count: result.productCount || 1, included_products: result.includedProducts || [],
+      file_identity: result.fileIdentity || {}, ai_analysis: result, processing_state: "NEEDS_REVIEW", status: "failed", error_message: "review_required:" + (result.reason || "verification_failed"), updated_at: new Date().toISOString(),
+    }).eq("id", postId);
+    if (update.error) return { ok: false, error: update.error.message };
+    return { ok: true, review_required: true, caption: draft };
+  }
+
   const caption = buildVerifiedCaption(result) || [
     `🎛️ <b>${esc(result.title || "پلاگین جدید")}</b>`,
     result.developer ? `🏢 <b>سازنده:</b> ${esc(result.developer)}` : "",
