@@ -3,6 +3,7 @@ import {
   applyVerificationToPost,
   buildVerifiedCaption,
   createReviewRequiredPost,
+  isSpecificIdentity,
 } from "@/lib/telegram-plugin-intelligence";
 import type { VerificationResult } from "@/lib/telegram-plugin-intelligence";
 
