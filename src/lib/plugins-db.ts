@@ -205,6 +205,7 @@ export async function probePluginsCatalog(): Promise<{
 /**
  * Load IDs and timestamps for all published plugin detail pages so the sitemap
  * reflects the complete public catalog instead of only the latest three cards.
+ * Must match the same verification gates as the public listing and detail page.
  */
 export async function queryPublishedPluginIdsForSitemap(limit = 50000): Promise<Array<{ id: string; updated_at: string | null; created_at: string }>> {
   const db = getPluginsDb();
@@ -220,6 +221,9 @@ export async function queryPublishedPluginIdsForSitemap(limit = 50000): Promise<
       .from("telegram_plugin_posts")
       .select("id,updated_at,created_at")
       .eq("status", "published")
+      .eq("review_required", false)
+      .eq("verification_status", "verified")
+      .not("final_caption", "is", null)
       .order("created_at", { ascending: false })
       .range(from, to);
 
