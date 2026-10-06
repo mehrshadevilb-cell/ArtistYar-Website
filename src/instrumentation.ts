@@ -1,3 +1,4 @@
+import { ensurePluginWebhook } from "@/lib/telegram-plugin-bot";
 /**
  * Production fallback for Telegram plugin queue processing.
  * Render Blueprint may also define a cron; DB claim RPCs serialize work across instances.
@@ -84,6 +85,10 @@ export async function register() {
   process.once("SIGINT", () => onShutdown("SIGINT"));
 
   timeoutHandle = setTimeout(() => scheduleRun(), 5000);
+  void ensurePluginWebhook().then((result) => {
+    if (!result.ok) console.error("telegram_plugin_webhook_self_heal_failed", result.error);
+    else console.info("telegram_plugin_webhook_self_healed");
+  });
   intervalHandle = setInterval(() => scheduleRun(), 120000);
 
   console.info("telegram_plugin_runtime_processor_started", {
