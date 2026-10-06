@@ -283,7 +283,8 @@ export async function probeTelegramFileId(fileId: string): Promise<{
 export async function ensurePluginWebhook(): Promise<{ ok: boolean; error?: string }> {
   const token = resolvePluginBotToken();
   if (!token) return { ok: false, error: "telegram_bot_token_missing" };
-  const site = (process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "");
+  const siteRaw = String(process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").trim();
+  const site = siteRaw.endsWith("/") ? siteRaw.slice(0, -1) : siteRaw;
   const explicit = String(process.env.TELEGRAM_PLUGIN_WEBHOOK_SECRET || "").trim();
   const secret = explicit || (await import("crypto")).createHash("sha256").update("artistyar-plugin-webhook:" + token).digest("hex").slice(0, 48);
   try {
