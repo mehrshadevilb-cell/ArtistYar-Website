@@ -286,7 +286,11 @@ export async function ensurePluginWebhook(): Promise<{ ok: boolean; error?: stri
   const siteRaw = String(process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").trim();
   const site = siteRaw.endsWith("/") ? siteRaw.slice(0, -1) : siteRaw;
   const explicit = String(process.env.TELEGRAM_PLUGIN_WEBHOOK_SECRET || "").trim();
-  const secret = explicit || (await import("crypto")).createHash("sha256").update("artistyar-plugin-webhook:" + token).digest("hex").slice(0, 48);
+  let secret = explicit;
+  if (!secret) {
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode("artistyar-plugin-webhook:" + token));
+    secret = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 48);
+  }
   try {
     const res = await fetch(TG + "/bot" + token + "/setWebhook", {
       method: "POST", headers: { "content-type": "application/json" },
