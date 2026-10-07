@@ -9,6 +9,9 @@ let stopped = false;
 let inFlight: Promise<void> | null = null;
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+let webhookRetryHandle: ReturnType<typeof setTimeout> | null = null;
+let webhookHealInFlight = false;
+let webhookHealSucceeded = false;
 
 function shouldRunInlineProcessor(): boolean {
   if (process.env.NEXT_RUNTIME !== "nodejs") return false;
@@ -67,14 +70,63 @@ function scheduleRun(): void {
   });
 }
 
+/**
+ * Single-flight webhook self-heal with one delayed recovery pass for transient failures.
+ * Never starts concurrent repair loops.
+ */
+async function runWebhookSelfHeal(source: "startup" | "delayed"): Promise<void> {
+  if (stopped || webhookHealSucceeded) return;
+  if (webhookHealInFlight) return;
+  webhookHealInFlight = true;
+  try {
+    const result = await ensurePluginWebhook();
+    if (result.ok) {
+      webhookHealSucceeded = true;
+      console.info("telegram_plugin_webhook_self_healed", {
+        source,
+        attempts: result.attempts,
+        verified: result.verified,
+      });
+      return;
+    }
+
+    console.error("telegram_plugin_webhook_self_heal_failed", {
+      source,
+      category: result.category || "unknown",
+      attempts: result.attempts,
+      error: result.error,
+    });
+
+    // Only schedule one delayed recovery for transient/network failures.
+    if (
+      source === "startup" &&
+      !stopped &&
+      !webhookHealSucceeded &&
+      result.category === "transient" &&
+      !webhookRetryHandle
+    ) {
+      const delayMs = 45000;
+      console.info("telegram_plugin_webhook_schedule_retry", { delayMs });
+      webhookRetryHandle = setTimeout(() => {
+        webhookRetryHandle = null;
+        void runWebhookSelfHeal("delayed");
+      }, delayMs);
+    }
+  } finally {
+    webhookHealInFlight = false;
+  }
+}
+
 function onShutdown(signal: string): void {
   if (stopped) return;
   stopped = true;
   console.info("telegram_plugin_runtime_processor_shutdown", { signal });
   if (timeoutHandle) clearTimeout(timeoutHandle);
   if (intervalHandle) clearInterval(intervalHandle);
+  if (webhookRetryHandle) clearTimeout(webhookRetryHandle);
   timeoutHandle = null;
   intervalHandle = null;
+  webhookRetryHandle = null;
 }
 
 export async function register() {
@@ -85,10 +137,7 @@ export async function register() {
   process.once("SIGINT", () => onShutdown("SIGINT"));
 
   timeoutHandle = setTimeout(() => scheduleRun(), 5000);
-  void ensurePluginWebhook().then((result) => {
-    if (!result.ok) console.error("telegram_plugin_webhook_self_heal_failed", result.error);
-    else console.info("telegram_plugin_webhook_self_healed");
-  });
+  void runWebhookSelfHeal("startup");
   intervalHandle = setInterval(() => scheduleRun(), 120000);
 
   console.info("telegram_plugin_runtime_processor_started", {
