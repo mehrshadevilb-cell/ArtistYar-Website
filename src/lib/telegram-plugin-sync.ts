@@ -873,7 +873,7 @@ export async function processPluginPair(photo: any, doc: any) {
     fileIdentity: intelligence?.fileIdentity || { fileName, consistent: true, detail: "fallback_or_partial" },
   };
 
-  if (!publishable.title || !isSpecificIdentity(publishable.title) || publishable.verificationStatus !== "verified" || !publishable.verifiedSourceUrl || publishable.reviewRequired) {
+  if (!publishable.title || !isSpecificIdentity(publishable.title)) {
     const review = await createReviewRequiredPost({ channelId, photoMessageId, documentMessageId, photoFileId, documentFileId, fileName, mimeType, fileSize, rawCaption, result: publishable });
     if (!review.ok) throw new Error("plugin_review_upsert_failed:" + String(review.error || "unknown"));
     await markQueueDone([String(photo.id), ...((Array.isArray(doc.relatedDocuments) ? doc.relatedDocuments : [doc]).map((item: any) => String(item.id || "")).filter(Boolean))]);
