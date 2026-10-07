@@ -339,23 +339,62 @@ function titleFromCaption(caption: string) {
   return value.slice(0, 160);
 }
 
+function inferVersion(fileName: string, caption: string) {
+  const text = String(fileName || "") + " " + String(caption || "");
+  const match = text.match(/\bv?([0-9]+(?:[._][0-9]+){1,3})\b/i);
+  return match ? match[1].replace(/_/g, ".") : "";
+}
+
+function inferDeveloper(title: string) {
+  const known = [
+    "Togu Audio Line", "Native Instruments", "FabFilter", "iZotope", "Arturia",
+    "Waves", "Plugin Alliance", "Soundtoys", "Valhalla DSP", "Xfer Records",
+    "u-he", "Universal Audio", "Eventide", "Softube", "Slate Digital",
+    "Output", "MeldaProduction", "Celemony", "Spectrasonics", "Synapse Audio",
+  ];
+  const lower = title.toLowerCase();
+  return known.find((name) => lower.includes(name.toLowerCase())) || "";
+}
+
+function inferCategory(title: string) {
+  const lower = title.toLowerCase();
+  if (/equalizer|\beq\b/.test(lower)) return "Equalizer";
+  if (/compressor|\bcomp\b/.test(lower)) return "Compressor";
+  if (/limiter/.test(lower)) return "Limiter";
+  if (/reverb/.test(lower)) return "Reverb";
+  if (/delay|echo/.test(lower)) return "Delay";
+  if (/synth|synthesizer|\bosci\b/.test(lower)) return "Synthesizer";
+  if (/sampler|sample/.test(lower)) return "Sampler";
+  if (/drum|drum machine/.test(lower)) return "Drum Machine";
+  if (/distortion|saturat|overdrive/.test(lower)) return "Distortion";
+  if (/chorus|flanger|phaser/.test(lower)) return "Modulation";
+  return "Audio Plugin";
+}
+
 function deterministicMetadata(fileName: string, caption: string): PluginData {
   const title = titleFromFileName(fileName) || titleFromCaption(caption) || "پلاگین جدید";
   const formats = [];
   const lower = String(fileName || "").toLowerCase();
   if (/vst3?/.test(lower)) formats.push("VST");
-  if (/component|\bau\b/.test(lower)) formats.push("AU");
+  if (/component|\\bau\\b/.test(lower)) formats.push("AU");
   if (/aaxplugin/.test(lower)) formats.push("AAX");
+  const developer = inferDeveloper(title);
+  const version = inferVersion(fileName, caption);
+  const category = inferCategory(title);
+  const description = String(caption || "").trim().slice(0, 600)
+    || (developer
+      ? "یک پلاگین صوتی از " + developer + " برای پردازش و تولید صدای حرفه‌ای؛ جزئیات از نام فایل استخراج شده است."
+      : "پلاگین صوتی " + title + "؛ مشخصات از نام فایل و اطلاعات همراه آن استخراج شده است.");
   return {
     title,
-    developer: "",
-    version: "",
-    category: "Audio Plugin",
+    developer,
+    version,
+    category,
     formats: Array.from(new Set(formats)),
     platforms: /mac|osx/i.test(lower) ? ["macOS"] : /win/i.test(lower) ? ["Windows"] : [],
-    description: String(caption || "").trim().slice(0, 600),
+    description,
     features: [],
-    tags: [],
+    tags: [category, developer].filter(Boolean),
     translatedCaption: "",
   };
 }
