@@ -336,6 +336,10 @@ function filenameDeveloper(fileName: string) {
 
 function evidenceCategory(title: string, hits: SearchHit[]) {
   const evidence = [title, ...hits.map((hit) => hit.title + " " + hit.snippet + " " + (hit.pageText || ""))].join(" ");
+  const lower = evidence.toLowerCase();
+  if (/equalizer|equaliser|\beq\b|compressor|reverb|delay|limiter|distortion|saturation|de-esser|chorus|flanger|phaser/.test(lower)) {
+    return "Effect Plugin";
+  }
   return normalizeCategory(evidence);
 }
 
