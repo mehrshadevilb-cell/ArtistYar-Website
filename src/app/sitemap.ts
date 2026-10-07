@@ -19,6 +19,7 @@ const publicRoutes: { path: string; priority: number; changeFrequency: MetadataR
   { path: "/hitnevis", priority: 0.8, changeFrequency: "weekly" },
   { path: "/gallery", priority: 0.8, changeFrequency: "weekly" },
   { path: "/plugins", priority: 0.82, changeFrequency: "daily" },
+  { path: "/practice", priority: 0.78, changeFrequency: "weekly" },
   { path: "/about", priority: 0.75, changeFrequency: "monthly" },
   { path: "/contact", priority: 0.7, changeFrequency: "monthly" },
   { path: "/faq", priority: 0.72, changeFrequency: "monthly" },
@@ -38,7 +39,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date();
   const [catalog, pluginRows] = await Promise.all([getCatalog(), queryPublishedPluginIdsForSitemap()]);
   const packageRoutes = catalog.items.filter((item) => item.is_active !== false).map((item) => ({
-    url: `${baseUrl}/courses/${slugify(item.title)}`,
+    // encodeURIComponent required for Persian (and any non-ASCII) slugs so <loc> is valid
+    // and crawlers do not 308 to garbage percent-decoded paths.
+    url: `${baseUrl}/courses/${encodeURIComponent(slugify(item.title))}`,
     lastModified,
     changeFrequency: "weekly" as const,
     priority: 0.92,
