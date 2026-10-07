@@ -40,7 +40,8 @@ export function getPluginsDb(): SupabaseClient | null {
     cached = null;
     return null;
   }
-  const timeoutMs = 8000;
+  // 12s balances Render cold-start / Supabase latency without hanging requests.
+  const timeoutMs = 12000;
   const resilientFetch: typeof fetch = async (input, init) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
