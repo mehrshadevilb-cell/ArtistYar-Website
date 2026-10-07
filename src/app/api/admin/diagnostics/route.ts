@@ -13,6 +13,14 @@ export async function GET() {
   const sessionCookie = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value;
   const session = verifyAdminSession(sessionCookie);
 
+  // Fail closed: anonymous callers must not learn backend URL, AI provider IDs, or secret presence.
+  if (!session) {
+    return NextResponse.json(
+      { ok: false, error: "unauthorized", message: "Admin session required" },
+      { status: 401 },
+    );
+  }
+
   const checks: Array<{
     id: string;
     label: string;
@@ -23,10 +31,8 @@ export async function GET() {
   checks.push({
     id: "admin_session",
     label: "نشست ادمین",
-    ok: Boolean(session),
-    detail: session
-      ? `وارد شده به عنوان ${session.username}`
-      : "وارد نشده — از /login با ARTISTYAR_ADMIN_USERNAME وارد شو",
+    ok: true,
+    detail: `وارد شده به عنوان ${session.username}`,
   });
 
   const adminUser = Boolean((process.env.ARTISTYAR_ADMIN_USERNAME || "").trim());
