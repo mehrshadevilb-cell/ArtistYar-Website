@@ -70,6 +70,32 @@ function scheduleRun(): void {
   });
 }
 
+async function runWebhookWatchdog(): Promise<void> {
+  if (stopped || webhookHealInFlight) return;
+  try {
+    const { getPluginWebhookInfo } = await import("@/lib/telegram-plugin-bot");
+    const info = await getPluginWebhookInfo();
+    const pending = Number(info?.pending_update_count || 0);
+    const lastError = String(info?.last_error_message || "").trim();
+    const webhookUrl = String(info?.url || "");
+    const expected =
+      String(process.env.NEXT_PUBLIC_SITE_URL || "https://artistyaar.ir").replace(/\/$/, "") +
+      "/api/telegram/plugins/webhook";
+    const healthy = webhookUrl === expected && !lastError;
+    console.info("telegram_plugin_webhook_watchdog", {
+      healthy,
+      pending_updates: pending,
+      has_last_error: Boolean(lastError),
+      expected_url_match: webhookUrl === expected,
+    });
+    if (!healthy) await runWebhookSelfHeal("delayed");
+  } catch (error) {
+    console.error("telegram_plugin_webhook_watchdog_failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 /**
  * Single-flight webhook self-heal with one delayed recovery pass for transient failures.
  * Never starts concurrent repair loops.
@@ -138,7 +164,10 @@ export async function register() {
 
   timeoutHandle = setTimeout(() => scheduleRun(), 5000);
   void runWebhookSelfHeal("startup");
-  intervalHandle = setInterval(() => scheduleRun(), 120000);
+  intervalHandle = setInterval(() => {
+    scheduleRun();
+    void runWebhookWatchdog();
+  }, 120000);
 
   console.info("telegram_plugin_runtime_processor_started", {
     intervalMs: 120000,
