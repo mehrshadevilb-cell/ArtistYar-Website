@@ -5,6 +5,7 @@ import { publishPluginCaption } from "@/lib/telegram-plugin-caption";
 
 const TG = "https://api.telegram.org";
 const SEARCH_CACHE_TTL = 1000 * 60 * 60 * 12;
+const VERIFICATION_CACHE_VERSION = "2026-10-07-quality-v2";
 const MAX_SEARCH_QUERIES = 3;
 const MAX_REANALYSIS = 2;
 
@@ -187,6 +188,7 @@ function deterministicCandidate(caption: string, fileName: string): Candidate {
   const version = explicitVersion(caption) || explicitVersion(fileName);
   return {
     title,
+    developer: filenameDeveloper(fileName),
     version,
     category: normalizeCategory(
       /ableton live|fl studio|cubase|logic pro|studio one|bitwig|reaper|pro tools|reason/i.test(title) ? "DAW" :
@@ -318,7 +320,43 @@ function officialRank(url: string, developer: string) {
 }
 
 function cacheKey(title: string, developer: string, version: string) {
-  return [title, developer, version].map((x) => normalizeIdentity(x)).join("|");
+  return [VERIFICATION_CACHE_VERSION, title, developer, version].map((x) => normalizeIdentity(x)).join("|");
+}
+
+function filenameDeveloper(fileName: string) {
+  const known = [
+    "PSPaudioware", "Togu Audio Line", "Native Instruments", "FabFilter", "iZotope",
+    "Arturia", "Waves", "Plugin Alliance", "Soundtoys", "Valhalla DSP", "Xfer Records",
+    "u-he", "Universal Audio", "Eventide", "Softube", "Slate Digital", "Output",
+    "MeldaProduction", "Celemony", "Spectrasonics", "Synapse Audio",
+  ];
+  const normalized = normalizeIdentity(fileName);
+  return known.find((name) => normalized.includes(normalizeIdentity(name))) || "";
+}
+
+function evidenceCategory(title: string, hits: SearchHit[]) {
+  const evidence = [title, ...hits.map((hit) => hit.title + " " + hit.snippet + " " + (hit.pageText || ""))].join(" ");
+  const lower = evidence.toLowerCase();
+  if (/equalizer|equaliser|\beq\b|compressor|reverb|delay|limiter|distortion|saturation|de-esser|chorus|flanger|phaser/.test(lower)) {
+    return "Effect Plugin";
+  }
+  return normalizeCategory(evidence);
+}
+
+function genericDescription(value: string) {
+  return !value || /^(?:معرفی محصول صوتی|پلاگین صوتی|یک پلاگین صوتی|audio plugin|audio product)$/i.test(clean(value, 220));
+}
+
+function fallbackDescription(title: string, category: string, developer: string) {
+  const name = clean(title, 160);
+  const maker = developer ? " از " + clean(developer, 120) : "";
+  if (/effect plugin/i.test(category)) return name + " یک پلاگین افکت صوتی" + maker + " برای پردازش و شکل‌دهی صداست.";
+  if (/synth/i.test(category)) return name + " یک سینتی‌سایزر نرم‌افزاری" + maker + " برای ساخت و طراحی صداست.";
+  if (/instrument/i.test(category)) return name + " یک ساز مجازی" + maker + " برای تولید و اجرای صداست.";
+  if (/sampler/i.test(category)) return name + " یک سامپلر نرم‌افزاری" + maker + " برای اجرای نمونه‌ها و کتابخانه‌های صوتی است.";
+  if (/sample pack|preset pack|sound library/i.test(category)) return name + " یک مجموعه صوتی برای استفاده در تولید و طراحی صداست.";
+  if (/daw/i.test(category)) return name + " یک نرم‌افزار DAW برای تولید و ویرایش پروژه‌های صوتی است.";
+  return name + " یک محصول نرم‌افزاری صوتی" + maker + " برای استفاده در تولید، میکس یا مسترینگ است.";
 }
 
 async function fetchSourcePage(hit: SearchHit): Promise<SearchHit> {
@@ -629,9 +667,9 @@ Return JSON only:
   }
 
   const finalTitle = clean(verified.title, 160);
-  const finalDeveloper = clean(verified.developer, 120);
+  const finalDeveloper = clean(verified.developer, 120) || filenameDeveloper(fileName);
   const finalVersion = clean(verified.version, 80);
-  const finalCategory = normalizeCategory(verified.category) || "Unknown";
+  const finalCategory = normalizeCategory(verified.category) || evidenceCategory(finalTitle, ranked) || "Unknown";
   const productCount = Math.max(1, Number(verified.product_count || 1) || 1);
   const includedProducts = safeArray(verified.included_products, 20);
   const titleRefs = Array.isArray(verified?.evidence_refs?.title) ? verified.evidence_refs.title.map(String) : [];
@@ -682,7 +720,10 @@ Return JSON only:
     ranked.some((hit, index) => latestVersionRefs.some((ref: string) => ref === "source:" + (index + 1)) && (hit.pageText || hit.snippet).includes(latestCandidate))
   );
   const sourceUrl = clean(verified.source_url || authoritative?.url, 500);
-  const description = qualityCaptionText(verified.description_fa);
+  const rawDescription = qualityCaptionText(verified.description_fa);
+  const description = genericDescription(rawDescription)
+    ? fallbackDescription(finalTitle, finalCategory, finalDeveloper)
+    : rawDescription;
   const translatedCaption = qualityCaptionText(verified.translated_caption_fa);
   const features = safeArray(verified.features, 8);
   const formats = safeArray(verified.formats, 8);
@@ -697,9 +738,13 @@ Return JSON only:
     (!features.length || featureRefs.length > 0)
   );
   const ok = Boolean(
+    titleSupported &&
     isSpecificIdentity(finalTitle) &&
-    (finalCategory !== "Unknown" || isSpecificIdentity(finalTitle)) &&
-    (description || translatedCaption || finalTitle)
+    finalCategory !== "Unknown" &&
+    groundedFields &&
+    (!finalVersion || versionSupported) &&
+    !candidateConflict.includes("title") &&
+    (description || translatedCaption)
   );
 
   const result: VerificationResult = {
