@@ -41,6 +41,12 @@ function svgResponse(title?: string | null): NextResponse {
   });
 }
 
+function isTransientDbError(message: string): boolean {
+  return /AbortError|aborted|timeout|timed out|fetch failed|Failed to fetch|ECONNREFUSED|ENOTFOUND|ECONNRESET|network|socket|503|502|504/i.test(
+    message,
+  );
+}
+
 /**
  * Telegram is the canonical source for plugin covers.
  * Supabase Storage is deliberately not used for plugin media.
@@ -48,22 +54,62 @@ function svgResponse(title?: string | null): NextResponse {
  * and log the real cause server-side (never leak internals to clients).
  */
 export async function GET(request: Request) {
+  const correlationId = `img-${Date.now().toString(36)}`;
   const fileId = String(new URL(request.url).searchParams.get("file_id") || "").trim();
   if (!fileId) return NextResponse.json({ error: "file_id_required" }, { status: 400 });
 
   const db = getPluginsDb();
   if (!db) return NextResponse.json({ error: "supabase_not_configured" }, { status: 503 });
 
-  const known = await db
-    .from("telegram_plugin_posts")
-    .select("id,title")
-    .eq("status", "published")
-    .eq("telegram_photo_file_id", fileId)
-    .limit(1)
-    .maybeSingle();
+  // Bounded retry only for transient network/abort failures (not auth/schema).
+  const maxLookupAttempts = 3;
+  let known: { data: { id: string; title: string | null } | null; error: { message: string } | null } = {
+    data: null,
+    error: null,
+  };
+
+  for (let attempt = 1; attempt <= maxLookupAttempts; attempt++) {
+    const started = Date.now();
+    const result = await db
+      .from("telegram_plugin_posts")
+      .select("id,title")
+      .eq("status", "published")
+      .eq("telegram_photo_file_id", fileId)
+      .limit(1)
+      .maybeSingle();
+
+    known = result as typeof known;
+    const durationMs = Date.now() - started;
+
+    if (!known.error) break;
+
+    const detail = known.error.message || String(known.error);
+    if (!isTransientDbError(detail) || attempt >= maxLookupAttempts) {
+      console.error("plugin_image_lookup_failed", {
+        correlationId,
+        attempt,
+        durationMs,
+        error: detail.slice(0, 200),
+      });
+      return NextResponse.json({ error: "image_lookup_failed" }, { status: 503 });
+    }
+
+    const waitMs = 250 * attempt;
+    console.warn("plugin_image_db_retry", {
+      correlationId,
+      attempt,
+      durationMs,
+      waitMs,
+      error: detail.slice(0, 120),
+    });
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
 
   if (known.error) {
-    console.error("plugin_image_lookup_failed", known.error.message);
+    console.error("plugin_image_lookup_failed", {
+      correlationId,
+      error: known.error.message?.slice(0, 200),
+    });
     return NextResponse.json({ error: "image_lookup_failed" }, { status: 503 });
   }
   if (!known.data) {
@@ -80,7 +126,11 @@ export async function GET(request: Request) {
     const body = upstream.body as Buffer;
 
     if (!Buffer.isBuffer(body) || body.length < 256) {
-      console.warn("plugin_image_empty", { post_id: known.data.id, fileId: fileId.slice(0, 24) });
+      console.warn("plugin_image_empty", {
+        correlationId,
+        post_id: known.data.id,
+        fileId: fileId.slice(0, 24),
+      });
       return svgResponse(known.data.title);
     }
 
@@ -96,16 +146,23 @@ export async function GET(request: Request) {
     // Deleted/expired Telegram media is a normal state — serve branded fallback.
     if (/not found|404|file_id/i.test(detail)) {
       console.warn("plugin_image_telegram_unavailable", {
+        correlationId,
         post_id: known.data.id,
         detail: detail.slice(0, 200),
       });
       return svgResponse(known.data.title);
     }
     if (/telegram_bot_token_missing|unauthorized|401/i.test(detail)) {
-      console.error("plugin_image_bot_config", detail.slice(0, 200));
+      console.error("plugin_image_bot_config", {
+        correlationId,
+        detail: detail.slice(0, 200),
+      });
       return NextResponse.json({ error: "telegram_cover_configuration_error" }, { status: 503 });
     }
-    console.error("plugin_image_bot_failed", detail.slice(0, 300));
+    console.error("plugin_image_telegram_failure", {
+      correlationId,
+      detail: detail.slice(0, 300),
+    });
     return svgResponse(known.data.title);
   }
 }
