@@ -387,11 +387,25 @@ export async function ensurePluginWebhook(): Promise<EnsurePluginWebhookResult> 
           const info = await infoRes.json().catch(() => null);
           if (infoRes.ok && info?.ok && info.result) {
             const configuredUrl = String(info.result.url || "");
+            const pendingUpdates = Number(info.result.pending_update_count || 0);
+            const lastErrorMessage = String(info.result.last_error_message || "").slice(0, 240);
+            const lastErrorDate = Number(info.result.last_error_date || 0);
             verified = configuredUrl === webhookUrl || configuredUrl.startsWith(site + "/");
-            if (!verified) {
-              console.warn("telegram_plugin_webhook_verify_mismatch", {
+            console.info("telegram_plugin_webhook_state", {
+              attempt,
+              durationMs,
+              verified,
+              pending_updates: pendingUpdates,
+              has_last_error: Boolean(lastErrorMessage),
+              last_error_date: lastErrorDate || null,
+              has_url: Boolean(configuredUrl),
+            });
+            if (!verified || lastErrorMessage) {
+              console.warn("telegram_plugin_webhook_verify_problem", {
                 attempt,
-                durationMs,
+                pending_updates: pendingUpdates,
+                has_last_error: Boolean(lastErrorMessage),
+                last_error_date: lastErrorDate || null,
                 has_url: Boolean(configuredUrl),
               });
             }
