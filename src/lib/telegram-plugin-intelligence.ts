@@ -754,8 +754,8 @@ Return JSON only:
   const result: VerificationResult = {
     ok,
     reviewRequired: !ok,
-    title: titleSupported ? finalTitle : "",
-    developer: developerSupported ? finalDeveloper : "",
+    title: identitySupported ? finalTitle : "",
+    developer: finalDeveloper,
     version: versionSupported ? finalVersion : "",
     latestOfficialVersion: latestSupported ? latestCandidate : "",
     productCount,
