@@ -320,6 +320,21 @@ function classifyWebhookError(
  * Retries transient network/Telegram failures with bounded exponential backoff.
  * Never logs tokens or secrets.
  */
+export async function getPluginWebhookInfo(): Promise<Record<string, any>> {
+  const token = resolvePluginBotToken();
+  if (!token) throw new Error("telegram_bot_token_missing");
+  const res = await fetch(TG + "/bot" + token + "/getWebhookInfo", {
+    method: "GET",
+    cache: "no-store",
+    signal: AbortSignal.timeout(10000),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.ok) {
+    throw new Error(String(data?.description || "telegram_get_webhook_info_failed").slice(0, 240));
+  }
+  return data.result || {};
+}
+
 export async function ensurePluginWebhook(): Promise<EnsurePluginWebhookResult> {
   const token = resolvePluginBotToken();
   if (!token) {
