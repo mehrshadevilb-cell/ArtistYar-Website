@@ -337,7 +337,7 @@ function filenameDeveloper(fileName: string) {
 function evidenceCategory(title: string, hits: SearchHit[]) {
   const evidence = [title, ...hits.map((hit) => hit.title + " " + hit.snippet + " " + (hit.pageText || ""))].join(" ");
   const lower = evidence.toLowerCase();
-  if (/equalizer|equaliser|\beq\b|compressor|reverb|delay|limiter|distortion|saturation|de-esser|chorus|flanger|phaser/.test(lower)) {
+  if (/equalizer|equaliser|\beq\b|compressor|reverb|delay|limiter|distortion|saturation|de-esser|chorus|flanger|phaser|retroq|classicq|consoleq|nobleq|masterq|\bmcq\b|preqursor|\be27\b/.test(lower)) {
     return "Effect Plugin";
   }
   return normalizeCategory(evidence);
@@ -669,7 +669,8 @@ Return JSON only:
   const finalTitle = clean(verified.title, 160);
   const finalDeveloper = clean(verified.developer, 120) || filenameDeveloper(fileName);
   const finalVersion = clean(verified.version, 80);
-  const finalCategory = normalizeCategory(verified.category) || evidenceCategory(finalTitle, ranked) || "Unknown";
+  const evidenceCategoryValue = evidenceCategory(finalTitle, ranked);
+  const finalCategory = evidenceCategoryValue || normalizeCategory(verified.category) || "Unknown";
   const productCount = Math.max(1, Number(verified.product_count || 1) || 1);
   const includedProducts = safeArray(verified.included_products, 20);
   const titleRefs = Array.isArray(verified?.evidence_refs?.title) ? verified.evidence_refs.title.map(String) : [];
@@ -730,15 +731,18 @@ Return JSON only:
   const platforms = safeArray(verified.platforms, 6);
   const candidateConflict = fieldConflicts(sourceCandidates);
   const multipleProductsUnclear = productCount > 1 && includedProducts.length < 2;
+  const categoryGrounded = categoryRefs.length > 0 || Boolean(evidenceCategoryValue);
+  const descriptionGrounded = !description || descriptionRefs.length > 0 || genericDescription(rawDescription);
   const groundedFields = Boolean(
-    (finalCategory === "Unknown" || categoryRefs.length > 0) &&
-    (!description || descriptionRefs.length > 0) &&
+    (finalCategory === "Unknown" || categoryGrounded) &&
+    descriptionGrounded &&
     (!formats.length || formatRefs.length > 0) &&
     (!platforms.length || platformRefs.length > 0) &&
     (!features.length || featureRefs.length > 0)
   );
+  const identitySupported = candidateTitleMatch || normalizeIdentity(finalTitle) === normalizeIdentity(filenameTitle(fileName));
   const ok = Boolean(
-    titleSupported &&
+    identitySupported &&
     isSpecificIdentity(finalTitle) &&
     finalCategory !== "Unknown" &&
     groundedFields &&
