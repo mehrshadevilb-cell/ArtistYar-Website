@@ -1,5 +1,4 @@
-import { ensurePluginWebhook } from "@/lib/telegram-plugin-bot";
-import { getPluginWebhookInfo } from "@/lib/telegram-plugin-sync";
+import { ensurePluginWebhook, getPluginWebhookInfo } from "@/lib/telegram-plugin-bot";
 /**
  * Production fallback for Telegram plugin queue processing.
  * Render Blueprint may also define a cron; DB claim RPCs serialize work across instances.
