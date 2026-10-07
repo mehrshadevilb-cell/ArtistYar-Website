@@ -1,4 +1,5 @@
 import { ensurePluginWebhook } from "@/lib/telegram-plugin-bot";
+import { getPluginWebhookInfo } from "@/lib/telegram-plugin-sync";
 /**
  * Production fallback for Telegram plugin queue processing.
  * Render Blueprint may also define a cron; DB claim RPCs serialize work across instances.
@@ -73,7 +74,6 @@ function scheduleRun(): void {
 async function runWebhookWatchdog(): Promise<void> {
   if (stopped || webhookHealInFlight) return;
   try {
-    const { getPluginWebhookInfo } = await import("@/lib/telegram-plugin-bot");
     const info = await getPluginWebhookInfo();
     const pending = Number(info?.pending_update_count || 0);
     const lastError = String(info?.last_error_message || "").trim();
