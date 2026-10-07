@@ -56,6 +56,13 @@ writeFileSync(intelligencePath, intelligence);
 
 let sync = readFileSync(syncPath, "utf8");
 
+// Web/official-source verification is enrichment only. A valid product identity
+// from Telegram filename/caption/image must still reach caption publication.
+sync = sync.replace(
+  /if \(!publishable\.title \|\| !isSpecificIdentity\(publishable\.title\) \|\| publishable\.verificationStatus !== "verified" \|\| !publishable\.verifiedSourceUrl \|\| publishable\.reviewRequired\) \{/,
+  'if (!publishable.title || !isSpecificIdentity(publishable.title)) {'
+);
+
 // Covers are served directly from Telegram using the bot file_id. No plugin
 // binary or cover is uploaded to Supabase Storage.
 sync = sync.replace(
